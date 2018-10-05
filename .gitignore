@@ -34,3 +34,6 @@
 # Build Directories
 build
 cmake-*
+
+# Models directory
+models
