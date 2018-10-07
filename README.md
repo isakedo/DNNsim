@@ -14,5 +14,7 @@ We need to load the models for (add if I am missing something):
 Current python simulator for Bit-Pragmatic is under: 
 *   /aenao-99/delmasl1/cnvlutin-PRA/MIsim/functionalSerial.py
 *   /aenao-99/delmasl1/cnvlutin-PRA/MIsim/testSystem.py
+
+
 The library to read numpy array:
 https://github.com/rogersce/cnpy
