@@ -21,8 +21,8 @@ namespace core {
          * @param _stride   Stride
          * @param _padding  Padding
          */
-        ConvolutionalLayer(const std::string &_name, const std::string &_input, uint16_t _Nn, uint16_t _Kx,
-              uint16_t _Ky, uint16_t _stride, uint16_t _padding) : Layer(_name,_input,_Nn,_Kx,_Ky,_stride,_padding) {}
+        ConvolutionalLayer(const std::string &_name, const std::string &_input, int _Nn, int _Kx, int _Ky, int _stride,
+            int _padding) : Layer(_name,_input,_Nn,_Kx,_Ky,_stride,_padding) {}
 
         /* Compute the time for this layer */
         void compute() override;

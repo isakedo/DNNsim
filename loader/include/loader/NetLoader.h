@@ -1,12 +1,14 @@
 #ifndef DNNSIM_NETLOADER_H
 #define DNNSIM_NETLOADER_H
 
-#include <string>
 #include <core/Network.h>
 #include <core/Layer.h>
 #include <core/ConvolutionalLayer.h>
 #include <core/FullyConnectedLayer.h>
 
+#include <string>
+#include <fstream>
+#include <sstream>
 
 namespace loader {
 

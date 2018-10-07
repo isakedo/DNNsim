@@ -16,19 +16,19 @@ namespace core {
         std::string input;
 
         /* Number of filters */
-        uint16_t Nn;
+        int Nn;
 
         /* Filters X size */
-        uint16_t Kx;
+        int Kx;
 
         /* Filters Y size */
-        uint16_t Ky;
+        int Ky;
 
         /* Stride */
-        uint16_t stride;
+        int stride;
 
         /* Padding */
-        uint16_t padding;
+        int padding;
 
         //Activations and weights not yet
 
@@ -43,8 +43,8 @@ namespace core {
          * @param _stride   Stride
          * @param _padding  Padding
          */
-        Layer(const std::string &_name, const std::string &_input, uint16_t _Nn, uint16_t _Kx, uint16_t _Ky,
-              uint16_t _stride, uint16_t _padding) : Nn(_Nn), Kx(_Kx), Ky(_Ky), stride(_stride), padding(_padding)
+        Layer(const std::string &_name, const std::string &_input, int _Nn, int _Kx, int _Ky,
+              int _stride, int _padding) : Nn(_Nn), Kx(_Kx), Ky(_Ky), stride(_stride), padding(_padding)
               { name = _name; input = _input; }
 
          /* Getters */
@@ -56,23 +56,23 @@ namespace core {
             return input;
         }
 
-        uint16_t getNn() const {
+        int getNn() const {
             return Nn;
         }
 
-        uint16_t getKx() const {
+        int getKx() const {
             return Kx;
         }
 
-        uint16_t getKy() const {
+        int getKy() const {
             return Ky;
         }
 
-        uint16_t getStride() const {
+        int getStride() const {
             return stride;
         }
 
-        uint16_t getPadding() const {
+        int getPadding() const {
             return padding;
         }
 
