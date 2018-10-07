@@ -18,3 +18,7 @@ Current python simulator for Bit-Pragmatic is under:
 
 The library to read numpy array:
 https://github.com/rogersce/cnpy
+* /To compile:   g++ -o exp1 example1.cpp -L/home/ali/build -lcnpy -lz --std=c++11
+
+* /To run:   LD_LIBRARY_PATH=/home/ali/build:$LD_LIBRARY_PATH ./exp1
+
