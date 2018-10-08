@@ -11,9 +11,14 @@ int main()
     //load it into a new array
 	vector<size_t> shape;
 	cnpy::NpyArray arr;
-    cnpy::npy_load("/home/omar/Desktop/UofT_files/simulator/net_traces/bvlc_alexnet/act-conv1-0.npy", arr, shape);
+    cnpy::npy_load("/home/isak/DNNsim/loader/bvlc_alexnet/act-conv1-0.npy", arr, shape);
     float* loaded_data = arr.data<float>();
-    cout<<loaded_data[0] << endl;
+    int i = 0;
+    int j = 2;
+    int k = 150;
+    int l = 132;
+    long index = shape[1]*shape[2]*shape[3]*i + shape[2]*shape[3]*j + shape[3]*k + l;
+    cout<<loaded_data[index] << endl;
     cout<<shape[0]<<", "<<shape[1]<<", "<<shape[2]<<", "<<shape[3] << endl;
 
     //append the same data to file
