@@ -28,6 +28,6 @@ namespace core {
         void compute() override;
     };
 
-};
+}
 
 #endif //DNNSIM_FULLYCONNECTEDLAYER_H

@@ -34,5 +34,5 @@ namespace loader {
         return new core::Network(this->name,vec);
     }
 
-};
+}
 

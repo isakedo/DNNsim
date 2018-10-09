@@ -7,5 +7,5 @@ namespace core {
         printf("Fully Connected Layer computation!\n");
     }
 
-};
+}
 

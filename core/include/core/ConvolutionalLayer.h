@@ -29,6 +29,6 @@ namespace core {
 
     };
 
-};
+}
 
 #endif //DNNSIM_CONVOLUTIONALLAYER_H

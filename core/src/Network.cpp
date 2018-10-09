@@ -17,5 +17,5 @@ namespace core {
         return layers;
     }
 
-};
+}
 

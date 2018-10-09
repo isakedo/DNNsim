@@ -7,5 +7,5 @@ namespace core {
         printf("Convolutional computation!\n");
     }
 
-};
+}
 

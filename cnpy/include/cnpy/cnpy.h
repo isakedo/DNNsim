@@ -1,5 +1,6 @@
-#ifndef LIBCNPY_H_
-#define LIBCNPY_H_
+#ifndef DNNSIM_CNPY_H
+#define DNNSIM_CNPY_H
+
 
 #include<string>
 #include<stdexcept>
@@ -19,12 +20,12 @@ namespace cnpy {
 
     struct NpyArray {
         NpyArray(const std::vector<size_t>& _shape, size_t _word_size, bool _fortran_order) :
-            shape(_shape), word_size(_word_size), fortran_order(_fortran_order)
+                shape(_shape), word_size(_word_size), fortran_order(_fortran_order)
         {
             num_vals = 1;
             for(size_t i = 0;i < shape.size();i++) num_vals *= shape[i];
             data_holder = std::shared_ptr<std::vector<char>>(
-                new std::vector<char>(num_vals * word_size));
+                    new std::vector<char>(num_vals * word_size));
         }
 
         NpyArray() : shape(0), word_size(0), fortran_order(0), num_vals(0) { }
@@ -157,7 +158,6 @@ namespace cnpy {
         return header;
     }
 
-
 }
 
-#endif
+#endif //DNNSIM_CNPY_H

@@ -5,6 +5,8 @@ project(
         LANGUAGES CXX
 )
 
+# Add the math library
+add_subdirectory(cnpy)
 # Add the core library
 add_subdirectory(core)
 # Add library for load the inputs
@@ -21,6 +23,7 @@ add_executable(
 
 target_link_libraries(
         ${PROJECT_NAME}
+        PRIVATE cnpy
         PRIVATE core
         PRIVATE loader
 )

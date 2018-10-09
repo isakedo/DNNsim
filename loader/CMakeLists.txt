@@ -9,7 +9,9 @@ project(
 add_library(
         ${PROJECT_NAME}
         include/loader/NetLoader.h
+        include/loader/NumpyLoader.h
         src/NetLoader.cpp
+        src/NumpyLoader.cpp
 )
 
 target_include_directories(
@@ -19,6 +21,7 @@ target_include_directories(
 
 target_link_libraries(
         ${PROJECT_NAME}
+        PRIVATE cnpy
         PRIVATE core
 )
 

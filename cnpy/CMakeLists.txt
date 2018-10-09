@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 project(
-        core
+        cnpy
         VERSION 0.0.1
         LANGUAGES CXX
 )
@@ -8,24 +8,14 @@ project(
 # Create library
 add_library(
         ${PROJECT_NAME}
-        include/core/Layer.h
-        include/core/ConvolutionalLayer.h
-        include/core/FullyConnectedLayer.h
-        include/core/Network.h
-        src/ConvolutionalLayer.cpp
-        src/FullyConnectedLayer.cpp
-        src/Network.cpp
-)
+        include/cnpy/cnpy.h
+        include/cnpy/NumpyArray.h
+        src/cnpy.cpp
+        src/NumpyArray.cpp)
 
 target_include_directories(
         ${PROJECT_NAME}
         PUBLIC include/
-)
-
-
-target_link_libraries(
-        ${PROJECT_NAME}
-        PRIVATE cnpy
 )
 
 set_target_properties(
