@@ -1,5 +1,18 @@
 # DNNsim
 
+Structure:
+*   cnpy:
+    *   cnpy: library to read Numpy arrays
+    *   NumpyArray: class to store and operate with numpy arrays
+*   core:
+    *   Network: class to store the network
+    *   Layer: common class to store the layer of the network
+    *   ConvolutionalLayer: children class for Convolutional layers
+    *   FullyConnectedLayer: children class for Fully Connected layers
+*   loader:
+    *   NetLoader: class to load the trace file and create a network
+    *   NumpyLoader: class to load numpy arrays. Store weights, activations and outputs activations into the network
+
 Gitignore is set up for CLion IDE, if you want to use other add their project files to gitignore. 
 No problems if the command line is used.
 
@@ -15,10 +28,4 @@ Current python simulator for Bit-Pragmatic is under:
 *   /aenao-99/delmasl1/cnvlutin-PRA/MIsim/functionalSerial.py
 *   /aenao-99/delmasl1/cnvlutin-PRA/MIsim/testSystem.py
 
-
-The library to read numpy array:
-https://github.com/rogersce/cnpy
-* To compile:   g++ -o exp1 example1.cpp -L/home/ali/build -lcnpy -lz --std=c++11
-
-* To run:   LD_LIBRARY_PATH=/home/ali/build:$LD_LIBRARY_PATH ./exp1
 

@@ -10,12 +10,12 @@
 
 namespace cnpy {
 
-    char cnpy::BigEndianTest() {
+    char BigEndianTest() {
         int x = 1;
         return (((char *) &x)[0]) ? '<' : '>';
     }
 
-    char cnpy::map_type(const std::type_info &t) {
+    char map_type(const std::type_info &t) {
         if (t == typeid(float)) return 'f';
         if (t == typeid(double)) return 'f';
         if (t == typeid(long double)) return 'f';
@@ -42,13 +42,13 @@ namespace cnpy {
     }
 
     template<>
-    std::vector<char> &cnpy::operator+=(std::vector<char> &lhs, const std::string rhs) {
+    std::vector<char> &operator+=(std::vector<char> &lhs, const std::string rhs) {
         lhs.insert(lhs.end(), rhs.begin(), rhs.end());
         return lhs;
     }
 
     template<>
-    std::vector<char> &cnpy::operator+=(std::vector<char> &lhs, const char *rhs) {
+    std::vector<char> &operator+=(std::vector<char> &lhs, const char *rhs) {
         //write in little endian
         size_t len = strlen(rhs);
         lhs.reserve(len);
@@ -58,7 +58,7 @@ namespace cnpy {
         return lhs;
     }
 
-    void cnpy::parse_npy_header(FILE *fp, size_t &word_size, std::vector<size_t> &shape, bool &fortran_order) {
+    void parse_npy_header(FILE *fp, size_t &word_size, std::vector<size_t> &shape, bool &fortran_order) {
         char buffer[256];
         size_t res = fread(buffer, sizeof(char), 11, fp);
         if (res != 11)
@@ -110,7 +110,7 @@ namespace cnpy {
     }
 
 
-    cnpy::NpyArray load_the_npy_file(FILE *fp, std::vector<size_t> &shape) {
+    NpyArray load_the_npy_file(FILE *fp, std::vector<size_t> &shape) {
         size_t word_size;
         bool fortran_order;
         cnpy::parse_npy_header(fp, word_size, shape, fortran_order);
@@ -121,7 +121,7 @@ namespace cnpy {
         return arr;
     }
 
-    void cnpy::npy_load(std::string fname, NpyArray &array, std::vector<size_t> &shape) {
+    void npy_load(std::string fname, NpyArray &array, std::vector<size_t> &shape) {
 
         FILE *fp = fopen(fname.c_str(), "rb");
         if (!fp) throw std::runtime_error("npy_load: Unable to open file " + fname);

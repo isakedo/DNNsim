@@ -19,9 +19,6 @@ namespace cnpy {
 
     public:
 
-        /* Destructor */
-        ~NumpyArray() { delete data; }
-
         /* Read the numpy array from the npy file, copy the direction, and set the size
          * @param path  Path to the numpy file with extension .npy
          */
