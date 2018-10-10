@@ -1,17 +1,19 @@
 # DNNsim
 
 Structure:
-*   cnpy:
+*   **cnpy**: Folder for supporting math libraries
     *   cnpy: library to read Numpy arrays
     *   NumpyArray: class to store and operate with numpy arrays
-*   core:
+*   **core**: Folder for the main classes of the simulator
     *   Network: class to store the network
     *   Layer: common class to store the layer of the network
     *   ConvolutionalLayer: children class for Convolutional layers
     *   FullyConnectedLayer: children class for Fully Connected layers
-*   loader:
-    *   NetLoader: class to load the trace file and create a network
-    *   NumpyLoader: class to load numpy arrays. Store weights, activations and outputs activations into the network
+*   **interface**: Folder to interface with input/output operations
+    *   NetReader: class to read and load a network using different formats
+    *   NetWriter: class to write and dump a network using different formats
+    * proto: Folder for protobuf definition
+        * example.proto ...
 
 Gitignore is set up for CLion IDE, if you want to use other add their project files to gitignore. 
 No problems if the command line is used.

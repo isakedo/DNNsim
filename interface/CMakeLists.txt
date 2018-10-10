@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 project(
-        loader
+        interface
         VERSION 0.0.1
         LANGUAGES CXX
 )
@@ -8,11 +8,10 @@ project(
 # Create library
 add_library(
         ${PROJECT_NAME}
-        include/loader/NetLoader.h
-        include/loader/NumpyLoader.h
-        src/NetLoader.cpp
-        src/NumpyLoader.cpp
-)
+        include/interface/NetReader.h
+        include/interface/NetWriter.h
+        src/NetReader.cpp
+        src/NetWriter.cpp)
 
 target_include_directories(
         ${PROJECT_NAME}

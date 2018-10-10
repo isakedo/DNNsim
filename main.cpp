@@ -1,16 +1,14 @@
 #include <iostream>
 #include <core/Network.h>
-#include <loader/NetLoader.h>
-#include <loader/NumpyLoader.h>
+#include <interface/NetReader.h>
 
 int main() {
     std::string folder =  "/home/isak/CLionProjects/DNNsim/models/bvlc_alexnet/";
-    loader::NetLoader netloader = loader::NetLoader("ALexNet",folder);
-    loader::NumpyLoader npyLoader = loader::NumpyLoader(folder);
-    core::Network* net = netloader.load_network();
-    npyLoader.load_weights(net);
-    npyLoader.load_activations(net);
-    npyLoader.load_activations(net);
+    interface::NetReader reader = interface::NetReader("ALexNet",folder);
+    core::Network* net = reader.read_network_csv();
+    reader.read_weights_npy(net);
+    reader.read_activations_npy(net);
+    reader.read_output_activations_npy(net);
     net->start_simulation();
     return 0;
 }

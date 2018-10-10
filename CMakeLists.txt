@@ -9,8 +9,8 @@ project(
 add_subdirectory(cnpy)
 # Add the core library
 add_subdirectory(core)
-# Add library for load the inputs
-add_subdirectory(loader)
+# Add library for load the inputs and dump the networks
+add_subdirectory(interface)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -25,7 +25,7 @@ target_link_libraries(
         ${PROJECT_NAME}
         PRIVATE cnpy
         PRIVATE core
-        PRIVATE loader
+        PRIVATE interface
 )
 
 set_target_properties(
