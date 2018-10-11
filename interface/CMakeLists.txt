@@ -5,9 +5,19 @@ project(
         LANGUAGES CXX
 )
 
+find_package(Protobuf REQUIRED)
+
+protobuf_generate_cpp(
+        PROTO_GENERATED_SOURCES
+        PROTO_GENERATED_HEADERS
+        proto/network.proto
+)
+
 # Create library
 add_library(
         ${PROJECT_NAME}
+        ${PROTO_GENERATED_SOURCES}
+        ${PROTO_GENERATED_HEADERS}
         include/interface/NetReader.h
         include/interface/NetWriter.h
         src/NetReader.cpp
@@ -15,11 +25,13 @@ add_library(
 
 target_include_directories(
         ${PROJECT_NAME}
+        PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
         PUBLIC include/
 )
 
 target_link_libraries(
         ${PROJECT_NAME}
+        PUBLIC ${Protobuf_LIBRARIES}
         PRIVATE cnpy
         PRIVATE core
 )

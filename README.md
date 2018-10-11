@@ -1,4 +1,8 @@
-# DNNsim
+# DNNsim 0.0.1
+
+Gitignore is set up for CLion IDE, if you want to use a different IDE add their project file extensions to .gitignore. 
+It can be used from the command line. The folder specified for models under .gitignore is "models". 
+All the inputs/outputs files of a network architecture must be in the same folder. Example: models/alexnet/{Inputs/Outputs}
 
 #### Compilation:
 Command line compilation. First we need to configure the project (It can be Debug or Release for optimizations):
@@ -26,22 +30,27 @@ Finally, we can execute it as:
     *   NetReader: class to read and load a network using different formats
     *   NetWriter: class to write and dump a network using different formats
     * proto: Folder for protobuf definition
-        * example.proto ...
+        * network.proto Google protobuf definition for the network
         
+#### Requeriments
+*   Cmake posterior to version 3.10
+*   Google Protobuf for C++. Installation link:
+    *   https://github.com/protocolbuffers/protobuf/blob/master/src/README.md
 
-Gitignore is set up for CLion IDE, if you want to use other add their project files to gitignore. 
-No problems if the command line is used.
+#### Allowed input files
 
-The folder for models under .gitignore is "models"
+*   The architecture of the net in a trace.csv file (without weights and activations)
+*   Weights, Inputs and outputs activations in a *.npy file using the following format:
+    *   wgt-$NAME[0-9]+.npy | act-$NAME[0-9]+{-out}.npy
+*   Full network in a Google protobuf format file
 
-We need to load the models for (add if I am missing something):
-*   The architecture of the net: This is in the file deploy.prototext
-*   Inputs and outputs activations: Output from the savenet script in numpy array format. Milos put some under:
-    *   /aenao-99/caffe_models/traces/
-*   The weights: We can start using the caffe models in weights.caffemodel or get the weights as numpy arrays from savenet
+#### Allowed output files
 
-Current python simulator for Bit-Pragmatic is under: 
-*   /aenao-99/delmasl1/cnvlutin-PRA/MIsim/functionalSerial.py
-*   /aenao-99/delmasl1/cnvlutin-PRA/MIsim/testSystem.py
+*   Full network in a Google protobuf format file
+
+
+[comment]:<> (Current python simulator for Bit-Pragmatic is under:) 
+[comment]:<> (*   /aenao-99/delmasl1/cnvlutin-PRA/MIsim/functionalSerial.py)
+[comment]:<> (*   /aenao-99/delmasl1/cnvlutin-PRA/MIsim/testSystem.py)
 
 

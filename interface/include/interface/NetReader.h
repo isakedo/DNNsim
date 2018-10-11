@@ -5,10 +5,12 @@
 #include <core/Layer.h>
 #include <core/ConvolutionalLayer.h>
 #include <core/FullyConnectedLayer.h>
+#include <network.pb.h>
 
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <iostream>
 
 namespace interface {
 

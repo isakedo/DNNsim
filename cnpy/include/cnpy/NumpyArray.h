@@ -1,6 +1,8 @@
 #ifndef DNNSIM_NUMPYARRAY_H
 #define DNNSIM_NUMPYARRAY_H
 
+#include <cnpy/cnpy.h>
+
 #include <cstdlib>
 #include <vector>
 #include <string>

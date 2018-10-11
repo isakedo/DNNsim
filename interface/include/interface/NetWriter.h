@@ -2,6 +2,7 @@
 #define DNNSIM_NETWRITER_H
 
 #include <core/Network.h>
+#include <network.pb.h>
 
 namespace interface {
 

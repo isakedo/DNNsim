@@ -1,5 +1,4 @@
 
-#include <cnpy/cnpy.h>
 #include <cnpy/NumpyArray.h>
 
 namespace cnpy {

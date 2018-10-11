@@ -1,6 +1,5 @@
 
 #include <interface/NetReader.h>
-#include <iostream>
 
 namespace interface {
 

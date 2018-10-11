@@ -1,0 +1,29 @@
+
+syntax = "proto3";
+
+message Network {   //Level 0
+
+    message Layer {     //Level 1
+
+        message NumpyArray {    // Level 2
+            repeated int32 shape = 1;
+            repeated float data = 2;
+        }
+
+        string name = 1;
+        string input = 2;
+        int32 Nn = 3;
+        int32 Kx = 4;
+        int32 Ky = 5;
+        int32 stride = 6;
+        int32 padding = 7;
+        repeated NumpyArray weights = 8;
+        repeated NumpyArray activations = 9;
+        repeated NumpyArray output_activations = 10;
+
+    }
+
+    string name = 1;
+    repeated Layer layers = 2;
+
+}
