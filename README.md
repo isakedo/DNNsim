@@ -1,6 +1,19 @@
 # DNNsim
 
-Structure:
+####Compilation:
+Command line compilation. First we need to configure the project (It can be Debug or Release for optimizations):
+    
+    cmake -H. -Bcmake-build-debug -DCMAKE_BUILD_TYPE=Debug
+
+Then, we can proceed to build the project
+
+    cmake --build cmake-build-debug/ --target all
+
+Finally, we can execute it as:
+
+    ./cmake-build-debug/bin/DNNsim
+
+####Structure:
 *   **cnpy**: Folder for supporting math libraries
     *   cnpy: library to read Numpy arrays
     *   NumpyArray: class to store and operate with numpy arrays
@@ -14,6 +27,7 @@ Structure:
     *   NetWriter: class to write and dump a network using different formats
     * proto: Folder for protobuf definition
         * example.proto ...
+        
 
 Gitignore is set up for CLion IDE, if you want to use other add their project files to gitignore. 
 No problems if the command line is used.
