@@ -1,6 +1,6 @@
 # DNNsim
 
-####Compilation:
+#### Compilation:
 Command line compilation. First we need to configure the project (It can be Debug or Release for optimizations):
     
     cmake -H. -Bcmake-build-debug -DCMAKE_BUILD_TYPE=Debug
@@ -13,7 +13,7 @@ Finally, we can execute it as:
 
     ./cmake-build-debug/bin/DNNsim
 
-####Structure:
+#### Structure:
 *   **cnpy**: Folder for supporting math libraries
     *   cnpy: library to read Numpy arrays
     *   NumpyArray: class to store and operate with numpy arrays
