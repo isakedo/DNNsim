@@ -3,8 +3,8 @@
 
 namespace interface {
 
-    std::shared_ptr<core::Network> NetReader::read_network_csv() {
-        std::vector<std::shared_ptr<core::Layer>> vec;
+    core::Network NetReader::read_network_csv() {
+        std::vector<core::Layer> vec;
         std::string line;
 
         std::ifstream myfile (this->path + "trace_params.csv");
@@ -28,40 +28,41 @@ namespace interface {
                 else if (words[0].at(0) == 'l')
                     type = core::LOSS;
 
-                vec.push_back(std::make_shared<core::Layer>(core::Layer(type,words[0],words[1],std::stoi(words[2]),
-                        std::stoi(words[3]),std::stoi(words[4]), std::stoi(words[5]),std::stoi(words[6]))));
+                vec.emplace_back(core::Layer(type,words[0],words[1],std::stoi(words[2]), std::stoi(words[3]),
+                        std::stoi(words[4]), std::stoi(words[5]),std::stoi(words[6])));
             }
             myfile.close();
         }
-        std::shared_ptr<core::Network> network = std::make_shared<core::Network>(core::Network(this->name,vec));
-        return network;
+
+        return core::Network(this->name,vec);
     }
 
-    std::shared_ptr<core::Network> NetReader::read_network_protobuf() {
-        return nullptr;     //TODO
+    core::Network NetReader::read_network_protobuf() {
+        std::vector<core::Layer> layers;
+        return core::Network(this->name,layers);     //TODO
     }
 
-    void NetReader::read_weights_npy(std::shared_ptr<core::Network> network) {
-        for(const std::shared_ptr<core::Layer> &layer : network->getLayers()) {
-            std::string file = "wgt-" + layer->getName() + ".npy" ;
+    void NetReader::read_weights_npy(core::Network &network) {
+        for(core::Layer &layer : network.updateLayers()) {
+            std::string file = "wgt-" + layer.getName() + ".npy" ;
             cnpy::NumpyArray weights; weights.set_values(this->path + file);
-            layer->setWeights(weights);
+            layer.setWeights(weights);
         }
     }
 
-    void NetReader::read_activations_npy(std::shared_ptr<core::Network> network) {
-        for(const std::shared_ptr<core::Layer> &layer : network->getLayers()) {
-            std::string file = "act-" + layer->getName() + "-0.npy" ;
+    void NetReader::read_activations_npy(core::Network &network) {
+        for(core::Layer &layer : network.updateLayers()) {
+            std::string file = "act-" + layer.getName() + "-0.npy" ;
             cnpy::NumpyArray activations; activations.set_values(this->path + file);
-            layer->setActivations(activations);
+            layer.setActivations(activations);
         }
     }
 
-    void NetReader::read_output_activations_npy(std::shared_ptr<core::Network> network) {
-        for(const std::shared_ptr<core::Layer> &layer : network->getLayers()) {
-            std::string file = "act-" + layer->getName() + "-0-out.npy" ;
+    void NetReader::read_output_activations_npy(core::Network &network) {
+        for(core::Layer &layer : network.updateLayers()) {
+            std::string file = "act-" + layer.getName() + "-0-out.npy" ;
             cnpy::NumpyArray activations; activations.set_values(this->path + file);
-            layer->setOutput_activations(activations);
+            layer.setOutput_activations(activations);
         }
     }
 

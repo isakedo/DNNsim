@@ -33,27 +33,27 @@ namespace interface {
         /* Load the trace file inside the folder path and returns the network
          * @return          Network architecture
          * */
-        std::shared_ptr<core::Network> read_network_csv();
+        core::Network read_network_csv();
 
         /* Read the protobuf with the network in the path and returns the network
          * @return          Network architecture
          * */
-        std::shared_ptr<core::Network> read_network_protobuf();
+        core::Network read_network_protobuf();
 
         /* Read the weights into initialized given network
          * @param network       Network with the layers already initialized
          */
-        void read_weights_npy(std::shared_ptr<core::Network> network);
+        void read_weights_npy(core::Network &network);
 
         /* Read the activations into initialized given network
          * @param network       Network with the layers already initialized
          */
-        void read_activations_npy(std::shared_ptr<core::Network> network);
+        void read_activations_npy(core::Network &network);
 
         /* Read the output activations into initialized given network
          * @param network       Network with the layers already initialized
          */
-        void read_output_activations_npy(std::shared_ptr<core::Network> network);
+        void read_output_activations_npy(core::Network &network);
 
     };
 

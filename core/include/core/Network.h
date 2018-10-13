@@ -17,7 +17,7 @@ namespace core {
         std::string name;
 
         /* Set of layers of the network*/
-        std::vector<std::shared_ptr<Layer>> layers;
+        std::vector<Layer> layers;
 
     public:
 
@@ -25,13 +25,16 @@ namespace core {
          * @param _name      The name of the network
          * @param _layers    Vector of layers
          */
-        Network(const std::string &_name, const std::vector<std::shared_ptr<Layer>> &_layers) {
+        Network(const std::string &_name, const std::vector<Layer> &_layers) {
             name = _name; layers = _layers;
         }
 
         /* Getters */
         const std::string &getName() const { return name; }
-        const std::vector<std::shared_ptr<Layer>> &getLayers() const { return layers; }
+        const std::vector<Layer> &getLayers() const { return layers; }
+
+        /* Setters */
+        std::vector<Layer> &updateLayers() { return layers; }
 
     };
 
