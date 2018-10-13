@@ -23,9 +23,8 @@ Finally, we can execute it as:
     *   NumpyArray: class to store and operate with numpy arrays
 *   **core**: Folder for the main classes of the simulator
     *   Network: class to store the network
-    *   Layer: common class to store the layer of the network
-    *   ConvolutionalLayer: children class for Convolutional layers
-    *   FullyConnectedLayer: children class for Fully Connected layers
+    *   Layer: class to store the layer of the network
+    *   Simulator: 
 *   **interface**: Folder to interface with input/output operations
     *   NetReader: class to read and load a network using different formats
     *   NetWriter: class to write and dump a network using different formats

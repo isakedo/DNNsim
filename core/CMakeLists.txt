@@ -9,12 +9,7 @@ project(
 add_library(
         ${PROJECT_NAME}
         include/core/Layer.h
-        include/core/ConvolutionalLayer.h
-        include/core/FullyConnectedLayer.h
         include/core/Network.h
-        src/ConvolutionalLayer.cpp
-        src/FullyConnectedLayer.cpp
-        src/Network.cpp
 )
 
 target_include_directories(

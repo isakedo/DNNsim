@@ -30,12 +30,8 @@ namespace core {
         }
 
         /* Getters */
-        const std::string &getName() const;
-
-        const std::vector<std::shared_ptr<Layer>> &getLayers() const;
-
-        /* Start timing simulation */
-        void start_simulation();
+        const std::string &getName() const { return name; }
+        const std::vector<std::shared_ptr<Layer>> &getLayers() const { return layers; }
 
     };
 

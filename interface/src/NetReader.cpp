@@ -3,7 +3,7 @@
 
 namespace interface {
 
-    core::Network* NetReader::read_network_csv() {
+    std::shared_ptr<core::Network> NetReader::read_network_csv() {
         std::vector<std::shared_ptr<core::Layer>> vec;
         std::string line;
 
@@ -18,34 +18,38 @@ namespace interface {
                 while (getline(ss_line,word,','))
                     words.push_back(word);
 
-                //This can be improved
+                core::Type type = core::INIT;
                 if(words[0].at(0) == 'c')
-                    vec.push_back(std::make_shared<core::ConvolutionalLayer>(core::ConvolutionalLayer(
-                            words[0],words[1],std::stoi(words[2]),std::stoi(words[3]),std::stoi(words[4]),
-                            std::stoi(words[5]),std::stoi(words[6]))));
+                    type = core::CONV;
                 else if (words[0].at(0) == 'f')
-                    vec.push_back(std::make_shared<core::FullyConnectedLayer>(core::FullyConnectedLayer(
-                            words[0],words[1],std::stoi(words[2]),std::stoi(words[3]),std::stoi(words[4]),
-                            std::stoi(words[5]),std::stoi(words[6]))));
+                    type = core::FC;
+                else if (words[0].at(0) == 'i')
+                    type = core::INCEP;
+                else if (words[0].at(0) == 'l')
+                    type = core::LOSS;
+
+                vec.push_back(std::make_shared<core::Layer>(core::Layer(type,words[0],words[1],std::stoi(words[2]),
+                        std::stoi(words[3]),std::stoi(words[4]), std::stoi(words[5]),std::stoi(words[6]))));
             }
             myfile.close();
         }
-        return new core::Network(this->name,vec);
+        std::shared_ptr<core::Network> network = std::make_shared<core::Network>(core::Network(this->name,vec));
+        return network;
     }
 
-    core::Network* NetReader::read_network_protobuf() {
+    std::shared_ptr<core::Network> NetReader::read_network_protobuf() {
         return nullptr;     //TODO
     }
 
-    void NetReader::read_weights_npy(core::Network* network) {
+    void NetReader::read_weights_npy(std::shared_ptr<core::Network> network) {
         //TODO
     }
 
-    void NetReader::read_activations_npy(core::Network* network) {
+    void NetReader::read_activations_npy(std::shared_ptr<core::Network> network) {
         //TODO
     }
 
-    void NetReader::read_output_activations_npy(core::Network *network) {
+    void NetReader::read_output_activations_npy(std::shared_ptr<core::Network> network) {
         //TODO
     }
 

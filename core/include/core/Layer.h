@@ -6,9 +6,15 @@
 
 namespace core {
 
+
+    enum Type {INIT, CONV, FC, INCEP, LOSS};
+
     class Layer {
 
-    protected:
+    private:
+
+        /* Type of the network */
+        Type type;
 
         /* Name of the network */
         std::string name;
@@ -43,6 +49,7 @@ namespace core {
     public:
 
         /* Constructor
+         * @param _type     Type of the network
          * @param _name     Name of the layer
          * @param _input    Name of the input layer
          * @param _Nn       Number of filters
@@ -51,11 +58,12 @@ namespace core {
          * @param _stride   Stride
          * @param _padding  Padding
          */
-        Layer(const std::string &_name, const std::string &_input, int _Nn, int _Kx, int _Ky,
-              int _stride, int _padding) : Nn(_Nn), Kx(_Kx), Ky(_Ky), stride(_stride), padding(_padding)
+        Layer(Type _type, const std::string &_name, const std::string &_input, int _Nn, int _Kx, int _Ky,
+              int _stride, int _padding) : type(_type), Nn(_Nn), Kx(_Kx), Ky(_Ky), stride(_stride), padding(_padding)
               { name = _name; input = _input; }
 
         /* Getters */
+        Type getType() const { return type; }
         const std::string &getName() const { return name; }
         const std::string &getInput() const { return input; }
         int getNn() const { return Nn; }
@@ -69,9 +77,6 @@ namespace core {
         void setActivations(const cnpy::NumpyArray &activations) { Layer::activations = activations; }
         void setOutput_activations(const cnpy::NumpyArray &output_activations) {
             Layer::output_activations = output_activations; }
-
-        /* Compute the time for this layer */
-        virtual void compute() = 0;
 
     };
 
