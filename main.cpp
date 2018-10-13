@@ -11,8 +11,11 @@ int main() {
     reader.read_output_activations_npy(net);
 
     std::cout << net->getName() << std::endl;
-    for(std::shared_ptr<core::Layer> layer : net->getLayers()) {
-        std::cout << layer->getName() << std::endl;
+    for(const std::shared_ptr<core::Layer> &layer : net->getLayers()) {
+        std::cout << layer->getName() << " ";
+        for(size_t i : layer->getWeights().getShape())  {
+            std::cout << i << " ";
+        }
         if(layer->getType() == core::CONV)
             std::cout << "CONVOLUTIONAL" << std::endl;
         else if(layer->getType() == core::FC)

@@ -42,15 +42,27 @@ namespace interface {
     }
 
     void NetReader::read_weights_npy(std::shared_ptr<core::Network> network) {
-        //TODO
+        for(const std::shared_ptr<core::Layer> &layer : network->getLayers()) {
+            std::string file = "wgt-" + layer->getName() + ".npy" ;
+            cnpy::NumpyArray weights; weights.set_values(this->path + file);
+            layer->setWeights(weights);
+        }
     }
 
     void NetReader::read_activations_npy(std::shared_ptr<core::Network> network) {
-        //TODO
+        for(const std::shared_ptr<core::Layer> &layer : network->getLayers()) {
+            std::string file = "act-" + layer->getName() + "-0.npy" ;
+            cnpy::NumpyArray activations; activations.set_values(this->path + file);
+            layer->setActivations(activations);
+        }
     }
 
     void NetReader::read_output_activations_npy(std::shared_ptr<core::Network> network) {
-        //TODO
+        for(const std::shared_ptr<core::Layer> &layer : network->getLayers()) {
+            std::string file = "act-" + layer->getName() + "-0-out.npy" ;
+            cnpy::NumpyArray activations; activations.set_values(this->path + file);
+            layer->setOutput_activations(activations);
+        }
     }
 
 }

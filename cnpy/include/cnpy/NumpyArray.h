@@ -36,6 +36,8 @@ namespace cnpy {
          */
         float get(int i, int j, int k, int l);
 
+        const std::vector<size_t> &getShape() const;
+
     };
 
 }

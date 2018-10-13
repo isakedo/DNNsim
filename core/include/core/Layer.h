@@ -71,6 +71,9 @@ namespace core {
         int getKy() const { return Ky; }
         int getStride() const { return stride; }
         int getPadding() const { return padding; }
+        const cnpy::NumpyArray &getWeights() const { return weights; }
+        const cnpy::NumpyArray &getActivations() const { return activations; }
+        const cnpy::NumpyArray &getOutput_activations() const { return output_activations; }
 
         /* Setters */
         void setWeights(const cnpy::NumpyArray &weights) { Layer::weights = weights; }

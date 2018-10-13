@@ -14,4 +14,7 @@ namespace cnpy {
         return this->data[index];
     }
 
+    /* Getters */
+    const std::vector<size_t> &NumpyArray::getShape() const { return shape; }
+
 }

@@ -37,5 +37,4 @@ namespace core {
 
 }
 
-
 #endif //DNNSIM_NETWORK_H
