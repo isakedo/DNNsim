@@ -21,6 +21,10 @@ int main() {
         else if(layer.getType() == core::FC)
             std::cout << "FULLY CONNECTED" << std::endl;
     }
+    std::cout << net.getLayers()[0].getWeights().get(0,0,0,0) << std::endl;
+    std::cout << net.getLayers()[0].getWeights().get(0,0,1,0) << std::endl;
+    std::cout << net.getLayers()[0].getWeights().get(0,2,1,0) << std::endl;
+    std::cout << net.getLayers()[0].getWeights().get(0,2,1,8) << std::endl;
 
     return 0;
 }

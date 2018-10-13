@@ -17,7 +17,7 @@ namespace cnpy {
         std::vector<size_t> shape;
 
         /* Pointer to the data */
-        float* data;
+        cnpy::NpyArray data;
 
     public:
 
@@ -34,7 +34,7 @@ namespace cnpy {
          *
          * @return      return the value given by the index
          */
-        float get(int i, int j, int k, int l);
+        float get(int i, int j, int k, int l) const;
 
         const std::vector<size_t> &getShape() const;
 
