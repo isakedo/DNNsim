@@ -1,6 +1,14 @@
 #include <iostream>
 #include <core/Network.h>
 #include <interface/NetReader.h>
+#include <interface/NetWriter.h>
+
+/*
+ * Exit states:
+ *  0: Correct output
+ *  1: Out of index when accessing numpy array
+ *  2: Fail writing protobuf
+ */
 
 int main() {
     std::string folder =  "/home/isak/CLionProjects/DNNsim/models/bvlc_alexnet/";
@@ -25,6 +33,9 @@ int main() {
     std::cout << net.getLayers()[0].getWeights().get(0,0,1,0) << std::endl;
     std::cout << net.getLayers()[0].getWeights().get(0,2,1,0) << std::endl;
     std::cout << net.getLayers()[0].getWeights().get(0,2,1,8) << std::endl;
+
+    interface::NetWriter writer = interface::NetWriter(folder);
+    writer.write_network_protobuf(net,"alexnet");
 
     return 0;
 }

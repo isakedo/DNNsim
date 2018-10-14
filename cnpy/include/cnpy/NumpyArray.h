@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <vector>
 #include <string>
+#include <cmath>
 
 namespace cnpy {
 
@@ -18,6 +19,9 @@ namespace cnpy {
 
         /* Pointer to the data */
         cnpy::NpyArray data;
+
+        /* Max index allowed */
+        unsigned long long max_index;
 
     public:
 
@@ -36,7 +40,29 @@ namespace cnpy {
          */
         float get(int i, int j, int k, int l) const;
 
+        /*  Return the value inside the vector given the two dimensions
+         * @param i     Index for the first dimension
+         * @param j     Index for the second dimension
+         *
+         * @return      return the value given by the index
+         */
+        float get(int i, int j) const;
+
+        /*  Return the value inside the vector given one dimension
+         * @param index Index for the array
+         *
+         * @return      return the value given by the index
+         */
+        float get(unsigned long long index) const;
+
+        /* Return the number of dimensions of the array
+         * @return      return the number of dimensions of the array
+         */
+        unsigned long getDimensions() const;
+
+        /* Getters */
         const std::vector<size_t> &getShape() const;
+        unsigned long long int getMax_index() const;
 
     };
 
