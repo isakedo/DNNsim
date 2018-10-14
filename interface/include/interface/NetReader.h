@@ -22,6 +22,11 @@ namespace interface {
         /* Path to the folder containing the definition files */
         std::string path;
 
+        /* Return the layer parsed in the protobuf file
+         * @param layer_proto   Protobuf layer
+         */
+        core::Layer read_layer_proto(const protobuf::Network_Layer &layer_proto);
+
     public:
 
         /* Constructor

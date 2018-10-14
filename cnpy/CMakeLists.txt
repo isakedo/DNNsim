@@ -9,9 +9,9 @@ project(
 add_library(
         ${PROJECT_NAME}
         include/cnpy/cnpy.h
-        include/cnpy/NumpyArray.h
+        include/cnpy/Array.h
         src/cnpy.cpp
-        src/NumpyArray.cpp)
+        src/Array.cpp)
 
 target_include_directories(
         ${PROJECT_NAME}

@@ -8,6 +8,7 @@
  *  0: Correct output
  *  1: Out of index when accessing numpy array
  *  2: Fail writing protobuf
+ *  3: Fail reading protobuf
  */
 
 int main() {
@@ -36,6 +37,24 @@ int main() {
 
     interface::NetWriter writer = interface::NetWriter(folder);
     writer.write_network_protobuf(net,"alexnet");
+
+    core::Network net2 = reader.read_network_protobuf();
+    std::cout << net2.getName() << std::endl;
+    for(const core::Layer &layer : net2.getLayers()) {
+        std::cout << layer.getName() << " ";
+        for(size_t i : layer.getWeights().getShape())  {
+            std::cout << i << " ";
+        }
+        if(layer.getType() == core::CONV)
+            std::cout << "CONVOLUTIONAL" << std::endl;
+        else if(layer.getType() == core::FC)
+            std::cout << "FULLY CONNECTED" << std::endl;
+    }
+    std::cout << net2.getLayers()[0].getWeights().get(0,0,0,0) << std::endl;
+    std::cout << net2.getLayers()[0].getWeights().get(0,0,1,0) << std::endl;
+    std::cout << net2.getLayers()[0].getWeights().get(0,2,1,0) << std::endl;
+    std::cout << net2.getLayers()[0].getWeights().get(0,2,1,8) << std::endl;
+
 
     return 0;
 }

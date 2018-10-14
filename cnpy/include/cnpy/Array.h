@@ -1,5 +1,6 @@
-#ifndef DNNSIM_NUMPYARRAY_H
-#define DNNSIM_NUMPYARRAY_H
+#ifndef DNNSIM_ARRAY_H
+#define DNNSIM_ARRAY_H
+
 
 #include <cnpy/cnpy.h>
 
@@ -10,18 +11,15 @@
 
 namespace cnpy {
 
-    class NumpyArray {
+    class Array {
 
     private:
 
         /* Vector with the size of the vector for each dimension */
         std::vector<size_t> shape;
 
-        /* Pointer to the data */
-        cnpy::NpyArray data;
-
-        /* Max index allowed */
-        unsigned long long max_index;
+        /* Vector of float containing the data */
+        std::vector<float> data;
 
     public:
 
@@ -29,6 +27,12 @@ namespace cnpy {
          * @param path  Path to the numpy file with extension .npy
          */
         void set_values(const std::string &path);
+
+        /* Load the vector into the data vector, is_numpy set to false
+         * @param _data     Dynamic float vector containing the data
+         * @param _shape    Shape of the data
+         */
+        void set_values(const std::vector<float> &_data, const std::vector<size_t> &_shape);
 
         /*  Return the value inside the vector given the fourth dimensions
          * @param i     Index for the first dimension
@@ -64,8 +68,11 @@ namespace cnpy {
         const std::vector<size_t> &getShape() const;
         unsigned long long int getMax_index() const;
 
+        void setShape(const std::vector<size_t> &shape);
+
     };
 
 }
 
-#endif //DNNSIM_NUMPYARRAY_H
+
+#endif //DNNSIM_ARRAY_H

@@ -4,6 +4,13 @@ Gitignore is set up for CLion IDE, if you want to use a different IDE add their 
 It can be used from the command line. The folder specified for models under .gitignore is "models". 
 All the inputs/outputs files of a network architecture must be in the same folder. Example: models/alexnet/{Inputs/Outputs}
 
+#### TODO list
+*   Parametrize the input of the program
+*   Sanitize the reading files
+*   Add gzip to protobuf
+*   Read network name from the path (last folder)
+*   More tests
+
 #### Compilation:
 Command line compilation. First we need to configure the project (It can be Debug or Release for optimizations):
     
@@ -20,7 +27,7 @@ Finally, we can execute it as:
 #### Structure:
 *   **cnpy**: Folder for supporting math libraries
     *   cnpy: library to read Numpy arrays
-    *   NumpyArray: class to store and operate with numpy arrays
+    *   Array: class to store and operate with flatten arrays
 *   **core**: Folder for the main classes of the simulator
     *   Network: class to store the network
     *   Layer: class to store the layer of the network
@@ -40,7 +47,7 @@ Finally, we can execute it as:
 
 *   The architecture of the net in a trace.csv file (without weights and activations)
 *   Weights, Inputs and outputs activations in a *.npy file using the following format:
-    *   wgt-$NAME[0-9]+.npy | act-$NAME[0-9]+{-out}.npy
+    *   wgt-$NAME.npy | act-$NAME-0{-out}.npy
 *   Full network in a Google protobuf format file
 
 #### Allowed output files
