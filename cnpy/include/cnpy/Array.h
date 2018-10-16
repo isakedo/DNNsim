@@ -68,8 +68,6 @@ namespace cnpy {
         const std::vector<size_t> &getShape() const;
         unsigned long long int getMax_index() const;
 
-        void setShape(const std::vector<size_t> &shape);
-
     };
 
 }

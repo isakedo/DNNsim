@@ -102,6 +102,41 @@ namespace interface {
         return core::Network(this->name,layers);
     }
 
+    /* GZIP
+    core::Network NetReader::read_network_protobuf() {
+        GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+        std::vector<core::Layer> layers;
+        protobuf::Network network_proto;
+
+        //{
+        // Read the existing network.
+        std::fstream input(this->path + "alexnet", std::ios::in | std::ios::binary);
+        //  if (!network_proto.ParseFromIstream(&input)) {
+        //      std::cerr << "Failed to parse address book." << std::endl;
+        //      exit(3);
+        //  }
+        // }
+
+        google::protobuf::io::IstreamInputStream inputFileStream(&input);
+        google::protobuf::io::GzipInputStream gzipInputStream(&inputFileStream);
+
+        if (!network_proto.ParseFromZeroCopyStream(&gzipInputStream)) {
+            std::cerr << "Failed to parse scene." << std::endl;
+            exit(2);
+        }
+        //}
+
+        std::string name = network_proto.name();
+
+        for(const protobuf::Network_Layer &layer_proto : network_proto.layers())
+            layers.emplace_back(read_layer_proto(layer_proto));
+
+        google::protobuf::ShutdownProtobufLibrary();
+
+        return core::Network(this->name,layers);
+    }*/
+
     void NetReader::read_weights_npy(core::Network &network) {
         for(core::Layer &layer : network.updateLayers()) {
             std::string file = "wgt-" + layer.getName() + ".npy" ;

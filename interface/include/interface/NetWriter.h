@@ -3,6 +3,8 @@
 
 #include <core/Network.h>
 #include <network.pb.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/io/gzip_stream.h>
 
 #include <iostream>
 #include <fstream>

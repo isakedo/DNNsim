@@ -51,4 +51,40 @@ namespace interface {
         google::protobuf::ShutdownProtobufLibrary();
     }
 
+    /* GZIP
+     void NetWriter::write_network_protobuf(const core::Network &network, const std::string &file) {
+        GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+        protobuf::Network network_proto;
+        network_proto.set_name(network.getName());
+
+        for(const core::Layer &layer : network.getLayers())
+            fillLayer(network_proto.add_layers(),layer);
+
+        //{
+            // Write the new network back to disk.
+            std::fstream output(this->path + file, std::ios::out | std::ios::trunc | std::ios::binary);
+          //  if (!network_proto.SerializeToOstream(&output)) {
+          //      std::cerr << "Failed to write network protobuf." << std::endl;
+          //      exit(2);
+          //  }
+        //}
+
+        google::protobuf::io::OstreamOutputStream outputFileStream(&output);
+        google::protobuf::io::GzipOutputStream::Options options;
+        options.format = google::protobuf::io::GzipOutputStream::GZIP;
+        options.compression_level = 9;
+
+        google::protobuf::io::GzipOutputStream gzipOutputStream(&outputFileStream, options);
+
+        if (!network_proto.SerializeToZeroCopyStream(&gzipOutputStream)) {
+            std::cerr << "Failed to write scene." << std::endl;
+            exit(2);
+        }
+
+
+        google::protobuf::ShutdownProtobufLibrary();
+    }
+     */
+
 }
