@@ -21,11 +21,11 @@ namespace interface {
         /* Name of the network */
         std::string name;
 
-        /* Path to the folder containing the definition files */
+        /* Path to the the definition files */
         std::string path;
 
         /* Return the layer parsed in the protobuf file
-         * @param layer_proto   Protobuf layer
+         * @param layer_proto   protobuf layer
          */
         core::Layer read_layer_proto(const protobuf::Network_Layer &layer_proto);
 
@@ -33,7 +33,7 @@ namespace interface {
 
         /* Constructor
          * @param _name     The name of the network
-         * @param _path     Path to the folder containing csv file with the network architecture
+         * @param _path     Path containing the files with the network architecture
          */
         NetReader(const std::string &_name, const std::string &_path){ name = _name; path = _path;}
 
@@ -46,6 +46,11 @@ namespace interface {
          * @return          Network architecture
          * */
         core::Network read_network_protobuf(const std::string &file);
+
+        /* Read the gzip with the network in the path and returns the network
+         * @return          Network architecture
+         * */
+        core::Network read_network_gzip(const std::string &file);
 
         /* Read the weights into initialized given network
          * @param network       Network with the layers already initialized

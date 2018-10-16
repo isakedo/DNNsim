@@ -16,7 +16,7 @@ namespace interface {
 
     private:
 
-        /* Path to the folder containing the network files */
+        /* Path containing the network files */
         std::string path;
 
         /* Store a layer of the network into a protobuf layer
@@ -29,7 +29,7 @@ namespace interface {
 
         /* Constructor
          * @param _name     The name of the network
-         * @param _path     Path to the folder containing csv file with the network architecture
+         * @param _path     Path containing the files with the network architecture
          */
 
         explicit NetWriter(const std::string &_path){ path = _path;}
@@ -39,6 +39,12 @@ namespace interface {
          * @param path          Output file to store the network
          */
         void write_network_protobuf(const core::Network &network, const std::string &file);
+
+        /* Store the network in Gzip protobuf format
+         * @param network       Network that want to be stored
+         * @param path          Output file to store the network
+         */
+        void write_network_gzip(const core::Network &network, const std::string &file);
 
     };
 

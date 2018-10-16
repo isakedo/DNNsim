@@ -76,8 +76,8 @@ namespace interface {
 
         return layer;
     }
-/*
-    core::Network NetReader::read_network_protobuf() {
+
+    core::Network NetReader::read_network_protobuf(const std::string &file) {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
         std::vector<core::Layer> layers;
@@ -87,7 +87,7 @@ namespace interface {
             // Read the existing network.
             std::fstream input(this->path + "alexnet", std::ios::in | std::ios::binary);
             if (!network_proto.ParseFromIstream(&input)) {
-                std::cerr << "Failed to parse address book." << std::endl;
+                std::cerr << "Failed to parse network protobuf." << std::endl;
                 exit(3);
             }
         }
@@ -101,9 +101,9 @@ namespace interface {
 
         return core::Network(this->name,layers);
     }
-*/
 
-    core::Network NetReader::read_network_protobuf(const std::string &file) {
+
+    core::Network NetReader::read_network_gzip(const std::string &file) {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
         std::vector<core::Layer> layers;
@@ -116,7 +116,7 @@ namespace interface {
         google::protobuf::io::GzipInputStream gzipInputStream(&inputFileStream);
 
         if (!network_proto.ParseFromZeroCopyStream(&gzipInputStream)) {
-            std::cerr << "Failed to parse scene." << std::endl;
+            std::cerr << "Failed to parse network gzip." << std::endl;
             exit(2);
         }
 
