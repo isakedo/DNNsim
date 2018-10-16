@@ -45,7 +45,7 @@ namespace interface {
         /* Read the protobuf with the network in the path and returns the network
          * @return          Network architecture
          * */
-        core::Network read_network_protobuf();
+        core::Network read_network_protobuf(const std::string &file);
 
         /* Read the weights into initialized given network
          * @param network       Network with the layers already initialized

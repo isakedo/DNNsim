@@ -38,7 +38,7 @@ int main() {
     interface::NetWriter writer = interface::NetWriter(folder);
     writer.write_network_protobuf(net,"alexnet");
 
-    core::Network net2 = reader.read_network_protobuf();
+    core::Network net2 = reader.read_network_protobuf("alexnet");
     std::cout << net2.getName() << std::endl;
     for(const core::Layer &layer : net2.getLayers()) {
         std::cout << layer.getName() << " ";
