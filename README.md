@@ -2,11 +2,12 @@
 
 Gitignore is set up for CLion IDE, if you want to use a different IDE add their project file extensions to .gitignore. 
 It can be used from the command line. The folder specified for models under .gitignore is "models". 
-All the inputs/outputs files of a network architecture must be in the same folder. Example: models/alexnet/{Inputs/Outputs}
+All the inputs/outputs files of a network architecture must be in the same folder in case of Trace input. Example: models/alexnet/{Inputs/Outputs}
 
 #### TODO list
 *   Add positional parameter for transform or simulate
-*   Infernece
+*   Inference
+*   Test other networks
 
 #### Compilation:
 Command line compilation. First we need to configure the project (It can be Debug or Release for optimizations):
@@ -46,14 +47,16 @@ Finally, we can execute it as:
 *   Weights, Inputs and outputs activations in a *.npy file using the following format:
     *   wgt-$NAME.npy | act-$NAME-0{-out}.npy
 *   Full network in a Google protobuf format file
+*   Full network in a Gzip Google protobuf format
 
 #### Allowed output files
 
 *   Full network in a Google protobuf format file
+*   Full network in a Gzip Google protobuf format
 
 
-[comment]:<> (Current python simulator for Bit-Pragmatic is under:) 
-[comment]:<> (*   /aenao-99/delmasl1/cnvlutin-PRA/MIsim/functionalSerial.py)
-[comment]:<> (*   /aenao-99/delmasl1/cnvlutin-PRA/MIsim/testSystem.py)
+[//]:<> (Current python simulator for Bit-Pragmatic is under:) 
+[//]:<> (*   /aenao-99/delmasl1/cnvlutin-PRA/MIsim/functionalSerial.py)
+[//]:<> (*   /aenao-99/delmasl1/cnvlutin-PRA/MIsim/testSystem.py)
 
 
