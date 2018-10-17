@@ -30,6 +30,7 @@
 
 # IDEs
 .idea
+.project
 
 # Build Directories
 build

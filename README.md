@@ -1,15 +1,12 @@
-# DNNsim 0.0.1
+# DNNsim 0.0.2
 
 Gitignore is set up for CLion IDE, if you want to use a different IDE add their project file extensions to .gitignore. 
 It can be used from the command line. The folder specified for models under .gitignore is "models". 
 All the inputs/outputs files of a network architecture must be in the same folder. Example: models/alexnet/{Inputs/Outputs}
 
 #### TODO list
-*   Parametrize the input of the program
-*   Sanitize the reading files
-*   Add gzip to protobuf
-*   Read network name from the path (last folder)
-*   More tests
+*   Add positional parameter for transform or simulate
+*   Infernece
 
 #### Compilation:
 Command line compilation. First we need to configure the project (It can be Debug or Release for optimizations):
@@ -22,7 +19,7 @@ Then, we can proceed to build the project
 
 Finally, we can execute it as:
 
-    ./cmake-build-debug/bin/DNNsim
+    ./cmake-build-debug/bin/DNNsim -n <Name> -i <Path_Input> --itype <Trace|Protobuf|Gzip> -o <Path_Ouput> --otype <Protobuf|Gzip>
 
 #### Structure:
 *   **cnpy**: Folder for supporting math libraries

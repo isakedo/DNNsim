@@ -21,6 +21,9 @@ namespace core {
 
     public:
 
+        /* Default constructor */
+        Network() = default;
+
         /* Constructor
          * @param _name      The name of the network
          * @param _layers    Vector of layers

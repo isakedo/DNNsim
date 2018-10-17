@@ -38,13 +38,13 @@ namespace interface {
          * @param network       Network that want to be stored
          * @param path          Output file to store the network
          */
-        void write_network_protobuf(const core::Network &network, const std::string &file);
+        void write_network_protobuf(const core::Network &network);
 
         /* Store the network in Gzip protobuf format
          * @param network       Network that want to be stored
          * @param path          Output file to store the network
          */
-        void write_network_gzip(const core::Network &network, const std::string &file);
+        void write_network_gzip(const core::Network &network);
 
     };
 

@@ -77,7 +77,7 @@ namespace interface {
         return layer;
     }
 
-    core::Network NetReader::read_network_protobuf(const std::string &file) {
+    core::Network NetReader::read_network_protobuf() {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
         std::vector<core::Layer> layers;
@@ -85,10 +85,9 @@ namespace interface {
 
         {
             // Read the existing network.
-            std::fstream input(this->path + "alexnet", std::ios::in | std::ios::binary);
+            std::fstream input(this->path, std::ios::in | std::ios::binary);
             if (!network_proto.ParseFromIstream(&input)) {
-                std::cerr << "Failed to parse network protobuf." << std::endl;
-                exit(3);
+                throw std::runtime_error("Failed to read protobuf");
             }
         }
 
@@ -103,21 +102,20 @@ namespace interface {
     }
 
 
-    core::Network NetReader::read_network_gzip(const std::string &file) {
+    core::Network NetReader::read_network_gzip() {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
         std::vector<core::Layer> layers;
         protobuf::Network network_proto;
 
         // Read the existing network.
-        std::fstream input(this->path + file, std::ios::in | std::ios::binary);
+        std::fstream input(this->path, std::ios::in | std::ios::binary);
 
         google::protobuf::io::IstreamInputStream inputFileStream(&input);
         google::protobuf::io::GzipInputStream gzipInputStream(&inputFileStream);
 
         if (!network_proto.ParseFromZeroCopyStream(&gzipInputStream)) {
-            std::cerr << "Failed to parse network gzip." << std::endl;
-            exit(2);
+            throw std::runtime_error("Failed to read Gzip protobuf");
         }
 
         std::string name = network_proto.name();

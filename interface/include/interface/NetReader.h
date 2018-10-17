@@ -45,12 +45,12 @@ namespace interface {
         /* Read the protobuf with the network in the path and returns the network
          * @return          Network architecture
          * */
-        core::Network read_network_protobuf(const std::string &file);
+        core::Network read_network_protobuf();
 
         /* Read the gzip with the network in the path and returns the network
          * @return          Network architecture
          * */
-        core::Network read_network_gzip(const std::string &file);
+        core::Network read_network_gzip();
 
         /* Read the weights into initialized given network
          * @param network       Network with the layers already initialized

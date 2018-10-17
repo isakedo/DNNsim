@@ -1,88 +1,105 @@
+#include "cxxopts.h"
 #include <iostream>
 #include <core/Network.h>
 #include <interface/NetReader.h>
 #include <interface/NetWriter.h>
 
-/*
- * Exit states:
- *  0: Correct output
- *  1: Out of index when accessing numpy array
- *  2: Fail writing protobuf
- *  3: Fail reading protobuf
- */
+void check_path(std::string const &path)
+{
+    std::ifstream file(path);
+    if(!file.good()) {
+        throw std::runtime_error("The path " + path + " does not exist.");
+    }
+}
 
-int main() {
-    /*  TODO
-     *  Script style:
+void check_options(cxxopts::Options const &options)
+{
+    if(options.count("n") == 0) {
+        throw std::runtime_error("Please provide the network name with -o <Name>.");
+    }
+
+    if(options.count("i") == 0) {
+        throw std::runtime_error("Please provide the input file/folder configuration with -i <file>.");
+    } else {
+        check_path(options["i"].as<std::string>());
+    }
+
+    if(options.count("itype") == 0) {
+        throw std::runtime_error("Please provide the input type configuration with --itype <Trace|Protobuf|Gzip>.");
+    } else {
+        std::string value = options["itype"].as<std::string>();
+        if(value  != "Trace" && value != "Protobuf" && value != "Gzip")
+            throw std::runtime_error("Please provide the input type configuration with --itype <Trace|Protobuf|Gzip>.");
+    }
+
+    if(options.count("o") == 0) {
+        throw std::runtime_error("Please provide the output file/folder configuration with -o <file>.");
+    }
+
+    if(options.count("otype") == 0) {
+        throw std::runtime_error("Please provide the output type configuration with --otype <Protobuf|Gzip>.");
+    } else {
+        std::string value = options["otype"].as<std::string>();
+        if(value != "Protobuf" && value != "Gzip")
+            throw std::runtime_error("Please provide the output type configuration with --otype <Protobuf|Gzip>.");
+    }
+
+}
+
+cxxopts::Options parse_options(int argc, char *argv[]) {
+    cxxopts::Options options("model-gen", "The SynFull model generator");
+
+    // help-related options
+    options.add_options("help")("h,help", "Print this help message", cxxopts::value<bool>(), "");
+
+    options.add_options("input")
+            ("n,name", "Network name", cxxopts::value<std::string>())
+            ("i,input", "Path to the input file/folder", cxxopts::value<std::string>(), "<file>")
+            ("itype", "Input type", cxxopts::value<std::string>());
+
+    options.add_options("output")
+            ("o,output", "Path to the input file/folder", cxxopts::value<std::string>(), "<file>")
+            ("otype", "Output type", cxxopts::value<std::string>());
+
+    options.parse(argc, argv);
+
+    return options;
+}
+
+int main(int argc, char *argv[]) {
+    /*  Script style:
      *  Operation mode (Simulate or transform)
-     *      If transform:
-     *          -o path to the output file, -otype output type (Protobuf, Gzip)
-     *          -i path to the input file/folder, -itype input type (Protobuf, Gzip, Trace)
-     *      If simulator:
+     *  -n name of the network
+     *  If transform:
+     *      -o path to the output file, --otype output type (Protobuf, Gzip)
+     *      -i path to the input file/folder, --itype input type (Protobuf, Gzip, Trace)
+     *  If simulator:
      *
      */
-    std::string folder =  "/home/ali/CLionProjects/DNNsim/models/bvlc_alexnet/";
-    interface::NetReader reader = interface::NetReader("bvlc_alexnet",folder);
-    core::Network net = reader.read_network_csv();
-    reader.read_weights_npy(net);
-    reader.read_activations_npy(net);
-    reader.read_output_activations_npy(net);
+    auto const options = parse_options(argc, argv);
+    check_options(options);
 
-    std::cout << net.getName() << std::endl;
-    for(const core::Layer &layer : net.getLayers()) {
-        std::cout << layer.getName() << " ";
-        for(size_t i : layer.getWeights().getShape())  {
-            std::cout << i << " ";
-        }
-        if(layer.getType() == core::CONV)
-            std::cout << "CONVOLUTIONAL" << std::endl;
-        else if(layer.getType() == core::FC)
-            std::cout << "FULLY CONNECTED" << std::endl;
+    // Read the network
+    core::Network network;
+    interface::NetReader reader = interface::NetReader(options["n"].as<std::string>(),options["i"].as<std::string>());
+    std::string input_type = options["itype"].as<std::string>();
+    if(input_type == "Trace") {
+        network = reader.read_network_csv();
+        reader.read_weights_npy(network);
+        reader.read_activations_npy(network);
+        reader.read_output_activations_npy(network);
+    } else if (input_type == "Protobuf") {
+        network = reader.read_network_protobuf();
+    } else {
+        network = reader.read_network_gzip();
     }
-    std::cout << net.getLayers()[0].getWeights().get(0,0,0,0) << std::endl;
-    std::cout << net.getLayers()[0].getWeights().get(0,0,1,0) << std::endl;
-    std::cout << net.getLayers()[0].getWeights().get(0,2,1,0) << std::endl;
-    std::cout << net.getLayers()[0].getWeights().get(0,2,1,8) << std::endl;
 
-    interface::NetWriter writer = interface::NetWriter(folder);
-    writer.write_network_protobuf(net,"alexnet");
-
-    core::Network net2 = reader.read_network_protobuf("alexnet");
-    std::cout << net2.getName() << std::endl;
-    for(const core::Layer &layer : net2.getLayers()) {
-        std::cout << layer.getName() << " ";
-        for(size_t i : layer.getWeights().getShape())  {
-            std::cout << i << " ";
-        }
-        if(layer.getType() == core::CONV)
-            std::cout << "CONVOLUTIONAL" << std::endl;
-        else if(layer.getType() == core::FC)
-            std::cout << "FULLY CONNECTED" << std::endl;
+    interface::NetWriter writer = interface::NetWriter(options["o"].as<std::string>());
+    if (input_type == "Protobuf") {
+        writer.write_network_protobuf(network);
+    } else {
+        writer.write_network_gzip(network);
     }
-    std::cout << net2.getLayers()[0].getWeights().get(0,0,0,0) << std::endl;
-    std::cout << net2.getLayers()[0].getWeights().get(0,0,1,0) << std::endl;
-    std::cout << net2.getLayers()[0].getWeights().get(0,2,1,0) << std::endl;
-    std::cout << net2.getLayers()[0].getWeights().get(0,2,1,8) << std::endl;
-
-    writer.write_network_gzip(net2,"alexnet");
-
-    core::Network net3 = reader.read_network_gzip("alexnet");
-    std::cout << net3.getName() << std::endl;
-    for(const core::Layer &layer : net3.getLayers()) {
-        std::cout << layer.getName() << " ";
-        for(size_t i : layer.getWeights().getShape())  {
-            std::cout << i << " ";
-        }
-        if(layer.getType() == core::CONV)
-            std::cout << "CONVOLUTIONAL" << std::endl;
-        else if(layer.getType() == core::FC)
-            std::cout << "FULLY CONNECTED" << std::endl;
-    }
-    std::cout << net3.getLayers()[0].getWeights().get(0,0,0,0) << std::endl;
-    std::cout << net3.getLayers()[0].getWeights().get(0,0,1,0) << std::endl;
-    std::cout << net3.getLayers()[0].getWeights().get(0,2,1,0) << std::endl;
-    std::cout << net3.getLayers()[0].getWeights().get(0,2,1,8) << std::endl;
-
 
     return 0;
 }

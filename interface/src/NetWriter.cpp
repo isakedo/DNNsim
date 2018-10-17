@@ -30,7 +30,7 @@ namespace interface {
 
     }
 
-    void NetWriter::write_network_protobuf(const core::Network &network, const std::string &file) {
+    void NetWriter::write_network_protobuf(const core::Network &network) {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
         protobuf::Network network_proto;
@@ -41,17 +41,16 @@ namespace interface {
 
         {
             // Write the new network back to disk.
-            std::fstream output(this->path + file, std::ios::out | std::ios::trunc | std::ios::binary);
+            std::fstream output(this->path, std::ios::out | std::ios::trunc | std::ios::binary);
             if (!network_proto.SerializeToOstream(&output)) {
-                std::cerr << "Failed to write network protobuf." << std::endl;
-                exit(2);
+                throw std::runtime_error("Failed to write protobuf");
             }
         }
 
         google::protobuf::ShutdownProtobufLibrary();
     }
 
-     void NetWriter::write_network_gzip(const core::Network &network, const std::string &file) {
+     void NetWriter::write_network_gzip(const core::Network &network) {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
         protobuf::Network network_proto;
@@ -61,18 +60,17 @@ namespace interface {
             fillLayer(network_proto.add_layers(),layer);
 
         // Write the new network back to disk.
-        std::fstream output(this->path + file, std::ios::out | std::ios::trunc | std::ios::binary);
+        std::fstream output(this->path, std::ios::out | std::ios::trunc | std::ios::binary);
 
         google::protobuf::io::OstreamOutputStream outputFileStream(&output);
         google::protobuf::io::GzipOutputStream::Options options;
         options.format = google::protobuf::io::GzipOutputStream::GZIP;
-        options.compression_level = 9;
+        options.compression_level = 9; //Max compression
 
         google::protobuf::io::GzipOutputStream gzipOutputStream(&outputFileStream, options);
 
         if (!network_proto.SerializeToZeroCopyStream(&gzipOutputStream)) {
-            std::cerr << "Failed to write network gzip." << std::endl;
-            exit(2);
+            throw std::runtime_error("Failed to write Gzip protobuf");
         }
 
         google::protobuf::ShutdownProtobufLibrary();
