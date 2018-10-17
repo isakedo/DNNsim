@@ -21,7 +21,7 @@ int main() {
      *      If simulator:
      *
      */
-    std::string folder =  "/home/isak/CLionProjects/DNNsim/models/bvlc_alexnet/";
+    std::string folder =  "/home/ali/CLionProjects/DNNsim/models/bvlc_alexnet/";
     interface::NetReader reader = interface::NetReader("bvlc_alexnet",folder);
     core::Network net = reader.read_network_csv();
     reader.read_weights_npy(net);
