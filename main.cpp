@@ -19,7 +19,7 @@ void check_options(cxxopts::Options const &options)
     }
 
     if(options.count("i") == 0) {
-        throw std::runtime_error("Please provide the input file/folder configuration with -i <file>.");
+        throw std::runtime_error("Please provide the input file/folder configuration with -i <File>.");
     } else {
         check_path(options["i"].as<std::string>());
     }
@@ -33,7 +33,7 @@ void check_options(cxxopts::Options const &options)
     }
 
     if(options.count("o") == 0) {
-        throw std::runtime_error("Please provide the output file/folder configuration with -o <file>.");
+        throw std::runtime_error("Please provide the output file/folder configuration with -o <File>.");
     }
 
     if(options.count("otype") == 0) {
@@ -47,19 +47,19 @@ void check_options(cxxopts::Options const &options)
 }
 
 cxxopts::Options parse_options(int argc, char *argv[]) {
-    cxxopts::Options options("model-gen", "The SynFull model generator");
+    cxxopts::Options options("DNNsim", "Deep Neural Network simulator");
 
     // help-related options
     options.add_options("help")("h,help", "Print this help message", cxxopts::value<bool>(), "");
 
     options.add_options("input")
-            ("n,name", "Network name", cxxopts::value<std::string>())
-            ("i,input", "Path to the input file/folder", cxxopts::value<std::string>(), "<file>")
-            ("itype", "Input type", cxxopts::value<std::string>());
+            ("n,name", "Network name", cxxopts::value<std::string>(), "<Name>")
+            ("i,input", "Path to the input file/folder", cxxopts::value<std::string>(), "<File>")
+            ("itype", "Input type", cxxopts::value<std::string>(), "<Trace|Protobuf|Gzip>");
 
-    options.add_options("output")
-            ("o,output", "Path to the input file/folder", cxxopts::value<std::string>(), "<file>")
-            ("otype", "Output type", cxxopts::value<std::string>());
+    options.add_options("Transform: output")
+            ("o,output", "Path to the input file/folder", cxxopts::value<std::string>(), "<File>")
+            ("otype", "Output type", cxxopts::value<std::string>(), "<Protobuf|Gzip>");
 
     options.parse(argc, argv);
 
@@ -77,6 +77,13 @@ int main(int argc, char *argv[]) {
      *
      */
     auto const options = parse_options(argc, argv);
+
+    // Help
+    if(options.count("h") == 1) {
+        std::cout << options.help({"help", "input", "Transform: output"}) << std::endl;
+        return 0;
+    }
+
     check_options(options);
 
     // Read the network
@@ -94,6 +101,7 @@ int main(int argc, char *argv[]) {
         network = reader.read_network_gzip();
     }
 
+    // Write network
     interface::NetWriter writer = interface::NetWriter(options["o"].as<std::string>());
     if (input_type == "Protobuf") {
         writer.write_network_protobuf(network);
