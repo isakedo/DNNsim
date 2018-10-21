@@ -9,14 +9,12 @@ namespace core {
 
     protected:
 
-        static inline float ReLu(const float &value);
-
         void computeConvolution(const Layer &layer, cnpy::Array &result, bool ReLu);
 
         void computePooling(const Layer &layer, cnpy::Array &result);
 
         void computeFullyConnected(const Layer &layer, cnpy::Array &result, bool ReLu);
-        
+
     };
 }
 

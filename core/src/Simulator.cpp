@@ -3,7 +3,7 @@
 
 namespace core {
 
-    float Simulator::ReLu(const float &value) {
+    float ReLU(const float &value) {
 
     }
 

@@ -4,7 +4,7 @@
 namespace interface {
 
     void NetWriter::fillLayer(protobuf::Network_Layer* layer_proto, const core::Layer &layer) {
-        layer_proto->set_type((protobuf::Network_Layer_Type) layer.getType());
+        layer_proto->set_type(layer.getType());
         layer_proto->set_name(layer.getName());
         layer_proto->set_input(layer.getInput());
         layer_proto->set_nn(layer.getNn());
@@ -13,20 +13,24 @@ namespace interface {
         layer_proto->set_stride(layer.getStride());
         layer_proto->set_padding(layer.getPadding());
 
-        for(size_t length : layer.getWeights().getShape())
-            layer_proto->add_wgt_shape((int)length);
-        for(unsigned long long i = 0; i < layer.getWeights().getMax_index(); i++)
-            layer_proto->add_wgt_data(layer.getWeights().get(i));
+        // Add weights, activations, and output activations only to the desired layers
+        if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
 
-        for(size_t length : layer.getActivations().getShape())
-            layer_proto->add_act_shape((int)length);
-        for(unsigned long long i = 0; i < layer.getActivations().getMax_index(); i++)
-            layer_proto->add_act_data(layer.getActivations().get(i));
+            for (size_t length : layer.getWeights().getShape())
+                layer_proto->add_wgt_shape((int) length);
+            for (unsigned long long i = 0; i < layer.getWeights().getMax_index(); i++)
+                layer_proto->add_wgt_data(layer.getWeights().get(i));
 
-        for(size_t length : layer.getOutput_activations().getShape())
-            layer_proto->add_out_act_shape((int)length);
-        for(unsigned long long i = 0; i < layer.getOutput_activations().getMax_index(); i++)
-            layer_proto->add_out_act_data(layer.getOutput_activations().get(i));
+            for (size_t length : layer.getActivations().getShape())
+                layer_proto->add_act_shape((int) length);
+            for (unsigned long long i = 0; i < layer.getActivations().getMax_index(); i++)
+                layer_proto->add_act_data(layer.getActivations().get(i));
+
+            for (size_t length : layer.getOutput_activations().getShape())
+                layer_proto->add_out_act_shape((int) length);
+            for (unsigned long long i = 0; i < layer.getOutput_activations().getMax_index(); i++)
+                layer_proto->add_out_act_data(layer.getOutput_activations().get(i));
+        }
 
     }
 
@@ -75,6 +79,5 @@ namespace interface {
 
         google::protobuf::ShutdownProtobufLibrary();
     }
-
 
 }

@@ -7,14 +7,7 @@ message Network {   //Level 0
 
     message Layer {     //Level 1
 
-        enum Type {
-            INIT = 0;
-            CONV = 1;
-            FC = 2;
-            INCEP = 3;
-            LOSS = 4;
-        }
-        Type type = 1;
+        string type = 1;
         string name = 2;
         string input = 3;
         int32 Nn = 4;

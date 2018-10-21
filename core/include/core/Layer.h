@@ -6,15 +6,12 @@
 
 namespace core {
 
-
-    enum Type {INIT, CONV, FC, INCEP, LOSS};
-
     class Layer {
 
     private:
 
         /* Type of the layer */
-        Type type;
+        std::string type;
 
         /* Name of the network */
         std::string name;
@@ -22,7 +19,7 @@ namespace core {
         /* Set of layers of the network*/
         std::string input;
 
-        /* Number of filters */
+        /* Number of outputs */
         int Nn;
 
         /* Filters X size */
@@ -52,18 +49,18 @@ namespace core {
          * @param _type     Type of the network
          * @param _name     Name of the layer
          * @param _input    Name of the input layer
-         * @param _Nn       Number of filters
+         * @param _Nn       Number of outputs
          * @param _Kx       Filters X size
          * @param _Ky       Filters Y size
          * @param _stride   Stride
          * @param _padding  Padding
          */
-        Layer(Type _type, const std::string &_name, const std::string &_input, int _Nn, int _Kx, int _Ky,
-              int _stride, int _padding) : type(_type), Nn(_Nn), Kx(_Kx), Ky(_Ky), stride(_stride), padding(_padding)
-              { name = _name; input = _input; }
+        Layer(const std::string &_type, const std::string &_name, const std::string &_input, int _Nn, int _Kx, int _Ky,
+              int _stride, int _padding) : Nn(_Nn), Kx(_Kx), Ky(_Ky), stride(_stride), padding(_padding)
+              { type = _type; name = _name; input = _input; }
 
         /* Getters */
-        Type getType() const { return type; }
+        std::string getType() const { return type; }
         const std::string &getName() const { return name; }
         const std::string &getInput() const { return input; }
         int getNn() const { return Nn; }

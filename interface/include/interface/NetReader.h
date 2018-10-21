@@ -4,9 +4,12 @@
 #include <core/Network.h>
 #include <core/Layer.h>
 #include <network.pb.h>
+#include <caffe.pb.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/io/gzip_stream.h>
+#include <google/protobuf/text_format.h>
 
+#include <fcntl.h>
 #include <string>
 #include <fstream>
 #include <sstream>
@@ -17,6 +20,12 @@ namespace interface {
     class NetReader {
 
     private:
+
+        /* Layers we want to load in the model */
+        const std::set<std::string> layers_allowed = {"Convolution","InnerProduct","Pooling","ReLU"};
+
+        /* Layers that we want weights, activations, and output activations */
+        const std::set<std::string> layers_data = {"Convolution","InnerProduct"};
 
         /* Name of the network */
         std::string name;
@@ -35,13 +44,12 @@ namespace interface {
          * @param _name     The name of the network
          * @param _path     Path containing the files with the network architecture
          */
-        NetReader(const std::string &_name, const std::string &_path){ name = _name;
-            path = _path.back() == '/' ? _path : _path + '/';}
+        NetReader(const std::string &_name, const std::string &_path){ name = _name; path = _path;}
 
         /* Load the trace file inside the folder path and returns the network
          * @return          Network architecture
          * */
-        core::Network read_network_csv();
+        core::Network read_network_caffe();
 
         /* Read the protobuf with the network in the path and returns the network
          * @return          Network architecture

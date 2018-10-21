@@ -11,6 +11,7 @@ protobuf_generate_cpp(
         PROTO_GENERATED_SOURCES
         PROTO_GENERATED_HEADERS
         proto/network.proto
+        proto/caffe.proto
 )
 
 # Create library

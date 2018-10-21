@@ -33,11 +33,11 @@ void check_options(cxxopts::Options const &options)
     }
 
     if(options.count("itype") == 0) {
-        throw std::runtime_error("Please provide the input type configuration with --itype <Trace|Protobuf|Gzip>.");
+        throw std::runtime_error("Please provide the input type configuration with --itype <Caffe|Protobuf|Gzip>.");
     } else {
         std::string value = options["itype"].as<std::string>();
-        if(value  != "Trace" && value != "Protobuf" && value != "Gzip")
-            throw std::runtime_error("Please provide the input type configuration with --itype <Trace|Protobuf|Gzip>.");
+        if(value  != "Caffe" && value != "Protobuf" && value != "Gzip")
+            throw std::runtime_error("Please provide the input type configuration with --itype <Caffe|Protobuf|Gzip>.");
     }
 
     if(options["tool"].as<std::string>() == "Transform") {
@@ -67,7 +67,7 @@ cxxopts::Options parse_options(int argc, char *argv[]) {
     options.add_options("input")
             ("n,name", "Network name", cxxopts::value<std::string>(), "<Name>")
             ("i,input", "Path to the input file/folder", cxxopts::value<std::string>(), "<File>")
-            ("itype", "Input type", cxxopts::value<std::string>(), "<Trace|Protobuf|Gzip>");
+            ("itype", "Input type", cxxopts::value<std::string>(), "<Caffe|Protobuf|Gzip>");
 
     options.add_options("Transform: output")
             ("o,output", "Path to the input file/folder", cxxopts::value<std::string>(), "<File>")
@@ -107,8 +107,8 @@ int main(int argc, char *argv[]) {
         interface::NetReader reader = interface::NetReader(options["n"].as<std::string>(),
                                                            options["i"].as<std::string>());
         std::string input_type = options["itype"].as<std::string>();
-        if (input_type == "Trace") {
-            network = reader.read_network_csv();
+        if (input_type == "Caffe") {
+            network = reader.read_network_caffe();
             reader.read_weights_npy(network);
             reader.read_activations_npy(network);
             reader.read_output_activations_npy(network);

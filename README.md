@@ -15,7 +15,7 @@ All the inputs/outputs files of a network architecture must be in the same folde
 
 ### Allowed input files
 
-*   The architecture of the net in a trace_params.csv file (without weights and activations)
+*   The architecture of the net in a train_val.prototxt file (without weights and activations)
 *   Weights, Inputs and outputs activations in a *.npy file using the following format:
     *   wgt-$NAME.npy | act-$NAME-0{-out}.npy
 *   Full network in a Google protobuf format file
@@ -42,9 +42,9 @@ Print help:
     ./cmake-build-debug/bin/DNNsim -h
 
 ##### Transform tool example 
-For trace csv and Numpy arrays (Input path is the folder containing these files):
+For caffe model and Numpy arrays (Input path is the folder containing these files):
 
-    ./cmake-build-debug/bin/DNNsim Transform -n Alexnet -i models/bvlc_alexnet/ --itype Trace -o models/bvlc_alexnet/alexnet --otype Protobuf
+    ./cmake-build-debug/bin/DNNsim Transform -n Alexnet -i models/bvlc_alexnet/ --itype Caffe -o models/bvlc_alexnet/alexnet --otype Protobuf
 
 For Protobuf as input and Gzip as output:
 
