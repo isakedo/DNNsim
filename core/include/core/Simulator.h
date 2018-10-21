@@ -10,16 +10,16 @@ namespace core {
 
     private:
 
-        void computeInferenceTestConvolution(const Layer &layer, cnpy::Array &result, bool ReLu);
+        void computeConvolution(const Layer &layer, cnpy::Array &result, bool ReLu);
 
-        void computeInferenceTestPooling(const Layer &layer, cnpy::Array &result);
+        void computePooling(const Layer &layer, cnpy::Array &result);
 
-        void computeInferenceTestFullyConnected(const Layer &layer, cnpy::Array &result, bool ReLu);
+        void computeInnerProduct(const Layer &layer, cnpy::Array &result, bool ReLu);
 
 
     public:
 
-        void inferenceTestSimulation(const Network &network);
+        void run(const Network &network);
         
     };
 }

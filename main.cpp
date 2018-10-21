@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
         } else if (tool == "Simulator") {
             //Simulation
             core::Simulator DNNsim;
-            DNNsim.inferenceTestSimulation(network);
+            DNNsim.run(network);
         }
     } catch(std::exception &exception) {
         std::cout << "Error: " << exception.what() << std::endl;
