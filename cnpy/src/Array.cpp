@@ -21,8 +21,9 @@ namespace cnpy {
 
     float Array::get (int i, int j, int k, int l) const {
         unsigned long long index = shape[1]*shape[2]*shape[3]*i + shape[2]*shape[3]*j + shape[3]*k + l;
-        if(index >= this->data.size())
-            exit(1);
+        if(index >= this->data.size()) {
+            throw std::runtime_error("Array out of index");
+        }
         return this->data[index];
     }
 

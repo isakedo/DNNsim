@@ -13,7 +13,7 @@ namespace core {
 
     private:
 
-        /* Type of the network */
+        /* Type of the layer */
         Type type;
 
         /* Name of the network */

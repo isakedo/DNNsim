@@ -15,7 +15,9 @@ namespace cnpy {
 
     private:
 
-        /* Vector with the size of the vector for each dimension */
+        /* Vector with the size of the vector for each dimension
+         * Example for 4D: filter index, channel index, X-dimension index, Y-dimension index
+         */
         std::vector<size_t> shape;
 
         /* Vector of float containing the data */
