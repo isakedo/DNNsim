@@ -32,6 +32,8 @@ namespace interface {
                         std::stoi(words[4]), std::stoi(words[5]),std::stoi(words[6])));
             }
             myfile.close();
+        } else {
+            throw std::runtime_error("trace_params.csv file not found in the path provided");
         }
 
         return core::Network(this->name,vec);

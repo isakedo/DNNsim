@@ -35,7 +35,8 @@ namespace interface {
          * @param _name     The name of the network
          * @param _path     Path containing the files with the network architecture
          */
-        NetReader(const std::string &_name, const std::string &_path){ name = _name; path = _path;}
+        NetReader(const std::string &_name, const std::string &_path){ name = _name;
+            path = _path.back() == '/' ? _path : _path + '/';}
 
         /* Load the trace file inside the folder path and returns the network
          * @return          Network architecture
