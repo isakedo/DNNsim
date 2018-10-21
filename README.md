@@ -46,9 +46,16 @@ For caffe model and Numpy arrays (Input path is the folder containing these file
 
     ./cmake-build-debug/bin/DNNsim Transform -n Alexnet -i models/bvlc_alexnet/ --itype Caffe -o models/bvlc_alexnet/alexnet --otype Protobuf
 
-For Protobuf as input and Gzip as output:
+For Protobuf as input and Gzip as output (Input path is the actual file):
 
     ./cmake-build-debug/bin/DNNsim Transform -n Alexnet -i models/bvlc_alexnet/alexnet --itype Protobuf -o models/bvlc_alexnet/here --otype Gzip
+
+##### Simulator tool example
+
+For caffe model and Numpy arrays:
+
+    ./cmake-build-debug/bin/DNNsim Transform -n Alexnet -i models/bvlc_alexnet/ --itype Caffe
+
 
 ### Structure:
 *   **cnpy**: Folder for supporting math libraries
