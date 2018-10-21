@@ -57,7 +57,7 @@ For Protobuf as input and Gzip as output:
 *   **core**: Folder for the main classes of the simulator
     *   Network: class to store the network
     *   Layer: class to store the layer of the network
-    *   Simulator: 
+    *   Simulator: class that defines the behaviour of a standard deep learning architecture simulation
 *   **interface**: Folder to interface with input/output operations
     *   NetReader: class to read and load a network using different formats
     *   NetWriter: class to write and dump a network using different formats

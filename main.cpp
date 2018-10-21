@@ -3,6 +3,7 @@
 #include <core/Network.h>
 #include <interface/NetReader.h>
 #include <interface/NetWriter.h>
+#include <core/Simulator.h>
 
 void check_path(std::string const &path)
 {
@@ -127,6 +128,10 @@ int main(int argc, char *argv[]) {
             } else {
                 writer.write_network_gzip(network);
             }
+        } else if (tool == "Simulator") {
+            //Simulation
+            core::Simulator DNNsim;
+            DNNsim.inferenceTestSimulation(network);
         }
     } catch(std::exception &exception) {
         std::cout << "Error: " << exception.what() << std::endl;

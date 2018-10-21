@@ -3,19 +3,19 @@
 
 namespace core {
 
-    float ReLU(const float &value) {
+    static inline float ReLU(const float &value) {
 
     }
 
-    void Simulator::computeConvolution(const core::Layer &layer, cnpy::Array &result, bool ReLu) {
+    void Simulator::computeInferenceTestConvolution(const core::Layer &layer, cnpy::Array &result, bool ReLu) {
 
     }
 
-    void Simulator::computePooling(const core::Layer &layer, cnpy::Array &result) {
+    void Simulator::computeInferenceTestPooling(const core::Layer &layer, cnpy::Array &result) {
 
     }
 
-    void Simulator::computeFullyConnected(const Layer &layer, cnpy::Array &result, bool ReLu) {
+    void Simulator::computeInferenceTestFullyConnected(const Layer &layer, cnpy::Array &result, bool ReLu) {
         layer.getActivations().get(0,0,0,0);
         layer.getActivations().getDimensions();
         layer.getActivations().getShape()[0];
@@ -23,6 +23,10 @@ namespace core {
         std::vector<float> output_activations;
         output_activations.push_back(.7);
         result.set_values(output_activations,output_shape);
+    }
+
+    void Simulator::inferenceTestSimulation(const Network &network) {
+
     }
 
 }

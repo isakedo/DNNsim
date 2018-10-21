@@ -2,19 +2,25 @@
 #define DNNSIM_SIMULATOR_H
 
 #include "Layer.h"
+#include "Network.h"
 
 namespace core {
 
     class Simulator {
 
-    protected:
+    private:
 
-        void computeConvolution(const Layer &layer, cnpy::Array &result, bool ReLu);
+        void computeInferenceTestConvolution(const Layer &layer, cnpy::Array &result, bool ReLu);
 
-        void computePooling(const Layer &layer, cnpy::Array &result);
+        void computeInferenceTestPooling(const Layer &layer, cnpy::Array &result);
 
-        void computeFullyConnected(const Layer &layer, cnpy::Array &result, bool ReLu);
+        void computeInferenceTestFullyConnected(const Layer &layer, cnpy::Array &result, bool ReLu);
 
+
+    public:
+
+        void inferenceTestSimulation(const Network &network);
+        
     };
 }
 

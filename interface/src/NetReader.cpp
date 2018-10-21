@@ -135,7 +135,6 @@ namespace interface {
         protobuf::Network network_proto;
 
         // Read the existing network.
-        std::cout << this->path << std::endl;
         std::fstream input(this->path, std::ios::in | std::ios::binary);
 
         google::protobuf::io::IstreamInputStream inputFileStream(&input);
