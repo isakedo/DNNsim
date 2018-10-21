@@ -41,7 +41,7 @@ Print help:
 
     ./cmake-build-debug/bin/DNNsim -h
 
-#####Transform tool example 
+##### Transform tool example 
 For trace csv and Numpy arrays (Input path is the folder containing these files):
 
     ./cmake-build-debug/bin/DNNsim Transform -n Alexnet -i models/bvlc_alexnet/ --itype Trace -o models/bvlc_alexnet/alexnet --otype Protobuf
