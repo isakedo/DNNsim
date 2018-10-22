@@ -10,15 +10,25 @@ namespace core {
 
     private:
 
-        void computeConvolution(const Layer &layer, cnpy::Array &result, bool ReLu);
+        /* Compute the output activations for a convolutional layer
+         * @param layer     Layer for which we want to calculate the outputs
+         * @param result    Output array where output activations are stored
+         * @param has_ReLU  Bool to know if the layer has ReLU
+         */
+        void computeConvolution(const Layer &layer, cnpy::Array &result, bool has_ReLU);
 
-        void computePooling(const Layer &layer, cnpy::Array &result);
-
-        void computeInnerProduct(const Layer &layer, cnpy::Array &result, bool ReLu);
-
+        /* Compute the output activations for a fully connected layers
+         * @param layer     Layer for which we want to calculate the outputs
+         * @param result    Output array where output activations are stored
+         * @param has_ReLU  Bool to know if the layer has ReLU
+         */
+        void computeInnerProduct(const Layer &layer, cnpy::Array &result, bool has_ReLU);
 
     public:
 
+        /* Compute the output activations fot all the layers in the network, and check their correctness
+         * @param network   Initialised network for the computation
+         */
         void run(const Network &network);
         
     };

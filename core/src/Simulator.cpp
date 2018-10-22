@@ -11,10 +11,6 @@ namespace core {
 
     }
 
-    void Simulator::computePooling(const core::Layer &layer, cnpy::Array &result) {
-
-    }
-
     void Simulator::computeInnerProduct(const Layer &layer, cnpy::Array &result, bool ReLu) {
         layer.getActivations().get(0,0,0,0);
         layer.getActivations().getDimensions();
@@ -54,19 +50,13 @@ namespace core {
             if(has_ReLU) index++;
 
             if(layer.getType() == "Convolution") {
-                computeConvolution(layer,result,has_ReLU);
+                computeConvolution(layer, result, has_ReLU);
+                check_values(layer,layer.getOutput_activations(),result);
+            } else if(layer.getType() == "InnerProduct") {
+                computeInnerProduct(layer, result, has_ReLU);
+                check_values(layer,layer.getOutput_activations(),result);
+            }
 
-                if( index < num_layers && network.getLayers()[index].getType() == "Pooling") {
-                    Layer pool_layer = network.getLayers()[index];
-                    pool_layer.setActivations(result);
-                    computePooling(pool_layer,result);
-                    index++;
-                }
-
-            } else if(layer.getType() == "InnerProduct")
-                computeInnerProduct(layer,result,has_ReLU);
-
-            check_values(layer,layer.getOutput_activations(),result);
 
         }
 
