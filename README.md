@@ -71,9 +71,3 @@ For caffe model and Numpy arrays:
     * proto: Folder for protobuf definition
         * network.proto Google protobuf definition for the network
         
-
-[//]:<> (Current python simulator for Bit-Pragmatic is under:) 
-[//]:<> (*   /aenao-99/delmasl1/cnvlutin-PRA/MIsim/functionalSerial.py)
-[//]:<> (*   /aenao-99/delmasl1/cnvlutin-PRA/MIsim/testSystem.py)
-
-
