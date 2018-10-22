@@ -54,7 +54,7 @@ For Protobuf as input and Gzip as output (Input path is the actual file):
 
 For caffe model and Numpy arrays:
 
-    ./cmake-build-debug/bin/DNNsim Transform -n Alexnet -i models/bvlc_alexnet/ --itype Caffe
+    ./cmake-build-debug/bin/DNNsim Simulator -n Alexnet -i models/bvlc_alexnet/ --itype Caffe
 
 
 ### Structure:
