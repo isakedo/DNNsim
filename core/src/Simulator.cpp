@@ -19,6 +19,7 @@ namespace core {
         std::vector<float> output_activations;
         output_activations.push_back(.7);
         result.set_values(output_activations,output_shape);
+        std::cout<< "\n" <<layer.getActivations().getShape()[0]<< "\n" <<layer.getActivations().getShape()[1]<< "\n" <<layer.getActivations().getShape()[2]<< "\n" <<layer.getActivations().getShape()[3] ;
     }
 
     void check_values(const Layer &layer, const cnpy::Array &test, const cnpy::Array &result) {
