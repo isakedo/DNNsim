@@ -4,21 +4,21 @@
 namespace core {
 
     static inline float ReLU(const float &value) {
-        return .1;
+        return value < 0 ? 0 : value;
     }
 
-    void Simulator::computeConvolution(const core::Layer &layer, cnpy::Array &result, bool ReLu) {
+    void Simulator::computeConvolution(const core::Layer &layer, cnpy::Array &result, bool has_ReLu) {
 
     }
 
-    void Simulator::computeInnerProduct(const Layer &layer, cnpy::Array &result, bool ReLu) {
+    void Simulator::computeInnerProduct(const Layer &layer, cnpy::Array &result, bool has_ReLu) {
         layer.getActivations().get(0,0,0,0);
         layer.getWeights().get(0,0,0,0);
         layer.getActivations().getDimensions();
         layer.getActivations().getShape()[0];
         std::vector<size_t> output_shape;
         std::vector<float> output_activations;
-        std::cout<< "\n" <<layer.getActivations().getShape()[0]<< "\n" <<layer.getActivations().getShape()[1]<< "\n" <<layer.getActivations().getShape()[2]<< "\n" <<layer.getActivations().getShape()[3] ;
+        //std::cout<< "\n" <<layer.getActivations().getShape()[0]<< "\n" <<layer.getActivations().getShape()[1]<< "\n" <<layer.getActivations().getShape()[2]<< "\n" <<layer.getActivations().getShape()[3] ;
         for(unsigned long long units=0; units<layer.getWeights().getShape()[0]; units++) {
 
             float sum = 0.0;
@@ -33,28 +33,31 @@ namespace core {
 
         }
         // send the results
+        output_shape.push_back(1);
+        output_shape.push_back(output_activations.size());
         result.set_values(output_activations,output_shape);
 
     }
 
-    void check_values(const Layer &layer, const cnpy::Array &test, const cnpy::Array &result) {
+    void check_values(const Layer &layer, const cnpy::Array &test, const cnpy::Array &result,
+            const float min_error = 0.001) {
+
         std::cout << "Checking values for layer: " << layer.getName() << " of type: "<< layer.getType() << "... ";
-        std::cout << "target: " << test.getMax_index() << "result: " << result.getMax_index() << std::endl;
         if(test.getMax_index() != result.getMax_index()) {
             std::cout << "ERROR" << std::endl;
-            std::cout << "target: " << test.getMax_index() << "result: " << result.getMax_index() << std::endl;
             return;
         }
+        int count = 0;
         for(unsigned long long i = 0; i < test.getMax_index(); i++) {
-            // Hard checking if it equals
-            // if you have problems can be changed to: |test.get(i) - result.get(i)| < error_tolerance
-            if(test.get(i) != result.get(i)) {
-                std::cout << "ERROR" << std::endl;
+            if(fabsf(test.get(i) - result.get(i)) > min_error) {
+              //  std::cout << "ERROR" << std::endl;
                 std::cout << "target: " << test.get(i) << "result: " << result.get(i) << std::endl;
-                return;
+                count++;
+             //   return;
             }
         }
-        std::cout << "GOOD" << std::endl;
+        //std::cout << "GOOD" << std::endl;
+        std::cout << "ERRORS: " << count << " out of " << test.getMax_index() << " error tolerance: " << min_error << std::endl;
     }
 
     void Simulator::run(const Network &network) {
