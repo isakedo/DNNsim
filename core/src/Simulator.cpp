@@ -26,6 +26,7 @@ namespace core {
         std::cout << "Checking values for layer: " << layer.getName() << " of type: "<< layer.getType() << "... ";
         if(test.getMax_index() != result.getMax_index()) {
             std::cout << "ERROR" << std::endl;
+            std::cout << "target: " << test.getMax_index() << "result: " << result.getMax_index() << std::endl;
             return;
         }
         for(unsigned long long int i = 0; i < test.getMax_index(); i++) {
@@ -33,6 +34,7 @@ namespace core {
             // if you have problems can be changed to: |test.get(i) - result.get(i)| < error_tolerance
             if(test.get(i) != result.get(i)) {
                 std::cout << "ERROR" << std::endl;
+                std::cout << "target: " << test.get(i) << "result: " << result.get(i) << std::endl;
                 return;
             }
         }
