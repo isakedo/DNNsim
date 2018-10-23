@@ -13,6 +13,7 @@ namespace core {
 
     void Simulator::computeInnerProduct(const Layer &layer, cnpy::Array &result, bool ReLu) {
         layer.getActivations().get(0,0,0,0);
+        layer.getWeights().get(0,0,0,0);
         layer.getActivations().getDimensions();
         layer.getActivations().getShape()[0];
         std::vector<size_t> output_shape;
@@ -20,6 +21,21 @@ namespace core {
         output_activations.push_back(.7);
         result.set_values(output_activations,output_shape);
         std::cout<< "\n" <<layer.getActivations().getShape()[0]<< "\n" <<layer.getActivations().getShape()[1]<< "\n" <<layer.getActivations().getShape()[2]<< "\n" <<layer.getActivations().getShape()[3] ;
+        for(int units=0; units<layer.getWeights().getShape()[0]; units++){
+
+            for (int input_act_num=0; input_act_num<layer.getWeights().getShape()[1]; input_act_num++){
+                    // No relu t=yet
+                output_activations[units]+=
+                        layer.getActivations().get(0,input_act_num,0,0) //how to access this in one dimension? the problem with layer 6 2D inputs
+                        * layer.getWeights().get(units,input_act_num,0,0);
+                std::cout<< "\n"<< "activation counter"<<input_act_num;
+            }
+              std::cout<< "\n"<< "Your final result"<<output_activations[units];
+
+
+        }
+            // send the results
+
     }
 
     void check_values(const Layer &layer, const cnpy::Array &test, const cnpy::Array &result) {
