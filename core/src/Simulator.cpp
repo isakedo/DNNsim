@@ -18,34 +18,34 @@ namespace core {
         layer.getActivations().getShape()[0];
         std::vector<size_t> output_shape;
         std::vector<float> output_activations;
-        output_activations.push_back(.7);
-        result.set_values(output_activations,output_shape);
         std::cout<< "\n" <<layer.getActivations().getShape()[0]<< "\n" <<layer.getActivations().getShape()[1]<< "\n" <<layer.getActivations().getShape()[2]<< "\n" <<layer.getActivations().getShape()[3] ;
-        for(int units=0; units<layer.getWeights().getShape()[0]; units++){
+        for(unsigned long long units=0; units<layer.getWeights().getShape()[0]; units++) {
 
-            for (int input_act_num=0; input_act_num<layer.getWeights().getShape()[1]; input_act_num++){
+            float sum = 0.0;
+            for (unsigned long long input_act_num=0; input_act_num<layer.getWeights().getShape()[1]; input_act_num++){
                     // No relu t=yet
-                output_activations[units]+=
-                        layer.getActivations().get(0,input_act_num,0,0) //how to access this in one dimension? the problem with layer 6 2D inputs
-                        * layer.getWeights().get(units,input_act_num,0,0);
-                std::cout<< "\n"<< "activation counter"<<input_act_num;
+                sum += layer.getActivations().get(input_act_num) * layer.getWeights().get(units,input_act_num);
+             //   std::cout<< "\n"<< "activation counter"<<input_act_num;
             }
-              std::cout<< "\n"<< "Your final result"<<output_activations[units];
+            output_activations.push_back(sum);
+          //  std::cout<< "\n"<< "Your final result"<<output_activations[units];
 
 
         }
-            // send the results
+        // send the results
+        result.set_values(output_activations,output_shape);
 
     }
 
     void check_values(const Layer &layer, const cnpy::Array &test, const cnpy::Array &result) {
         std::cout << "Checking values for layer: " << layer.getName() << " of type: "<< layer.getType() << "... ";
+        std::cout << "target: " << test.getMax_index() << "result: " << result.getMax_index() << std::endl;
         if(test.getMax_index() != result.getMax_index()) {
             std::cout << "ERROR" << std::endl;
             std::cout << "target: " << test.getMax_index() << "result: " << result.getMax_index() << std::endl;
             return;
         }
-        for(unsigned long long int i = 0; i < test.getMax_index(); i++) {
+        for(unsigned long long i = 0; i < test.getMax_index(); i++) {
             // Hard checking if it equals
             // if you have problems can be changed to: |test.get(i) - result.get(i)| < error_tolerance
             if(test.get(i) != result.get(i)) {
@@ -75,7 +75,6 @@ namespace core {
                 computeInnerProduct(layer, result, has_ReLU);
                 check_values(layer,layer.getOutput_activations(),result);
             }
-
 
         }
 

@@ -52,7 +52,7 @@ namespace cnpy {
          *
          * @return      return the value given by the index
          */
-        float get(int i, int j) const;
+        float get(unsigned long i, unsigned long j) const;
 
         /*  Return the value inside the vector given one dimension
          * @param index Index for the array

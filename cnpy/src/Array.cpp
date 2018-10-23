@@ -27,7 +27,7 @@ namespace cnpy {
         return this->data[index];
     }
 
-    float Array::get (int i, int j) const {
+    float Array::get (unsigned long i, unsigned long j) const {
         unsigned long long index = shape[1]*i + j;
         if(index >= this->data.size()) {
             throw std::runtime_error("Array out of index");
