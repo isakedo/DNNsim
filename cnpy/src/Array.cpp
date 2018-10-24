@@ -46,6 +46,16 @@ namespace cnpy {
         return shape.size();
     }
 
+    void Array::updateActivations(long i, long j, long k, long l, float n)  {
+        unsigned long long index = shape[1] * shape[2] * shape[3] * i + shape[2] * shape[3] * j + shape[3] * k + l;
+        data.insert(data.begin()+index,1,n);
+    }
+
+    void Array::updateShape(int i, int j){ //only update x and y dim
+        shape[3] += i;
+        shape[2] += j;
+    }
+
     /* Getters */
     const std::vector<size_t> &Array::getShape() const { return shape; }
     unsigned long long int Array::getMax_index() const { return data.size(); }

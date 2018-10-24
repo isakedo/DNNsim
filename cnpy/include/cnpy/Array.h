@@ -65,6 +65,8 @@ namespace cnpy {
          * @return      return the number of dimensions of the array
          */
         unsigned long getDimensions() const;
+        void updateActivations(long i, long j, long k, long l, float n);
+        void updateShape(int i, int j);
 
         /* Getters */
         const std::vector<size_t> &getShape() const;
