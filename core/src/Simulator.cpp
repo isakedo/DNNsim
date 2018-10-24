@@ -8,9 +8,9 @@ namespace core {
     }
 
     void Simulator::computeConvolution(const core::Layer &layer, cnpy::Array &result, bool has_ReLu) {
-        cnpy::Array wgt = layer.getWeights();
-        std::vector<size_t> wgt_shape = wgt.getShape();
-        cnpy::Array act = layer.getActivations();
+        const cnpy::Array &wgt = layer.getWeights();  //Avoid copying the vector
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
+        const cnpy::Array &act = layer.getActivations();
        /* cnpy::Array act;
         std::vector<float> a;
         for(int i=0;i <16;i++)
@@ -27,7 +27,7 @@ namespace core {
         int stride = layer.getStride();
         int Kx = layer.getKx();
         int Ky = layer.getKy();
-
+/*
         std::vector<size_t> output_shape;
         int output_0, output_1, output_2, output_3 = 0;
         std::vector<float> output_activations;
@@ -49,7 +49,7 @@ namespace core {
             }
             std::cout << act.get(0, 0, 0, 0) << " ";
         }
-        act.updateShape(2*padding,2*padding);
+        act.updateShape(2*padding,2*padding);*/
       /*  for(int i=0;i<act.getShape()[2];i++) {
             for (int j = 0; j < act.getShape()[3]; j++)
                 std::cout << act.get(0, 0, 0, 0) << " ";
