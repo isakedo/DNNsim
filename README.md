@@ -1,12 +1,12 @@
-# DNNsim 0.0.2
+# DNNsim 0.0.3
 
 Gitignore is set up for CLion IDE, if you want to use a different IDE add their project file extensions to .gitignore. 
 It can be used from the command line. The folder specified for models under .gitignore is "models". 
 All the inputs/outputs files of a network architecture must be in the same folder in case of Trace input. Example: models/alexnet/{Inputs/Outputs}
 
 ### TODO list
-*   Inference
 *   Test other networks
+*   Fixed points
 
 ### Requeriments
 *   Cmake posterior to version 3.10
@@ -56,6 +56,8 @@ For caffe model and Numpy arrays:
 
     ./cmake-build-debug/bin/DNNsim Simulator -n Alexnet -i models/bvlc_alexnet/ --itype Caffe
 
+### Tested Networks
+*   AlexNet
 
 ### Structure:
 *   **cnpy**: Folder for supporting math libraries

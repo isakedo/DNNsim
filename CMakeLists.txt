@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.1)
 project(
         DNNsim
-        VERSION 0.0.1
+        VERSION 0.0.3
         LANGUAGES CXX
 )
+
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 # Add the math library
 add_subdirectory(cnpy)
