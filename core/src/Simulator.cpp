@@ -1,7 +1,5 @@
 
 #include <core/Simulator.h>
-#include <iomanip>      // std::setprecision
-
 
 namespace core {
 
