@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.1)
 project(
         core
-        VERSION 0.0.1
+        VERSION 0.0.3
         LANGUAGES CXX
 )
 
@@ -11,7 +11,8 @@ add_library(
         include/core/Layer.h
         include/core/Network.h
         include/core/Simulator.h
-        src/Simulator.cpp)
+        src/Simulator.cpp
+)
 
 target_include_directories(
         ${PROJECT_NAME}
@@ -22,6 +23,7 @@ target_include_directories(
 target_link_libraries(
         ${PROJECT_NAME}
         PRIVATE cnpy
+        PRIVATE sys
 )
 
 set_target_properties(

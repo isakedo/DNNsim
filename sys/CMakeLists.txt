@@ -1,28 +1,20 @@
 cmake_minimum_required(VERSION 3.1)
 project(
-        cnpy
-        VERSION 0.0.2
+        sys
+        VERSION 0.0.1
         LANGUAGES CXX
 )
 
 # Create library
 add_library(
-        ${PROJECT_NAME}
-        include/cnpy/cnpy.h
-        include/cnpy/Array.h
-        src/cnpy.cpp
-        src/Array.cpp
+        ${PROJECT_NAME} SHARED
+        include/sys/cxxopts.h
+        include/sys/common.h
 )
 
 target_include_directories(
         ${PROJECT_NAME}
         PUBLIC include/
-)
-
-
-target_link_libraries(
-        ${PROJECT_NAME}
-        PRIVATE sys
 )
 
 set_target_properties(

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.1)
 project(
         interface
-        VERSION 0.0.1
+        VERSION 0.0.3
         LANGUAGES CXX
 )
 
@@ -22,7 +22,8 @@ add_library(
         include/interface/NetReader.h
         include/interface/NetWriter.h
         src/NetReader.cpp
-        src/NetWriter.cpp)
+        src/NetWriter.cpp
+)
 
 target_include_directories(
         ${PROJECT_NAME}
@@ -35,6 +36,7 @@ target_link_libraries(
         PUBLIC ${Protobuf_LIBRARIES}
         PRIVATE cnpy
         PRIVATE core
+        PRIVATE sys
 )
 
 set_target_properties(

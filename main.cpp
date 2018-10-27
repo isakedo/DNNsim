@@ -1,9 +1,64 @@
-#include "cxxopts.h"
-#include <iostream>
+/*
+Copyright (c) 2018 Andreas Moshovos
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+*/
+
+#include <sys/common.h>
+#include <sys/cxxopts.h>
 #include <core/Network.h>
+#include <core/Simulator.h>
 #include <interface/NetReader.h>
 #include <interface/NetWriter.h>
-#include <core/Simulator.h>
+
+template <typename T>
+void init(const cxxopts::Options &options) {
+    std::string tool = options["tool"].as<std::string>();
+
+    // Read the network
+    core::Network<T> network;
+    interface::NetReader<T> reader = interface::NetReader<T>(options["n"].as<std::string>(),
+                                                                     options["i"].as<std::string>());
+    std::string input_type = options["itype"].as<std::string>();
+    if (input_type == "Caffe") {
+        network = reader.read_network_caffe();
+        reader.read_weights_npy(network);
+        reader.read_activations_npy(network);
+        reader.read_output_activations_npy(network);
+    } else if (input_type == "Protobuf") {
+        network = reader.read_network_protobuf();
+    } else {
+        network = reader.read_network_gzip();
+    }
+
+    if (tool == "Transform") {
+        // Write network
+        interface::NetWriter<T> writer = interface::NetWriter<T>(options["o"].as<std::string>());
+        std::string output_type = options["otype"].as<std::string>();
+        if (output_type == "Protobuf") {
+            writer.write_network_protobuf(network);
+        } else {
+            writer.write_network_gzip(network);
+        }
+    } else if (tool == "Simulator") {
+        //Simulation
+        core::Simulator<T> DNNsim;
+        DNNsim.run(network);
+    }
+}
 
 void check_path(std::string const &path)
 {
@@ -13,7 +68,7 @@ void check_path(std::string const &path)
     }
 }
 
-void check_options(cxxopts::Options const &options)
+void check_options(const cxxopts::Options &options)
 {
     if(options.count("tool") == 0) {
         throw std::runtime_error("Please provide first the desired tool <Simulator|Transform>.");
@@ -82,15 +137,6 @@ cxxopts::Options parse_options(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-    /*  Script style:
-     *  Operation mode (Simulate or transform)
-     *  -n name of the network
-     *  If transform:
-     *      -o path to the output file, --otype output type (Protobuf, Gzip)
-     *      -i path to the input file/folder, --itype input type (Protobuf, Gzip, Trace)
-     *  If simulator:
-     *
-     */
     try {
         auto const options = parse_options(argc, argv);
 
@@ -101,39 +147,9 @@ int main(int argc, char *argv[]) {
         }
 
         check_options(options);
-        std::string tool = options["tool"].as<std::string>();
+        init<float>(options);
 
-        // Read the network
-        core::Network network;
-        interface::NetReader reader = interface::NetReader(options["n"].as<std::string>(),
-                                                           options["i"].as<std::string>());
-        std::string input_type = options["itype"].as<std::string>();
-        if (input_type == "Caffe") {
-            network = reader.read_network_caffe();
-            reader.read_weights_npy(network);
-            reader.read_activations_npy(network);
-            reader.read_output_activations_npy(network);
-        } else if (input_type == "Protobuf") {
-            network = reader.read_network_protobuf();
-        } else {
-            network = reader.read_network_gzip();
-        }
-
-        if (tool == "Transform") {
-            // Write network
-            interface::NetWriter writer = interface::NetWriter(options["o"].as<std::string>());
-            std::string output_type = options["otype"].as<std::string>();
-            if (output_type == "Protobuf") {
-                writer.write_network_protobuf(network);
-            } else {
-                writer.write_network_gzip(network);
-            }
-        } else if (tool == "Simulator") {
-            //Simulation
-            core::Simulator DNNsim;
-            DNNsim.run(network);
-        }
-    } catch(std::exception &exception) {
+    } catch (std::exception &exception) {
         std::cout << "Error: " << exception.what() << std::endl;
         exit(1);
     }

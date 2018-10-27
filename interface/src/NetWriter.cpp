@@ -3,7 +3,8 @@
 
 namespace interface {
 
-    void NetWriter::fillLayer(protobuf::Network_Layer* layer_proto, const core::Layer &layer) {
+    template <typename T>
+    void NetWriter<T>::fillLayer(protobuf::Network_Layer* layer_proto, const core::Layer<T> &layer) {
         layer_proto->set_type(layer.getType());
         layer_proto->set_name(layer.getName());
         layer_proto->set_input(layer.getInput());
@@ -34,13 +35,14 @@ namespace interface {
 
     }
 
-    void NetWriter::write_network_protobuf(const core::Network &network) {
+    template <typename T>
+    void NetWriter<T>::write_network_protobuf(const core::Network<T> &network) {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
         protobuf::Network network_proto;
         network_proto.set_name(network.getName());
 
-        for(const core::Layer &layer : network.getLayers())
+        for(const core::Layer<T> &layer : network.getLayers())
             fillLayer(network_proto.add_layers(),layer);
 
         {
@@ -54,13 +56,14 @@ namespace interface {
         google::protobuf::ShutdownProtobufLibrary();
     }
 
-     void NetWriter::write_network_gzip(const core::Network &network) {
+    template <typename T>
+    void NetWriter<T>::write_network_gzip(const core::Network<T> &network) {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
         protobuf::Network network_proto;
         network_proto.set_name(network.getName());
 
-        for(const core::Layer &layer : network.getLayers())
+        for(const core::Layer<T> &layer : network.getLayers())
             fillLayer(network_proto.add_layers(),layer);
 
         // Write the new network back to disk.
@@ -79,5 +82,7 @@ namespace interface {
 
         google::protobuf::ShutdownProtobufLibrary();
     }
+
+    INITIALISE_DATA_TYPES(NetWriter);
 
 }

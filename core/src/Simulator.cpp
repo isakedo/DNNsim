@@ -7,11 +7,12 @@ namespace core {
         return value < 0 ? 0 : value;
     }
 
-    void Simulator::computeConvolution(const core::Layer &layer, cnpy::Array &result, bool has_ReLu) {
+    template <typename T>
+    void Simulator<T>::computeConvolution(const core::Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
         // Simplify names getting their pointers
-        const cnpy::Array &wgt = layer.getWeights();
+        const cnpy::Array<T> &wgt = layer.getWeights();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
-        const cnpy::Array &act = layer.getActivations();
+        const cnpy::Array<T> &act = layer.getActivations();
         const std::vector<size_t> &act_shape = act.getShape();
 
         int padding = layer.getPadding();
@@ -73,7 +74,8 @@ namespace core {
         result.set_values(output_activations,output_shape);
     }
 
-    void Simulator::computeInnerProduct(const Layer &layer, cnpy::Array &result, bool has_ReLu) {
+    template <typename T>
+    void Simulator<T>::computeInnerProduct(const Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
         std::vector<size_t> output_shape;
         std::vector<float> output_activations;
         for(unsigned long long units=0; units<layer.getWeights().getShape()[0]; units++) {
@@ -91,7 +93,8 @@ namespace core {
 
     }
 
-    void check_values(const Layer &layer, const cnpy::Array &test, const cnpy::Array &result,
+    template <typename T>
+    void check_values(const Layer<T> &layer, const cnpy::Array<T> &test, const cnpy::Array<T> &result,
             const float min_error = 1.35) {
 
         std::cout << "Checking values for layer: " << layer.getName() << " of type: "<< layer.getType() << "... ";
@@ -107,12 +110,13 @@ namespace core {
         << min_error << std::endl;
     }
 
-    void Simulator::run(const Network &network) {
+    template <typename T>
+    void Simulator<T>::run(const Network<T> &network) {
         int index = 0;
         unsigned long num_layers = network.getLayers().size();
         while(index < num_layers) {
-            Layer layer = network.getLayers()[index];
-            cnpy::Array result;
+            Layer<T> layer = network.getLayers()[index];
+            cnpy::Array<T> result;
             index++;
 
             bool has_ReLU = index < num_layers && network.getLayers()[index].getType() == "ReLU";
@@ -129,5 +133,7 @@ namespace core {
         }
 
     }
+
+    INITIALISE_DATA_TYPES(Simulator);
 
 }

@@ -1,11 +1,12 @@
 #ifndef DNNSIM_LAYER_H
 #define DNNSIM_LAYER_H
 
-#include <string>
+#include <sys/common.h>
 #include <cnpy/Array.h>
 
 namespace core {
 
+    template <typename T>
     class Layer {
 
     private:
@@ -35,13 +36,13 @@ namespace core {
         int padding;
 
         /* numpy array containing the weights for the layer */
-        cnpy::Array weights;
+        cnpy::Array<T> weights;
 
         /* numpy array containing the activations for the layer */
-        cnpy::Array activations;
+        cnpy::Array<T> activations;
 
         /* numpy array containing the output activations for the layer */
-        cnpy::Array output_activations;
+        cnpy::Array<T> output_activations;
 
     public:
 
@@ -68,14 +69,14 @@ namespace core {
         int getKy() const { return Ky; }
         int getStride() const { return stride; }
         int getPadding() const { return padding; }
-        const cnpy::Array &getWeights() const { return weights; }
-        const cnpy::Array &getActivations() const { return activations; }
-        const cnpy::Array &getOutput_activations() const { return output_activations; }
+        const cnpy::Array<T> &getWeights() const { return weights; }
+        const cnpy::Array<T> &getActivations() const { return activations; }
+        const cnpy::Array<T> &getOutput_activations() const { return output_activations; }
 
         /* Setters */
-        void setWeights(const cnpy::Array &weights) { Layer::weights = weights; }
-        void setActivations(const cnpy::Array &activations) { Layer::activations = activations; }
-        void setOutput_activations(const cnpy::Array &output_activations) {
+        void setWeights(const cnpy::Array<T> &weights) { Layer::weights = weights; }
+        void setActivations(const cnpy::Array<T> &activations) { Layer::activations = activations; }
+        void setOutput_activations(const cnpy::Array<T> &output_activations) {
             Layer::output_activations = output_activations; }
 
     };

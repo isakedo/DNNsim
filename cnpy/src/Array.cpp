@@ -3,7 +3,8 @@
 
 namespace cnpy {
 
-    void Array::set_values(const std::string &path) {
+    template <typename T>
+    void Array<T>::set_values(const std::string &path) {
         cnpy::NpyArray data_npy;
         cnpy::npy_load(path, data_npy, this->shape);
         unsigned long long max_index = 1;
@@ -13,13 +14,15 @@ namespace cnpy {
             this->data.push_back(data_npy.data<float>()[i]);
     }
 
-    void Array::set_values(const std::vector<float> &_data, const std::vector<size_t> &_shape) {
+    template <typename T>
+    void Array<T>::set_values(const std::vector<T> &_data, const std::vector<size_t> &_shape) {
         Array::data = _data;
         Array::shape = _shape;
     }
 
 
-    float Array::get (int i, int j, int k, int l) const {
+    template <typename T>
+    T Array<T>::get (int i, int j, int k, int l) const {
         unsigned long long index = shape[1]*shape[2]*shape[3]*i + shape[2]*shape[3]*j + shape[3]*k + l;
 
         #ifdef DEBUG
@@ -31,7 +34,8 @@ namespace cnpy {
         return this->data[index];
     }
 
-    float Array::get (unsigned long i, unsigned long j) const {
+    template <typename T>
+    T Array<T>::get (unsigned long i, unsigned long j) const {
         unsigned long long index = shape[1]*i + j;
 
         #ifdef DEBUG
@@ -43,7 +47,8 @@ namespace cnpy {
         return this->data[index];
     }
 
-    float Array::get(unsigned long long index) const {
+    template <typename T>
+    T Array<T>::get(unsigned long long index) const {
 
         #ifdef DEBUG
         if(index >= this->data.size()) {
@@ -54,12 +59,15 @@ namespace cnpy {
         return this->data[index];
     }
 
-    unsigned long Array::getDimensions() const {
+    template <typename T>
+    unsigned long Array<T>::getDimensions() const {
         return shape.size();
     }
 
     /* Getters */
-    const std::vector<size_t> &Array::getShape() const { return shape; }
-    unsigned long long int Array::getMax_index() const { return data.size(); }
+    template <typename T> const std::vector<size_t> &Array<T>::getShape() const { return shape; }
+    template <typename T> unsigned long long int Array<T>::getMax_index() const { return data.size(); }
+
+    INITIALISE_DATA_TYPES(Array);
 
 }

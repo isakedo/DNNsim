@@ -1,18 +1,12 @@
 #ifndef DNNSIM_ARRAY_H
 #define DNNSIM_ARRAY_H
 
-
+#include <sys/common.h>
 #include <cnpy/cnpy.h>
-
-#include <cstdlib>
-#include <vector>
-#include <string>
-#include <cmath>
-
-#define DEBUG
 
 namespace cnpy {
 
+    template <typename T>
     class Array {
 
     private:
@@ -22,8 +16,8 @@ namespace cnpy {
          */
         std::vector<size_t> shape;
 
-        /* Vector of float containing the data */
-        std::vector<float> data;
+        /* Vector containing the data */
+        std::vector<T> data;
 
     public:
 
@@ -36,7 +30,7 @@ namespace cnpy {
          * @param _data     Dynamic float vector containing the data
          * @param _shape    Shape of the data
          */
-        void set_values(const std::vector<float> &_data, const std::vector<size_t> &_shape);
+        void set_values(const std::vector<T> &_data, const std::vector<size_t> &_shape);
 
         /*  Return the value inside the vector given the fourth dimensions
          * @param i     Index for the first dimension
@@ -46,7 +40,7 @@ namespace cnpy {
          *
          * @return      return the value given by the index
          */
-        float get(int i, int j, int k, int l) const;
+        T get(int i, int j, int k, int l) const;
 
         /*  Return the value inside the vector given the two dimensions
          * @param i     Index for the first dimension
@@ -54,14 +48,14 @@ namespace cnpy {
          *
          * @return      return the value given by the index
          */
-        float get(unsigned long i, unsigned long j) const;
+        T get(unsigned long i, unsigned long j) const;
 
         /*  Return the value inside the vector given one dimension
          * @param index Index for the array
          *
          * @return      return the value given by the index
          */
-        float get(unsigned long long index) const;
+        T get(unsigned long long index) const;
 
         /* Return the number of dimensions of the array
          * @return      return the number of dimensions of the array

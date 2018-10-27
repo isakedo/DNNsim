@@ -1,4 +1,4 @@
-# DNNsim 0.0.3
+# DNNsim 0.0.5
 
 Gitignore is set up for CLion IDE, if you want to use a different IDE add their project file extensions to .gitignore. 
 It can be used from the command line. The folder specified for models under .gitignore is "models". 
@@ -60,6 +60,9 @@ For caffe model and Numpy arrays:
 *   AlexNet
 
 ### Structure:
+*   **sys**: Folder for system libraries
+    *   common: contains common definitions for all classes
+    *   cxxopts: library to read options from the console (c) Jarryd Beck
 *   **cnpy**: Folder for supporting math libraries
     *   cnpy: library to read Numpy arrays
     *   Array: class to store and operate with flatten arrays
@@ -72,4 +75,4 @@ For caffe model and Numpy arrays:
     *   NetWriter: class to write and dump a network using different formats
     * proto: Folder for protobuf definition
         * network.proto Google protobuf definition for the network
-        
+        * caffe.proto Caffe protobuf definition for Caffe networks

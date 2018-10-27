@@ -1,11 +1,13 @@
 #ifndef DNNSIM_SIMULATOR_H
 #define DNNSIM_SIMULATOR_H
 
+#include <sys/common.h>
 #include "Layer.h"
 #include "Network.h"
 
 namespace core {
 
+    template <typename T>
     class Simulator {
 
     private:
@@ -15,21 +17,21 @@ namespace core {
          * @param result    Output array where output activations are stored
          * @param has_ReLU  Bool to know if the layer has ReLU
          */
-        void computeConvolution(const Layer &layer, cnpy::Array &result, bool has_ReLU);
+        void computeConvolution(const Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLU);
 
         /* Compute the output activations for a fully connected layers
          * @param layer     Layer for which we want to calculate the outputs
          * @param result    Output array where output activations are stored
          * @param has_ReLU  Bool to know if the layer has ReLU
          */
-        void computeInnerProduct(const Layer &layer, cnpy::Array &result, bool has_ReLU);
+        void computeInnerProduct(const Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLU);
 
     public:
 
         /* Compute the output activations fot all the layers in the network, and check their correctness
          * @param network   Initialised network for the computation
          */
-        void run(const Network &network);
+        void run(const Network<T> &network);
         
     };
 }

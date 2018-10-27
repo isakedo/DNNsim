@@ -13,7 +13,8 @@ namespace interface {
         return success;
     }
 
-    core::Layer read_layer_caffe(const caffe::LayerParameter &layer_caffe) {
+    template <typename T>
+    core::Layer<T> read_layer_caffe(const caffe::LayerParameter &layer_caffe) {
         int Nn = -1, Kx = -1, Ky = -1, stride = -1, padding = -1;
 
         if(layer_caffe.type() == "Convolution") {
@@ -32,13 +33,14 @@ namespace interface {
             stride = layer_caffe.pooling_param().stride();
         }
 
-        return core::Layer(layer_caffe.type(),layer_caffe.name(),layer_caffe.bottom(0), Nn, Kx, Ky, stride, padding);
+        return core::Layer<T>(layer_caffe.type(),layer_caffe.name(),layer_caffe.bottom(0), Nn, Kx, Ky, stride, padding);
     }
 
-    core::Network NetReader::read_network_caffe() {
+    template <typename T>
+    core::Network<T> NetReader<T>::read_network_caffe() {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-        std::vector<core::Layer> layers;
+        std::vector<core::Layer<T>> layers;
         caffe::NetParameter network;
 
         std::string name = (this->path.back() == '/' ? this->path : this->path + '/') + "train_val.prototxt";
@@ -48,17 +50,18 @@ namespace interface {
 
         for(const auto &layer : network.layer()) {
             if(this->layers_allowed.find(layer.type()) != this->layers_allowed.end()) {
-                layers.emplace_back(read_layer_caffe(layer));
+                layers.emplace_back(read_layer_caffe<T>(layer));
             }
         }
 
         google::protobuf::ShutdownProtobufLibrary();
 
-        return core::Network(this->name,layers);
+        return core::Network<T>(this->name,layers);
     }
 
-    core::Layer NetReader::read_layer_proto(const protobuf::Network_Layer &layer_proto) {
-        core::Layer layer = core::Layer(layer_proto.type(),layer_proto.name(),layer_proto.input(),
+    template <typename T>
+    core::Layer<T> NetReader<T>::read_layer_proto(const protobuf::Network_Layer &layer_proto) {
+        core::Layer<T> layer = core::Layer<T>(layer_proto.type(),layer_proto.name(),layer_proto.input(),
             layer_proto.nn(),layer_proto.kx(),layer_proto.ky(),layer_proto.stride(),layer_proto.padding());
 
 
@@ -69,33 +72,33 @@ namespace interface {
             for(const int value : layer_proto.wgt_shape())
                 weights_shape.push_back((size_t)value);
 
-            std::vector<float> weights_data;
-            for(const float value : layer_proto.wgt_data())
+            std::vector<T> weights_data;
+            for(const T value : layer_proto.wgt_data())
                 weights_data.push_back(value);
 
-            cnpy::Array weights; weights.set_values(weights_data,weights_shape);
+            cnpy::Array<T> weights; weights.set_values(weights_data,weights_shape);
             layer.setWeights(weights);
 
             std::vector<size_t > activations_shape;
             for(const int value : layer_proto.act_shape())
                 activations_shape.push_back((size_t)value);
 
-            std::vector<float> activations_data;
-            for(const float value : layer_proto.act_data())
+            std::vector<T> activations_data;
+            for(const T value : layer_proto.act_data())
                 activations_data.push_back(value);
 
-            cnpy::Array activations; activations.set_values(activations_data,activations_shape);
+            cnpy::Array<T> activations; activations.set_values(activations_data,activations_shape);
             layer.setActivations(activations);
 
             std::vector<size_t > out_activations_shape;
             for(const int value : layer_proto.out_act_shape())
                 out_activations_shape.push_back((size_t)value);
 
-            std::vector<float> out_activations_data;
-            for(const float value : layer_proto.out_act_data())
+            std::vector<T> out_activations_data;
+            for(const T value : layer_proto.out_act_data())
                 out_activations_data.push_back(value);
 
-            cnpy::Array out_activations; out_activations.set_values(out_activations_data,out_activations_shape);
+            cnpy::Array<T> out_activations; out_activations.set_values(out_activations_data,out_activations_shape);
             layer.setOutput_activations(out_activations);
 
         }
@@ -103,10 +106,11 @@ namespace interface {
         return layer;
     }
 
-    core::Network NetReader::read_network_protobuf() {
+    template <typename T>
+    core::Network<T> NetReader<T>::read_network_protobuf() {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-        std::vector<core::Layer> layers;
+        std::vector<core::Layer<T>> layers;
         protobuf::Network network_proto;
 
         {
@@ -124,14 +128,15 @@ namespace interface {
 
         google::protobuf::ShutdownProtobufLibrary();
 
-        return core::Network(this->name,layers);
+        return core::Network<T>(this->name,layers);
     }
 
 
-    core::Network NetReader::read_network_gzip() {
+    template <typename T>
+    core::Network<T> NetReader<T>::read_network_gzip() {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-        std::vector<core::Layer> layers;
+        std::vector<core::Layer<T>> layers;
         protobuf::Network network_proto;
 
         // Read the existing network.
@@ -151,40 +156,45 @@ namespace interface {
 
         google::protobuf::ShutdownProtobufLibrary();
 
-        return core::Network(this->name,layers);
+        return core::Network<T>(this->name,layers);
     }
 
-    void NetReader::read_weights_npy(core::Network &network) {
+    template <typename T>
+    void NetReader<T>::read_weights_npy(core::Network<T> &network) {
         std::string file_path = this->path.back() == '/' ? this->path : this->path + '/';
-        for(core::Layer &layer : network.updateLayers()) {
+        for(core::Layer<T> &layer : network.updateLayers()) {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
                 std::string file = "wgt-" + layer.getName() + ".npy" ;
-                cnpy::Array weights; weights.set_values(file_path + file);
+                cnpy::Array<T> weights; weights.set_values(file_path + file);
                 layer.setWeights(weights);
             }
         }
     }
 
-    void NetReader::read_activations_npy(core::Network &network) {
+    template <typename T>
+    void NetReader<T>::read_activations_npy(core::Network<T> &network) {
         std::string file_path = this->path.back() == '/' ? this->path : this->path + '/';
-        for(core::Layer &layer : network.updateLayers()) {
+        for(core::Layer<T> &layer : network.updateLayers()) {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
                 std::string file = "act-" + layer.getName() + "-0.npy";
-                cnpy::Array activations; activations.set_values(file_path + file);
+                cnpy::Array<T> activations; activations.set_values(file_path + file);
                 layer.setActivations(activations);
             }
         }
     }
 
-    void NetReader::read_output_activations_npy(core::Network &network) {
+    template <typename T>
+    void NetReader<T>::read_output_activations_npy(core::Network<T> &network) {
         std::string file_path = this->path.back() == '/' ? this->path : this->path + '/';
-        for(core::Layer &layer : network.updateLayers()) {
+        for(core::Layer<T> &layer : network.updateLayers()) {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
                 std::string file = "act-" + layer.getName() + "-0-out.npy" ;
-                cnpy::Array activations; activations.set_values(file_path + file);
+                cnpy::Array<T> activations; activations.set_values(file_path + file);
                 layer.setOutput_activations(activations);
             }
         }
     }
+
+    INITIALISE_DATA_TYPES(NetReader);
 
 }
