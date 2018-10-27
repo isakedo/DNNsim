@@ -15,6 +15,7 @@
 
 #define INITIALISE_DATA_TYPES(name) \
     char gInstantiationGuard##name; \
-    template class name<float>
+    template class name<float>; \
+    template class name<uint16_t>
 
 #endif //DNNSIM_COMMON_H

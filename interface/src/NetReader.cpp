@@ -43,8 +43,7 @@ namespace interface {
         std::vector<core::Layer<T>> layers;
         caffe::NetParameter network;
 
-        std::string name = (this->path.back() == '/' ? this->path : this->path + '/') + "train_val.prototxt";
-        if (!ReadProtoFromTextFile(name.c_str(),&network)) {
+        if (!ReadProtoFromTextFile((this->path + "train_val.prototxt").c_str(),&network)) {
             throw std::runtime_error("Failed to read prototxt");
         }
 
@@ -164,11 +163,10 @@ namespace interface {
 
     template <typename T>
     void NetReader<T>::read_weights_npy(core::Network<T> &network) {
-        std::string file_path = this->path.back() == '/' ? this->path : this->path + '/';
         for(core::Layer<T> &layer : network.updateLayers()) {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
                 std::string file = "wgt-" + layer.getName() + ".npy" ;
-                cnpy::Array<T> weights; weights.set_values(file_path + file);
+                cnpy::Array<T> weights; weights.set_values(this->path + file);
                 layer.setWeights(weights);
             }
         }
@@ -176,11 +174,10 @@ namespace interface {
 
     template <typename T>
     void NetReader<T>::read_activations_npy(core::Network<T> &network) {
-        std::string file_path = this->path.back() == '/' ? this->path : this->path + '/';
         for(core::Layer<T> &layer : network.updateLayers()) {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
                 std::string file = "act-" + layer.getName() + "-0.npy";
-                cnpy::Array<T> activations; activations.set_values(file_path + file);
+                cnpy::Array<T> activations; activations.set_values(this->path + file);
                 layer.setActivations(activations);
             }
         }
@@ -188,11 +185,10 @@ namespace interface {
 
     template <typename T>
     void NetReader<T>::read_output_activations_npy(core::Network<T> &network) {
-        std::string file_path = this->path.back() == '/' ? this->path : this->path + '/';
         for(core::Layer<T> &layer : network.updateLayers()) {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
                 std::string file = "act-" + layer.getName() + "-0-out.npy" ;
-                cnpy::Array<T> activations; activations.set_values(file_path + file);
+                cnpy::Array<T> activations; activations.set_values(this->path + file);
                 layer.setOutput_activations(activations);
             }
         }

@@ -22,7 +22,7 @@ namespace core {
 
         // Initialize variables
         std::vector<size_t> output_shape;
-        std::vector<float> output_activations;
+        std::vector<T> output_activations;
         float sum;
 
         //Adjust padding
@@ -77,7 +77,7 @@ namespace core {
     template <typename T>
     void Simulator<T>::computeInnerProduct(const Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
         std::vector<size_t> output_shape;
-        std::vector<float> output_activations;
+        std::vector<T> output_activations;
         for(unsigned long long units=0; units<layer.getWeights().getShape()[0]; units++) {
             float sum = 0.0;
             for (unsigned long long input_act_num=0; input_act_num<layer.getWeights().getShape()[1]; input_act_num++){

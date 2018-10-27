@@ -44,17 +44,17 @@ Print help:
 ##### Transform tool example 
 For caffe model and Numpy arrays (Input path is the folder containing these files):
 
-    ./cmake-build-debug/bin/DNNsim Transform -n Alexnet -i models/bvlc_alexnet/ --itype Caffe -o models/bvlc_alexnet/alexnet --otype Protobuf
+    ./cmake-build-debug/bin/DNNsim Transform -d Float32 -i models/bvlc_alexnet/ --itype Caffe -o models/bvlc_alexnet/alexnet --otype Protobuf
 
 For Protobuf as input and Gzip as output (Input path is the actual file):
 
-    ./cmake-build-debug/bin/DNNsim Transform -n Alexnet -i models/bvlc_alexnet/alexnet --itype Protobuf -o models/bvlc_alexnet/here --otype Gzip
+    ./cmake-build-debug/bin/DNNsim Transform -d Float32 -i models/bvlc_alexnet/alexnet --itype Protobuf -o models/bvlc_alexnet/here --otype Gzip
 
 ##### Simulator tool example
 
 For caffe model and Numpy arrays:
 
-    ./cmake-build-debug/bin/DNNsim Simulator -n Alexnet -i models/bvlc_alexnet/ --itype Caffe
+    ./cmake-build-debug/bin/DNNsim Simulator -d Float32 -i models/bvlc_alexnet/ --itype Caffe
 
 ### Tested Networks
 *   AlexNet

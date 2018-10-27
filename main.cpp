@@ -28,11 +28,19 @@ template <typename T>
 void init(const cxxopts::Options &options) {
     std::string tool = options["tool"].as<std::string>();
 
-    // Read the network
     core::Network<T> network;
-    interface::NetReader<T> reader = interface::NetReader<T>(options["n"].as<std::string>(),
-                                                                     options["i"].as<std::string>());
     std::string input_type = options["itype"].as<std::string>();
+    std::string path = options["i"].as<std::string>();
+    if (input_type == "Caffe") path = path.back() == '/' ? path : path + '/';
+
+    // Get name from the path
+    size_t second_to_last = path.find_last_of('/', path.find_last_of('/')-1);
+    std::string name = path.substr(second_to_last+1);
+    std::size_t last = name.find_last_of('/');
+    name = name.substr(0,last);
+
+    // Read the network
+    interface::NetReader<T> reader = interface::NetReader<T>(name,path);
     if (input_type == "Caffe") {
         network = reader.read_network_caffe();
         reader.read_weights_npy(network);
@@ -78,8 +86,12 @@ void check_options(const cxxopts::Options &options)
             throw std::runtime_error("Please provide first the desired tool <Simulator|Transform>.");
     }
 
-    if(options.count("n") == 0) {
-        throw std::runtime_error("Please provide the network name with -n <Name>.");
+    if(options.count("d") == 0) {
+        throw std::runtime_error("Please provide the data type with -d <Float32|Fixed16>.");
+    } else {
+        std::string value = options["d"].as<std::string>();
+        if(value  != "Float32")
+            throw std::runtime_error("Please provide the data type with -d <Float32|Fixed16>.");
     }
 
     if(options.count("i") == 0) {
@@ -121,7 +133,7 @@ cxxopts::Options parse_options(int argc, char *argv[]) {
     ("tool", "Select the desired DNNsim",cxxopts::value<std::string>(),"<Simulator|Transform>");
 
     options.add_options("input")
-            ("n,name", "Network name", cxxopts::value<std::string>(), "<Name>")
+            ("d,dtype", "Data type", cxxopts::value<std::string>(), "<Float32|Fixed16>")
             ("i,input", "Path to the input file/folder", cxxopts::value<std::string>(), "<File>")
             ("itype", "Input type", cxxopts::value<std::string>(), "<Caffe|Protobuf|Gzip>");
 
@@ -147,7 +159,13 @@ int main(int argc, char *argv[]) {
         }
 
         check_options(options);
-        init<float>(options);
+
+        std::string data_type = options["d"].as<std::string>();
+        if (data_type == "Float32") {
+            init<float>(options);
+        } else if (data_type == "Fixed16") {
+            init<uint16_t>(options);
+        }
 
     } catch (std::exception &exception) {
         std::cout << "Error: " << exception.what() << std::endl;
