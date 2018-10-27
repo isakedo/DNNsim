@@ -16,11 +16,13 @@ message Network {   //Level 0
         int32 stride = 7;
         int32 padding = 8;
         repeated int32 wgt_shape = 9 [packed=true]; //Remove headers
-        repeated float wgt_data = 10 [packed=true];
-        repeated int32 act_shape = 11 [packed=true];
-        repeated float act_data = 12 [packed=true];
-        repeated int32 out_act_shape = 13 [packed=true];
-        repeated float out_act_data = 14 [packed=true];
+        repeated int32 act_shape = 10 [packed=true];
+        repeated int32 out_act_shape = 11 [packed=true];
+
+        // Not using Any for performance
+        repeated float wgt_data_flt = 12 [packed=true];
+        repeated float act_data_flt = 13 [packed=true];
+        repeated float out_act_data_flt = 14 [packed=true];
 
     }
 

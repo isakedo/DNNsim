@@ -68,35 +68,38 @@ namespace interface {
         // Read weights, activations, and output activations only to the desired layers
         if(this->layers_data.find(layer_proto.type()) != this->layers_data.end()) {
 
-            std::vector<size_t > weights_shape;
-            for(const int value : layer_proto.wgt_shape())
-                weights_shape.push_back((size_t)value);
+            std::string type = typeid(T).name() + std::to_string(sizeof(T));// Get template type in run-time
+
+            std::vector<size_t> weights_shape;
+            for (const int value : layer_proto.wgt_shape())
+                weights_shape.push_back((size_t) value);
+
+            std::vector<size_t> activations_shape;
+            for (const int value : layer_proto.act_shape())
+                activations_shape.push_back((size_t) value);
+
+            std::vector<size_t> out_activations_shape;
+            for (const int value : layer_proto.out_act_shape())
+                out_activations_shape.push_back((size_t) value);
 
             std::vector<T> weights_data;
-            for(const T value : layer_proto.wgt_data())
-                weights_data.push_back(value);
+            std::vector<T> activations_data;
+            std::vector<T> out_activations_data;
+
+            if (type == "f4") {
+                for (const T &value : layer_proto.wgt_data_flt())
+                        weights_data.push_back(value);
+                for (const T value : layer_proto.act_data_flt())
+                    activations_data.push_back(value);
+                for (const T value : layer_proto.out_act_data_flt())
+                    out_activations_data.push_back(value);
+            }
 
             cnpy::Array<T> weights; weights.set_values(weights_data,weights_shape);
             layer.setWeights(weights);
 
-            std::vector<size_t > activations_shape;
-            for(const int value : layer_proto.act_shape())
-                activations_shape.push_back((size_t)value);
-
-            std::vector<T> activations_data;
-            for(const T value : layer_proto.act_data())
-                activations_data.push_back(value);
-
             cnpy::Array<T> activations; activations.set_values(activations_data,activations_shape);
             layer.setActivations(activations);
-
-            std::vector<size_t > out_activations_shape;
-            for(const int value : layer_proto.out_act_shape())
-                out_activations_shape.push_back((size_t)value);
-
-            std::vector<T> out_activations_data;
-            for(const T value : layer_proto.out_act_data())
-                out_activations_data.push_back(value);
 
             cnpy::Array<T> out_activations; out_activations.set_values(out_activations_data,out_activations_shape);
             layer.setOutput_activations(out_activations);
