@@ -21,8 +21,10 @@ add_library(
         ${PROTO_GENERATED_HEADERS}
         include/interface/NetReader.h
         include/interface/NetWriter.h
+        include/interface/StatsWriter.h
         src/NetReader.cpp
         src/NetWriter.cpp
+        src/StatsWriter.cpp
 )
 
 target_include_directories(

@@ -19,6 +19,12 @@ namespace cnpy {
         /* Vector containing the data */
         std::vector<T> data;
 
+        /* First coefficient  accessing 4D data hard coded */
+        unsigned long coef1;
+
+        /* Second coefficient  accessing 4D data hard coded */
+        unsigned long coef2;
+
     public:
 
         /* Read the numpy array from the npy file, copy the direction, and set the size

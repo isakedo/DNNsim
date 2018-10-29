@@ -10,6 +10,8 @@ add_library(
         ${PROJECT_NAME} SHARED
         include/sys/cxxopts.h
         include/sys/common.h
+        include/sys/Statistics.h
+        src/Statistics.cpp
 )
 
 target_include_directories(

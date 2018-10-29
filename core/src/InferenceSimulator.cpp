@@ -1,5 +1,5 @@
 
-#include <core/Simulator.h>
+#include <core/InferenceSimulator.h>
 
 namespace core {
 
@@ -8,7 +8,7 @@ namespace core {
     }
 
     template <typename T>
-    void Simulator<T>::computeConvolution(const core::Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
+    void InferenceSimulator<T>::computeConvolution(const core::Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
         // Simplify names getting their pointers
         const cnpy::Array<T> &wgt = layer.getWeights();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
@@ -23,7 +23,7 @@ namespace core {
         // Initialize variables
         std::vector<size_t> output_shape;
         std::vector<T> output_activations;
-        float sum;
+        T sum;
 
         //Adjust padding
         long unpadded_x = (act_shape[2] - wgt_shape[2])/stride + 1;
@@ -75,11 +75,11 @@ namespace core {
     }
 
     template <typename T>
-    void Simulator<T>::computeInnerProduct(const Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
+    void InferenceSimulator<T>::computeInnerProduct(const Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
         std::vector<size_t> output_shape;
         std::vector<T> output_activations;
         for(unsigned long long units=0; units<layer.getWeights().getShape()[0]; units++) {
-            float sum = 0.0;
+            T sum = 0.0;
             for (unsigned long long input_act_num=0; input_act_num<layer.getWeights().getShape()[1]; input_act_num++){
                 sum += layer.getActivations().get(input_act_num) * layer.getWeights().get(units,input_act_num);
             }
@@ -111,7 +111,7 @@ namespace core {
     }
 
     template <typename T>
-    void Simulator<T>::run(const Network<T> &network) {
+    void InferenceSimulator<T>::run(const Network<T> &network) {
         int index = 0;
         unsigned long num_layers = network.getLayers().size();
         while(index < num_layers) {
@@ -134,6 +134,6 @@ namespace core {
 
     }
 
-    INITIALISE_DATA_TYPES(Simulator);
+    template class InferenceSimulator<float>;
 
 }

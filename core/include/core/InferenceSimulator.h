@@ -8,7 +8,7 @@
 namespace core {
 
     template <typename T>
-    class Simulator {
+    class InferenceSimulator {
 
     private:
 

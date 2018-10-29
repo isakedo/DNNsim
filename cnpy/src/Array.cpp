@@ -7,23 +7,23 @@ namespace cnpy {
     void Array<T>::set_values(const std::string &path) {
         cnpy::NpyArray data_npy;
         cnpy::npy_load(path, data_npy, this->shape);
-        unsigned long long max_index = 1;
-        for(size_t length : shape)
-            max_index *= (int)length;
-        for(unsigned long long i = 0; i < max_index; i++)
-            this->data.push_back(data_npy.data<float>()[i]);
+        this->data = data_npy.as_vec<T>();
+        this->coef1 = shape[1]*shape[2]*shape[3];
+        this->coef2 = shape[2]*shape[3];
     }
 
     template <typename T>
     void Array<T>::set_values(const std::vector<T> &_data, const std::vector<size_t> &_shape) {
         Array::data = _data;
         Array::shape = _shape;
+        this->coef1 = shape[1]*shape[2]*shape[3];
+        this->coef2 = shape[2]*shape[3];
     }
 
 
     template <typename T>
     T Array<T>::get (int i, int j, int k, int l) const {
-        unsigned long long index = shape[1]*shape[2]*shape[3]*i + shape[2]*shape[3]*j + shape[3]*k + l;
+        unsigned long long index = this->coef1*i + this->coef2*j + shape[3]*k + l;
 
         #ifdef DEBUG
         if(index >= this->data.size()) {

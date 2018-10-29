@@ -10,8 +10,8 @@ add_library(
         ${PROJECT_NAME}
         include/core/Layer.h
         include/core/Network.h
-        include/core/Simulator.h
-        src/Simulator.cpp
+        include/core/InferenceSimulator.h
+        src/InferenceSimulator.cpp
 )
 
 target_include_directories(

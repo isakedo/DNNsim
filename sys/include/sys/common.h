@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <sstream>
 
+// Don't commit changes in global variables
 #define DEBUG
 
 #define INITIALISE_DATA_TYPES(name) \
