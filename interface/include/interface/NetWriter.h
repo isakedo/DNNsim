@@ -20,6 +20,10 @@ namespace interface {
         /* Path containing the network files */
         std::string path;
 
+        /* Specify if transform the data when writing the network */
+        /* Allowed values: Not, Fixed16 */
+        std::string data_conversion;
+
         /* Store a layer of the network into a protobuf layer
          * @param layer_proto   Pointer to a protobuf layer
          * @param layer         Layer of the network that want to be stored
@@ -29,10 +33,11 @@ namespace interface {
     public:
 
         /* Constructor
-         * @param _name     The name of the network
-         * @param _path     Path containing the files with the network architecture
+         * @param _path             Path containing the files with the network architecture
+         * @param _data_conversion  Specification of the data transformation when writing the network
          */
-        explicit NetWriter(const std::string &_path){ path = _path;}
+        NetWriter(const std::string &_path, const std::string &_data_conversion){
+            this->path = _path; this->data_conversion = _data_conversion; }
 
         /* Store the network in protobuf format
          * @param network       Network that want to be stored

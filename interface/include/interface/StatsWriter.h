@@ -10,26 +10,21 @@ namespace interface {
 
         private:
 
-            /* Statistics we want to dump */
-            sys::Statistics stats;
-
             /* Path where we want to dump the statistics */
             std::string path;
 
         public:
 
             /* Constructor
-             * @param _stats    Stats that we want to dump
              * @param _path     Path where we want to dump the statistics (If not suffix, it is added in the method)
              */
-            StatsWriter(const sys::Statistics &_stats) : stats(_stats) {}
+            explicit StatsWriter(const std::string &_path) { this->path = _path; }
 
             /* Dump the statistics in a text file */
             void dump_txt();
 
             /* Dump the statistics in a csv file */
             void dump_csv();
-
 
         };
 

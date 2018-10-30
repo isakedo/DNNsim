@@ -28,7 +28,7 @@ namespace interface {
             for (size_t length : layer.getOutput_activations().getShape())
                 layer_proto->add_out_act_shape((int) length);
 
-            if(type == "f4") {
+            if(type == "f4" && this->data_conversion == "Not") {
                 for (unsigned long long i = 0; i < layer.getWeights().getMax_index(); i++)
                     layer_proto->add_wgt_data_flt(layer.getWeights().get(i));
 

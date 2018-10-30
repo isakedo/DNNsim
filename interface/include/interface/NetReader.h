@@ -29,7 +29,12 @@ namespace interface {
         /* Path to the the definition files */
         std::string path;
 
-        /* Return the layer parsed in the protobuf file
+        /* Return the layer parsed from the caffe prototxt file
+         * @param layer_caffe   prototxt layer
+         */
+        core::Layer<T> read_layer_caffe(const caffe::LayerParameter &layer_caffe);
+
+        /* Return the layer parsed from the protobuf file
          * @param layer_proto   protobuf layer
          */
         core::Layer<T> read_layer_proto(const protobuf::Network_Layer &layer_proto);
@@ -40,7 +45,7 @@ namespace interface {
          * @param _name     The name of the network
          * @param _path     Path containing the files with the network architecture
          */
-        NetReader(const std::string &_name, const std::string &_path){ name = _name; path = _path;}
+        NetReader(const std::string &_name, const std::string &_path){ this->name = _name; this->path = _path;}
 
         /* Load the trace file inside the folder path and returns the network
          * @return          Network architecture

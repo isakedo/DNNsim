@@ -7,6 +7,34 @@ namespace sys {
 
     class Statistics {
 
+    public:
+
+        /* Make public to be easier to operate */
+        struct Stats {
+
+            /* Name of the network */
+            std::string net_name;
+
+            /* Simulator architecture */
+            std::string arch;
+
+        };
+
+    private:
+
+        /* Set of statistics containing all simulation stats. Shared across all system */
+        static std::vector<Stats> all_stats;
+
+    public:
+
+        /* Add one stats struct to the set of statistics
+         * @param _stats    Stats struct that is going to be added
+         */
+        static void addStats(const Stats &_stats);
+
+        /* Getter */
+        static const std::vector<Stats> &getAll_stats();
+
     };
 
 }

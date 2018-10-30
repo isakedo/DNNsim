@@ -55,9 +55,9 @@ core::Network<T> read(const cxxopts::Options &options) {
 }
 
 template <typename T>
-void write(const core::Network<T> &network, const cxxopts::Options &options) {
+void write(const core::Network<T> &network, const cxxopts::Options &options, const std::string &data_conversion) {
     // Write network
-    interface::NetWriter<T> writer = interface::NetWriter<T>(options["o"].as<std::string>());
+    interface::NetWriter<T> writer = interface::NetWriter<T>(options["o"].as<std::string>(),data_conversion);
     std::string output_type = options["otype"].as<std::string>();
     if (output_type == "Protobuf") {
         writer.write_network_protobuf(network);
@@ -84,12 +84,12 @@ void check_options(const cxxopts::Options &options)
             throw std::runtime_error("Please provide first the desired tool <Simulator|Transform>.");
     }
 
-    if(options.count("d") == 0) {
-        throw std::runtime_error("Please provide the data type with -d <Float32|Fixed16>.");
+    if(options.count("ditype") == 0) {
+        throw std::runtime_error("Please provide the data input type with --ditype <Float32|Fixed16>.");
     } else {
-        std::string value = options["d"].as<std::string>();
+        std::string value = options["ditype"].as<std::string>();
         if(value  != "Float32")
-            throw std::runtime_error("Please provide the data type with -d <Float32|Fixed16>.");
+            throw std::runtime_error("Please provide the data input type with --ditype <Float32|Fixed16>.");
     }
 
     if(options.count("i") == 0) {
@@ -107,6 +107,13 @@ void check_options(const cxxopts::Options &options)
     }
 
     if(options["tool"].as<std::string>() == "Transform") {
+
+        //Optional
+        std::string value = options["dotype"].as<std::string>();
+        if(options.count("dotype") == 1 && value  != "Fixed16") {
+            throw std::runtime_error("Please provide a correct data output type with --dotype <Fixed16>.");
+        }
+
         if (options.count("o") == 0) {
             throw std::runtime_error("Please provide the output file/folder configuration with -o <File>.");
         }
@@ -114,8 +121,8 @@ void check_options(const cxxopts::Options &options)
         if (options.count("otype") == 0) {
             throw std::runtime_error("Please provide the output type configuration with --otype <Protobuf|Gzip>.");
         } else {
-            std::string value = options["otype"].as<std::string>();
-            if (value != "Protobuf" && value != "Gzip")
+            std::string value2 = options["otype"].as<std::string>();
+            if (value2 != "Protobuf" && value2 != "Gzip")
                 throw std::runtime_error("Please provide the output type configuration with --otype <Protobuf|Gzip>.");
         }
     }
@@ -131,11 +138,12 @@ cxxopts::Options parse_options(int argc, char *argv[]) {
     ("tool", "Select the desired DNNsim",cxxopts::value<std::string>(),"<Simulator|Transform>");
 
     options.add_options("input")
-            ("d,dtype", "Data type", cxxopts::value<std::string>(), "<Float32|Fixed16>")
+            ("ditype", "Data input type", cxxopts::value<std::string>(), "<Float32|Fixed16>")
             ("i,input", "Path to the input file/folder", cxxopts::value<std::string>(), "<File>")
             ("itype", "Input type", cxxopts::value<std::string>(), "<Caffe|Protobuf|Gzip>");
 
     options.add_options("Transform: output")
+            ("dotype", "Data output type (optional)", cxxopts::value<std::string>(), "<Fixed16>")
             ("o,output", "Path to the input file/folder", cxxopts::value<std::string>(), "<File>")
             ("otype", "Output type", cxxopts::value<std::string>(), "<Protobuf|Gzip>");
 
@@ -159,25 +167,37 @@ int main(int argc, char *argv[]) {
         check_options(options);
 
         std::string tool = options["tool"].as<std::string>();
-        std::string data_type = options["d"].as<std::string>();
+        std::string data_type = options["ditype"].as<std::string>();
 
         // Separate in order to simplify simulators instantiation
         // (not all the simulator works on all the data types allowed)
         if (data_type == "Float32") {
+
             core::Network<float> network;
             network = read<float>(options);
-            if (tool == "Transform") write<float>(network,options);
+
+            if (tool == "Transform") {
+                std::string data_conversion = options["dotype"].count() == 0 ?
+                        "Not" : options["dotype"].as<std::string>();
+                write<float>(network,options,data_conversion);
+            }
+
             else if (tool == "Simulator") {
                 core::InferenceSimulator<float> DNNsim;
                 DNNsim.run(network);
             }
+
         } else if (data_type == "Fixed16") {
             core::Network<uint16_t > network;
             network = read<uint16_t>(options);
-            if (tool == "Transform") write<uint16_t >(network,options);
+
+            // Not converting from fixed point to other values
+            if (tool == "Transform") write<uint16_t>(network,options,"Not");
+
             else if (tool == "Simulator") {
                 std::cout << "Under development :(" << std::endl;
             }
+
         }
 
 

@@ -14,7 +14,7 @@ namespace interface {
     }
 
     template <typename T>
-    core::Layer<T> read_layer_caffe(const caffe::LayerParameter &layer_caffe) {
+    core::Layer<T> NetReader<T>::read_layer_caffe(const caffe::LayerParameter &layer_caffe) {
         int Nn = -1, Kx = -1, Ky = -1, stride = -1, padding = -1;
 
         if(layer_caffe.type() == "Convolution") {
@@ -49,7 +49,7 @@ namespace interface {
 
         for(const auto &layer : network.layer()) {
             if(this->layers_allowed.find(layer.type()) != this->layers_allowed.end()) {
-                layers.emplace_back(read_layer_caffe<T>(layer));
+                layers.emplace_back(read_layer_caffe(layer));
             }
         }
 
@@ -86,11 +86,11 @@ namespace interface {
             std::vector<T> out_activations_data;
 
             if (type == "f4") {
-                for (const T &value : layer_proto.wgt_data_flt())
+                for (const auto &value : layer_proto.wgt_data_flt())
                         weights_data.push_back(value);
-                for (const T value : layer_proto.act_data_flt())
+                for (const auto value : layer_proto.act_data_flt())
                     activations_data.push_back(value);
-                for (const T value : layer_proto.out_act_data_flt())
+                for (const auto value : layer_proto.out_act_data_flt())
                     out_activations_data.push_back(value);
             }
 
