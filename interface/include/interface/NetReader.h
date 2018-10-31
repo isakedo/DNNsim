@@ -77,6 +77,11 @@ namespace interface {
          */
         void read_output_activations_npy(core::Network<T> &network);
 
+        /* Read the precision for each layer
+         * @param network       Network with the layers already initialized
+         */
+        void read_precision(core::Network<T> &network);
+
     };
 
 }

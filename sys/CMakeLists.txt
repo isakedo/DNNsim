@@ -7,7 +7,7 @@ project(
 
 # Create library
 add_library(
-        ${PROJECT_NAME} SHARED
+        ${PROJECT_NAME}
         include/sys/cxxopts.h
         include/sys/common.h
         include/sys/Statistics.h

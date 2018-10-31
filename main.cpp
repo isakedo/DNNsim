@@ -41,6 +41,7 @@ core::Network<T> read(const cxxopts::Options &options) {
     interface::NetReader<T> reader = interface::NetReader<T>(name,path);
     if (input_type == "Caffe") {
         network = reader.read_network_caffe();
+        reader.read_precision(network);
         reader.read_weights_npy(network);
         reader.read_activations_npy(network);
         reader.read_output_activations_npy(network);

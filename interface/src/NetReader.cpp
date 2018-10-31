@@ -3,7 +3,6 @@
 
 namespace interface {
 
-    // From https://github.com/BVLC/caffe/blob/2a1c552b66f026c7508d390b526f2495ed3be594/src/caffe/util/io.cpp
     bool ReadProtoFromTextFile(const char* filename, google::protobuf::Message* proto) {
         int fd = open(filename, O_RDONLY);
         auto input = new google::protobuf::io::FileInputStream(fd);
@@ -61,8 +60,9 @@ namespace interface {
     template <typename T>
     core::Layer<T> NetReader<T>::read_layer_proto(const protobuf::Network_Layer &layer_proto) {
         core::Layer<T> layer = core::Layer<T>(layer_proto.type(),layer_proto.name(),layer_proto.input(),
-            layer_proto.nn(),layer_proto.kx(),layer_proto.ky(),layer_proto.stride(),layer_proto.padding());
-
+        layer_proto.nn(),layer_proto.kx(),layer_proto.ky(),layer_proto.stride(),layer_proto.padding(),
+        std::make_tuple<int,int>(layer_proto.act_mag(),layer_proto.act_prec()),
+        std::make_tuple<int,int>(layer_proto.wgt_mag(),layer_proto.wgt_prec()));
 
         // Read weights, activations, and output activations only to the desired layers
         if(this->layers_data.find(layer_proto.type()) != this->layers_data.end()) {
@@ -87,7 +87,7 @@ namespace interface {
 
             if (type == "f4") {
                 for (const auto &value : layer_proto.wgt_data_flt())
-                        weights_data.push_back(value);
+                    weights_data.push_back(value);
                 for (const auto value : layer_proto.act_data_flt())
                     activations_data.push_back(value);
                 for (const auto value : layer_proto.out_act_data_flt())
@@ -190,6 +190,60 @@ namespace interface {
                 std::string file = "act-" + layer.getName() + "-0-out.npy" ;
                 cnpy::Array<T> activations; activations.set_values(this->path + file);
                 layer.setOutput_activations(activations);
+            }
+        }
+    }
+
+    template <typename T>
+    void NetReader<T>::read_precision(core::Network<T> &network) {
+
+        std::string line;
+        std::stringstream ss_line;
+        std::vector<int> act_mag;
+        std::vector<int> act_prec;
+        std::vector<int> wgt_mag;
+        std::vector<int> wgt_prec;
+
+        std::ifstream myfile (this->path + "precision.txt");
+        if (myfile.is_open()) {
+            std::string word;
+
+            getline(myfile,line); // Remove first line
+
+            getline(myfile,line);
+            ss_line = std::stringstream(line);
+            while (getline(ss_line,word,';'))
+                act_mag.push_back(stoi(word));
+
+            getline(myfile,line);
+            ss_line = std::stringstream(line);
+            while (getline(ss_line,word,';'))
+                act_prec.push_back(stoi(word));
+
+            getline(myfile,line);
+            ss_line = std::stringstream(line);
+            while (getline(ss_line,word,';'))
+                wgt_mag.push_back(stoi(word));
+
+            getline(myfile,line);
+            ss_line = std::stringstream(line);
+            while (getline(ss_line,word,';'))
+                wgt_prec.push_back(stoi(word));
+
+            myfile.close();
+        } else {
+            throw std::runtime_error("Failed to read precision.txt");
+        }
+
+        int i = 0;
+        for(core::Layer<T> &layer : network.updateLayers()) {
+            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
+                layer.setAct_precision(std::make_tuple(act_mag[i], act_prec[i]));
+                layer.setWgt_precision(std::make_tuple(wgt_mag[i], wgt_prec[i]));
+                i++;
+            } else {
+                layer.setAct_precision(std::make_tuple(0,0));
+                layer.setWgt_precision(std::make_tuple(0,0));
             }
         }
     }

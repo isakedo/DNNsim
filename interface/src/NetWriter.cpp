@@ -3,6 +3,16 @@
 
 namespace interface {
 
+    uint16_t limitPrec(float num, int mag, int prec) {
+        double scale = pow(2.,(double)prec);
+        double intmax = (1 << (mag + prec - 1)) - 1;
+        double intmin = -1 * intmax;
+        double ds = num * scale;
+        if (ds > intmax) ds = intmax;
+        if (ds < intmin) ds = intmin;
+        return (uint16_t)ds;
+    }
+
     template <typename T>
     void NetWriter<T>::fillLayer(protobuf::Network_Layer* layer_proto, const core::Layer<T> &layer) {
         layer_proto->set_type(layer.getType());
@@ -13,6 +23,11 @@ namespace interface {
         layer_proto->set_ky(layer.getKy());
         layer_proto->set_stride(layer.getStride());
         layer_proto->set_padding(layer.getPadding());
+        layer_proto->set_act_mag(std::get<0>(layer.getAct_precision()));
+        layer_proto->set_act_prec(std::get<1>(layer.getAct_precision()));
+        layer_proto->set_wgt_mag(std::get<0>(layer.getWgt_precision()));
+        layer_proto->set_wgt_prec(std::get<1>(layer.getWgt_precision()));
+
 
         std::string type = typeid(T).name() + std::to_string(sizeof(T));// Get template type in run-time
 
