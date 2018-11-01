@@ -3,6 +3,7 @@
 
 namespace interface {
 
+    static inline
     uint16_t limitPrec(float num, int mag, int prec) {
         double scale = pow(2.,(double)prec);
         double intmax = (1 << (mag + prec - 1)) - 1;
@@ -10,7 +11,8 @@ namespace interface {
         double ds = num * scale;
         if (ds > intmax) ds = intmax;
         if (ds < intmin) ds = intmin;
-        return (uint16_t)ds;
+        auto result = (uint16_t)round(ds);
+        return result;
     }
 
     template <typename T>
@@ -52,6 +54,30 @@ namespace interface {
 
                 for (unsigned long long i = 0; i < layer.getOutput_activations().getMax_index(); i++)
                     layer_proto->add_out_act_data_flt(layer.getOutput_activations().get(i));
+
+            } else if (type == "f4" && this->data_conversion == "Fixed16") {
+                for (unsigned long long i = 0; i < layer.getWeights().getMax_index(); i++)
+                    layer_proto->add_wgt_data_fxd(limitPrec(layer.getWeights().get(i),
+                         std::get<0>(layer.getWgt_precision()),std::get<1>(layer.getWgt_precision())));
+
+                for (unsigned long long i = 0; i < layer.getActivations().getMax_index(); i++)
+                    layer_proto->add_act_data_fxd(limitPrec(layer.getActivations().get(i),
+                        std::get<0>(layer.getAct_precision()),std::get<1>(layer.getAct_precision())));
+
+                for (unsigned long long i = 0; i < layer.getOutput_activations().getMax_index(); i++)
+                    layer_proto->add_out_act_data_fxd(limitPrec(layer.getOutput_activations().get(i),
+                        std::get<0>(layer.getAct_precision()),std::get<1>(layer.getAct_precision())));
+
+            } else if (type == "u4") {
+                for (unsigned long long i = 0; i < layer.getWeights().getMax_index(); i++)
+                    layer_proto->add_wgt_data_fxd(layer.getWeights().get(i));
+
+                for (unsigned long long i = 0; i < layer.getActivations().getMax_index(); i++)
+                    layer_proto->add_act_data_fxd(layer.getActivations().get(i));
+
+                for (unsigned long long i = 0; i < layer.getOutput_activations().getMax_index(); i++)
+                    layer_proto->add_out_act_data_fxd(layer.getOutput_activations().get(i));
+
             }
 
         }

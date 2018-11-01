@@ -92,6 +92,13 @@ namespace interface {
                     activations_data.push_back(value);
                 for (const auto value : layer_proto.out_act_data_flt())
                     out_activations_data.push_back(value);
+            } else if (type == "u4") {
+                for (const auto &value : layer_proto.wgt_data_fxd())
+                    weights_data.push_back(value);
+                for (const auto value : layer_proto.act_data_fxd())
+                    activations_data.push_back(value);
+                for (const auto value : layer_proto.out_act_data_fxd())
+                    out_activations_data.push_back(value);
             }
 
             cnpy::Array<T> weights; weights.set_values(weights_data,weights_shape);
@@ -231,19 +238,31 @@ namespace interface {
                 wgt_prec.push_back(stoi(word));
 
             myfile.close();
-        } else {
-            throw std::runtime_error("Failed to read precision.txt");
-        }
 
-        int i = 0;
-        for(core::Layer<T> &layer : network.updateLayers()) {
-            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                layer.setAct_precision(std::make_tuple(act_mag[i], act_prec[i]));
-                layer.setWgt_precision(std::make_tuple(wgt_mag[i], wgt_prec[i]));
-                i++;
-            } else {
-                layer.setAct_precision(std::make_tuple(0,0));
-                layer.setWgt_precision(std::make_tuple(0,0));
+            int i = 0;
+            for(core::Layer<T> &layer : network.updateLayers()) {
+                if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
+                    layer.setAct_precision(std::make_tuple(act_mag[i], act_prec[i]));
+                    layer.setWgt_precision(std::make_tuple(wgt_mag[i], wgt_prec[i]));
+                    i++;
+                } else {
+                    layer.setAct_precision(std::make_tuple(0,0));
+                    layer.setWgt_precision(std::make_tuple(0,0));
+                }
+            }
+
+        } else {
+            // Generic precision
+            int i = 0;
+            for(core::Layer<T> &layer : network.updateLayers()) {
+                if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
+                    layer.setAct_precision(std::make_tuple(13, 2));
+                    layer.setWgt_precision(std::make_tuple(0, 15));
+                    i++;
+                } else {
+                    layer.setAct_precision(std::make_tuple(0,0));
+                    layer.setWgt_precision(std::make_tuple(0,0));
+                }
             }
         }
     }
