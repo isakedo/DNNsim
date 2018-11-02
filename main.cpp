@@ -92,7 +92,7 @@ void check_options(const cxxopts::Options &options)
         throw std::runtime_error("Please provide the data input type with --ditype <Float32|Fixed16>.");
     } else {
         std::string value = options["ditype"].as<std::string>();
-        if(value  != "Float32")
+        if(value  != "Float32" && value != "Fixed16")
             throw std::runtime_error("Please provide the data input type with --ditype <Float32|Fixed16>.");
     }
 
@@ -132,12 +132,15 @@ void check_options(const cxxopts::Options &options)
 
     } else if(options["tool"].as<std::string>() == "Simulator") {
 
-        if (options.count("a") == 0) {
-            throw std::runtime_error("Please provide the architecture to simulate with -a <Laconic|BitPragmatic>.");
-        } else {
-            std::string value = options["a"].as<std::string>();
-            if (value != "Laconic" && value != "BitPragmatic")
+        if(options["ditype"].as<std::string>() == "Fixed16") {
+            if (options.count("a") == 0) {
                 throw std::runtime_error("Please provide the architecture to simulate with -a <Laconic|BitPragmatic>.");
+            } else {
+                std::string value = options["a"].as<std::string>();
+                if (value != "Laconic" && value != "BitPragmatic")
+                    throw std::runtime_error(
+                            "Please provide the architecture to simulate with -a <Laconic|BitPragmatic>.");
+            }
         }
 
         /*if (options.count("o") == 0) {
@@ -176,7 +179,8 @@ cxxopts::Options parse_options(int argc, char *argv[]) {
             ("otype", "Output type", cxxopts::value<std::string>(), "<Protobuf|Gzip>");
 
     options.add_options("Simulator: output")
-            ("a,arch", "Architecture to simulate", cxxopts::value<std::string>(), "<Laconic|BitPragmatic>");
+            ("a,arch", "Architecture to simulate (Only fixed point)", cxxopts::value<std::string>(),
+                    "<Laconic|BitPragmatic>");
          //   ("o,output", "Path to the input file/folder", cxxopts::value<std::string>(), "<File>")
          //   ("otype", "Output type", cxxopts::value<std::string>(), "<Text|csv>");
 

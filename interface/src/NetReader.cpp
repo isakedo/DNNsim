@@ -32,7 +32,9 @@ namespace interface {
             stride = layer_caffe.pooling_param().stride();
         }
 
-        return core::Layer<T>(layer_caffe.type(),layer_caffe.name(),layer_caffe.bottom(0), Nn, Kx, Ky, stride, padding);
+        std::string name = layer_caffe.name();
+        std::replace( name.begin(), name.end(), '/', '-'); // Sanitize name
+        return core::Layer<T>(layer_caffe.type(),name,layer_caffe.bottom(0), Nn, Kx, Ky, stride, padding);
     }
 
     template <typename T>

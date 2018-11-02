@@ -46,12 +46,14 @@ namespace core {
                             for (int j = 0; j < Ky; j++) {
                                 for (int k = start_batch; k < wgt_shape[1] + start_batch; k++) {
                                     if(padding) {
-                                        if ((x + i >= 0 && x + i < out_x) && y + j >= 0 && y + j < out_y)
+                                        int act_x = stride * x + i;
+                                        int act_y = stride * y + j;
+                                        if ((act_x >= 0 && act_x < out_x) && act_y >= 0 && act_y < out_y)
                                             sum += act.get(n, k, stride * x + i, stride * y + j) *
                                                    wgt.get(m, k - start_batch, i, j);
                                     } else
                                         sum += act.get(n, k, stride * x + i, stride * y + j) *
-                                                  wgt.get(m, k - start_batch, i, j);
+                                               wgt.get(m, k - start_batch, i, j);
                                 }
                             }
                         }
