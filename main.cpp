@@ -23,6 +23,9 @@ THE SOFTWARE.
 #include <core/InferenceSimulator.h>
 #include <interface/NetReader.h>
 #include <interface/NetWriter.h>
+#include <core/BitPragmatic.h>
+#include <core/Laconic.h>
+#include <interface/StatsWriter.h>
 
 template <typename T>
 core::Network<T> read(const cxxopts::Options &options) {
@@ -126,7 +129,31 @@ void check_options(const cxxopts::Options &options)
             if (value2 != "Protobuf" && value2 != "Gzip")
                 throw std::runtime_error("Please provide the output type configuration with --otype <Protobuf|Gzip>.");
         }
+
+    } else if(options["tool"].as<std::string>() == "Simulator") {
+
+        if (options.count("a") == 0) {
+            throw std::runtime_error("Please provide the architecture to simulate with -a <Laconic|BitPragmatic>.");
+        } else {
+            std::string value = options["a"].as<std::string>();
+            if (value != "Laconic" && value != "BitPragmatic")
+                throw std::runtime_error("Please provide the architecture to simulate with -a <Laconic|BitPragmatic>.");
+        }
+
+        /*if (options.count("o") == 0) {
+            throw std::runtime_error("Please provide the output file/folder configuration with -o <File>.");
+        }
+
+        if (options.count("otype") == 0) {
+            throw std::runtime_error("Please provide the output statistics file type with --otype <Text|csv>.");
+        } else {
+            std::string value = options["otype"].as<std::string>();
+            if (value2 != "Text" && value != "csv")
+                throw std::runtime_error("Please provide the output statistics file type with --otype <Text|csv>.");
+        }*/
+
     }
+
 }
 
 cxxopts::Options parse_options(int argc, char *argv[]) {
@@ -148,6 +175,11 @@ cxxopts::Options parse_options(int argc, char *argv[]) {
             ("o,output", "Path to the input file/folder", cxxopts::value<std::string>(), "<File>")
             ("otype", "Output type", cxxopts::value<std::string>(), "<Protobuf|Gzip>");
 
+    options.add_options("Simulator: output")
+            ("a,arch", "Architecture to simulate", cxxopts::value<std::string>(), "<Laconic|BitPragmatic>");
+         //   ("o,output", "Path to the input file/folder", cxxopts::value<std::string>(), "<File>")
+         //   ("otype", "Output type", cxxopts::value<std::string>(), "<Text|csv>");
+
     options.parse_positional("tool");
 
     options.parse(argc, argv);
@@ -161,7 +193,8 @@ int main(int argc, char *argv[]) {
 
         // Help
         if (options.count("h") == 1) {
-            std::cout << options.help({"help", "tools", "input", "Transform: output"}) << std::endl;
+            std::cout << options.help({"help", "tools", "input", "Transform: output", "Simulator: output"})
+                << std::endl;
             return 0;
         }
 
@@ -189,18 +222,32 @@ int main(int argc, char *argv[]) {
             }
 
         } else if (data_type == "Fixed16") {
-            core::Network<uint16_t > network;
+            core::Network<uint16_t> network;
             network = read<uint16_t>(options);
 
             // Not converting from fixed point to other values
             if (tool == "Transform") write<uint16_t>(network,options,"Not");
 
             else if (tool == "Simulator") {
-                std::cout << "Under development :(" << std::endl;
+                std::string architecture = options["a"].as<std::string>();
+                if(architecture == "BitPragmatic") {
+                    core::BitPragmatic<uint16_t> DNNsim;
+                    DNNsim.run(network);
+                } else if (architecture == "Laconic") {
+                    core::Laconic<uint16_t> DNNsim;
+                    //DNNsim.run(network);
+                    DNNsim.workReduction(network);
+                }
+
+                //Dump statistics
+                /*std::string dump_type = options["otype"].as<std::string>();
+                interface::StatsWriter writer = interface::StatsWriter(options["o"].as<std::string>());
+                if(dump_type == "Text") writer.dump_txt();
+                else if (dump_type == "csv") writer.dump_csv();*/
+
             }
 
         }
-
 
     } catch (std::exception &exception) {
         std::cout << "Error: " << exception.what() << std::endl;

@@ -63,16 +63,21 @@ For caffe model and Numpy arrays:
 *   **sys**: Folder for system libraries
     *   common: contains common definitions for all classes
     *   cxxopts: library to read options from the console (c) Jarryd Beck
+    *   Statistic: container for the statistics of the simulation
 *   **cnpy**: Folder for supporting math libraries
     *   cnpy: library to read Numpy arrays
     *   Array: class to store and operate with flatten arrays
 *   **core**: Folder for the main classes of the simulator
     *   Network: class to store the network
     *   Layer: class to store the layer of the network
-    *   Simulator: class that defines the behaviour of a standard deep learning architecture simulation
+    *   InferenceSimulator: class that defines the behaviour of a standard deep learning inference simulation
+    *   TimingSimulator: class that define common behaviour for timing simulation
+    *   BitPragmatic: class for the Bit-Pragmatic accelerator
+    *   Laconic: class for the Laconic accelerator
 *   **interface**: Folder to interface with input/output operations
     *   NetReader: class to read and load a network using different formats
     *   NetWriter: class to write and dump a network using different formats
+    *   StatsWriter: class to dump simulation statistics in different formats
     * proto: Folder for protobuf definition
         * network.proto Google protobuf definition for the network
         * caffe.proto Caffe protobuf definition for Caffe networks

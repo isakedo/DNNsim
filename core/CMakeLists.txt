@@ -11,7 +11,13 @@ add_library(
         include/core/Layer.h
         include/core/Network.h
         include/core/InferenceSimulator.h
+        include/core/TimingSimulator.h
+        include/core/Laconic.h
+        include/core/BitPragmatic.h
         src/InferenceSimulator.cpp
+        src/TimingSimulator.cpp
+        src/Laconic.cpp
+        src/BitPragmatic.cpp
 )
 
 target_include_directories(
