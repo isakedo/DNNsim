@@ -26,10 +26,10 @@ namespace core {
         T sum;
 
         //Adjust padding
-        long unpadded_x = (act_shape[2] - wgt_shape[2])/stride + 1;
-        long unpadded_y = (act_shape[3] - wgt_shape[3])/stride + 1;
-        long out_x = unpadded_x + 2*padding;
-        long out_y = unpadded_x + 2*padding;
+        long out_x = (act_shape[2] - wgt_shape[2] + 2*padding)/stride + 1;
+        long out_y = (act_shape[3] - wgt_shape[3] + 2*padding)/stride + 1;
+        long unpadded_x = out_x - 2*padding;
+        long unpadded_y = out_y - 2*padding;
 
         // Set filter batching
         int batches = (int)act.getShape()[1] / (int)wgt_shape[1];
