@@ -94,7 +94,7 @@ namespace interface {
                     activations_data.push_back(value);
                 for (const auto value : layer_proto.out_act_data_flt())
                     out_activations_data.push_back(value);
-            } else if (type == "u4") {
+            } else if (type == "t2") {
                 for (const auto &value : layer_proto.wgt_data_fxd())
                     weights_data.push_back(value);
                 for (const auto value : layer_proto.act_data_fxd())

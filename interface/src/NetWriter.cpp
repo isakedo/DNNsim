@@ -68,7 +68,7 @@ namespace interface {
                     layer_proto->add_out_act_data_fxd(limitPrec(layer.getOutput_activations().get(i),
                         std::get<0>(layer.getAct_precision()),std::get<1>(layer.getAct_precision())));
 
-            } else if (type == "u4") {
+            } else if (type == "t2") {
                 for (unsigned long long i = 0; i < layer.getWeights().getMax_index(); i++)
                     layer_proto->add_wgt_data_fxd(layer.getWeights().get(i));
 
