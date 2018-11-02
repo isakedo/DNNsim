@@ -4,13 +4,19 @@
 #include <sys/common.h>
 #include "Layer.h"
 #include "Network.h"
+#include "Simulator.h"
 
 namespace core {
 
     template <typename T>
-    class InferenceSimulator {
+    class InferenceSimulator : public Simulator<T> {
 
     private:
+
+        /* Compute the timing for a convolutional layer
+         * @param layer     Layer for which we want to calculate the outputs
+         */
+        void computeConvolution(const Layer<T> &layer);
 
         /* Compute the output activations for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs

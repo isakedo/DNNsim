@@ -1,12 +1,19 @@
 #ifndef DNNSIM_BITPRAGMATIC_H
 #define DNNSIM_BITPRAGMATIC_H
 
-#include "TimingSimulator.h"
+#include "Simulator.h"
 
 namespace core {
 
     template <typename T>
-    class BitPragmatic : public TimingSimulator<T> {
+    class BitPragmatic : public Simulator<T> {
+
+    private:
+
+        /* Compute the timing for a convolutional layer
+         * @param layer     Layer for which we want to calculate the outputs
+         */
+        void computeConvolution(const Layer<T> &layer);
 
     public:
 

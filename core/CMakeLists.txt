@@ -10,12 +10,12 @@ add_library(
         ${PROJECT_NAME}
         include/core/Layer.h
         include/core/Network.h
+        include/core/Simulator.h
         include/core/InferenceSimulator.h
-        include/core/TimingSimulator.h
         include/core/Laconic.h
         include/core/BitPragmatic.h
+        src/Simulator.cpp
         src/InferenceSimulator.cpp
-        src/TimingSimulator.cpp
         src/Laconic.cpp
         src/BitPragmatic.cpp
 )

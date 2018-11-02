@@ -11,9 +11,9 @@
 namespace core {
 
     template <typename T>
-    class TimingSimulator {
+    class Simulator {
 
-    private:
+    protected:
 
         /* Return a vector zero padded
          * @param array     Array we want to apply padding
@@ -21,6 +21,13 @@ namespace core {
          * @return          Array zero padded
          */
         cnpy::Array<T> adjustPadding(const cnpy::Array<T> &array, int padding);
+
+    private:
+
+        /* Compute the timing for a convolutional layer
+         * @param layer     Layer for which we want to calculate the outputs
+         */
+        virtual void computeConvolution(const Layer<T> &layer) = 0;
 
     public:
 

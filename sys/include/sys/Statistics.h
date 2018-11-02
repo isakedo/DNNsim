@@ -27,6 +27,11 @@ namespace sys {
 
     public:
 
+        /* Initializes values of the struct
+         * @param stats Stats struct we want to initialize
+         */
+        static void initialize(Stats &stats);
+
         /* Add one stats struct to the set of statistics
          * @param _stats    Stats struct that is going to be added
          */
