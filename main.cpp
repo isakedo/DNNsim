@@ -163,7 +163,7 @@ cxxopts::Options parse_options(int argc, char *argv[]) {
     options.add_options("help")("h,help", "Print this help message", cxxopts::value<bool>(), "");
 
     options.add_options("tools")
-    ("tool", "Select the desired DNNsim",cxxopts::value<std::string>(),"<Simulator|Transform>");
+    ("tool", "Select the desired DNNsim function",cxxopts::value<std::string>(),"<Simulator|Transform>");
 
     options.add_options("input")
             ("ditype", "Data input type", cxxopts::value<std::string>(), "<Float32|Fixed16>")
