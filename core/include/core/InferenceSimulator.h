@@ -1,9 +1,6 @@
 #ifndef DNNSIM_SIMULATOR_H
 #define DNNSIM_SIMULATOR_H
 
-#include <sys/common.h>
-#include "Layer.h"
-#include "Network.h"
 #include "Simulator.h"
 
 namespace core {

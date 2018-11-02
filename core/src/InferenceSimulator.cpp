@@ -29,10 +29,9 @@ namespace core {
         T sum;
 
         //Adjust padding
+        cnpy::Array<T> padded_act = this->adjustPadding(act,padding);
         long out_x = (act_shape[2] - wgt_shape[2] + 2*padding)/stride + 1;
         long out_y = (act_shape[3] - wgt_shape[3] + 2*padding)/stride + 1;
-        long unpadded_x = out_x - 2*padding;
-        long unpadded_y = out_y - 2*padding;
 
         // Set filter batching
         int batches = (int)act.getShape()[1] / (int)wgt_shape[1];
@@ -42,21 +41,15 @@ namespace core {
         // Convolution
         for(int n=0; n<act_shape[0]; n++) {
             for(int m=0; m<wgt_shape[0]; m++) {
-                for(int x=0-padding; x<unpadded_x + padding; x++) {
-                    for(int y=0-padding; y<unpadded_y + padding; y++) {
+                for(int x=0; x<out_x; x++) {
+                    for(int y=0; y<out_y; y++) {
                         sum = 0;
                         for (int i = 0; i < Kx; i++) {
                             for (int j = 0; j < Ky; j++) {
                                 for (int k = start_batch; k < wgt_shape[1] + start_batch; k++) {
-                                    if(padding) {
-                                        int act_x = stride * x + i;
-                                        int act_y = stride * y + j;
-                                        if ((act_x >= 0 && act_x < out_x) && act_y >= 0 && act_y < out_y)
-                                            sum += act.get(n, k, stride * x + i, stride * y + j) *
-                                                   wgt.get(m, k - start_batch, i, j);
-                                    } else
-                                        sum += act.get(n, k, stride * x + i, stride * y + j) *
-                                               wgt.get(m, k - start_batch, i, j);
+                                    sum += padded_act.get(n, k, stride * x + i, stride * y + j) *
+                                            wgt.get(m, k - start_batch, i, j);
+
                                 }
                             }
                         }
