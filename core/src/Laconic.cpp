@@ -19,13 +19,19 @@ namespace core {
         int mag_wgt = std::get<0>(wgt_prec), prec_wgt = std::get<1>(wgt_prec);
         uint16_t act_max = (1 << (mag_act + prec_act - 1)) - 1, wgt_max = (1 << (mag_wgt + prec_wgt - 1)) - 1;
         uint16_t act_bits = act & act_max, wgt_bits = wgt & wgt_max;
-        uint16_t effectual_bits = act_bits & wgt_bits;
-        uint8_t count = 0;
-        while (effectual_bits) {
-            count += effectual_bits & 1;
-            effectual_bits >>= 1;
+
+        uint8_t act_effectual_bits = 0;
+        while (act_bits) {
+            act_effectual_bits += act_bits & 1;
+            act_bits >>= 1;
         }
-        return count;
+        uint8_t wgt_effectual_bits = 0;
+        while (wgt_bits) {
+            wgt_effectual_bits += wgt_bits & 1;
+            wgt_bits >>= 1;
+        }
+        
+        return act_effectual_bits * wgt_effectual_bits;
     }
 
     template <typename T>
@@ -80,7 +86,7 @@ namespace core {
                 }
             }
         }
-        double work_reduction = 100 - ((double)effectual_bits / (double)mult_16bit / 16. * 100);
+        double work_reduction = 100 - ((double)effectual_bits / (double)mult_16bit / 256. * 100);
         printf("Laconic: Work reduction for layer %s is %.2f%%, %ld multiplications were done with %lld effectual bits \n",
             layer.getName().c_str(), work_reduction, mult_16bit, effectual_bits);
     }
