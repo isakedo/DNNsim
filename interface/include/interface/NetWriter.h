@@ -17,12 +17,17 @@ namespace interface {
         /* Layers that we want weights, activations, and output activations */
         const std::set<std::string> layers_data = {"Convolution","InnerProduct"};
 
-        /* Path containing the network files */
-        std::string path;
+        /* Name of the network */
+        std::string name;
 
         /* Specify if transform the data when writing the network */
         /* Allowed values: Not, Fixed16 */
         std::string data_conversion;
+
+        /* Return the name of the file depending on current type and conversion
+         * @return Name of output file
+         */
+        std::string outputName();
 
         /* Store a layer of the network into a protobuf layer
          * @param layer_proto   Pointer to a protobuf layer
@@ -36,8 +41,8 @@ namespace interface {
          * @param _path             Path containing the files with the network architecture
          * @param _data_conversion  Specification of the data transformation when writing the network
          */
-        NetWriter(const std::string &_path, const std::string &_data_conversion){
-            this->path = _path; this->data_conversion = _data_conversion; }
+        NetWriter(const std::string &_name, const std::string &_data_conversion){
+            this->name = _name; this->data_conversion = _data_conversion; }
 
         /* Store the network in protobuf format
          * @param network       Network that want to be stored

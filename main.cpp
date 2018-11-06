@@ -30,18 +30,11 @@ THE SOFTWARE.
 template <typename T>
 core::Network<T> read(const cxxopts::Options &options) {
     core::Network<T> network;
-    std::string input_type = options["itype"].as<std::string>();
-    std::string path = options["i"].as<std::string>();
-    if (input_type == "Caffe") path = path.back() == '/' ? path : path + '/';
-
-    // Get name from the path
-    size_t second_to_last = path.find_last_of('/', path.find_last_of('/')-1);
-    std::string name = path.substr(second_to_last+1);
-    std::size_t last = name.find_last_of('/');
-    name = name.substr(0,last);
+    const auto &input_type = options["itype"].as<std::string>();
+    const auto &network_name = options["n"].as<std::string>();
 
     // Read the network
-    interface::NetReader<T> reader = interface::NetReader<T>(name,path);
+    interface::NetReader<T> reader = interface::NetReader<T>(network_name);
     if (input_type == "Caffe") {
         network = reader.read_network_caffe();
         reader.read_precision(network);
@@ -62,20 +55,13 @@ core::Network<T> read(const cxxopts::Options &options) {
 template <typename T>
 void write(const core::Network<T> &network, const cxxopts::Options &options, const std::string &data_conversion) {
     // Write network
-    interface::NetWriter<T> writer = interface::NetWriter<T>(options["o"].as<std::string>(),data_conversion);
+    const auto &network_name = options["n"].as<std::string>();
+    interface::NetWriter<T> writer = interface::NetWriter<T>(network_name,data_conversion);
     std::string output_type = options["otype"].as<std::string>();
     if (output_type == "Protobuf") {
         writer.write_network_protobuf(network);
     } else {
         writer.write_network_gzip(network);
-    }
-}
-
-void check_path(std::string const &path)
-{
-    std::ifstream file(path);
-    if(!file.good()) {
-        throw std::runtime_error("The path " + path + " does not exist.");
     }
 }
 
@@ -89,18 +75,16 @@ void check_options(const cxxopts::Options &options)
             throw std::runtime_error("Please provide first the desired tool <Simulator|Transform>.");
     }
 
+    if(options.count("n") == 0) {
+        throw std::runtime_error("Please provide the name configuration with -n <Name>.");
+    }
+
     if(options.count("ditype") == 0) {
         throw std::runtime_error("Please provide the data input type with --ditype <Float32|Fixed16>.");
     } else {
         std::string value = options["ditype"].as<std::string>();
         if(value  != "Float32" && value != "Fixed16")
             throw std::runtime_error("Please provide the data input type with --ditype <Float32|Fixed16>.");
-    }
-
-    if(options.count("i") == 0) {
-        throw std::runtime_error("Please provide the input file/folder configuration with -i <File>.");
-    } else {
-        check_path(options["i"].as<std::string>());
     }
 
     if(options.count("itype") == 0) {
@@ -117,10 +101,6 @@ void check_options(const cxxopts::Options &options)
         std::string value = options["dotype"].as<std::string>();
         if(options.count("dotype") == 1 && value  != "Fixed16") {
             throw std::runtime_error("Please provide a correct data output type with --dotype <Fixed16>.");
-        }
-
-        if (options.count("o") == 0) {
-            throw std::runtime_error("Please provide the output file/folder configuration with -o <File>.");
         }
 
         if (options.count("otype") == 0) {
@@ -171,12 +151,11 @@ cxxopts::Options parse_options(int argc, char *argv[]) {
 
     options.add_options("input")
             ("ditype", "Data input type", cxxopts::value<std::string>(), "<Float32|Fixed16>")
-            ("i,input", "Path to the input file/folder", cxxopts::value<std::string>(), "<File>")
+            ("n,name", "Name of the network", cxxopts::value<std::string>(), "<Name>")
             ("itype", "Input type", cxxopts::value<std::string>(), "<Caffe|Protobuf|Gzip>");
 
     options.add_options("Transform: output")
             ("dotype", "Data output type (optional)", cxxopts::value<std::string>(), "<Fixed16>")
-            ("o,output", "Path to the input file/folder", cxxopts::value<std::string>(), "<File>")
             ("otype", "Output type", cxxopts::value<std::string>(), "<Protobuf|Gzip>");
 
     options.add_options("Simulator: output")

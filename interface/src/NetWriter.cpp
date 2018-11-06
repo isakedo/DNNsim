@@ -3,6 +3,15 @@
 
 namespace interface {
 
+    template <typename T>
+    std::string NetWriter<T>::outputName() {
+        std::string output_name = this->name;
+        std::string type = typeid(T).name() + std::to_string(sizeof(T));// Get template type in run-time
+        if(type == "f4" && this->data_conversion == "Fixed16") type = "t2";
+        output_name += "-" + type;
+        return output_name;
+    }
+
     static inline
     uint16_t limitPrec(float num, int mag, int prec) {
         double scale = pow(2.,(double)prec);
@@ -96,7 +105,8 @@ namespace interface {
 
         {
             // Write the new network back to disk.
-            std::fstream output(this->path, std::ios::out | std::ios::trunc | std::ios::binary);
+            std::fstream output("net_traces/" + this->name + '/' + outputName() + ".proto",
+                    std::ios::out | std::ios::trunc | std::ios::binary);
             if (!network_proto.SerializeToOstream(&output)) {
                 throw std::runtime_error("Failed to write protobuf");
             }
@@ -116,7 +126,8 @@ namespace interface {
             fillLayer(network_proto.add_layers(),layer);
 
         // Write the new network back to disk.
-        std::fstream output(this->path, std::ios::out | std::ios::trunc | std::ios::binary);
+        std::fstream output("net_traces/" + this->name + '/' + outputName(),
+                std::ios::out | std::ios::trunc | std::ios::binary);
 
         google::protobuf::io::OstreamOutputStream outputFileStream(&output);
         google::protobuf::io::GzipOutputStream::Options options;

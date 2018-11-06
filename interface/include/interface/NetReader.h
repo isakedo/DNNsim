@@ -26,8 +26,10 @@ namespace interface {
         /* Name of the network */
         std::string name;
 
-        /* Path to the the definition files */
-        std::string path;
+        /* Return the name of the file depending on current type
+         * @return Name of input file
+         */
+        std::string inputName();
 
         /* Return the layer parsed from the caffe prototxt file
          * @param layer_caffe   prototxt layer
@@ -43,9 +45,8 @@ namespace interface {
 
         /* Constructor
          * @param _name     The name of the network
-         * @param _path     Path containing the files with the network architecture
          */
-        NetReader(const std::string &_name, const std::string &_path){ this->name = _name; this->path = _path;}
+        explicit NetReader(const std::string &_name){ this->name = _name; }
 
         /* Load the trace file inside the folder path and returns the network
          * @return          Network architecture

@@ -38,3 +38,5 @@ cmake-*
 
 # Models directory
 models
+net_traces
+results

@@ -1,12 +1,9 @@
 # DNNsim 0.0.5
 
 Gitignore is set up for CLion IDE, if you want to use a different IDE add their project file extensions to .gitignore. 
-It can be used from the command line. The folder specified for models under .gitignore is "models". 
-All the inputs/outputs files of a network architecture must be in the same folder in case of Trace input. Example: models/alexnet/{Inputs/Outputs}
-
-### TODO list
-*   Test other networks
-*   Fixed points
+It recommend to used it from the command line. The folder "models" must contain a folder for each network. 
+Inside each folder the file "train_val.protoxt" is mandatory, while "precisions.txt" is optional (If not set the precision is generic)
+The weights and activations for each network in their corresponding network folder inside the folder "net_traces".
 
 ### Requeriments
 *   Cmake posterior to version 3.10
@@ -42,19 +39,19 @@ Print help:
     ./cmake-build-debug/bin/DNNsim -h
 
 ##### Transform tool example 
-For caffe model and Numpy arrays (Input path is the folder containing these files):
+For caffe model and Numpy arrays:
 
-    ./cmake-build-debug/bin/DNNsim Transform -d Float32 -i models/bvlc_alexnet/ --itype Caffe -o models/bvlc_alexnet/alexnet --otype Protobuf
+    ./cmake-build-debug/bin/DNNsim Transform -n bvlc_alexnet --ditype Float32 --itype Caffe --otype Protobuf
 
-For Protobuf as input and Gzip as output (Input path is the actual file):
+For Protobuf as input and Gzip as output in fixed point format:
 
-    ./cmake-build-debug/bin/DNNsim Transform -d Float32 -i models/bvlc_alexnet/alexnet --itype Protobuf -o models/bvlc_alexnet/here --otype Gzip
+    ./cmake-build-debug/bin/DNNsim Transform -n bvlc_alexnet --ditype Float32 --itype Protobuf --odtype Fixed16 --otype Protobuf
 
 ##### Simulator tool example
 
 For caffe model and Numpy arrays:
 
-    ./cmake-build-debug/bin/DNNsim Simulator -d Float32 -i models/bvlc_alexnet/ --itype Caffe
+    ./cmake-build-debug/bin/DNNsim Simulator -n bvlc_alexnet --ditype Float32 --itype Caffe
 
 ### Tested Networks
 *   AlexNet
