@@ -44,6 +44,9 @@ namespace core {
         /* numpy array containing the weights for the layer */
         cnpy::Array<T> weights;
 
+        /* numpy array containing the bias for the layer */
+        cnpy::Array<T> bias;
+
         /* numpy array containing the activations for the layer */
         cnpy::Array<T> activations;
 
@@ -95,6 +98,7 @@ namespace core {
         const std::tuple<int, int> &getAct_precision() const { return act_precision; }
         const std::tuple<int, int> &getWgt_precision() const { return wgt_precision; }
         const cnpy::Array<T> &getWeights() const { return weights; }
+        const cnpy::Array<T> &getBias() const { return bias; }
         const cnpy::Array<T> &getActivations() const { return activations; }
         const cnpy::Array<T> &getOutput_activations() const { return output_activations; }
 
@@ -102,6 +106,7 @@ namespace core {
         void setAct_precision(const std::tuple<int, int> &act_precision) { Layer::act_precision = act_precision; }
         void setWgt_precision(const std::tuple<int, int> &wgt_precision) { Layer::wgt_precision = wgt_precision; }
         void setWeights(const cnpy::Array<T> &weights) { Layer::weights = weights; }
+        void setBias(const cnpy::Array<T> &bias) { Layer::bias = bias; }
         void setActivations(const cnpy::Array<T> &activations) { Layer::activations = activations; }
         void setOutput_activations(const cnpy::Array<T> &output_activations) {
             Layer::output_activations = output_activations; }

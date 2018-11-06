@@ -67,6 +67,11 @@ namespace interface {
          */
         void read_weights_npy(core::Network<T> &network);
 
+        /* Read the bias into initialized given network
+         * @param network       Network with the layers already initialized
+         */
+        void read_bias_npy(core::Network<T> &network);
+
         /* Read the activations into initialized given network
          * @param network       Network with the layers already initialized
          */

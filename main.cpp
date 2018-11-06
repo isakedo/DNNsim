@@ -46,6 +46,7 @@ core::Network<T> read(const cxxopts::Options &options) {
         network = reader.read_network_caffe();
         reader.read_precision(network);
         reader.read_weights_npy(network);
+        reader.read_bias_npy(network);
         reader.read_activations_npy(network);
         reader.read_output_activations_npy(network);
     } else if (input_type == "Protobuf") {

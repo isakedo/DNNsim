@@ -182,6 +182,17 @@ namespace interface {
     }
 
     template <typename T>
+    void NetReader<T>::read_bias_npy(core::Network<T> &network) {
+        for(core::Layer<T> &layer : network.updateLayers()) {
+            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
+                std::string file = "bias-" + layer.getName() + ".npy" ;
+                cnpy::Array<T> bias; bias.set_values(this->path + file);
+                layer.setBias(bias);
+            }
+        }
+    }
+
+    template <typename T>
     void NetReader<T>::read_activations_npy(core::Network<T> &network) {
         for(core::Layer<T> &layer : network.updateLayers()) {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {

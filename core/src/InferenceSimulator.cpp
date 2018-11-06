@@ -15,6 +15,7 @@ namespace core {
         // Simplify names getting their pointers
         const cnpy::Array<T> &wgt = layer.getWeights();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
+        const cnpy::Array<T> &bias = layer.getBias();
         const cnpy::Array<T> &act = layer.getActivations();
         const std::vector<size_t> &act_shape = act.getShape();
 
@@ -43,7 +44,7 @@ namespace core {
             for(int m=0; m<wgt_shape[0]; m++) {
                 for(int x=0; x<out_x; x++) {
                     for(int y=0; y<out_y; y++) {
-                        sum = 0;
+                        sum = bias.get(m);
                         for (int i = 0; i < Kx; i++) {
                             for (int j = 0; j < Ky; j++) {
                                 for (int k = start_batch; k < wgt_shape[1] + start_batch; k++) {
@@ -77,7 +78,7 @@ namespace core {
         std::vector<size_t> output_shape;
         std::vector<T> output_activations;
         for(unsigned long long units=0; units<layer.getWeights().getShape()[0]; units++) {
-            T sum = 0.0;
+            T sum = layer.getBias().get(units);
             for (unsigned long long input_act_num=0; input_act_num<layer.getWeights().getShape()[1]; input_act_num++){
                 sum += layer.getActivations().get(input_act_num) * layer.getWeights().get(units,input_act_num);
             }
@@ -93,7 +94,7 @@ namespace core {
 
     template <typename T>
     void check_values(const Layer<T> &layer, const cnpy::Array<T> &test, const cnpy::Array<T> &result,
-            const float min_error = 1.35) {
+            const float min_error = .01) {
 
         std::cout << "Checking values for layer: " << layer.getName() << " of type: "<< layer.getType() << "... ";
         if(test.getMax_index() != result.getMax_index()) {
