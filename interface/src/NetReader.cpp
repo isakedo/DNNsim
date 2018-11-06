@@ -83,42 +83,77 @@ namespace interface {
             for (const int value : layer_proto.wgt_shape())
                 weights_shape.push_back((size_t) value);
 
+            #ifdef BIAS
+            std::vector<size_t> biases_shape;
+            for (const int value : layer_proto.bias_shape())
+                biases_shape.push_back((size_t) value);
+            #endif
+
             std::vector<size_t> activations_shape;
             for (const int value : layer_proto.act_shape())
                 activations_shape.push_back((size_t) value);
 
+            #ifdef OUTPUT_ACTIVATIONS
             std::vector<size_t> out_activations_shape;
             for (const int value : layer_proto.out_act_shape())
                 out_activations_shape.push_back((size_t) value);
+            #endif
 
             std::vector<T> weights_data;
+            std::vector<T> biases_data;
             std::vector<T> activations_data;
             std::vector<T> out_activations_data;
+
 
             if (type == "f4") {
                 for (const auto &value : layer_proto.wgt_data_flt())
                     weights_data.push_back(value);
+
+                #ifdef BIAS
+                for (const auto value : layer_proto.bias_data_flt())
+                    biases_data.push_back(value);
+                #endif
+
                 for (const auto value : layer_proto.act_data_flt())
                     activations_data.push_back(value);
+
+                #ifdef OUTPUT_ACTIVATIONS
                 for (const auto value : layer_proto.out_act_data_flt())
-                    out_activations_data.push_back(value);
+                                    out_activations_data.push_back(value);
+                #endif
             } else if (type == "t2") {
                 for (const auto &value : layer_proto.wgt_data_fxd())
                     weights_data.push_back(value);
+
+                #ifdef BIAS
+                for (const auto value : layer_proto.bias_data_fxd())
+                    biases_data.push_back(value);
+                #endif
+
                 for (const auto value : layer_proto.act_data_fxd())
                     activations_data.push_back(value);
+
+                #ifdef OUTPUT_ACTIVATIONS
                 for (const auto value : layer_proto.out_act_data_fxd())
                     out_activations_data.push_back(value);
+                #endif
             }
 
             cnpy::Array<T> weights; weights.set_values(weights_data,weights_shape);
             layer.setWeights(weights);
 
+            #ifdef BIAS
+            cnpy::Array<T> biases; biases.set_values(biases_data,biases_shape);
+            layer.setBias(biases);
+            #endif
+
             cnpy::Array<T> activations; activations.set_values(activations_data,activations_shape);
             layer.setActivations(activations);
 
+            #ifdef OUTPUT_ACTIVATIONS
             cnpy::Array<T> out_activations; out_activations.set_values(out_activations_data,out_activations_shape);
             layer.setOutput_activations(out_activations);
+            #endif
 
         }
 

@@ -39,9 +39,17 @@ core::Network<T> read(const cxxopts::Options &options) {
         network = reader.read_network_caffe();
         reader.read_precision(network);
         reader.read_weights_npy(network);
+
+        #ifdef BIAS
         reader.read_bias_npy(network);
+        #endif
+
         reader.read_activations_npy(network);
+
+        #ifdef OUTPUT_ACTIVATIONS
         reader.read_output_activations_npy(network);
+        #endif
+
     } else if (input_type == "Protobuf") {
         network = reader.read_network_protobuf();
     } else {
@@ -201,8 +209,10 @@ int main(int argc, char *argv[]) {
             }
 
             else if (tool == "Simulator") {
+                #if defined(OUTPUT_ACTIVATIONS) || defined(BIAS) //Need both to perform and check the inference
                 core::InferenceSimulator<float> DNNsim;
                 DNNsim.run(network);
+                #endif
             }
 
         } else if (data_type == "Fixed16") {

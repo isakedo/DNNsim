@@ -48,44 +48,73 @@ namespace interface {
             for (size_t length : layer.getWeights().getShape())
                 layer_proto->add_wgt_shape((int) length);
 
+            #ifdef BIAS
+            for (size_t length : layer.getBias().getShape())
+                layer_proto->add_bias_shape((int) length);
+            #endif
+
             for (size_t length : layer.getActivations().getShape())
                 layer_proto->add_act_shape((int) length);
 
+            #ifdef OUTPUT_ACTIVATIONS
             for (size_t length : layer.getOutput_activations().getShape())
                 layer_proto->add_out_act_shape((int) length);
+            #endif
 
             if(type == "f4" && this->data_conversion == "Not") {
                 for (unsigned long long i = 0; i < layer.getWeights().getMax_index(); i++)
                     layer_proto->add_wgt_data_flt(layer.getWeights().get(i));
 
+                #ifdef BIAS
+                for (unsigned long long i = 0; i < layer.getBias().getMax_index(); i++)
+                    layer_proto->add_bias_data_flt(layer.getBias().get(i));
+                #endif
+
                 for (unsigned long long i = 0; i < layer.getActivations().getMax_index(); i++)
                     layer_proto->add_act_data_flt(layer.getActivations().get(i));
 
+                #ifdef OUTPUT_ACTIVATIONS
                 for (unsigned long long i = 0; i < layer.getOutput_activations().getMax_index(); i++)
                     layer_proto->add_out_act_data_flt(layer.getOutput_activations().get(i));
+                #endif
 
             } else if (type == "f4" && this->data_conversion == "Fixed16") {
                 for (unsigned long long i = 0; i < layer.getWeights().getMax_index(); i++)
                     layer_proto->add_wgt_data_fxd(limitPrec(layer.getWeights().get(i),
                          std::get<0>(layer.getWgt_precision()),std::get<1>(layer.getWgt_precision())));
 
+                #ifdef BIAS
+                for (unsigned long long i = 0; i < layer.getBias().getMax_index(); i++)
+                    layer_proto->add_bias_data_fxd(limitPrec(layer.getBias().get(i),
+                        std::get<0>(layer.getAct_precision()),std::get<1>(layer.getAct_precision())));
+                #endif
+
                 for (unsigned long long i = 0; i < layer.getActivations().getMax_index(); i++)
                     layer_proto->add_act_data_fxd(limitPrec(layer.getActivations().get(i),
                         std::get<0>(layer.getAct_precision()),std::get<1>(layer.getAct_precision())));
 
+                #ifdef OUTPUT_ACTIVATIONS
                 for (unsigned long long i = 0; i < layer.getOutput_activations().getMax_index(); i++)
                     layer_proto->add_out_act_data_fxd(limitPrec(layer.getOutput_activations().get(i),
                         std::get<0>(layer.getAct_precision()),std::get<1>(layer.getAct_precision())));
+                #endif
 
             } else if (type == "t2") {
                 for (unsigned long long i = 0; i < layer.getWeights().getMax_index(); i++)
                     layer_proto->add_wgt_data_fxd(layer.getWeights().get(i));
 
+                #ifdef BIAS
+                for (unsigned long long i = 0; i < layer.getBias().getMax_index(); i++)
+                    layer_proto->add_bias_data_fxd(layer.getBias().get(i));
+                #endif
+
                 for (unsigned long long i = 0; i < layer.getActivations().getMax_index(); i++)
                     layer_proto->add_act_data_fxd(layer.getActivations().get(i));
 
+                #ifdef OUTPUT_ACTIVATIONS
                 for (unsigned long long i = 0; i < layer.getOutput_activations().getMax_index(); i++)
                     layer_proto->add_out_act_data_fxd(layer.getOutput_activations().get(i));
+                #endif
 
             }
 
