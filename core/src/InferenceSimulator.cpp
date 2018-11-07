@@ -132,10 +132,10 @@ namespace core {
             bool has_ReLU = index < num_layers && network.getLayers()[index].getType() == "ReLU";
             if(has_ReLU) index++;
 
-            /*if(layer.getType() == "Convolution") {
+            if(layer.getType() == "Convolution") {
                 computeConvolution(layer, result, has_ReLU);
                 check_values(layer, layer.getOutput_activations(), result);
-            } else*/ if(layer.getType() == "InnerProduct") {
+            } else if(layer.getType() == "InnerProduct") {
                 computeInnerProduct(layer, result, has_ReLU);
                 check_values(layer,layer.getOutput_activations(),result);
             }
