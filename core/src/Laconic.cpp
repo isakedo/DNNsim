@@ -60,7 +60,7 @@ namespace core {
         unsigned long long effectual_bits = 0;
 
         // Convolution
-        for(int n=0; n<1; n++) { // Calculate work reduction for first batch
+        for(int n=0; n<act_shape[0]; n++) {
             int current_batch = 0, batch_m =0, start_batch = 0;
             for(int m=0; m<wgt_shape[0]; m++) {
                 for(int x=0; x<out_x; x++) {

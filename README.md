@@ -1,4 +1,4 @@
-# DNNsim 0.0.5
+# DNNsim 0.1.0
 
 Gitignore is set up for CLion IDE, if you want to use a different IDE add their project file extensions to .gitignore. 
 It recommend to used it from the command line. The folder "models" must contain a folder for each network. 
