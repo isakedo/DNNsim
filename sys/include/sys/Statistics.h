@@ -18,6 +18,20 @@ namespace sys {
             /* Simulator architecture */
             std::string arch;
 
+            /* Layer vector */
+            std::vector<std::string> layers;
+
+            /* Activations precision */
+            std::vector<int> act_prec;
+
+            /* Weights precision */
+            std::vector<int> wgt_prec;
+
+            /* Stats for work reduction */
+            std::vector<double> work_reduction;
+            std::vector<uint64_t> multiplications;
+            std::vector<uint64_t> effectual_bits;
+
         };
 
     private:

@@ -1,12 +1,12 @@
-#ifndef DNNSIM_BITPRAGMATIC_H
-#define DNNSIM_BITPRAGMATIC_H
+#ifndef DNNSIM_BITFUSION_H
+#define DNNSIM_BITFUSION_H
 
 #include "Simulator.h"
 
 namespace core {
 
     template <typename T>
-    class BitPragmatic : public Simulator<T> {
+    class BitFusion : public Simulator<T> {
 
     private:
 
@@ -27,4 +27,4 @@ namespace core {
 
 }
 
-#endif //DNNSIM_BITPRAGMATIC_H
+#endif //DNNSIM_BITFUSION_H

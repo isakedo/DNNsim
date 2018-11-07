@@ -5,7 +5,7 @@ project(
         LANGUAGES CXX
 )
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_CXX_FLAGS_DEBUG "-O2")
 
 # Add library for script support
 add_subdirectory(sys)

@@ -4,7 +4,7 @@
 namespace core {
 
     template <typename T>
-    void Laconic<T>::computeConvolution(const core::Layer<T> &layer) {
+    void Laconic<T>::computeConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
 
     }
 
@@ -35,7 +35,7 @@ namespace core {
     }
 
     template <typename T>
-    void Laconic<T>::computeWorkReductionConvolution(const core::Layer<T> &layer) {
+    void Laconic<T>::computeWorkReductionConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
         // Simplify names getting their pointers
         const cnpy::Array<T> &wgt = layer.getWeights();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
@@ -60,7 +60,7 @@ namespace core {
         unsigned long long effectual_bits = 0;
 
         // Convolution
-        for(int n=0; n<act_shape[0]; n++) {
+        for(int n=0; n<1; n++) { // Calculate work reduction for first batch
             int current_batch = 0, batch_m =0, start_batch = 0;
             for(int m=0; m<wgt_shape[0]; m++) {
                 for(int x=0; x<out_x; x++) {
@@ -87,17 +87,31 @@ namespace core {
             }
         }
         double work_reduction = 100 - ((double)effectual_bits / (double)mult_16bit / 256. * 100);
-        printf("Laconic: Work reduction for layer %s is %.2f%%, %ld multiplications were done with %lld effectual bits \n",
-            layer.getName().c_str(), work_reduction, mult_16bit, effectual_bits);
+        stats.work_reduction.push_back(work_reduction);
+        stats.multiplications.push_back(mult_16bit);
+        stats.effectual_bits.push_back(effectual_bits);
     }
 
     template <typename T>
     void Laconic<T>::workReduction(const Network<T> &network) {
+        // Initialize statistics
+        sys::Statistics::Stats stats;
+        sys::Statistics::initialize(stats);
+
+        stats.net_name = network.getName();
+        stats.arch = "Laconic";
+
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
-                computeWorkReductionConvolution(layer);
+                stats.layers.push_back(layer.getName());
+                stats.act_prec.push_back(std::get<0>(layer.getAct_precision())+std::get<1>(layer.getAct_precision()));
+                stats.wgt_prec.push_back(std::get<0>(layer.getWgt_precision())+std::get<1>(layer.getWgt_precision()));
+                computeWorkReductionConvolution(layer,stats);
             }
         }
+
+        // Set statistics to write
+        sys::Statistics::addStats(stats);
     }
 
     template class Laconic<uint16_t>;

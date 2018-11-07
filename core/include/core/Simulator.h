@@ -26,8 +26,9 @@ namespace core {
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs
+         * @param stats     Statistics to fill
          */
-        virtual void computeConvolution(const Layer<T> &layer) = 0;
+        virtual void computeConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats) = 0;
 
     public:
 

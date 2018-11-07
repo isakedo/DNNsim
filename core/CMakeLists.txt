@@ -14,10 +14,12 @@ add_library(
         include/core/InferenceSimulator.h
         include/core/Laconic.h
         include/core/BitPragmatic.h
+        include/core/BitFusion.h
         src/Simulator.cpp
         src/InferenceSimulator.cpp
         src/Laconic.cpp
         src/BitPragmatic.cpp
+        src/BitFusion.cpp
 )
 
 target_include_directories(

@@ -234,10 +234,9 @@ int main(int argc, char *argv[]) {
                 }
 
                 //Dump statistics
-                /*std::string dump_type = options["otype"].as<std::string>();
-                interface::StatsWriter writer = interface::StatsWriter(options["o"].as<std::string>());
-                if(dump_type == "Text") writer.dump_txt();
-                else if (dump_type == "csv") writer.dump_csv();*/
+                //std::string dump_type = options["otype"].as<std::string>();
+                //if(dump_type == "Text") writer.dump_txt();
+                /*else if (dump_type == "csv")*/ interface::StatsWriter::dump_csv();
 
             }
 

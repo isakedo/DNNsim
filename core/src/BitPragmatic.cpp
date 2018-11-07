@@ -53,7 +53,7 @@ namespace core {
     }
 
     template <typename T>
-    void BitPragmatic<T>::computeConvolution(const core::Layer<T> &layer) {
+    void BitPragmatic<T>::computeConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
         // Simplify names getting their pointers
         const cnpy::Array<T> &wgt = layer.getWeights();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
@@ -105,9 +105,10 @@ namespace core {
 
     template <typename T>
     void BitPragmatic<T>::run(const Network<T> &network) {
+        sys::Statistics::Stats stats;
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
-                computeConvolution(layer);
+                computeConvolution(layer, stats);
             }
         }
     }
