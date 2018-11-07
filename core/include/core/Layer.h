@@ -82,7 +82,7 @@ namespace core {
          * @param _wgt_pre  Weights precision
          */
         Layer(const std::string &_type, const std::string &_name, const std::string &_input, int _Nn, int _Kx, int _Ky,
-              int _stride, int _padding, const std::tuple<int,int> _wgt_pre, const std::tuple<int,int> _act_pre ) :
+              int _stride, int _padding, const std::tuple<int,int> _act_pre, const std::tuple<int,int> _wgt_pre ) :
                 Nn(_Nn), Kx(_Kx), Ky(_Ky), stride(_stride), padding(_padding), act_precision(_act_pre),
                 wgt_precision(_wgt_pre) { type = _type; name = _name; input = _input; }
 
