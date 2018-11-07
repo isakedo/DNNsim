@@ -61,7 +61,8 @@ namespace cnpy {
 
     template <typename T>
     unsigned long Array<T>::getDimensions() const {
-        return shape.size();
+         if(shape.size() == 4 && shape[2] == 1 && shape[3] == 1) return 2;
+         else return shape.size();
     }
 
     /* Getters */

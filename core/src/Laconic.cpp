@@ -54,7 +54,6 @@ namespace core {
         // Set filter batching
         int batches = (int)act.getShape()[1] / (int)wgt_shape[1];
         int it_per_batch = (int)wgt_shape[0] / batches;
-        int current_batch = 0, batch_m =0, start_batch = 0;
 
         // Operations
         unsigned long mult_16bit = 0;
@@ -62,6 +61,7 @@ namespace core {
 
         // Convolution
         for(int n=0; n<act_shape[0]; n++) {
+            int current_batch = 0, batch_m =0, start_batch = 0;
             for(int m=0; m<wgt_shape[0]; m++) {
                 for(int x=0; x<out_x; x++) {
                     for(int y=0; y<out_y; y++) {

@@ -37,10 +37,10 @@ namespace core {
         // Set filter batching
         int batches = (int)act.getShape()[1] / (int)wgt_shape[1];
         int it_per_batch = (int)wgt_shape[0] / batches;
-        int current_batch = 0, batch_m =0, start_batch = 0;
 
         // Convolution
         for(int n=0; n<act_shape[0]; n++) {
+            int current_batch = 0, batch_m = 0, start_batch = 0;
             for(int m=0; m<wgt_shape[0]; m++) {
                 for(int x=0; x<out_x; x++) {
                     for(int y=0; y<out_y; y++) {
@@ -75,18 +75,29 @@ namespace core {
 
     template <typename T>
     void InferenceSimulator<T>::computeInnerProduct(const Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
+        // Simplify names getting their pointers
+        const cnpy::Array<T> &wgt = layer.getWeights();
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
+        const cnpy::Array<T> &bias = layer.getBias();
+        const cnpy::Array<T> &act = layer.getActivations();
+        const std::vector<size_t> &act_shape = act.getShape();
+
+
         std::vector<size_t> output_shape;
         std::vector<T> output_activations;
-        for(unsigned long long units=0; units<layer.getWeights().getShape()[0]; units++) {
-            T sum = layer.getBias().get(units);
-            for (unsigned long long input_act_num=0; input_act_num<layer.getWeights().getShape()[1]; input_act_num++){
-                sum += layer.getActivations().get(input_act_num) * layer.getWeights().get(units,input_act_num);
+
+        for(uint16_t n = 0;  n<act_shape[0]; n++) {
+            for(uint16_t m=0; m<wgt_shape[0]; m++) {
+                T sum = bias.get(m);
+                for (uint16_t k=0; k <wgt_shape[1]; k++){
+                    sum += act.get(n,k) * wgt.get(m,k);
+                }
+                if(has_ReLu) sum = ReLU(sum);
+                output_activations.push_back(sum);
             }
-            if(has_ReLu) sum = ReLU(sum);
-            output_activations.push_back(sum);
         }
-        // send the results
-        output_shape.push_back(1);
+
+        output_shape.push_back(act_shape[0]);
         output_shape.push_back(output_activations.size());
         result.set_values(output_activations,output_shape);
 
@@ -102,8 +113,8 @@ namespace core {
             return;
         }
         int count = 0;
-        for(unsigned long long i = 0; i < test.getMax_index(); i++) {
-            if(fabsf(test.get(i) - result.get(i)) > min_error)  count++;
+        for(uint32_t i = 0; i < test.getMax_index(); i++) {
+            if(fabsf(test.get(i) - result.get(i)) > min_error) count++;
         }
         std::cout << "ERRORS: " << count << " out of " << test.getMax_index() << " absolute error tolerance of "
         << min_error << std::endl;
@@ -121,10 +132,10 @@ namespace core {
             bool has_ReLU = index < num_layers && network.getLayers()[index].getType() == "ReLU";
             if(has_ReLU) index++;
 
-            if(layer.getType() == "Convolution") {
+            /*if(layer.getType() == "Convolution") {
                 computeConvolution(layer, result, has_ReLU);
                 check_values(layer, layer.getOutput_activations(), result);
-            } else if(layer.getType() == "InnerProduct") {
+            } else*/ if(layer.getType() == "InnerProduct") {
                 computeInnerProduct(layer, result, has_ReLU);
                 check_values(layer,layer.getOutput_activations(),result);
             }
