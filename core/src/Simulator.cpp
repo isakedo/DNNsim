@@ -32,6 +32,11 @@ namespace core {
         return padded_array;
     }
 
+    template <typename T>
+    uint16_t Simulator<T>::booth_encoding(uint16_t value, int mag, int prec) {
+        return value; //TODO
+    }
+
     INITIALISE_DATA_TYPES(Simulator);
 
 }

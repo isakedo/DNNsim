@@ -1,6 +1,9 @@
 
 #include <core/Laconic.h>
 
+#define ZERO_COUNT
+//#define BOOTH_ECODING
+
 namespace core {
 
     template <typename T>
@@ -13,10 +16,18 @@ namespace core {
 
     }
 
-    uint8_t calculateEffectualBits(uint16_t act, uint16_t wgt, const std::tuple<int, int> &act_prec,
+    template <typename T>
+    uint8_t Laconic<T>::calculateOneBitMultiplications(uint16_t act, uint16_t wgt, const std::tuple<int, int> &act_prec,
             const std::tuple<int, int> &wgt_prec) {
+
         int mag_act = std::get<0>(act_prec), prec_act = std::get<1>(act_prec);
         int mag_wgt = std::get<0>(wgt_prec), prec_wgt = std::get<1>(wgt_prec);
+
+        #ifdef BOOTH_ECODING
+        act = this->booth_encoding(act,mag_act,prec_act);
+        wgt = this->booth_encoding(wgt,mag_wgt,prec_wgt);
+        #endif
+
         uint16_t act_max = (1 << (mag_act + prec_act - 1)) - 1, wgt_max = (1 << (mag_wgt + prec_wgt - 1)) - 1;
         uint16_t act_bits = act & act_max, wgt_bits = wgt & wgt_max;
 
@@ -30,8 +41,13 @@ namespace core {
             wgt_effectual_bits += wgt_bits & 1;
             wgt_bits >>= 1;
         }
-        
-        return act_effectual_bits * wgt_effectual_bits;
+
+        uint8_t one_bit_multiplications = act_effectual_bits * wgt_effectual_bits;
+        #ifdef ZERO_COUNT
+        if(one_bit_multiplications == 0) one_bit_multiplications = 1;
+        #endif
+
+        return one_bit_multiplications;
     }
 
     template <typename T>
@@ -56,8 +72,10 @@ namespace core {
         int it_per_batch = (int)wgt_shape[0] / batches;
 
         // Operations
-        unsigned long mult_16bit = 0;
-        unsigned long long effectual_bits = 0;
+        uint64_t mult_16bit = wgt_shape[0] * out_x * out_y * Kx * Ky * wgt_shape[1];
+        uint64_t one_bit_counter = 0;
+        std::vector<uint64_t> one_bit_multiplications;
+        std::vector<double> work_reduction;
 
         // Convolution
         for(int n=0; n<act_shape[0]; n++) {
@@ -68,11 +86,10 @@ namespace core {
                         for (int i = 0; i < Kx; i++) {
                             for (int j = 0; j < Ky; j++) {
                                 for (int k = start_batch; k < wgt_shape[1] + start_batch; k++) {
-                                    effectual_bits += calculateEffectualBits(
+                                    one_bit_counter += calculateOneBitMultiplications(
                                             padded_act.get(n, k, stride * x + i, stride * y + j),
                                             wgt.get(m, k - start_batch, i, j),
                                             layer.getAct_precision(),layer.getWgt_precision());
-                                    mult_16bit++;
                                 }
                             }
                         }
@@ -85,11 +102,13 @@ namespace core {
                     start_batch = (int)wgt_shape[1]*current_batch;
                 }
             }
+            work_reduction.push_back(100 - ((double)one_bit_counter / (double)mult_16bit / 256. * 100));
+            one_bit_multiplications.push_back(one_bit_counter);
+            one_bit_counter = 0;
         }
-        double work_reduction = 100 - ((double)effectual_bits / (double)mult_16bit / 256. * 100);
         stats.work_reduction.push_back(work_reduction);
         stats.multiplications.push_back(mult_16bit);
-        stats.effectual_bits.push_back(effectual_bits);
+        stats.one_bit_multiplications.push_back(one_bit_multiplications);
     }
 
     template <typename T>

@@ -28,9 +28,9 @@ namespace sys {
             std::vector<int> wgt_prec;
 
             /* Stats for work reduction */
-            std::vector<double> work_reduction;
+            std::vector<std::vector<double>> work_reduction;
             std::vector<uint64_t> multiplications;
-            std::vector<uint64_t> effectual_bits;
+            std::vector<std::vector<uint64_t>> one_bit_multiplications;
 
         };
 

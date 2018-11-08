@@ -22,6 +22,14 @@ namespace core {
          */
         cnpy::Array<T> adjustPadding(const cnpy::Array<T> &array, int padding);
 
+        /* Return the optimal encoding for the given value
+         * @param value     Value we want to encode
+         * @param mag       Magnitude of the value
+         * @param prec      Precision of the value
+         * @return          Value with the optimal encoding
+         */
+        uint16_t booth_encoding(uint16_t value, int mag, int prec);
+
     private:
 
         /* Compute the timing for a convolutional layer
