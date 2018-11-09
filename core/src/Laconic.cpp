@@ -2,7 +2,7 @@
 #include <core/Laconic.h>
 
 //#define ZERO_COUNT
-//#define BOOTH_ECODING
+//#define BOOTH_ENCODING
 
 namespace core {
 
@@ -23,7 +23,7 @@ namespace core {
         int mag_act = std::get<0>(act_prec), prec_act = std::get<1>(act_prec);
         int mag_wgt = std::get<0>(wgt_prec), prec_wgt = std::get<1>(wgt_prec);
 
-        #ifdef BOOTH_ECODING
+        #ifdef BOOTH_ENCODING
         act = this->booth_encoding(act,mag_act,prec_act);
         wgt = this->booth_encoding(wgt,mag_wgt,prec_wgt);
         #endif
@@ -72,14 +72,21 @@ namespace core {
         int it_per_batch = (int)wgt_shape[0] / batches;
 
         // Operations
-        uint64_t mult_16bit = wgt_shape[0] * out_x * out_y * Kx * Ky * wgt_shape[1];
+        const uint64_t mult_16bit = wgt_shape[0] * out_x * out_y * Kx * Ky * wgt_shape[1];
+        std::vector<uint64_t> one_bit_multiplications (act_shape[0],0);
+        std::vector<double> work_reduction (act_shape[0],0);
+        int current_batch = 0, batch_m =0, start_batch = 0;
         uint64_t one_bit_counter = 0;
-        std::vector<uint64_t> one_bit_multiplications;
-        std::vector<double> work_reduction;
+        int n;
 
         // Convolution
-        for(int n=0; n<act_shape[0]; n++) {
-            int current_batch = 0, batch_m =0, start_batch = 0;
+        #ifdef OPENMP // Automatic code parallelization
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(max_threads);
+        #pragma omp parallel for private(n,current_batch,batch_m,start_batch,one_bit_counter)
+        #endif
+        for(n=0; n<act_shape[0]; n++) {
+            current_batch = 0; batch_m =0; start_batch = 0; one_bit_counter = 0;
             for(int m=0; m<wgt_shape[0]; m++) {
                 for(int x=0; x<out_x; x++) {
                     for(int y=0; y<out_y; y++) {
@@ -102,9 +109,8 @@ namespace core {
                     start_batch = (int)wgt_shape[1]*current_batch;
                 }
             }
-            work_reduction.push_back(100 - ((double)one_bit_counter / (double)mult_16bit / 256. * 100));
-            one_bit_multiplications.push_back(one_bit_counter);
-            one_bit_counter = 0;
+            work_reduction[n] = 100 - ((double)one_bit_counter / (double)mult_16bit / 256. * 100);
+            one_bit_multiplications[n] = one_bit_counter;
         }
         stats.work_reduction.push_back(work_reduction);
         stats.multiplications.push_back(mult_16bit);

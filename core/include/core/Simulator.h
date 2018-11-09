@@ -8,6 +8,10 @@
 #include "Layer.h"
 #include "Network.h"
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 namespace core {
 
     template <typename T>

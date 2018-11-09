@@ -13,6 +13,7 @@
 
 // Don't commit changes in global variables
 #define DEBUG
+//#define OPENMP
 //#define OUTPUT_ACTIVATIONS
 //#define BIAS
 
