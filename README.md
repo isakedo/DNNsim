@@ -5,6 +5,13 @@ It recommend to used it from the command line. The folder "models" must contain 
 Inside each folder the file "train_val.protoxt" is mandatory, while "precisions.txt" is optional (If not set the precision is generic)
 The weights and activations for each network in their corresponding network folder inside the folder "net_traces".
 
+### Things to do:
+*  Remove crappy array :(
+*  Pragmatic
+*  Laconic
+*  Bit-fusion
+*  Booth enconding
+
 ### Requeriments
 *   Cmake posterior to version 3.10
 *   Google Protobuf for C++. Installation link:
