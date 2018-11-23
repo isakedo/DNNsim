@@ -226,7 +226,8 @@ int main(int argc, char *argv[]) {
                 std::string architecture = options["a"].as<std::string>();
                 if(architecture == "BitPragmatic") {
                     core::BitPragmatic<uint16_t> DNNsim;
-                    DNNsim.run(network);
+                    //DNNsim.run(network);
+                    DNNsim.memoryAccesses(network);
                 } else if (architecture == "Laconic") {
                     core::Laconic<uint16_t> DNNsim;
                     //DNNsim.run(network);

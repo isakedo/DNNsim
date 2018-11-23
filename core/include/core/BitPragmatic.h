@@ -18,6 +18,11 @@ namespace core {
 
     public:
 
+        /* Calculate the number of memory accesses
+         * @param network   Network we want to simulate
+         */
+        void memoryAccesses(const Network<T> &network);
+
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate
          */

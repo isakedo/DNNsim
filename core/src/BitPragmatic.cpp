@@ -104,6 +104,54 @@ namespace core {
     }
 
     template <typename T>
+    void BitPragmatic<T>::memoryAccesses(const Network<T> &network) {
+        sys::Statistics::Stats stats;
+
+        stats.net_name = network.getName();
+        stats.arch = "BitPragmatic";
+
+        for(const Layer<T> &layer : network.getLayers()) {
+            if(layer.getType() == "Convolution") {
+
+                // Simplify names getting their pointers
+                const cnpy::Array<T> &wgt = layer.getWeights();
+                const std::vector<size_t> &wgt_shape = wgt.getShape();
+                const cnpy::Array<T> &act = layer.getActivations();
+                const std::vector<size_t> &act_shape = act.getShape();
+
+                int padding = layer.getPadding();
+                int stride = layer.getStride();
+                int Kx = layer.getKx();
+                int Ky = layer.getKy();
+
+                cnpy::Array<T> padded_act = this->adjustPadding(act,padding);
+                long out_x = (act_shape[2] - wgt_shape[2] + 2*padding)/stride + 1;
+                long out_y = (act_shape[3] - wgt_shape[3] + 2*padding)/stride + 1;
+
+                //Memory stats - 16 bits
+                auto num_weights_sets = (uint32_t)ceil(wgt_shape[0]/16.); // Groups of 16 weights
+                auto num_activations_sets = (uint32_t)ceil(out_x*out_y/16.); // Groups of 16 windows
+                auto num_channel_sets = (uint32_t)ceil(wgt_shape[1]/16.); // Groups of 16 channels
+
+                stats.layers.push_back(layer.getName());
+                stats.on_chip_weights.push_back(num_weights_sets*num_activations_sets*num_channel_sets*Kx*Ky);
+                stats.on_chip_activations.push_back(num_weights_sets*num_activations_sets*num_channel_sets*Kx*Ky);
+                stats.off_chip_weights_sch3.push_back(1); // Filters per layer
+                stats.bits_weights.push_back((uint32_t)(wgt_shape[0]*wgt_shape[1]*wgt_shape[2]*wgt_shape[3]*16));
+                stats.off_chip_weights_sch4.push_back(num_weights_sets); // Working set of filters
+                stats.bits_working_weights.push_back((uint32_t)(16*wgt_shape[1]*wgt_shape[2]*wgt_shape[3]*16));
+                stats.off_chip_activations.push_back((uint32_t)out_y); // One row of activations
+                stats.bits_one_activation_row.push_back((uint32_t)(padded_act.getShape()[2]*Ky*wgt_shape[1]*16));
+                stats.computations.push_back(num_weights_sets*num_activations_sets*num_channel_sets*Kx*Ky);
+
+            }
+        }
+
+        // Set statistics to write
+        sys::Statistics::addStats(stats);
+    }
+
+    template <typename T>
     void BitPragmatic<T>::run(const Network<T> &network) {
         sys::Statistics::Stats stats;
         for(const Layer<T> &layer : network.getLayers()) {

@@ -32,6 +32,17 @@ namespace sys {
             std::vector<uint64_t> multiplications;
             std::vector<std::vector<uint64_t>> one_bit_multiplications;
 
+            /* Stats for memory accesses */
+            std::vector<uint32_t> on_chip_weights;
+            std::vector<uint32_t> on_chip_activations;
+            std::vector<uint32_t> off_chip_weights_sch3;
+            std::vector<uint32_t> bits_weights;
+            std::vector<uint32_t> off_chip_weights_sch4;
+            std::vector<uint32_t> bits_working_weights;
+            std::vector<uint32_t> off_chip_activations;
+            std::vector<uint32_t> bits_one_activation_row;
+            std::vector<uint32_t> computations;
+
         };
 
     private:
