@@ -41,7 +41,7 @@ namespace interface {
                 for (int i = 0; i < stats.layers.size(); i++) {
                     char line[256];
                     snprintf(line, sizeof(line), "%s,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", stats.layers[i].c_str(),
-                            stats.on_chip_weights[i], stats.off_chip_activations[i], stats.off_chip_weights_sch3[i],
+                            stats.on_chip_weights[i], stats.on_chip_activations[i], stats.off_chip_weights_sch3[i],
                             stats.off_chip_weights_sch4[i], stats.off_chip_activations[i],stats.bits_weights[i],
                             stats.bits_working_weights[i],stats.bits_one_activation_row[i],stats.computations[i]);
                     o_file << line;
