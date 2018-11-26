@@ -8,6 +8,13 @@ namespace interface {
 
         class StatsWriter {
 
+        private:
+
+            /* Check if the path exists
+             * @param path  Path we want to check
+             */
+            static void check_path(const std::string &path);
+
         public:
 
             /* Dump the statistics in a text file */

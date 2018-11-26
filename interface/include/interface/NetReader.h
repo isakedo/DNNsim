@@ -26,6 +26,11 @@ namespace interface {
         /* Name of the network */
         std::string name;
 
+        /* Check if the path exists
+         * @param path  Path we want to check
+         */
+        void check_path(const std::string &path);
+
         /* Return the name of the file depending on current type
          * @return Name of input file
          */

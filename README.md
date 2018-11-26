@@ -2,7 +2,7 @@
 
 Gitignore is set up for CLion IDE, if you want to use a different IDE add their project file extensions to .gitignore. 
 It recommend to used it from the command line. The folder "models" must contain a folder for each network. 
-Inside each folder the file "train_val.protoxt" is mandatory, while "precisions.txt" is optional (If not set the precision is generic)
+Inside each folder the file "train_val.protoxt" is mandatory, while "precision.txt" is optional (If not set the precision is generic)
 The weights and activations for each network in their corresponding network folder inside the folder "net_traces".
 
 ### Things to do:

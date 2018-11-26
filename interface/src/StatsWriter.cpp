@@ -3,6 +3,13 @@
 
 namespace interface {
 
+    void StatsWriter::check_path(const std::string &path) {
+        std::ifstream file(path);
+        if(!file.good()) {
+            throw std::runtime_error("The path " + path + " does not exist.");
+        }
+    }
+
     void StatsWriter::dump_txt() {
 
         for(const sys::Statistics::Stats &stats : sys::Statistics::getAll_stats()) {
@@ -15,6 +22,7 @@ namespace interface {
 
         for(const sys::Statistics::Stats &stats : sys::Statistics::getAll_stats()) {
             std::ofstream o_file;
+            check_path("results/" + stats.net_name);
             o_file.open ("results/" + stats.net_name + "/stats.csv");
             o_file << stats.net_name << std::endl;
             o_file << stats.arch << std::endl;

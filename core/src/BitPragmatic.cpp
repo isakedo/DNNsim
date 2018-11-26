@@ -124,7 +124,6 @@ namespace core {
                 int Kx = layer.getKx();
                 int Ky = layer.getKy();
 
-                cnpy::Array<T> padded_act = this->adjustPadding(act,padding);
                 long out_x = (act_shape[2] - wgt_shape[2] + 2*padding)/stride + 1;
                 long out_y = (act_shape[3] - wgt_shape[3] + 2*padding)/stride + 1;
 
@@ -141,7 +140,7 @@ namespace core {
                 stats.off_chip_weights_sch4.push_back(num_weights_sets); // Working set of filters
                 stats.bits_working_weights.push_back((uint32_t)(16*wgt_shape[1]*wgt_shape[2]*wgt_shape[3]*16));
                 stats.off_chip_activations.push_back((uint32_t)out_y); // One row of activations
-                stats.bits_one_activation_row.push_back((uint32_t)(padded_act.getShape()[2]*Ky*wgt_shape[1]*16));
+                stats.bits_one_activation_row.push_back((uint32_t)(act_shape[2]*Ky*act_shape[1]*16));
                 stats.computations.push_back(num_weights_sets*num_activations_sets*num_channel_sets*Kx*Ky);
 
             }

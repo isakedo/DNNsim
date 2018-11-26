@@ -24,6 +24,11 @@ namespace interface {
         /* Allowed values: Not, Fixed16 */
         std::string data_conversion;
 
+        /* Check if the path exists
+         * @param path  Path we want to check
+         */
+        void check_path(const std::string &path);
+
         /* Return the name of the file depending on current type and conversion
          * @return Name of output file
          */

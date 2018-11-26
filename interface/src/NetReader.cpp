@@ -3,14 +3,6 @@
 
 namespace interface {
 
-    template <typename T>
-    std::string NetReader<T>::inputName() {
-        std::string output_name = this->name;
-        std::string type = typeid(T).name() + std::to_string(sizeof(T));// Get template type in run-time
-        output_name += "-" + type;
-        return output_name;
-    }
-
     bool ReadProtoFromTextFile(const char* filename, google::protobuf::Message* proto) {
         int fd = open(filename, O_RDONLY);
         auto input = new google::protobuf::io::FileInputStream(fd);
@@ -18,6 +10,22 @@ namespace interface {
         delete input;
         close(fd);
         return success;
+    }
+
+    template <typename T>
+    void NetReader<T>::check_path(const std::string &path) {
+        std::ifstream file(path);
+        if(!file.good()) {
+            throw std::runtime_error("The path " + path + " does not exist.");
+        }
+    }
+
+    template <typename T>
+    std::string NetReader<T>::inputName() {
+        std::string output_name = this->name;
+        std::string type = typeid(T).name() + std::to_string(sizeof(T));// Get template type in run-time
+        output_name += "-" + type;
+        return output_name;
     }
 
     template <typename T>
@@ -52,7 +60,10 @@ namespace interface {
         std::vector<core::Layer<T>> layers;
         caffe::NetParameter network;
 
-        if (!ReadProtoFromTextFile(("models/" + this->name + "/train_val.prototxt").c_str(),&network)) {
+        check_path("models/" + this->name);
+        std::string path = "models/" + this->name + "/train_val.prototxt";
+        check_path(path);
+        if (!ReadProtoFromTextFile(path.c_str(),&network)) {
             throw std::runtime_error("Failed to read prototxt");
         }
 
@@ -169,8 +180,10 @@ namespace interface {
 
         {
             // Read the existing network.
-            std::fstream input("net_traces/" + this->name + '/' + inputName() + ".proto",
-                    std::ios::in | std::ios::binary);
+            check_path("net_traces/" + this->name);
+            std::string path = "net_traces/" + this->name + '/' + inputName() + ".proto";
+            check_path(path);
+            std::fstream input(path,std::ios::in | std::ios::binary);
             if (!network_proto.ParseFromIstream(&input)) {
                 throw std::runtime_error("Failed to read protobuf");
             }
@@ -195,7 +208,10 @@ namespace interface {
         protobuf::Network network_proto;
 
         // Read the existing network.
-        std::fstream input("net_traces/" + this->name + '/' + inputName(), std::ios::in | std::ios::binary);
+        check_path("net_traces/" + this->name);
+        std::string path = "net_traces/" + this->name + '/' + inputName();
+        check_path(path);
+        std::fstream input(path, std::ios::in | std::ios::binary);
 
         google::protobuf::io::IstreamInputStream inputFileStream(&input);
         google::protobuf::io::GzipInputStream gzipInputStream(&inputFileStream);
@@ -216,6 +232,7 @@ namespace interface {
 
     template <typename T>
     void NetReader<T>::read_weights_npy(core::Network<T> &network) {
+        check_path("net_traces/" + this->name);
         for(core::Layer<T> &layer : network.updateLayers()) {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
                 std::string file = "/wgt-" + layer.getName() + ".npy" ;
@@ -227,6 +244,7 @@ namespace interface {
 
     template <typename T>
     void NetReader<T>::read_bias_npy(core::Network<T> &network) {
+        check_path("net_traces/" + this->name);
         for(core::Layer<T> &layer : network.updateLayers()) {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
                 std::string file = "/bias-" + layer.getName() + ".npy" ;
@@ -238,6 +256,7 @@ namespace interface {
 
     template <typename T>
     void NetReader<T>::read_activations_npy(core::Network<T> &network) {
+        check_path("net_traces/" + this->name);
         for(core::Layer<T> &layer : network.updateLayers()) {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
                 std::string file = "/act-" + layer.getName() + "-0.npy";
@@ -249,6 +268,7 @@ namespace interface {
 
     template <typename T>
     void NetReader<T>::read_output_activations_npy(core::Network<T> &network) {
+        check_path("net_traces/" + this->name);
         for(core::Layer<T> &layer : network.updateLayers()) {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
                 std::string file = "/act-" + layer.getName() + "-0-out.npy" ;

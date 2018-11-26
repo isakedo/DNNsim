@@ -4,6 +4,14 @@
 namespace interface {
 
     template <typename T>
+    void NetWriter<T>::check_path(const std::string &path) {
+        std::ifstream file(path);
+        if(!file.good()) {
+            throw std::runtime_error("The path " + path + " does not exist.");
+        }
+    }
+
+    template <typename T>
     std::string NetWriter<T>::outputName() {
         std::string output_name = this->name;
         std::string type = typeid(T).name() + std::to_string(sizeof(T));// Get template type in run-time
@@ -134,11 +142,14 @@ namespace interface {
 
         {
             // Write the new network back to disk.
-            std::fstream output("net_traces/" + this->name + '/' + outputName() + ".proto",
-                    std::ios::out | std::ios::trunc | std::ios::binary);
+            check_path("net_traces/" + this->name);
+            std::string path = "net_traces/" + this->name + '/' + outputName() + ".proto";
+            std::fstream output(path, std::ios::out | std::ios::trunc | std::ios::binary);
             if (!network_proto.SerializeToOstream(&output)) {
                 throw std::runtime_error("Failed to write protobuf");
             }
+
+            std::cout << "Protobuf written in: " << path << std::endl;
         }
 
         google::protobuf::ShutdownProtobufLibrary();
@@ -155,8 +166,9 @@ namespace interface {
             fillLayer(network_proto.add_layers(),layer);
 
         // Write the new network back to disk.
-        std::fstream output("net_traces/" + this->name + '/' + outputName(),
-                std::ios::out | std::ios::trunc | std::ios::binary);
+        check_path("net_traces/" + this->name);
+        std::string path = "net_traces/" + this->name + '/' + outputName();
+        std::fstream output(path, std::ios::out | std::ios::trunc | std::ios::binary);
 
         google::protobuf::io::OstreamOutputStream outputFileStream(&output);
         google::protobuf::io::GzipOutputStream::Options options;
@@ -168,6 +180,8 @@ namespace interface {
         if (!network_proto.SerializeToZeroCopyStream(&gzipOutputStream)) {
             throw std::runtime_error("Failed to write Gzip protobuf");
         }
+
+        std::cout << "Gzip Protobuf written in: " << path << std::endl;
 
         google::protobuf::ShutdownProtobufLibrary();
     }
