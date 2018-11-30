@@ -11,6 +11,7 @@ The weights and activations for each network in their corresponding network fold
 *  Laconic
 *  Bit-fusion
 *  Booth enconding
+*  LSTM
 
 ### Requeriments
 *   Cmake posterior to version 3.10
@@ -59,9 +60,6 @@ For Protobuf as input and Gzip as output in fixed point format:
 For caffe model and Numpy arrays:
 
     ./cmake-build-debug/bin/DNNsim Simulator -n bvlc_alexnet --ditype Float32 --itype Caffe
-
-### Tested Networks
-*   AlexNet
 
 ### Structure:
 *   **sys**: Folder for system libraries

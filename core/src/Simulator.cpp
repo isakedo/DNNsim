@@ -32,9 +32,21 @@ namespace core {
         return padded_array;
     }
 
+    uint32_t generateBoothEnconding(uint16_t n) {
+        return 0;
+    }
+
+    std::vector<uint32_t> generateBoothTable() {
+        std::vector<uint32_t> booth_table;
+        for(long n = 0; n < 65536; n++)
+            booth_table.push_back(generateBoothEnconding((uint16_t)n));
+        return booth_table;
+    }
+
     template <typename T>
-    uint16_t Simulator<T>::booth_encoding(uint16_t value, int mag, int prec) {
-        return value; //TODO
+    uint32_t Simulator<T>::booth_encoding(uint16_t value) {
+        const static std::vector<uint32_t> booth_table = generateBoothTable();
+        return booth_table[value];
     }
 
     INITIALISE_DATA_TYPES(Simulator);

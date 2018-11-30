@@ -32,7 +32,7 @@ namespace core {
          * @param prec      Precision of the value
          * @return          Value with the optimal encoding
          */
-        uint16_t booth_encoding(uint16_t value, int mag, int prec);
+        uint32_t booth_encoding(uint16_t value);
 
     private:
 

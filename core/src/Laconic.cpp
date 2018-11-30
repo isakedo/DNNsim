@@ -20,12 +20,12 @@ namespace core {
         int mag_wgt = std::get<0>(wgt_prec), prec_wgt = std::get<1>(wgt_prec);
 
         #ifdef BOOTH_ENCODING
-        act = this->booth_encoding(act,mag_act,prec_act);
-        wgt = this->booth_encoding(wgt,mag_wgt,prec_wgt);
+            uint32_t act_bits = this->booth_encoding(act);
+            uint32_t wgt_bits = this->booth_encoding(wgt);
+        #else
+            uint16_t act_max = (1 << (mag_act + prec_act - 1)) - 1, wgt_max = (1 << (mag_wgt + prec_wgt - 1)) - 1;
+            uint16_t act_bits = act & act_max, wgt_bits = wgt & wgt_max;
         #endif
-
-        uint16_t act_max = (1 << (mag_act + prec_act - 1)) - 1, wgt_max = (1 << (mag_wgt + prec_wgt - 1)) - 1;
-        uint16_t act_bits = act & act_max, wgt_bits = wgt & wgt_max;
 
         uint8_t act_effectual_bits = 0;
         while (act_bits) {
