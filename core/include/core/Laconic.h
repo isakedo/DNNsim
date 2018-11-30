@@ -27,10 +27,16 @@ namespace core {
                                                            const std::tuple<int, int> &wgt_prec);
 
         /* Compute the work reduction for a convolutional layer
-         * @param layer     Layer for which we want to calculate the outputs
+         * @param layer     Layer for which we want to calculate potentials
          * @param stats     Statistics to fill
          */
         void computeWorkReductionConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
+
+        /* Compute the work reduction for a inner product layer
+         * @param layer     Layer for which we want to calculate potentials
+         * @param stats     Statistics to fill
+         */
+        void computeWorkReductionInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
 
 
     public:

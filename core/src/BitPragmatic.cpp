@@ -5,11 +5,11 @@ namespace core {
 
     template <typename T>
     static inline
-    void computePragmaticFunctionalUnit(int n, int m, int x, int y, int i, int j, int k, int stride, int start_batch,
+    void computePragmaticFunctionalUnit(int n, int m, int x, int y, int i, int j, int k, int stride, int start_group,
                                           const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_k) {
         for(int channels = 0; channels < std::min(16,max_k); channels++) { // Process 16 synapses in a filter and window
             const T &activation = padded_act.get(n, k + channels, stride * x + i, stride * y + j);
-            const T &wheight = wgt.get(m, k + channels - start_batch, i, j);
+            const T &wheight = wgt.get(m, k + channels - start_group, i, j);
             // Calculate cycles
         }
     }
@@ -17,12 +17,12 @@ namespace core {
     template <typename T>
     static inline
     void computePragmaticTile(int n, int m, std::vector<int> &list_x, std::vector<int> &list_y, int i, int j, int k,
-            int stride, int start_batch, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_k) {
+            int stride, int start_group, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_k) {
 
         for(int window = 0; window < list_x.size(); window++)   // Process 16 windows
             for(int filter = 0; filter < 16; filter++)  // Process 16 filters
             computePragmaticFunctionalUnit<T>(n,m + filter,list_x[window],list_y[window],i,j,k,stride,
-                    start_batch,padded_act,wgt,max_k); // 256 computations
+                    start_group,padded_act,wgt,max_k); // 256 computations
     }
 
     static inline
@@ -69,10 +69,10 @@ namespace core {
         long out_x = (act_shape[2] - wgt_shape[2] + 2*padding)/stride + 1;
         long out_y = (act_shape[3] - wgt_shape[3] + 2*padding)/stride + 1;
 
-        // Set filter batching
-        int batches = (int)act.getShape()[1] / (int)wgt_shape[1];
-        int it_per_batch = (int)wgt_shape[0] / batches;
-        int current_batch = 0, batch_m =0, start_batch = 0;
+        // Set filter grouping
+        int groups = (int)act.getShape()[1] / (int)wgt_shape[1];
+        int it_per_group = (int)wgt_shape[0] / groups;
+        int current_group = 0, group_m =0, start_group = 0;
 
         // Convolution
         for(int n=0; n<act_shape[0]; n++) {
@@ -84,18 +84,18 @@ namespace core {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
                             // Sixteen values depthwise, sixteen channels
-                            for (int k = start_batch; k < wgt_shape[1] + start_batch; k += 16) {
-                                computePragmaticTile<T>(n, m, list_x, list_y, i, j, k, stride, start_batch,
+                            for (int k = start_group; k < wgt_shape[1] + start_group; k += 16) {
+                                computePragmaticTile<T>(n, m, list_x, list_y, i, j, k, stride, start_group,
                                         padded_act, wgt, (int)act.getShape()[1]);
                             }
                         }
                     }
                 }
-                batch_m++;
-                if(batch_m >= it_per_batch) {
-                    batch_m = 0;
-                    current_batch++;
-                    start_batch = (int)wgt_shape[1]*current_batch;
+                group_m++;
+                if(group_m >= it_per_group) {
+                    group_m = 0;
+                    current_group++;
+                    start_group = (int)wgt_shape[1]*current_group;
                 }
             }
         }

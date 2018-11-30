@@ -34,22 +34,22 @@ namespace core {
         long out_x = (act_shape[2] - wgt_shape[2] + 2*padding)/stride + 1;
         long out_y = (act_shape[3] - wgt_shape[3] + 2*padding)/stride + 1;
 
-        // Set filter batching
-        int batches = (int)act.getShape()[1] / (int)wgt_shape[1];
-        int it_per_batch = (int)wgt_shape[0] / batches;
+        // Set filter grouping
+        int groups = (int)act.getShape()[1] / (int)wgt_shape[1];
+        int it_per_group = (int)wgt_shape[0] / groups;
 
         // Convolution
         for(int n=0; n<act_shape[0]; n++) {
-            int current_batch = 0, batch_m = 0, start_batch = 0;
+            int current_group = 0, group_m = 0, start_group = 0;
             for(int m=0; m<wgt_shape[0]; m++) {
                 for(int x=0; x<out_x; x++) {
                     for(int y=0; y<out_y; y++) {
                         sum = bias.get(m);
                         for (int i = 0; i < Kx; i++) {
                             for (int j = 0; j < Ky; j++) {
-                                for (int k = start_batch; k < wgt_shape[1] + start_batch; k++) {
+                                for (int k = start_group; k < wgt_shape[1] + start_group; k++) {
                                     sum += padded_act.get(n, k, stride * x + i, stride * y + j) *
-                                            wgt.get(m, k - start_batch, i, j);
+                                            wgt.get(m, k - start_group, i, j);
 
                                 }
                             }
@@ -58,11 +58,11 @@ namespace core {
                         output_activations.push_back(sum);
                     }
                 }
-                batch_m++;
-                if(batch_m >= it_per_batch) {
-                    batch_m = 0;
-                    current_batch++;
-                    start_batch = (int)wgt_shape[1]*current_batch;
+                group_m++;
+                if(group_m >= it_per_group) {
+                    group_m = 0;
+                    current_group++;
+                    start_group = (int)wgt_shape[1]*current_group;
                 }
             }
         }
