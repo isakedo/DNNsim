@@ -1,4 +1,4 @@
-# DNNsim 0.1.0
+# DNNsim 0.1.5
 
 Gitignore is set up for CLion IDE, if you want to use a different IDE add their project file extensions to .gitignore. 
 It recommend to used it from the command line. The folder "models" must contain a folder for each network. 
@@ -6,7 +6,6 @@ Inside each folder the file "train_val.protoxt" is mandatory, while "precision.t
 The weights and activations for each network in their corresponding network folder inside the folder "net_traces".
 
 ### Things to do:
-*  Remove crappy array :(
 *  Pragmatic
 *  Laconic
 *  Bit-fusion

@@ -14,8 +14,8 @@
 // Don't commit changes in global variables
 #define DEBUG
 //#define OPENMP
-//#define OUTPUT_ACTIVATIONS
-//#define BIAS
+#define OUTPUT_ACTIVATIONS
+#define BIAS
 
 #define INITIALISE_DATA_TYPES(name) \
     char gInstantiationGuard##name; \

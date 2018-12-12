@@ -30,13 +30,13 @@ namespace core {
          * @param layer     Layer for which we want to calculate potentials
          * @param stats     Statistics to fill
          */
-        void computeWorkReductionConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
+        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
 
         /* Compute the work reduction for a inner product layer
          * @param layer     Layer for which we want to calculate potentials
          * @param stats     Statistics to fill
          */
-        void computeWorkReductionInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
+        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
 
 
     public:
@@ -49,7 +49,7 @@ namespace core {
         /* Calculate work reduction for the given network
          * @param network   Network we want to calculate work reduction
          */
-        void workReduction(const Network<T> &network);
+        void potentials(const Network<T> &network);
 
     };
 

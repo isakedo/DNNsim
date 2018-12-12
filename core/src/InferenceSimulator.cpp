@@ -86,14 +86,31 @@ namespace core {
         std::vector<size_t> output_shape;
         std::vector<T> output_activations;
 
-        for(uint16_t n = 0;  n<act_shape[0]; n++) {
-            for(uint16_t m=0; m<wgt_shape[0]; m++) {
-                T sum = bias.get(m);
-                for (uint16_t k=0; k <wgt_shape[1]; k++){
-                    sum += act.get(n,k) * wgt.get(m,k);
+        if(layer.getActivations().getDimensions() == 2) {
+            for (uint16_t n = 0; n<act_shape[0]; n++) {
+                for (uint16_t m = 0; m<wgt_shape[0]; m++) {
+                    T sum = bias.get(m);
+                    for (uint16_t k = 0; k<wgt_shape[1]; k++) {
+                        sum += act.get(n, k) * wgt.get(m, k);
+                    }
+                    if (has_ReLu) sum = ReLU(sum);
+                    output_activations.push_back(sum);
                 }
-                if(has_ReLu) sum = ReLU(sum);
-                output_activations.push_back(sum);
+            }
+        } else if (layer.getActivations().getDimensions() == 4) {
+            for (uint16_t n = 0; n<act_shape[0]; n++) {
+                for (uint16_t m = 0; m<wgt_shape[0]; m++) {
+                    T sum = bias.get(m);
+                    for (uint16_t k = 0; k<wgt_shape[1]; k++) {
+                        int f_dim = (int)(k / (act_shape[2]*act_shape[3]));
+                        auto rem = k % (act_shape[2]*act_shape[3]);
+                        int s_dim = (int)(rem / act_shape[3]);
+                        int t_dim = (int)(rem % act_shape[3]);
+                        sum += act.get(n, f_dim, s_dim, t_dim) * wgt.get(m, k);
+                    }
+                    if (has_ReLu) sum = ReLU(sum);
+                    output_activations.push_back(sum);
+                }
             }
         }
 
@@ -105,7 +122,7 @@ namespace core {
 
     template <typename T>
     void check_values(const Layer<T> &layer, const cnpy::Array<T> &test, const cnpy::Array<T> &result,
-            const float min_error = .01) {
+            float min_error = .01) {
 
         std::cout << "Checking values for layer: " << layer.getName() << " of type: "<< layer.getType() << "... ";
         if(test.getMax_index() != result.getMax_index()) {

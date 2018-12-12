@@ -132,18 +132,6 @@ void check_options(const cxxopts::Options &options)
             }
         }
 
-        /*if (options.count("o") == 0) {
-            throw std::runtime_error("Please provide the output file/folder configuration with -o <File>.");
-        }
-
-        if (options.count("otype") == 0) {
-            throw std::runtime_error("Please provide the output statistics file type with --otype <Text|csv>.");
-        } else {
-            std::string value = options["otype"].as<std::string>();
-            if (value2 != "Text" && value != "csv")
-                throw std::runtime_error("Please provide the output statistics file type with --otype <Text|csv>.");
-        }*/
-
     }
 
 }
@@ -169,8 +157,6 @@ cxxopts::Options parse_options(int argc, char *argv[]) {
     options.add_options("Simulator: output")
             ("a,arch", "Architecture to simulate (Only fixed point)", cxxopts::value<std::string>(),
                     "<Laconic|BitPragmatic>");
-         //   ("o,output", "Path to the input file/folder", cxxopts::value<std::string>(), "<File>")
-         //   ("otype", "Output type", cxxopts::value<std::string>(), "<Text|csv>");
 
     options.parse_positional("tool");
 
@@ -231,13 +217,10 @@ int main(int argc, char *argv[]) {
                 } else if (architecture == "Laconic") {
                     core::Laconic<uint16_t> DNNsim;
                     //DNNsim.run(network);
-                    DNNsim.workReduction(network);
+                    DNNsim.potentials(network);
                 }
 
                 //Dump statistics
-                //std::string dump_type = options["otype"].as<std::string>();
-                //if(dump_type == "Text") writer.dump_txt();
-                /*else if (dump_type == "csv")*/
                 interface::StatsWriter::dump_csv();
 
             }

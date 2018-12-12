@@ -17,13 +17,9 @@ namespace cnpy {
         std::vector<size_t> shape;
 
         /* Vector containing the data */
-        std::vector<T> data;
-
-        /* First coefficient  accessing 4D data hard coded */
-        unsigned long coef1;
-
-        /* Second coefficient  accessing 4D data hard coded */
-        unsigned long coef2;
+        std::vector<T> data1D;
+        std::vector<std::vector<T>> data2D;
+        std::vector<std::vector<std::vector<std::vector<T>>>> data4D;
 
     public:
 
@@ -33,7 +29,7 @@ namespace cnpy {
         void set_values(const std::string &path);
 
         /* Load the vector into the data vector, is_numpy set to false
-         * @param _data     Dynamic float vector containing the data
+         * @param _data     Dynamic vector containing the data
          * @param _shape    Shape of the data
          */
         void set_values(const std::vector<T> &_data, const std::vector<size_t> &_shape);
@@ -54,7 +50,7 @@ namespace cnpy {
          *
          * @return      return the value given by the index
          */
-        T get(unsigned long i, unsigned long j) const;
+        T get(int i, int j) const;
 
         /*  Return the value inside the vector given one dimension
          * @param index Index for the array
@@ -70,7 +66,7 @@ namespace cnpy {
 
         /* Getters */
         const std::vector<size_t> &getShape() const;
-        unsigned long long int getMax_index() const;
+        unsigned long long getMax_index() const;
 
     };
 
