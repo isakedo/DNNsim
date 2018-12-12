@@ -8,9 +8,6 @@ namespace core {
     }
 
     template <typename T>
-    void InferenceSimulator<T>::computeConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats){}
-
-    template <typename T>
     void InferenceSimulator<T>::computeConvolution(const core::Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
         // Simplify names getting their pointers
         const cnpy::Array<T> &wgt = layer.getWeights();

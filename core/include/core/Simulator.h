@@ -34,21 +34,6 @@ namespace core {
          */
         uint32_t booth_encoding(uint16_t value);
 
-    private:
-
-        /* Compute the timing for a convolutional layer
-         * @param layer     Layer for which we want to calculate the outputs
-         * @param stats     Statistics to fill
-         */
-        virtual void computeConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats) = 0;
-
-    public:
-
-        /* Run the timing simulator of the architecture
-         * @param network   Network we want to simulate
-         */
-        virtual void run(const Network<T> &network) = 0;
-
     };
 
 }

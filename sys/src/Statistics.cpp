@@ -6,8 +6,9 @@ namespace sys {
     std::vector<Statistics::Stats> Statistics::all_stats;
 
     void Statistics::initialize(Stats &stats) {
-        stats.net_name = "";
-        stats.arch = "";
+        stats.task_name = "none";
+        stats.net_name = "none";
+        stats.arch = "none";
     }
 
     void Statistics::addStats(const Stats &_stats) {

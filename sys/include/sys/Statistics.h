@@ -12,6 +12,9 @@ namespace sys {
         /* Make public to be easier to operate */
         struct Stats {
 
+            /* Name of the task done */
+            std::string task_name;
+
             /* Name of the network */
             std::string net_name;
 

@@ -107,6 +107,7 @@ namespace core {
     void BitPragmatic<T>::memoryAccesses(const Network<T> &network) {
         sys::Statistics::Stats stats;
 
+        stats.task_name = "mem_accesses";
         stats.net_name = network.getName();
         stats.arch = "BitPragmatic";
 

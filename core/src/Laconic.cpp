@@ -182,6 +182,7 @@ namespace core {
         sys::Statistics::Stats stats;
         sys::Statistics::initialize(stats);
 
+        stats.task_name = "potentials";
         stats.net_name = network.getName();
         stats.arch = "Laconic";
 

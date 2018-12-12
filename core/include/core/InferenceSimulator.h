@@ -10,12 +10,6 @@ namespace core {
 
     private:
 
-        /* Compute the timing for a convolutional layer
-         * @param layer     Layer for which we want to calculate the outputs
-         * @param stats     Statistics to fill
-         */
-        void computeConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats);
-
         /* Compute the output activations for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs
          * @param result    Output array where output activations are stored
