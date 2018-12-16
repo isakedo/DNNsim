@@ -29,22 +29,20 @@ THE SOFTWARE.
 #include <interface/StatsWriter.h>
 
 template <typename T>
-core::Network<T> read(const std::string &input_type, const std::string &network_name) {
+core::Network<T> read(const std::string &input_type, const std::string &network_name, bool activate_bias_and_out_act) {
 
     // Read the network
     core::Network<T> network;
-    interface::NetReader<T> reader = interface::NetReader<T>(network_name);
+    interface::NetReader<T> reader = interface::NetReader<T>(network_name, activate_bias_and_out_act);
     if (input_type == "Caffe") {
         network = reader.read_network_caffe();
         reader.read_precision(network);
         reader.read_weights_npy(network);
-        #ifdef BIAS
-        reader.read_bias_npy(network);
-        #endif
         reader.read_activations_npy(network);
-        #ifdef OUTPUT_ACTIVATIONS
-        reader.read_output_activations_npy(network);
-        #endif
+        if(activate_bias_and_out_act) {
+            reader.read_bias_npy(network);
+            reader.read_output_activations_npy(network);
+        }
     } else if (input_type == "Protobuf") {
         network = reader.read_network_protobuf();
     } else {
@@ -56,10 +54,12 @@ core::Network<T> read(const std::string &input_type, const std::string &network_
 }
 
 template <typename T>
-void write(const core::Network<T> &network, const std::string &output_type, const std::string &data_conversion) {
+void write(const core::Network<T> &network, const std::string &output_type, const std::string &data_conversion,
+        bool activate_bias_and_out_act) {
 
     // Write network
-    interface::NetWriter<T> writer = interface::NetWriter<T>(network.getName(),data_conversion);
+    interface::NetWriter<T> writer = interface::NetWriter<T>(network.getName(),data_conversion,
+            activate_bias_and_out_act);
     if (output_type == "Protobuf") {
         writer.write_network_protobuf(network);
     } else {
@@ -118,12 +118,14 @@ int main(int argc, char *argv[]) {
             try {
                 if (transform.inputDataType == "Float32") {
                     core::Network<float> network;
-                    network = read<float>(transform.inputType, transform.network);
-                    write<float>(network, transform.outputType, transform.outputDataType);
+                    network = read<float>(transform.inputType, transform.network, transform.activate_bias_out_act);
+                    write<float>(network, transform.outputType, transform.outputDataType,
+                            transform.activate_bias_out_act);
                 } else if (transform.inputDataType == "Fixed16") {
                     core::Network<uint16_t> network;
-                    network = read<uint16_t>(transform.inputType, transform.network);
-                    write<uint16_t>(network, transform.outputType, transform.outputDataType);
+                    network = read<uint16_t>(transform.inputType, transform.network, transform.activate_bias_out_act);
+                    write<uint16_t>(network, transform.outputType, transform.outputDataType,
+                            transform.activate_bias_out_act);
                 }
             } catch (std::exception &exception) {
                 std::cerr << "Transformation error: " << exception.what() << std::endl;
@@ -137,14 +139,12 @@ int main(int argc, char *argv[]) {
             try {
                 if (simulate.inputDataType == "Float32") {
                     core::Network<float> network;
-                    network = read<float>(simulate.inputType, simulate.network);
-                    #if defined(OUTPUT_ACTIVATIONS) && defined(BIAS) //Need both to perform and check the inference
+                    network = read<float>(simulate.inputType, simulate.network, simulate.activate_bias_out_act);
                     core::InferenceSimulator<float> DNNsim;
                     DNNsim.run(network);
-                    #endif
                 } else if (simulate.inputDataType == "Fixed16") {
                     core::Network<uint16_t> network;
-                    network = read<uint16_t>(simulate.inputType, simulate.network);
+                    network = read<uint16_t>(simulate.inputType, simulate.network, simulate.activate_bias_out_act);
                     for(const auto &experiment : simulate.experiments) {
                         if(experiment.architecture == "BitPragmatic") {
                             core::BitPragmatic<uint16_t> DNNsim;

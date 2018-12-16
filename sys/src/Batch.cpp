@@ -16,6 +16,7 @@ namespace sys {
         Batch::Transform transform;
         std::string value;
         transform.network = transform_proto.network();
+        transform.activate_bias_out_act = transform_proto.activate_bias_and_out_act();
 
         value = transform_proto.inputtype();
         if(value  != "Caffe" && value != "Protobuf" && value != "Gzip")
@@ -57,6 +58,7 @@ namespace sys {
         Batch::Simulate simulate;
         std::string value;
         simulate.network = simulate_proto.network();
+        simulate.activate_bias_out_act = simulate_proto.activate_bias_and_out_act();
 
         value = simulate_proto.inputtype();
         if(value  != "Caffe" && value != "Protobuf" && value != "Gzip")
@@ -91,7 +93,9 @@ namespace sys {
                 experiment.task = experiment_proto.task();
                 simulate.experiments.emplace_back(experiment);
             }
-        }
+        } else if (simulate.inputDataType == "Float32" && simulate_proto.activate_bias_and_out_act())
+            throw std::runtime_error("Float32 only allows inference simulation, which must has the flag "
+                                     "\"activate_bias_and_out_act\" activated");
 
         return simulate;
     }

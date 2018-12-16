@@ -20,6 +20,7 @@ namespace sys {
             std::string outputType = ""; // Protobuf/Gzip
             std::string outputDataType = ""; // Protobuf/Gzip
             std::string network = "";
+            bool activate_bias_out_act = false;
         };
 
         /* Struct for the Simulate instructions */
@@ -33,6 +34,7 @@ namespace sys {
             std::string inputType = ""; // Protobuf/Gzip
             std::string inputDataType = ""; // Float32/Fixed16
             std::string network = "";
+            bool activate_bias_out_act = false;
             std::vector<Experiment> experiments;
         };
 

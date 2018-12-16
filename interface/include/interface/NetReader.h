@@ -26,6 +26,9 @@ namespace interface {
         /* Name of the network */
         std::string name;
 
+        /* Also read bias and output activations */
+        bool activate_bias_and_out_act;
+
         /* Check if the path exists
          * @param path  Path we want to check
          */
@@ -50,8 +53,10 @@ namespace interface {
 
         /* Constructor
          * @param _name     The name of the network
+         * @param _activate_bias_and_out_act    Also write bias and output activations
          */
-        explicit NetReader(const std::string &_name){ this->name = _name; }
+        NetReader(const std::string &_name, bool _activate_bias_and_out_act) :
+                activate_bias_and_out_act(_activate_bias_and_out_act) { this->name = _name; }
 
         /* Load the trace file inside the folder path and returns the network
          * @return          Network architecture

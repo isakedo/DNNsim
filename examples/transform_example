@@ -12,6 +12,7 @@ transform {
 	inputDataType: "Float32"
 	outputType: "Gzip"
 	outputDataType: "Float32"
+	activate_bias_and_out_act: true
 }
 
 transform {

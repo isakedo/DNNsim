@@ -15,8 +15,6 @@
 #define DEBUG
 //#define STOP_AFTER_ERROR
 //#define OPENMP
-//#define OUTPUT_ACTIVATIONS
-//#define BIAS
 
 #define INITIALISE_DATA_TYPES(name) \
     char gInstantiationGuard##name; \

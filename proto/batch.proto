@@ -11,6 +11,7 @@ message Batch {
         string outputType = 3; // Protobuf/Gzip
         string outputDataType = 4;
         string network = 5;
+        bool activate_bias_and_out_act = 6;
     }
 
     message Simulate {
@@ -23,7 +24,8 @@ message Batch {
         string inputType = 1;
         string inputDataType = 2;
         string network = 3;
-        repeated Experiment experiment = 4;
+        bool activate_bias_and_out_act = 4;
+        repeated Experiment experiment = 5;
     }
 
     repeated Transform transform = 1;
