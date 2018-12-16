@@ -14,6 +14,8 @@ if (OPENMP_FOUND)
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
+# Add protobuf specification files
+add_subdirectory(proto)
 # Add library for script support
 add_subdirectory(sys)
 # Add the math library

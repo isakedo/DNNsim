@@ -19,6 +19,7 @@ THE SOFTWARE.
 
 #include <sys/common.h>
 #include <sys/cxxopts.h>
+#include <sys/Batch.h>
 #include <core/Network.h>
 #include <core/InferenceSimulator.h>
 #include <interface/NetReader.h>
@@ -28,28 +29,22 @@ THE SOFTWARE.
 #include <interface/StatsWriter.h>
 
 template <typename T>
-core::Network<T> read(const cxxopts::Options &options) {
-    core::Network<T> network;
-    const auto &input_type = options["itype"].as<std::string>();
-    const auto &network_name = options["n"].as<std::string>();
+core::Network<T> read(const std::string &input_type, const std::string &network_name) {
 
     // Read the network
+    core::Network<T> network;
     interface::NetReader<T> reader = interface::NetReader<T>(network_name);
     if (input_type == "Caffe") {
         network = reader.read_network_caffe();
         reader.read_precision(network);
         reader.read_weights_npy(network);
-
         #ifdef BIAS
         reader.read_bias_npy(network);
         #endif
-
         reader.read_activations_npy(network);
-
         #ifdef OUTPUT_ACTIVATIONS
         reader.read_output_activations_npy(network);
         #endif
-
     } else if (input_type == "Protobuf") {
         network = reader.read_network_protobuf();
     } else {
@@ -61,11 +56,10 @@ core::Network<T> read(const cxxopts::Options &options) {
 }
 
 template <typename T>
-void write(const core::Network<T> &network, const cxxopts::Options &options, const std::string &data_conversion) {
+void write(const core::Network<T> &network, const std::string &output_type, const std::string &data_conversion) {
+
     // Write network
-    const auto &network_name = options["n"].as<std::string>();
-    interface::NetWriter<T> writer = interface::NetWriter<T>(network_name,data_conversion);
-    std::string output_type = options["otype"].as<std::string>();
+    interface::NetWriter<T> writer = interface::NetWriter<T>(network.getName(),data_conversion);
     if (output_type == "Protobuf") {
         writer.write_network_protobuf(network);
     } else {
@@ -75,65 +69,15 @@ void write(const core::Network<T> &network, const cxxopts::Options &options, con
 
 void check_options(const cxxopts::Options &options)
 {
-    if(options.count("tool") == 0) {
-        throw std::runtime_error("Please provide first the desired tool <Simulator|Transform>.");
+    if(options.count("batch") == 0) {
+        throw std::runtime_error("Please provide a batch file with instructions. Examples in folder \"examples\"");
     } else {
-        std::string value = options["tool"].as<std::string>();
-        if(value  != "Simulator" && value != "Transform")
-            throw std::runtime_error("Please provide first the desired tool <Simulator|Transform>.");
-    }
-
-    if(options.count("n") == 0) {
-        throw std::runtime_error("Please provide the name configuration with -n <Name>.");
-    }
-
-    if(options.count("ditype") == 0) {
-        throw std::runtime_error("Please provide the data input type with --ditype <Float32|Fixed16>.");
-    } else {
-        std::string value = options["ditype"].as<std::string>();
-        if(value  != "Float32" && value != "Fixed16")
-            throw std::runtime_error("Please provide the data input type with --ditype <Float32|Fixed16>.");
-    }
-
-    if(options.count("itype") == 0) {
-        throw std::runtime_error("Please provide the input type configuration with --itype <Caffe|Protobuf|Gzip>.");
-    } else {
-        std::string value = options["itype"].as<std::string>();
-        if(value  != "Caffe" && value != "Protobuf" && value != "Gzip")
-            throw std::runtime_error("Please provide the input type configuration with --itype <Caffe|Protobuf|Gzip>.");
-    }
-
-    if(options["tool"].as<std::string>() == "Transform") {
-
-        //Optional
-        std::string value = options["dotype"].as<std::string>();
-        if(options.count("dotype") == 1 && value  != "Fixed16") {
-            throw std::runtime_error("Please provide a correct data output type with --dotype <Fixed16>.");
+        std::string batch_path = options["batch"].as<std::string>();
+        std::ifstream file(batch_path);
+        if(!file.good()) {
+            throw std::runtime_error("The path " + batch_path + " does not exist.");
         }
-
-        if (options.count("otype") == 0) {
-            throw std::runtime_error("Please provide the output type configuration with --otype <Protobuf|Gzip>.");
-        } else {
-            std::string value2 = options["otype"].as<std::string>();
-            if (value2 != "Protobuf" && value2 != "Gzip")
-                throw std::runtime_error("Please provide the output type configuration with --otype <Protobuf|Gzip>.");
-        }
-
-    } else if(options["tool"].as<std::string>() == "Simulator") {
-
-        if(options["ditype"].as<std::string>() == "Fixed16") {
-            if (options.count("a") == 0) {
-                throw std::runtime_error("Please provide the architecture to simulate with -a <Laconic|BitPragmatic>.");
-            } else {
-                std::string value = options["a"].as<std::string>();
-                if (value != "Laconic" && value != "BitPragmatic")
-                    throw std::runtime_error(
-                            "Please provide the architecture to simulate with -a <Laconic|BitPragmatic>.");
-            }
-        }
-
     }
-
 }
 
 cxxopts::Options parse_options(int argc, char *argv[]) {
@@ -142,23 +86,11 @@ cxxopts::Options parse_options(int argc, char *argv[]) {
     // help-related options
     options.add_options("help")("h,help", "Print this help message", cxxopts::value<bool>(), "");
 
-    options.add_options("tools")
-    ("tool", "Select the desired DNNsim function",cxxopts::value<std::string>(),"<Simulator|Transform>");
+    options.add_options("batch")
+    ("batch", "Specify a batch file with intrusctions. Examples in folder \"examples\"",cxxopts::value<std::string>(),
+            "<Prototxt file>");
 
-    options.add_options("input")
-            ("ditype", "Data input type", cxxopts::value<std::string>(), "<Float32|Fixed16>")
-            ("n,name", "Name of the network", cxxopts::value<std::string>(), "<Name>")
-            ("itype", "Input type", cxxopts::value<std::string>(), "<Caffe|Protobuf|Gzip>");
-
-    options.add_options("Transform: output")
-            ("dotype", "Data output type (optional)", cxxopts::value<std::string>(), "<Fixed16>")
-            ("otype", "Output type", cxxopts::value<std::string>(), "<Protobuf|Gzip>");
-
-    options.add_options("Simulator: output")
-            ("a,arch", "Architecture to simulate (Only fixed point)", cxxopts::value<std::string>(),
-                    "<Laconic|BitPragmatic>");
-
-    options.parse_positional("tool");
+    options.parse_positional("batch");
 
     options.parse(argc, argv);
 
@@ -171,64 +103,73 @@ int main(int argc, char *argv[]) {
 
         // Help
         if (options.count("h") == 1) {
-            std::cout << options.help({"help", "tools", "input", "Transform: output", "Simulator: output"})
-                << std::endl;
+            std::cout << options.help({"help", "batch"}) << std::endl;
             return 0;
         }
 
         check_options(options);
 
-        std::string tool = options["tool"].as<std::string>();
-        std::string data_type = options["ditype"].as<std::string>();
+        std::string batch_path = options["batch"].as<std::string>();
+        sys::Batch batch = sys::Batch(batch_path);
+        batch.read_batch();
 
-        // Separate in order to simplify simulators instantiation
-        // (not all the simulator works on all the data types allowed)
-        if (data_type == "Float32") {
-
-            core::Network<float> network;
-            network = read<float>(options);
-
-            if (tool == "Transform") {
-                std::string data_conversion = options["dotype"].count() == 0 ?
-                        "Not" : options["dotype"].as<std::string>();
-                write<float>(network,options,data_conversion);
-            }
-
-            else if (tool == "Simulator") {
-                #if defined(OUTPUT_ACTIVATIONS) || defined(BIAS) //Need both to perform and check the inference
-                core::InferenceSimulator<float> DNNsim;
-                DNNsim.run(network);
+        // Do transformation first
+        for(const auto &transform : batch.getTransformations()) {
+            try {
+                if (transform.inputDataType == "Float32") {
+                    core::Network<float> network;
+                    network = read<float>(transform.inputType, transform.network);
+                    write<float>(network, transform.outputType, transform.outputDataType);
+                } else if (transform.inputDataType == "Fixed16") {
+                    core::Network<uint16_t> network;
+                    network = read<uint16_t>(transform.inputType, transform.network);
+                    write<uint16_t>(network, transform.outputType, transform.outputDataType);
+                }
+            } catch (std::exception &exception) {
+                std::cerr << "Transformation error: " << exception.what() << std::endl;
+                #ifdef STOP_AFTER_ERROR
+                exit(1);
                 #endif
             }
-
-        } else if (data_type == "Fixed16") {
-            core::Network<uint16_t> network;
-            network = read<uint16_t>(options);
-
-            // Not converting from fixed point to other values
-            if (tool == "Transform") write<uint16_t>(network,options,"Not");
-
-            else if (tool == "Simulator") {
-                std::string architecture = options["a"].as<std::string>();
-                if(architecture == "BitPragmatic") {
-                    core::BitPragmatic<uint16_t> DNNsim;
-                    //DNNsim.run(network);
-                    DNNsim.memoryAccesses(network);
-                } else if (architecture == "Laconic") {
-                    core::Laconic<uint16_t> DNNsim;
-                    //DNNsim.run(network);
-                    DNNsim.potentials(network);
-                }
-
-                //Dump statistics
-                interface::StatsWriter::dump_csv();
-
-            }
-
         }
 
+        for(const auto &simulate : batch.getSimulations()) {
+            try {
+                if (simulate.inputDataType == "Float32") {
+                    core::Network<float> network;
+                    network = read<float>(simulate.inputType, simulate.network);
+                    #if defined(OUTPUT_ACTIVATIONS) && defined(BIAS) //Need both to perform and check the inference
+                    core::InferenceSimulator<float> DNNsim;
+                    DNNsim.run(network);
+                    #endif
+                } else if (simulate.inputDataType == "Fixed16") {
+                    core::Network<uint16_t> network;
+                    network = read<uint16_t>(simulate.inputType, simulate.network);
+                    for(const auto &experiment : simulate.experiments) {
+                        if(experiment.architecture == "BitPragmatic") {
+                            core::BitPragmatic<uint16_t> DNNsim;
+                            if(experiment.task == "Cycles") DNNsim.run(network);
+                            else if (experiment.task == "MemAccesses") DNNsim.memoryAccesses(network);
+                        } else if (experiment.architecture == "Laconic") {
+                            core::Laconic<uint16_t> DNNsim;
+                            if(experiment.task == "Cycles") DNNsim.run(network);
+                            else if (experiment.task == "Potentials") DNNsim.potentials(network);
+                        }
+                    }
+                }
+            } catch (std::exception &exception) {
+                std::cerr << "Simulation error: " << exception.what() << std::endl;
+                #ifdef STOP_AFTER_ERROR
+                exit(1);
+                #endif
+            }
+        }
+
+        //Dump statistics
+        interface::StatsWriter::dump_csv();
+
     } catch (std::exception &exception) {
-        std::cout << "Error: " << exception.what() << std::endl;
+        std::cerr << "Error: " << exception.what() << std::endl;
         exit(1);
     }
     return 0;

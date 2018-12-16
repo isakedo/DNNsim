@@ -55,17 +55,17 @@ namespace interface {
 
         /* Load the trace file inside the folder path and returns the network
          * @return          Network architecture
-         * */
+         */
         core::Network<T> read_network_caffe();
 
         /* Read the protobuf with the network in the path and returns the network
          * @return          Network architecture
-         * */
+         */
         core::Network<T> read_network_protobuf();
 
         /* Read the gzip with the network in the path and returns the network
          * @return          Network architecture
-         * */
+         */
         core::Network<T> read_network_gzip();
 
         /* Read the weights into initialized given network

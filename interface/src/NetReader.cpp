@@ -73,8 +73,6 @@ namespace interface {
             }
         }
 
-        google::protobuf::ShutdownProtobufLibrary();
-
         return core::Network<T>(this->name,layers);
     }
 
@@ -194,8 +192,6 @@ namespace interface {
         for(const protobuf::Network_Layer &layer_proto : network_proto.layers())
             layers.emplace_back(read_layer_proto(layer_proto));
 
-        google::protobuf::ShutdownProtobufLibrary();
-
         return core::Network<T>(this->name,layers);
     }
 
@@ -224,8 +220,6 @@ namespace interface {
 
         for(const protobuf::Network_Layer &layer_proto : network_proto.layers())
             layers.emplace_back(read_layer_proto(layer_proto));
-
-        google::protobuf::ShutdownProtobufLibrary();
 
         return core::Network<T>(this->name,layers);
     }

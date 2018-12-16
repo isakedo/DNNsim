@@ -11,8 +11,7 @@ The weights and activations for each network in their corresponding network fold
 *  Bit-fusion
 *  Booth enconding
 *  LSTM
-*  Change options by a configuration file
-*  Allow batching
+*  Change BIAS and OUTPUT_ACTIVATIONS global var to bool to decide
 
 ### Requeriments
 *   Cmake posterior to version 3.10

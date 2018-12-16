@@ -1,30 +1,39 @@
 cmake_minimum_required(VERSION 3.1)
 project(
-        sys
-        VERSION 0.0.1
+        proto
+        VERSION 0.0.3
         LANGUAGES CXX
+)
+
+find_package(Protobuf REQUIRED)
+
+set(ProtobufIncludePath ${CMAKE_CURRENT_BINARY_DIR}
+        CACHE INTERNAL "Path to generated protobuf files.")
+
+protobuf_generate_cpp(
+        PROTO_GENERATED_SOURCES
+        PROTO_GENERATED_HEADERS
+        network.proto
+        caffe.proto
+        batch.proto
 )
 
 # Create library
 add_library(
         ${PROJECT_NAME}
-        include/sys/cxxopts.h
-        include/sys/common.h
-        include/sys/Statistics.h
-        include/sys/Batch.h
-        src/Statistics.cpp
-        src/Batch.cpp
+        ${PROTO_GENERATED_SOURCES}
+        ${PROTO_GENERATED_HEADERS}
 )
 
 target_include_directories(
         ${PROJECT_NAME}
+        PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
         PUBLIC include/
-        ${ProtobufIncludePath}
 )
 
 target_link_libraries(
         ${PROJECT_NAME}
-        PRIVATE proto
+        PUBLIC ${Protobuf_LIBRARIES}
 )
 
 set_target_properties(

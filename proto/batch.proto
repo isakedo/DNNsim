@@ -1,0 +1,32 @@
+
+syntax = "proto3";
+
+package protobuf;
+
+message Batch {
+
+    message Transform {
+        string inputType = 1; // Caffe/Protobuf/Gzip
+        string inputDataType = 2;
+        string outputType = 3; // Protobuf/Gzip
+        string outputDataType = 4;
+        string network = 5;
+    }
+
+    message Simulate {
+
+        message Experiment {
+            string architecture = 1;
+            string task = 2;
+        }
+
+        string inputType = 1;
+        string inputDataType = 2;
+        string network = 3;
+        repeated Experiment experiment = 4;
+    }
+
+    repeated Transform transform = 1;
+    repeated Simulate simulate = 2;
+
+}

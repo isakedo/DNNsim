@@ -1,0 +1,18 @@
+
+<transform {
+	network: <Network name>
+	inputType: <Caffe|Protobuf|Gzip>
+	inputDataType: <Float32|Fixed16>
+	outputType: <Protobuf|Gzip>
+	outputDataType: <Float32|Fixed16>
+}>
+
+<simulate {
+	network: <Network name>
+	inputType: <Caffe|Protobuf|Gzip>
+	inputDataType: <Float32|Fixed16>
+	<experiment {
+		architecture: <BitPragmatic|Laconic>
+		task: <Cycles|MemAccesses|Potentials>
+	}>
+}>

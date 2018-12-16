@@ -5,15 +5,6 @@ project(
         LANGUAGES CXX
 )
 
-find_package(Protobuf REQUIRED)
-
-protobuf_generate_cpp(
-        PROTO_GENERATED_SOURCES
-        PROTO_GENERATED_HEADERS
-        proto/network.proto
-        proto/caffe.proto
-)
-
 # Create library
 add_library(
         ${PROJECT_NAME}
@@ -29,16 +20,16 @@ add_library(
 
 target_include_directories(
         ${PROJECT_NAME}
-        PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
         PUBLIC include/
+        ${ProtobufIncludePath}
 )
 
 target_link_libraries(
         ${PROJECT_NAME}
-        PUBLIC ${Protobuf_LIBRARIES}
         PRIVATE cnpy
         PRIVATE core
         PRIVATE sys
+        PRIVATE proto
 )
 
 set_target_properties(

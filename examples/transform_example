@@ -1,0 +1,23 @@
+transform {
+	network: "bvlc_alexnet"
+	inputType: "Caffe"
+	inputDataType: "Float32"
+	outputType: "Protobuf"
+	outputDataType: "Fixed16"
+}
+
+transform {
+	network: "bvlc_googlenet"
+	inputType: "Caffe"
+	inputDataType: "Float32"
+	outputType: "Gzip"
+	outputDataType: "Float32"
+}
+
+transform {
+	network: "bvlc_googlenet"
+	inputType: "Caffe"
+	inputDataType: "Float32"
+	outputType: "Protobuf"
+	outputDataType: "Fixed16"
+}

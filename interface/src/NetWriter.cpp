@@ -152,7 +152,6 @@ namespace interface {
             std::cout << "Protobuf written in: " << path << std::endl;
         }
 
-        google::protobuf::ShutdownProtobufLibrary();
     }
 
     template <typename T>
@@ -183,7 +182,6 @@ namespace interface {
 
         std::cout << "Gzip Protobuf written in: " << path << std::endl;
 
-        google::protobuf::ShutdownProtobufLibrary();
     }
 
     INITIALISE_DATA_TYPES(NetWriter);
