@@ -1,18 +1,14 @@
-# DNNsim 0.1.5
+# DNNsim 0.3.0
 
 Gitignore is set up for CLion IDE, if you want to use a different IDE add their project file extensions to .gitignore. 
 It recommend to used it from the command line. The folder "models" must contain a folder for each network. 
-Inside each folder the file "train_val.protoxt" is mandatory, while "precision.txt" is optional (If not set the precision is generic)
-The weights and activations for each network in their corresponding network folder inside the folder "net_traces".
+Inside each folder the file "train_val.protoxt" is mandatory, while "precision.txt". This file must have 5 lines
+corresponding to the final precisions and the header. It is optional (If not set the precision is generic)
+The weights and activations for each network in their corresponding network folder inside the folder "net_traces".  
 
-### Things to do:
-*  Pragmatic
-*  Laconic
-*  Bit-fusion
-*  Booth enconding
-*  LSTM
-*  Precisions format
-*  Update readme
+The tool works with batch files that can be found in the folder "examples". All the options and parameters are described
+in the README file in that folder using BNF like notation. The file "common.h" under the folder "sys/include/sys" 
+contain global variables. Check this file before launch any simulation.
 
 ### Requeriments
 *   Cmake posterior to version 3.10
@@ -48,25 +44,27 @@ Print help:
     ./cmake-build-debug/bin/DNNsim -h
 
 ##### Transform tool example 
-For caffe model and Numpy arrays:
+Transform example inside folder examples, bvlc_alexnet from float32 caffe to fixed16 protobuf, bvlc_alexnet from caffe
+to Gzip including bias and output activations, and bvlc_googlenet from float32 caffe to fixed16 protobuf:
 
-    ./cmake-build-debug/bin/DNNsim Transform -n bvlc_alexnet --ditype Float32 --itype Caffe --otype Protobuf
-
-For Protobuf as input and Gzip as output in fixed point format:
-
-    ./cmake-build-debug/bin/DNNsim Transform -n bvlc_alexnet --ditype Float32 --itype Protobuf --odtype Fixed16 --otype Protobuf
+    ./cmake-build-debug/bin/DNNsim examples/transform_example
 
 ##### Simulator tool example
+Inference example inside folder examples, inference for Gzip bvlc_alexnet, and for Caffe bvlc_googlenet:
 
-For caffe model and Numpy arrays:
+    ./cmake-build-debug/bin/DNNsim examples/inference_example
 
-    ./cmake-build-debug/bin/DNNsim Simulator -n bvlc_alexnet --ditype Float32 --itype Caffe
+Architectures simulation example inside folder examples, BitPragmatic memory accesses for bvlc_alexnet, and Laconic
+potentials for bvlc_googlenet:
+
+    ./cmake-build-debug/bin/DNNsim examples/simulator_example
 
 ### Structure:
 *   **sys**: Folder for system libraries
     *   common: contains common definitions for all classes
     *   cxxopts: library to read options from the console (c) Jarryd Beck
     *   Statistic: container for the statistics of the simulation
+    *   Batch: support to load batch files
 *   **cnpy**: Folder for supporting math libraries
     *   cnpy: library to read Numpy arrays
     *   Array: class to store and operate with flatten arrays
@@ -81,6 +79,14 @@ For caffe model and Numpy arrays:
     *   NetReader: class to read and load a network using different formats
     *   NetWriter: class to write and dump a network using different formats
     *   StatsWriter: class to dump simulation statistics in different formats
-    * proto: Folder for protobuf definition
-        * network.proto Google protobuf definition for the network
-        * caffe.proto Caffe protobuf definition for Caffe networks
+*   **proto**: Folder for protobuf definition
+    * network.proto: Google protobuf definition for the network
+    * caffe.proto: Caffe protobuf definition for Caffe networks
+    * batch.proto: Google protobuf definition for the batch file
+        
+### Things to do:
+*  Pragmatic
+*  Laconic
+*  Bit-fusion
+*  Booth enconding
+*  LSTM
