@@ -7,7 +7,7 @@ transform {
 }
 
 transform {
-	network: "bvlc_googlenet"
+	network: "bvlc_alexnet"
 	inputType: "Caffe"
 	inputDataType: "Float32"
 	outputType: "Gzip"

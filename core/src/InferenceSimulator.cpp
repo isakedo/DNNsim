@@ -10,7 +10,7 @@ namespace core {
     template <typename T>
     void InferenceSimulator<T>::computeConvolution(const core::Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
         // Simplify names getting their pointers
-        const cnpy::Array<T> &wgt = layer.getWeights();
+        cnpy::Array<T> wgt = layer.getWeights();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
         const cnpy::Array<T> &bias = layer.getBias();
         const cnpy::Array<T> &act = layer.getActivations();
@@ -36,6 +36,7 @@ namespace core {
         int it_per_group = (int)wgt_shape[0] / groups;
 
         // Convolution
+        if(wgt.getDimensions() == 2) wgt.change_to_4D(); //Necessary in the case that the data is in 2D but should be 4
         for(int n=0; n<act_shape[0]; n++) {
             int current_group = 0, group_m = 0, start_group = 0;
             for(int m=0; m<wgt_shape[0]; m++) {
@@ -83,7 +84,7 @@ namespace core {
         std::vector<size_t> output_shape;
         std::vector<T> output_activations;
 
-        if(layer.getActivations().getDimensions() == 2) {
+        if(act.getDimensions() == 2) {
             for (uint16_t n = 0; n<act_shape[0]; n++) {
                 for (uint16_t m = 0; m<wgt_shape[0]; m++) {
                     T sum = bias.get(m);
@@ -94,7 +95,7 @@ namespace core {
                     output_activations.push_back(sum);
                 }
             }
-        } else if (layer.getActivations().getDimensions() == 4) {
+        } else if (act.getDimensions() == 4) {
             for (uint16_t n = 0; n<act_shape[0]; n++) {
                 for (uint16_t m = 0; m<wgt_shape[0]; m++) {
                     T sum = bias.get(m);

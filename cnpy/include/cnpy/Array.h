@@ -11,6 +11,9 @@ namespace cnpy {
 
     private:
 
+        /* Set to true to ensure the array is read as 4D */
+        bool force4D = false;
+
         /* Vector with the size of the vector for each dimension
          * Example for 4D: filter index, channel index, X-dimension index, Y-dimension index
          */
@@ -33,6 +36,9 @@ namespace cnpy {
          * @param _shape    Shape of the data
          */
         void set_values(const std::vector<T> &_data, const std::vector<size_t> &_shape);
+
+        /* Transform a 2D array into 4D to allow accessing it as 4D */
+        void change_to_4D();
 
         /*  Return the value inside the vector given the fourth dimensions
          * @param i     Index for the first dimension

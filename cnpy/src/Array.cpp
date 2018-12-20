@@ -73,6 +73,22 @@ namespace cnpy {
         } else throw std::runtime_error("Array dimensions error");
     }
 
+    template <typename T>
+    void Array<T>::change_to_4D() {
+        for(int i = 0; i < this->shape[0]; i++) {
+            std::vector<std::vector<std::vector<T>>> second_dim;
+            for(int j = 0; j < this->shape[1]; j++) {
+                std::vector<std::vector<T>> third_dim;
+                std::vector<T> fourth_dim;
+                fourth_dim.push_back(this->data2D[i][j]);
+                third_dim.push_back(fourth_dim);
+                second_dim.push_back(third_dim);
+            }
+            this->data4D.push_back(second_dim);
+        }
+        this->force4D = true;
+    }
+
 
     template <typename T>
     T Array<T>::get (int i, int j, int k, int l) const {
@@ -112,14 +128,16 @@ namespace cnpy {
 
     template <typename T>
     unsigned long Array<T>::getDimensions() const {
-         if(shape.size() == 4 && shape[2] == 1 && shape[3] == 1) return 2;
-         else return shape.size();
+        if(this->force4D) return 4;
+        else if(shape.size() == 4 && shape[2] == 1 && shape[3] == 1) return 2;
+        else return shape.size();
     }
 
     /* Getters */
     template <typename T> const std::vector<size_t> &Array<T>::getShape() const { return shape; }
     template <typename T> unsigned long long Array<T>::getMax_index() const {
-        if(this->getDimensions() == 2) return this->shape[0]*this->shape[1];
+        if (this->getDimensions() == 1) return this->shape[0];
+        else if (this->getDimensions() == 2) return this->shape[0]*this->shape[1];
         else if (this->getDimensions() == 4) return this->shape[0]*this->shape[1]*this->shape[2]*this->shape[3];
         else throw std::runtime_error("Array dimensions error");
     }

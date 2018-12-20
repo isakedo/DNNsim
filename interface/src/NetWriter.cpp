@@ -137,7 +137,9 @@ namespace interface {
                 throw std::runtime_error("Failed to write protobuf");
             }
 
+            #ifdef DEBUG
             std::cout << "Protobuf written in: " << path << std::endl;
+            #endif
         }
 
     }
@@ -168,8 +170,9 @@ namespace interface {
             throw std::runtime_error("Failed to write Gzip protobuf");
         }
 
+        #ifdef DEBUG
         std::cout << "Gzip Protobuf written in: " << path << std::endl;
-
+        #endif
     }
 
     INITIALISE_DATA_TYPES(NetWriter);

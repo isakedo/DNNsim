@@ -93,7 +93,7 @@ namespace sys {
                 experiment.task = experiment_proto.task();
                 simulate.experiments.emplace_back(experiment);
             }
-        } else if (simulate.inputDataType == "Float32" && simulate_proto.activate_bias_and_out_act())
+        } else if (simulate.inputDataType == "Float32" && !simulate_proto.activate_bias_and_out_act())
             throw std::runtime_error("Float32 only allows inference simulation, which must has the flag "
                                      "\"activate_bias_and_out_act\" activated");
 

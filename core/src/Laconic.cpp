@@ -49,7 +49,7 @@ namespace core {
     template <typename T>
     void Laconic<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
         // Simplify names getting their pointers
-        const cnpy::Array<T> &wgt = layer.getWeights();
+        cnpy::Array<T> wgt = layer.getWeights();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
         const cnpy::Array<T> &act = layer.getActivations();
         const std::vector<size_t> &act_shape = act.getShape();
@@ -76,6 +76,7 @@ namespace core {
         int n;
 
         // Convolution
+        if(wgt.getDimensions() == 2) wgt.change_to_4D(); //Necessary in the case that the data is in 2D but should be 4
         #ifdef OPENMP // Automatic code parallelization
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
@@ -129,7 +130,7 @@ namespace core {
         std::vector<double> potentials (act_shape[0],0);
         uint64_t one_bit_counter = 0;
 
-        if(layer.getActivations().getDimensions() == 2) {
+        if(act.getDimensions() == 2) {
 
             #ifdef OPENMP // Automatic code parallelization
             auto max_threads = omp_get_max_threads();
@@ -146,7 +147,7 @@ namespace core {
                 potentials[n] = 100 - ((double) one_bit_counter / (double) mult_16bit / 256. * 100);
                 one_bit_multiplications[n] = one_bit_counter;
             }
-        } else if (layer.getActivations().getDimensions() == 4) {
+        } else if (act.getDimensions() == 4) {
 
             #ifdef OPENMP // Automatic code parallelization
             auto max_threads = omp_get_max_threads();

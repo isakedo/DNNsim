@@ -1,0 +1,13 @@
+simulate {
+	network: "bvlc_alexnet"
+	inputType: "Gzip"
+	inputDataType: "Float32"
+	activate_bias_and_out_act: true
+}
+
+simulate {
+	network: "bvlc_googlenet"
+	inputType: "Caffe"
+	inputDataType: "Float32"
+	activate_bias_and_out_act: true
+}
