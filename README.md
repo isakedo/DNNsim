@@ -12,6 +12,7 @@ The weights and activations for each network in their corresponding network fold
 *  Booth enconding
 *  LSTM
 *  Precisions format
+*  Update readme
 
 ### Requeriments
 *   Cmake posterior to version 3.10
