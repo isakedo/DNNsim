@@ -1,7 +1,7 @@
 
 #include <core/Laconic.h>
 
-//#define ZERO_COUNT
+#define ZERO_COUNT
 //#define BOOTH_ENCODING
 
 namespace core {
