@@ -2,7 +2,7 @@
 #include <core/Laconic.h>
 
 #define ZERO_COUNT
-//#define BOOTH_ENCODING
+#define BOOTH_ENCODING
 
 namespace core {
 
@@ -19,12 +19,13 @@ namespace core {
         int mag_act = std::get<0>(act_prec), prec_act = std::get<1>(act_prec);
         int mag_wgt = std::get<0>(wgt_prec), prec_wgt = std::get<1>(wgt_prec);
 
+        //Remove the sign
+        auto act_bits = (uint16_t)(act & ~(1UL << (mag_act + prec_act)));
+        auto wgt_bits = (uint16_t)(wgt & ~(1UL << (mag_wgt + prec_wgt)));
+
         #ifdef BOOTH_ENCODING
-            uint32_t act_bits = this->booth_encoding(act);
-            uint32_t wgt_bits = this->booth_encoding(wgt);
-        #else
-            uint16_t act_max = (1 << (mag_act + prec_act - 1)) - 1, wgt_max = (1 << (mag_wgt + prec_wgt - 1)) - 1;
-            uint16_t act_bits = act & act_max, wgt_bits = wgt & wgt_max;
+            act_bits = this->booth_encoding(act_bits);
+            wgt_bits = this->booth_encoding(wgt_bits);
         #endif
 
         uint8_t act_effectual_bits = 0;
