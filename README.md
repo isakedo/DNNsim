@@ -11,6 +11,7 @@ The weights and activations for each network in their corresponding network fold
 *  Bit-fusion
 *  Booth enconding
 *  LSTM
+*  Precisions format
 
 ### Requeriments
 *   Cmake posterior to version 3.10

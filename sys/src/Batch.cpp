@@ -20,28 +20,28 @@ namespace sys {
 
         value = transform_proto.inputtype();
         if(value  != "Caffe" && value != "Protobuf" && value != "Gzip")
-            throw std::runtime_error("Input type configuration for network " + value +
+            throw std::runtime_error("Input type configuration for network " + transform.network +
                 " must be <Caffe|Protobuf|Gzip>.");
         else
             transform.inputType = transform_proto.inputtype();
 
         value = transform_proto.inputdatatype();
         if(value  != "Float32" && value != "Fixed16")
-            throw std::runtime_error("Input data type configuration for network " + value +
+            throw std::runtime_error("Input data type configuration for network " + transform.network +
                 " must be <Float32|Fixed16.");
         else
             transform.inputDataType = transform_proto.inputdatatype();
 
         value = transform_proto.outputtype();
         if(value != "Protobuf" && value != "Gzip")
-            throw std::runtime_error("Output type configuration for network " + value +
+            throw std::runtime_error("Output type configuration for network " + transform.network +
                 " must be <Caffe|Protobuf|Gzip>.");
         else
             transform.outputType = transform_proto.outputtype();
 
         value = transform_proto.outputdatatype();
         if(value  != "Float32" && value != "Fixed16")
-            throw std::runtime_error("Output data type configuration for network " + value +
+            throw std::runtime_error("Output data type configuration for network " + transform.network +
                                      " must be <Float32|Fixed16.");
         else {
             // Only allow conversion from float32 to fixed16
@@ -62,14 +62,14 @@ namespace sys {
 
         value = simulate_proto.inputtype();
         if(value  != "Caffe" && value != "Protobuf" && value != "Gzip")
-            throw std::runtime_error("Input type configuration for network " + value +
+            throw std::runtime_error("Input type configuration for network " + simulate.network +
                                      " must be <Caffe|Protobuf|Gzip>.");
         else
             simulate.inputType = simulate_proto.inputtype();
 
         value = simulate_proto.inputdatatype();
         if(value  != "Float32" && value != "Fixed16")
-            throw std::runtime_error("Input data type configuration for network " + value +
+            throw std::runtime_error("Input data type configuration for network " + simulate.network +
                                      " must be <Float32|Fixed16.");
         else
             simulate.inputDataType = simulate_proto.inputdatatype();
@@ -80,15 +80,15 @@ namespace sys {
                 if(experiment_proto.architecture() == "BitPragmatic") {
                     value = experiment_proto.task();
                     if(value  != "Cycles" && value != "MemAccesses")
-                        throw std::runtime_error("BitPragmatic simulation type for network " + value +
-                                                 " must be <Cycles|MemAccesses.");
+                        throw std::runtime_error("BitPragmatic simulation type for network " + simulate.network +
+                                                 " must be <Cycles|MemAccesses>.");
                 } else if (experiment_proto.architecture() == "Laconic") {
                     value = experiment_proto.task();
                     if(value  != "Cycles" && value != "Potentials")
-                        throw std::runtime_error("Laconic simulation type for network " + value +
-                                                 " must be <Cycles|Potentials.");
-                } else throw std::runtime_error("Architecture for network " + value +
-                                                " in Fixed16 must be <BitPragmatic|Laconic.");
+                        throw std::runtime_error("Laconic simulation type for network " + simulate.network +
+                                                 " must be <Cycles|Potentials>.");
+                } else throw std::runtime_error("Architecture for network " + simulate.network +
+                                                " in Fixed16 must be <BitPragmatic|Laconic>.");
                 experiment.architecture = experiment_proto.architecture();
                 experiment.task = experiment_proto.task();
                 simulate.experiments.emplace_back(experiment);

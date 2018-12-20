@@ -1,0 +1,13 @@
+simulate {
+	network: "bvlc_googlenet"
+	inputType: "Protobuf"
+	inputDataType: "Fixed16"
+	experiment {
+        architecture: "BitPragmatic"
+        task: "MemAccesses"
+	}
+    experiment {
+        architecture: "Laconic"
+        task: "Potentials"
+	}
+}
