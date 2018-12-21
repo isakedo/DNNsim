@@ -130,6 +130,7 @@ namespace core {
         std::vector<uint64_t> one_bit_multiplications (act_shape[0],0);
         std::vector<double> potentials (act_shape[0],0);
         uint64_t one_bit_counter = 0;
+        int n;
 
         if(act.getDimensions() == 2) {
 
@@ -138,7 +139,8 @@ namespace core {
             omp_set_num_threads(max_threads);
             #pragma omp parallel for private(n,one_bit_counter)
             #endif
-            for (uint16_t n = 0; n<act_shape[0]; n++) {
+            for (n = 0; n<act_shape[0]; n++) {
+                one_bit_counter = 0;
                 for (uint16_t m = 0; m<wgt_shape[0]; m++) {
                     for (uint16_t k = 0; k<wgt_shape[1]; k++) {
                         one_bit_counter += calculateOneBitMultiplications(act.get(n, k), wgt.get(m, k),
@@ -155,7 +157,8 @@ namespace core {
             omp_set_num_threads(max_threads);
             #pragma omp parallel for private(n,one_bit_counter)
             #endif
-            for (uint16_t n = 0; n<act_shape[0]; n++) {
+            for (n = 0; n<act_shape[0]; n++) {
+                one_bit_counter = 0;
                 for (uint16_t m = 0; m<wgt_shape[0]; m++) {
                     for (uint16_t k = 0; k<wgt_shape[1]; k++) {
                         int f_dim = (int)(k / (act_shape[2]*act_shape[3]));
