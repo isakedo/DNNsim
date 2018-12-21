@@ -64,8 +64,8 @@ namespace core {
                 }
             }
         }
-        output_shape.push_back(act.getShape()[0]);
-        output_shape.push_back(wgt.getShape()[0]);
+        output_shape.push_back(act_shape[0]);
+        output_shape.push_back(wgt_shape[0]);
         output_shape.push_back((unsigned)out_x);
         output_shape.push_back((unsigned)out_y);
         result.set_values(output_activations,output_shape);
@@ -113,7 +113,7 @@ namespace core {
         }
 
         output_shape.push_back(act_shape[0]);
-        output_shape.push_back(output_activations.size());
+        output_shape.push_back(wgt_shape[0]);
         result.set_values(output_activations,output_shape);
 
     }
