@@ -32,8 +32,34 @@ namespace core {
         return padded_array;
     }
 
+    /* Only encode the values when get less number of bits */
     uint16_t generateBoothEnconding(uint16_t n) {
-        return 0;
+        uint32_t padded_n = n << 2;
+        std::string bitstream = std::bitset<16 + 2>(padded_n).to_string();
+        uint16_t booth_encoding = 0;
+        bool booth = false;
+        for(int i = 0; i < 16; i++) {
+            std::string w = bitstream.substr(0,3);
+            booth_encoding <<= 1;
+            if(w == "000" || w == "001") {
+                assert(!booth);
+            } else if(w == "010") {
+                if (booth) booth_encoding |= 0x1;
+            } else if(w == "011") {
+                if (booth) booth_encoding |= 0x1;
+            } else if(w == "100") {
+                if (!booth) booth_encoding |= 0x1;
+                else { booth_encoding |= 0x1; booth = false;}
+            } else if(w == "101") {
+                if (!booth) booth_encoding |= 0x1;
+            } else if(w == "110") {
+                if (!booth) booth_encoding |= 0x1;
+            } else if(w == "111") {
+                if (!booth) { booth_encoding |= 0x2;  booth = true; }
+            }
+            bitstream = bitstream.substr(1);
+        }
+        return booth_encoding;
     }
 
     std::vector<uint16_t> generateBoothTable() {
