@@ -30,7 +30,10 @@ namespace sys {
             /* Weights precision */
             std::vector<int> wgt_prec;
 
-            /* Stats for work reduction */
+            /* Computation time per layer */
+            std::vector<std::chrono::duration<double>> time;
+
+            /* Stats for potentials */
             std::vector<std::vector<double>> potentials;
             std::vector<uint64_t> multiplications;
             std::vector<std::vector<uint64_t>> one_bit_multiplications;

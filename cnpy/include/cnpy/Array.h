@@ -37,8 +37,17 @@ namespace cnpy {
          */
         void set_values(const std::vector<T> &_data, const std::vector<size_t> &_shape);
 
+        /* Change fixed point representation to sign-magnitude
+         * @param mag   Magnitude: position before the comma
+         * @param prec  Precision: positions after the comma
+         */
+        void sign_magnitude_representation(int mag, int prec);
+
+        /* Change fixed point representation to exponents of two */
+        void two_exponents_representation();
+
         /* Transform a 2D array into 4D to allow accessing it as 4D */
-        void change_to_4D();
+        void reshape_to_4D();
 
         /*  Return the value inside the vector given the fourth dimensions
          * @param i     Index for the first dimension

@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <sstream>
 #include <bitset>
+#include <chrono>
 
 // Don't commit changes in global variables
 // If want to launch simulations comment DEBUG and STOP_AFTER_ERROR, and uncomment OPENMP

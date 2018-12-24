@@ -33,7 +33,7 @@ namespace interface {
         auto mask = (uint16_t)intmax + 1;
         auto abs_value = (uint16_t)abs(two_comp);
         auto sign_mag = abs_value | (two_comp & mask);
-        return (uint16_t)sign_mag;
+        return (uint16_t)two_comp;
     }
 
     template <typename T>

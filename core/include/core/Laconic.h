@@ -19,12 +19,9 @@ namespace core {
         /* Compute number of one bit multiplications given a weights and an activation
          * @param act       Activation
          * @param wgt       Weight
-         * @param act_prec  Magnitude and precision of the activation
-         * @param wgt_prec  Magnitude and precision of the weight
          * @return          Number of one bit multiplications
          */
-        uint8_t calculateOneBitMultiplications(uint16_t act, uint16_t wgt, const std::tuple<int, int> &act_prec,
-                                                           const std::tuple<int, int> &wgt_prec);
+        uint8_t calculateOneBitMultiplications(uint16_t act, uint16_t wgt);
 
         /* Compute the work reduction for a convolutional layer
          * @param layer     Layer for which we want to calculate potentials

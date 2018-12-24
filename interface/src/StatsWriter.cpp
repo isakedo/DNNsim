@@ -28,15 +28,15 @@ namespace interface {
             o_file << stats.arch << std::endl;
 
             if(!stats.potentials.empty()) {
-                o_file << "layer,n_act,potentials,multiplications,one_bit_mult,act_precision,wgt_precision"
+                o_file << "layer,n_act,potentials,multiplications,one_bit_mult,act_precision,wgt_precision,time(s)"
                        << std::endl;
                 for (int j = 0; j < stats.potentials.front().size(); j++) {
                     for (int i = 0; i < stats.layers.size(); i++) {
                         char line[256];
-                        snprintf(line, sizeof(line), "%s,%d,%.2f,%ld,%ld,%d,%d\n", stats.layers[i].c_str(), j,
+                        snprintf(line, sizeof(line), "%s,%d,%.2f,%ld,%ld,%d,%d,%f\n", stats.layers[i].c_str(), j,
                                  stats.potentials[i][j], stats.multiplications[i],
                                  stats.one_bit_multiplications[i][j],
-                                 stats.act_prec[i], stats.wgt_prec[i]);
+                                 stats.act_prec[i], stats.wgt_prec[i], stats.time[i].count());
                         o_file << line;
                     }
                 }

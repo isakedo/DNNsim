@@ -88,5 +88,4 @@ potentials for bvlc_googlenet:
 *  Pragmatic
 *  Laconic
 *  Bit-fusion
-*  Booth enconding
 *  LSTM

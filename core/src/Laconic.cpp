@@ -13,15 +13,10 @@ namespace core {
     void Laconic<T>::run(const Network<T> &network) {}
 
     template <typename T>
-    uint8_t Laconic<T>::calculateOneBitMultiplications(uint16_t act, uint16_t wgt, const std::tuple<int, int> &act_prec,
-            const std::tuple<int, int> &wgt_prec) {
+    uint8_t Laconic<T>::calculateOneBitMultiplications(uint16_t act, uint16_t wgt) {
 
-        int mag_act = std::get<0>(act_prec), prec_act = std::get<1>(act_prec);
-        int mag_wgt = std::get<0>(wgt_prec), prec_wgt = std::get<1>(wgt_prec);
-
-        //Remove the sign
-        auto act_bits = (uint16_t)(act & ~(1UL << (mag_act + prec_act)));
-        auto wgt_bits = (uint16_t)(wgt & ~(1UL << (mag_wgt + prec_wgt)));
+        uint16_t act_bits = act;
+        uint16_t wgt_bits = wgt;
 
         #ifdef BOOTH_ENCODING
             act_bits = this->booth_encoding(act_bits);
@@ -49,11 +44,16 @@ namespace core {
 
     template <typename T>
     void Laconic<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
-        // Simplify names getting their pointers
+
+        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+
         cnpy::Array<T> wgt = layer.getWeights();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-        const cnpy::Array<T> &act = layer.getActivations();
+        wgt.two_exponents_representation();
+        cnpy::Array<T> act = layer.getActivations();
+        act.two_exponents_representation();
+
         const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int padding = layer.getPadding();
         int stride = layer.getStride();
@@ -77,7 +77,7 @@ namespace core {
         int n;
 
         // Convolution
-        if(wgt.getDimensions() == 2) wgt.change_to_4D(); //Necessary in the case that the data is in 2D but should be 4
+        if(wgt.getDimensions() == 2) wgt.reshape_to_4D(); //Necessary in the case that the data is in 2D but should be 4
         #ifdef OPENMP // Automatic code parallelization
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
@@ -93,8 +93,7 @@ namespace core {
                                 for (int k = start_group; k < wgt_shape[1] + start_group; k++) {
                                     one_bit_counter += calculateOneBitMultiplications(
                                             padded_act.get(n, k, stride * x + i, stride * y + j),
-                                            wgt.get(m, k - start_group, i, j),
-                                            layer.getAct_precision(),layer.getWgt_precision());
+                                            wgt.get(m, k - start_group, i, j));
                                 }
                             }
                         }
@@ -110,6 +109,11 @@ namespace core {
             potentials[n] = 100 - ((double)one_bit_counter / (double)mult_16bit / 256. * 100);
             one_bit_multiplications[n] = one_bit_counter;
         }
+
+        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+
+        stats.time.push_back(time_span);
         stats.potentials.push_back(potentials);
         stats.multiplications.push_back(mult_16bit);
         stats.one_bit_multiplications.push_back(one_bit_multiplications);
@@ -118,12 +122,16 @@ namespace core {
 
     template <typename T>
     void Laconic<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
-        // Simplify names getting their pointers
-        const cnpy::Array<T> &wgt = layer.getWeights();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-        const cnpy::Array<T> &bias = layer.getBias();
-        const cnpy::Array<T> &act = layer.getActivations();
+
+        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+
+        cnpy::Array<T> wgt = layer.getWeights();
+        wgt.two_exponents_representation();
+        cnpy::Array<T> act = layer.getActivations();
+        act.two_exponents_representation();
+
         const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         // Operations
         const uint64_t mult_16bit = wgt_shape[0] * wgt_shape[1];
@@ -143,8 +151,7 @@ namespace core {
                 one_bit_counter = 0;
                 for (uint16_t m = 0; m<wgt_shape[0]; m++) {
                     for (uint16_t k = 0; k<wgt_shape[1]; k++) {
-                        one_bit_counter += calculateOneBitMultiplications(act.get(n, k), wgt.get(m, k),
-                                layer.getAct_precision(),layer.getWgt_precision());
+                        one_bit_counter += calculateOneBitMultiplications(act.get(n, k), wgt.get(m, k));
                     }
                 }
                 potentials[n] = 100 - ((double) one_bit_counter / (double) mult_16bit / 256. * 100);
@@ -165,8 +172,7 @@ namespace core {
                         auto rem = k % (act_shape[2]*act_shape[3]);
                         int s_dim = (int)(rem / act_shape[3]);
                         int t_dim = (int)(rem % act_shape[3]);
-                        one_bit_counter += calculateOneBitMultiplications(act.get(n, f_dim, s_dim, t_dim),
-                                wgt.get(m, k), layer.getAct_precision(),layer.getWgt_precision());
+                        one_bit_counter += calculateOneBitMultiplications(act.get(n,f_dim,s_dim,t_dim), wgt.get(m, k));
                     }
                 }
                 potentials[n] = 100 - ((double) one_bit_counter / (double) mult_16bit / 256. * 100);
@@ -174,6 +180,10 @@ namespace core {
             }
         }
 
+        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+
+        stats.time.push_back(time_span);
         stats.potentials.push_back(potentials);
         stats.multiplications.push_back(mult_16bit);
         stats.one_bit_multiplications.push_back(one_bit_multiplications);

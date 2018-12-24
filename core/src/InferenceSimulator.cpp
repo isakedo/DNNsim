@@ -9,12 +9,14 @@ namespace core {
 
     template <typename T>
     void InferenceSimulator<T>::computeConvolution(const core::Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
-        // Simplify names getting their pointers
+
         cnpy::Array<T> wgt = layer.getWeights();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
         const cnpy::Array<T> &bias = layer.getBias();
         const cnpy::Array<T> &act = layer.getActivations();
+
         const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
+
 
         int padding = layer.getPadding();
         int stride = layer.getStride();
@@ -36,7 +38,7 @@ namespace core {
         int it_per_group = (int)wgt_shape[0] / groups;
 
         // Convolution
-        if(wgt.getDimensions() == 2) wgt.change_to_4D(); //Necessary in the case that the data is in 2D but should be 4
+        if(wgt.getDimensions() == 2) wgt.reshape_to_4D(); //Necessary in the case that the data is in 2D but should be 4
         for(int n=0; n<act_shape[0]; n++) {
             int current_group = 0, group_m = 0, start_group = 0;
             for(int m=0; m<wgt_shape[0]; m++) {
@@ -73,13 +75,13 @@ namespace core {
 
     template <typename T>
     void InferenceSimulator<T>::computeInnerProduct(const Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
-        // Simplify names getting their pointers
-        const cnpy::Array<T> &wgt = layer.getWeights();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-        const cnpy::Array<T> &bias = layer.getBias();
-        const cnpy::Array<T> &act = layer.getActivations();
-        const std::vector<size_t> &act_shape = act.getShape();
 
+        const cnpy::Array<T> &wgt = layer.getWeights();
+        const cnpy::Array<T> &act = layer.getActivations();
+        const cnpy::Array<T> &bias = layer.getBias();
+
+        const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         std::vector<size_t> output_shape;
         std::vector<T> output_activations;
