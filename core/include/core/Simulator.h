@@ -26,6 +26,17 @@ namespace core {
          */
         cnpy::Array<T> adjustPadding(const cnpy::Array<T> &array, int padding);
 
+        /* Iterate set of windows in groups
+         * @param out_x         Output activations X size
+         * @param out_y         Output activations Y size
+         * @param list_x        X position for the set of input windows (overwritten)
+         * @param list_y        Y position for the set of input windows (overwritten)
+         * @param max_windows   Maximum number of windows (Number of columns in the accelerator)
+         * @return              Return false when all input windows are read
+         */
+        bool iterateWindows(long out_x, long out_y, std::vector<int> &list_x, std::vector<int> &list_y,
+                int max_windows = 16);
+
         /* Return the optimal encoding for the given value
          * @param value     Value we want to encode WITHOUT the sign
          * @return          Value with the optimal encoding

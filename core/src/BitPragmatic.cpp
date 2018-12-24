@@ -1,64 +1,69 @@
 
 #include <core/BitPragmatic.h>
 
+#define N_COLUMNS 16
+#define ZERO_COUNT
+#define BOOTH_ENCODING
+
 namespace core {
 
     template <typename T>
-    static inline
-    void computePragmaticFunctionalUnit(int n, int m, int x, int y, int i, int j, int k, int stride, int start_group,
-                                          const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_k) {
-        for(int channels = 0; channels < std::min(16,max_k); channels++) { // Process 16 synapses in a filter and window
-            const T &activation = padded_act.get(n, k + channels, stride * x + i, stride * y + j);
-            const T &wheight = wgt.get(m, k + channels - start_group, i, j);
-            // Calculate cycles
+    uint8_t BitPragmatic<T>::computePragmaticColumn(int batch, int act_x, int act_y, int kernel_x, int kernel_y,
+            int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel) {
+
+        // WRONG
+        //Get the maximum number of cycles in this column
+        std::vector<uint8_t> cycles;
+        for(int channel = 0; channel < std::min(16,max_channel); channel++) {
+
+            uint16_t act_bits = padded_act.get(batch, init_channel + channel, stride * act_x + kernel_x,
+                    stride * act_y + kernel_y);
+            #ifdef BOOTH_ENCODING
+                act_bits = this->booth_encoding(act_bits);
+            #endif
+
+            uint8_t PE_cycles = 0;
+            while (act_bits) {
+                PE_cycles += act_bits & 1;
+                act_bits >>= 1;
+            }
+
+            #ifdef ZERO_COUNT
+            if(PE_cycles == 0) PE_cycles = 1;
+            #endif
+
+            cycles.push_back(PE_cycles);
+
         }
+
+        return *std::max_element(cycles.begin(), cycles.end());
+
     }
 
     template <typename T>
-    static inline
-    void computePragmaticTile(int n, int m, std::vector<int> &list_x, std::vector<int> &list_y, int i, int j, int k,
-            int stride, int start_group, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_k) {
+    uint8_t BitPragmatic<T>::computePragmaticTile(int batch, std::vector<int> &list_act_x, std::vector<int> &list_act_y,
+            int kernel_x, int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act,
+            int max_channel) {
 
-        for(int window = 0; window < list_x.size(); window++)   // Process 16 windows
-            for(int filter = 0; filter < 16; filter++)  // Process 16 filters
-            computePragmaticFunctionalUnit<T>(n,m + filter,list_x[window],list_y[window],i,j,k,stride,
-                    start_group,padded_act,wgt,max_k); // 256 computations
-    }
-
-    static inline
-    bool getWindows(long out_x, long out_y, std::vector<int> &list_x, std::vector<int> &list_y) {
-        static int x = 0;
-        static int y = 0;
-        list_x.clear();
-        list_y.clear();
-        const int max_windows = 16;
-        int current_windows = 0;
-        while(x < out_x) {
-            while(y < out_y) {
-                list_x.push_back(x);
-                list_y.push_back(y);
-                current_windows++;
-                y++;
-                if(current_windows >= max_windows)
-                    return true;
-            }
-            y = 0;
-            x++;
+        //Get the number of cycles in the slowest column
+        std::vector<uint8_t> cycles;
+        for(int window = 0; window < list_act_x.size(); window++) {  // Process 16 windows
+            uint8_t column_cycles = computePragmaticColumn(batch, list_act_x[window], list_act_y[window], kernel_x,
+                    kernel_y, init_channel, stride, padded_act, max_channel);
+            cycles.push_back(column_cycles);
         }
-        if(current_windows > 0)
-            return true;
+        return *std::max_element(cycles.begin(), cycles.end());
 
-        x = 0;
-        return false;
     }
 
     template <typename T>
     void BitPragmatic<T>::computeConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
-        // Simplify names getting their pointers
-        const cnpy::Array<T> &wgt = layer.getWeights();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-        const cnpy::Array<T> &act = layer.getActivations();
+
+        cnpy::Array<T> act = layer.getActivations();
+        act.two_exponents_representation();
+
         const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &wgt_shape = layer.getWeights().getShape();
 
         int padding = layer.getPadding();
         int stride = layer.getStride();
@@ -72,21 +77,22 @@ namespace core {
         // Set filter grouping
         int groups = (int)act.getShape()[1] / (int)wgt_shape[1];
         int it_per_group = (int)wgt_shape[0] / groups;
-        int current_group = 0, group_m =0, start_group = 0;
 
         // Convolution
         for(int n=0; n<act_shape[0]; n++) {
+            int current_group = 0, group_m =0, start_group = 0;
+            uint32_t cycles = 0;
             for(int m=0; m<wgt_shape[0]; m += 16) { // Sixteen filters each time
                 std::vector<int> list_x;
                 std::vector<int> list_y;
-                while(getWindows(out_x,out_y,list_x,list_y)) { // Sixteen windows each time
+                while(this->iterateWindows(out_x,out_y,list_x,list_y,N_COLUMNS)) { // Sixteen windows each time
                     // Compute in parallel
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
                             // Sixteen values depthwise, sixteen channels
                             for (int k = start_group; k < wgt_shape[1] + start_group; k += 16) {
-                                computePragmaticTile<T>(n, m, list_x, list_y, i, j, k, stride, start_group,
-                                        padded_act, wgt, (int)act.getShape()[1]);
+                                cycles += computePragmaticTile(n, list_x, list_y, i, j, k, stride, padded_act,
+                                        (int)act.getShape()[1]);
                             }
                         }
                     }

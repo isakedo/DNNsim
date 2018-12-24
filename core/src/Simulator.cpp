@@ -32,6 +32,33 @@ namespace core {
         return padded_array;
     }
 
+    template <typename T>
+    bool Simulator<T>::iterateWindows(long out_x, long out_y, std::vector<int> &list_x, std::vector<int> &list_y,
+            int max_windows) {
+        static int x = 0;
+        static int y = 0;
+        list_x.clear();
+        list_y.clear();
+        int current_windows = 0;
+        while(x < out_x) {
+            while(y < out_y) {
+                list_x.push_back(x);
+                list_y.push_back(y);
+                current_windows++;
+                y++;
+                if(current_windows >= max_windows)
+                    return true;
+            }
+            y = 0;
+            x++;
+        }
+        if(current_windows > 0)
+            return true;
+
+        x = 0;
+        return false;
+    }
+
     /* Only encode the values when get less number of bits */
     uint16_t generateBoothEnconding(uint16_t n) {
         uint32_t padded_n = n << 2;
