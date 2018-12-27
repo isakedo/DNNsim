@@ -17,9 +17,6 @@ namespace interface {
 
         public:
 
-            /* Dump the statistics in a text file */
-            static void dump_txt();
-
             /* Dump the statistics in a csv file */
             static void dump_csv();
 

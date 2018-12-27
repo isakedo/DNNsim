@@ -58,12 +58,16 @@ namespace core {
     template <typename T>
     void BitPragmatic<T>::computeConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
 
+        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+
         cnpy::Array<T> act = layer.getActivations();
         act.two_exponents_representation();
 
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = layer.getWeights().getShape();
+        std::vector<size_t> act_shape = act.getShape();
+        std::vector<size_t> wgt_shape = layer.getWeights().getShape();
 
+        int batch_size = act_shape[0];
+        int act_channels = act_shape[1];
         int padding = layer.getPadding();
         int stride = layer.getStride();
         int Kx = layer.getKx();
@@ -73,33 +77,53 @@ namespace core {
         long out_x = (act_shape[2] - wgt_shape[2] + 2*padding)/stride + 1;
         long out_y = (act_shape[3] - wgt_shape[3] + 2*padding)/stride + 1;
 
-        int groups = (int)act.getShape()[1] / (int)wgt_shape[1];
-        auto num_filters_sets = (uint32_t)ceil(wgt_shape[0]/(double)N_ROWS)/groups;
+        int groups = act_channels / (int)wgt_shape[1];
+        auto num_filters_sets = (uint32_t)ceil(wgt_shape[0]/(double)N_ROWS/groups);
+
+        /* Stats */
+        std::vector<uint32_t> cycles (batch_size,0);
 
         // Convolution
-        for(int n=0; n<act_shape[0]; n++) {
-            uint32_t cycles = 0;
+        #ifdef OPENMP
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(max_threads);
+        #pragma omp parallel for private(n,batch_cycles,list_x,list_y)
+        #endif
+        for(int n=0; n<batch_size; n++) {
+            uint32_t batch_cycles = 0;
             std::vector<int> list_x;
             std::vector<int> list_y;
             while(this->iterateWindows(out_x,out_y,list_x,list_y,N_COLUMNS)) { // Sixteen windows each time
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
                         // Sixteen values depthwise, sixteen channels
-                        for (int k = 0; k < act_shape[1]; k += 16) {
-                            cycles += computePragmaticTile(n, list_x, list_y, i, j, k, stride, padded_act,
-                                    (int)act.getShape()[1]);
+                        for (int k = 0; k < act_channels; k += 16) {
+                            batch_cycles += computePragmaticTile(n,list_x, list_y, i, j, k, stride, padded_act,
+                                    act_channels);
                         }
                     }
                 }
             }
-            std::cout << cycles*num_filters_sets << std::endl;
+            cycles[n] = batch_cycles*num_filters_sets;
         }
 
+        auto base_cycles = (uint32_t)(out_x * out_y * act_channels * Kx * Ky * num_filters_sets / 16);
+        auto avg_cycles = accumulate(cycles.begin(), cycles.end(), 0.0)/cycles.size();
+
+        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+
+        stats.time.push_back(time_span);
+        stats.PRA_cycles.push_back(cycles);
+        stats.PRA_baseline_cycles.push_back(base_cycles);
+        stats.PRA_avg_cycles.push_back((uint32_t)avg_cycles);
     }
 
     template <typename T>
     void BitPragmatic<T>::memoryAccesses(const Network<T> &network) {
+        // Initialize statistics
         sys::Statistics::Stats stats;
+        sys::Statistics::initialize(stats);
 
         stats.task_name = "mem_accesses";
         stats.net_name = network.getName();
@@ -148,12 +172,24 @@ namespace core {
 
     template <typename T>
     void BitPragmatic<T>::run(const Network<T> &network) {
+        // Initialize statistics
         sys::Statistics::Stats stats;
+        sys::Statistics::initialize(stats);
+
+        stats.task_name = "cycles";
+        stats.net_name = network.getName();
+        stats.arch = "BitPragmatic_" + std::to_string(N_COLUMNS) + "_" + std::to_string(N_ROWS);
+
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
+                stats.layers.push_back(layer.getName());
                 computeConvolution(layer, stats);
             }
         }
+
+        // Set statistics to write
+        sys::Statistics::addStats(stats);
+
     }
 
     template class BitPragmatic<uint16_t>;

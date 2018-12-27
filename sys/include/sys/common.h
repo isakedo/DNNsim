@@ -13,6 +13,7 @@
 #include <bitset>
 #include <chrono>
 #include <algorithm>
+#include <numeric>
 
 // Don't commit changes in global variables
 // If want to launch simulations comment DEBUG and STOP_AFTER_ERROR, and uncomment OPENMP

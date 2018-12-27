@@ -77,8 +77,8 @@ namespace core {
         int n;
 
         // Convolution
-        if(wgt.getDimensions() == 2) wgt.reshape_to_4D(); //Necessary in the case that the data is in 2D but should be 4
-        #ifdef OPENMP // Automatic code parallelization
+        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+        #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
         #pragma omp parallel for private(n,current_group,group_m,start_group,one_bit_counter)
@@ -142,7 +142,7 @@ namespace core {
 
         if(act.getDimensions() == 2) {
 
-            #ifdef OPENMP // Automatic code parallelization
+            #ifdef OPENMP
             auto max_threads = omp_get_max_threads();
             omp_set_num_threads(max_threads);
             #pragma omp parallel for private(n,one_bit_counter)
@@ -159,7 +159,7 @@ namespace core {
             }
         } else if (act.getDimensions() == 4) {
 
-            #ifdef OPENMP // Automatic code parallelization
+            #ifdef OPENMP
             auto max_threads = omp_get_max_threads();
             omp_set_num_threads(max_threads);
             #pragma omp parallel for private(n,one_bit_counter)

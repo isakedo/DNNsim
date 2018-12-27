@@ -17,7 +17,6 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-
         int padding = layer.getPadding();
         int stride = layer.getStride();
         int Kx = layer.getKx();
