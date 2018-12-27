@@ -55,6 +55,10 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
+        int batch_size = act_shape[0];
+        int act_channels = act_shape[1];
+        int num_filters = wgt_shape[0];
+        int wgt_channels = wgt_shape[1];
         int padding = layer.getPadding();
         int stride = layer.getStride();
         int Kx = layer.getKx();
@@ -65,11 +69,11 @@ namespace core {
         long out_y = (act_shape[3] - wgt_shape[3] + 2*padding)/stride + 1;
 
         // Set filter grouping
-        int groups = (int)act.getShape()[1] / (int)wgt_shape[1];
-        int it_per_group = (int)wgt_shape[0] / groups;
+        int groups = act_channels / wgt_channels;
+        int it_per_group = num_filters / groups;
 
         // Operations
-        const uint64_t mult_16bit = wgt_shape[0] * out_x * out_y * Kx * Ky * wgt_shape[1];
+        const auto mult_16bit = (uint64_t)(num_filters * out_x * out_y * Kx * Ky * wgt_channels);
         std::vector<uint64_t> one_bit_multiplications (act_shape[0],0);
         std::vector<double> potentials (act_shape[0],0);
         int current_group = 0, group_m =0, start_group = 0;
@@ -83,14 +87,14 @@ namespace core {
         omp_set_num_threads(max_threads);
         #pragma omp parallel for private(n,current_group,group_m,start_group,one_bit_counter)
         #endif
-        for(n=0; n<act_shape[0]; n++) {
+        for(n=0; n<batch_size; n++) {
             current_group = 0; group_m =0; start_group = 0; one_bit_counter = 0;
-            for(int m=0; m<wgt_shape[0]; m++) {
+            for(int m=0; m<num_filters; m++) {
                 for(int x=0; x<out_x; x++) {
                     for(int y=0; y<out_y; y++) {
                         for (int i = 0; i < Kx; i++) {
                             for (int j = 0; j < Ky; j++) {
-                                for (int k = start_group; k < wgt_shape[1] + start_group; k++) {
+                                for (int k = start_group; k < wgt_channels + start_group; k++) {
                                     one_bit_counter += calculateOneBitMultiplications(
                                             padded_act.get(n, k, stride * x + i, stride * y + j),
                                             wgt.get(m, k - start_group, i, j));
@@ -103,7 +107,7 @@ namespace core {
                 if(group_m >= it_per_group) {
                     group_m = 0;
                     current_group++;
-                    start_group = (int)wgt_shape[1]*current_group;
+                    start_group = wgt_channels*current_group;
                 }
             }
             potentials[n] = 100 - ((double)one_bit_counter / (double)mult_16bit / 256. * 100);
@@ -133,6 +137,10 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
+        int batch_size = act_shape[0];
+        int num_filters = wgt_shape[0];
+        int wgt_channels = wgt_shape[1];
+
         // Operations
         const uint64_t mult_16bit = wgt_shape[0] * wgt_shape[1];
         std::vector<uint64_t> one_bit_multiplications (act_shape[0],0);
@@ -147,10 +155,10 @@ namespace core {
             omp_set_num_threads(max_threads);
             #pragma omp parallel for private(n,one_bit_counter)
             #endif
-            for (n = 0; n<act_shape[0]; n++) {
+            for (n = 0; n<batch_size; n++) {
                 one_bit_counter = 0;
-                for (uint16_t m = 0; m<wgt_shape[0]; m++) {
-                    for (uint16_t k = 0; k<wgt_shape[1]; k++) {
+                for (uint16_t m = 0; m<num_filters; m++) {
+                    for (uint16_t k = 0; k<wgt_channels; k++) {
                         one_bit_counter += calculateOneBitMultiplications(act.get(n, k), wgt.get(m, k));
                     }
                 }
@@ -164,10 +172,10 @@ namespace core {
             omp_set_num_threads(max_threads);
             #pragma omp parallel for private(n,one_bit_counter)
             #endif
-            for (n = 0; n<act_shape[0]; n++) {
+            for (n = 0; n<batch_size; n++) {
                 one_bit_counter = 0;
-                for (uint16_t m = 0; m<wgt_shape[0]; m++) {
-                    for (uint16_t k = 0; k<wgt_shape[1]; k++) {
+                for (uint16_t m = 0; m<num_filters; m++) {
+                    for (uint16_t k = 0; k<wgt_channels; k++) {
                         int f_dim = (int)(k / (act_shape[2]*act_shape[3]));
                         auto rem = k % (act_shape[2]*act_shape[3]);
                         int s_dim = (int)(rem / act_shape[3]);

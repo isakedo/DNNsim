@@ -17,15 +17,14 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
+        int batch_size = act_shape[0];
+        int act_channels = act_shape[1];
+        int num_filters = wgt_shape[0];
+        int wgt_channels = wgt_shape[1];
         int padding = layer.getPadding();
         int stride = layer.getStride();
         int Kx = layer.getKx();
         int Ky = layer.getKy();
-
-        // Initialize variables
-        std::vector<size_t> output_shape;
-        std::vector<T> output_activations;
-        T sum;
 
         //Adjust padding
         cnpy::Array<T> padded_act = this->adjustPadding(act,padding);
@@ -33,20 +32,25 @@ namespace core {
         long out_y = (act_shape[3] - wgt_shape[3] + 2*padding)/stride + 1;
 
         // Set filter grouping
-        int groups = (int)act.getShape()[1] / (int)wgt_shape[1];
-        int it_per_group = (int)wgt_shape[0] / groups;
+        int groups = act_channels / wgt_channels;
+        int it_per_group = num_filters / groups;
+
+        // Initialize variables
+        std::vector<size_t> output_shape;
+        std::vector<T> output_activations;
+        T sum;
 
         // Convolution
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D(); //Necessary in the case that the data is in 2D but should be 4
-        for(int n=0; n<act_shape[0]; n++) {
+        for(int n=0; n<batch_size; n++) {
             int current_group = 0, group_m = 0, start_group = 0;
-            for(int m=0; m<wgt_shape[0]; m++) {
+            for(int m=0; m<num_filters; m++) {
                 for(int x=0; x<out_x; x++) {
                     for(int y=0; y<out_y; y++) {
                         sum = bias.get(m);
                         for (int i = 0; i < Kx; i++) {
                             for (int j = 0; j < Ky; j++) {
-                                for (int k = start_group; k < wgt_shape[1] + start_group; k++) {
+                                for (int k = start_group; k < wgt_channels + start_group; k++) {
                                     sum += padded_act.get(n, k, stride * x + i, stride * y + j) *
                                             wgt.get(m, k - start_group, i, j);
 
@@ -61,12 +65,12 @@ namespace core {
                 if(group_m >= it_per_group) {
                     group_m = 0;
                     current_group++;
-                    start_group = (int)wgt_shape[1]*current_group;
+                    start_group = wgt_channels*current_group;
                 }
             }
         }
-        output_shape.push_back(act_shape[0]);
-        output_shape.push_back(wgt_shape[0]);
+        output_shape.push_back((unsigned)batch_size);
+        output_shape.push_back((unsigned)num_filters);
         output_shape.push_back((unsigned)out_x);
         output_shape.push_back((unsigned)out_y);
         result.set_values(output_activations,output_shape);
@@ -82,14 +86,18 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
+        int batch_size = act_shape[0];
+        int num_filters = wgt_shape[0];
+        int wgt_channels = wgt_shape[1];
+
         std::vector<size_t> output_shape;
         std::vector<T> output_activations;
 
         if(act.getDimensions() == 2) {
-            for (uint16_t n = 0; n<act_shape[0]; n++) {
-                for (uint16_t m = 0; m<wgt_shape[0]; m++) {
+            for (uint16_t n = 0; n<batch_size; n++) {
+                for (uint16_t m = 0; m<num_filters; m++) {
                     T sum = bias.get(m);
-                    for (uint16_t k = 0; k<wgt_shape[1]; k++) {
+                    for (uint16_t k = 0; k<wgt_channels; k++) {
                         sum += act.get(n, k) * wgt.get(m, k);
                     }
                     if (has_ReLu) sum = ReLU(sum);
@@ -97,10 +105,10 @@ namespace core {
                 }
             }
         } else if (act.getDimensions() == 4) {
-            for (uint16_t n = 0; n<act_shape[0]; n++) {
-                for (uint16_t m = 0; m<wgt_shape[0]; m++) {
+            for (uint16_t n = 0; n<batch_size; n++) {
+                for (uint16_t m = 0; m<num_filters; m++) {
                     T sum = bias.get(m);
-                    for (uint16_t k = 0; k<wgt_shape[1]; k++) {
+                    for (uint16_t k = 0; k<wgt_channels; k++) {
                         int f_dim = (int)(k / (act_shape[2]*act_shape[3]));
                         auto rem = k % (act_shape[2]*act_shape[3]);
                         int s_dim = (int)(rem / act_shape[3]);
@@ -113,8 +121,8 @@ namespace core {
             }
         }
 
-        output_shape.push_back(act_shape[0]);
-        output_shape.push_back(wgt_shape[0]);
+        output_shape.push_back((unsigned)batch_size);
+        output_shape.push_back((unsigned)num_filters);
         result.set_values(output_activations,output_shape);
 
     }
