@@ -21,7 +21,7 @@ namespace core {
          * @param wgt       Weight
          * @return          Number of one bit multiplications
          */
-        uint8_t calculateOneBitMultiplications(uint16_t act, uint16_t wgt);
+        uint8_t calculateBitMultiplications(uint16_t act, uint16_t wgt);
 
         /* Compute the work reduction for a convolutional layer
          * @param layer     Layer for which we want to calculate potentials

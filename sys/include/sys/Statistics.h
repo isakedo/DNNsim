@@ -40,8 +40,10 @@ namespace sys {
 
             /* Stats for potentials */
             std::vector<std::vector<double>> potentials;
-            std::vector<uint64_t> multiplications;
-            std::vector<std::vector<uint64_t>> one_bit_multiplications;
+            std::vector<double> avg_potentials;
+            std::vector<std::vector<uint64_t>> bit_multiplications;
+            std::vector<uint64_t> avg_bit_multiplications;
+            std::vector<uint64_t> parallel_multiplications;
 
             /* Stats for memory accesses */
             std::vector<uint32_t> on_chip_weights;

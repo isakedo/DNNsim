@@ -19,17 +19,21 @@ namespace core {
 
         int batch_size = act_shape[0];
         int act_channels = act_shape[1];
+        int Nx = act_shape[2];
+        int Ny = act_shape[3];
+
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
+        int Kx = wgt_shape[2];
+        int Ky = wgt_shape[3];
+
         int padding = layer.getPadding();
         int stride = layer.getStride();
-        int Kx = layer.getKx();
-        int Ky = layer.getKy();
 
         //Adjust padding
         cnpy::Array<T> padded_act = this->adjustPadding(act,padding);
-        long out_x = (act_shape[2] - wgt_shape[2] + 2*padding)/stride + 1;
-        long out_y = (act_shape[3] - wgt_shape[3] + 2*padding)/stride + 1;
+        long out_x = (Nx - Kx + 2*padding)/stride + 1;
+        long out_y = (Ny - Ky + 2*padding)/stride + 1;
 
         // Set filter grouping
         int groups = act_channels / wgt_channels;
@@ -89,6 +93,8 @@ namespace core {
         int batch_size = act_shape[0];
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
+        int Nx = act_shape[2];
+        int Ny = act_shape[3];
 
         std::vector<size_t> output_shape;
         std::vector<T> output_activations;
@@ -109,10 +115,10 @@ namespace core {
                 for (uint16_t m = 0; m<num_filters; m++) {
                     T sum = bias.get(m);
                     for (uint16_t k = 0; k<wgt_channels; k++) {
-                        int f_dim = (int)(k / (act_shape[2]*act_shape[3]));
-                        auto rem = k % (act_shape[2]*act_shape[3]);
-                        int s_dim = (int)(rem / act_shape[3]);
-                        int t_dim = (int)(rem % act_shape[3]);
+                        int f_dim = k / (Nx * Ny);
+                        int rem = k % (Nx * Ny);
+                        int s_dim = rem / Ny;
+                        int t_dim = rem % Ny;
                         sum += act.get(n, f_dim, s_dim, t_dim) * wgt.get(m, k);
                     }
                     if (has_ReLu) sum = ReLU(sum);

@@ -43,8 +43,8 @@ namespace cnpy {
          */
         void sign_magnitude_representation(int mag, int prec);
 
-        /* Change fixed point representation to exponents of two */
-        void two_exponents_representation();
+        /* Change fixed point representation to powers of two */
+        void powers_of_two_representation();
 
         /* Transform a 2D array into 4D to allow accessing it as 4D */
         void reshape_to_4D();

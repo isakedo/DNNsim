@@ -110,19 +110,19 @@ namespace cnpy {
     }
 
     template <typename T>
-    void Array<T>::two_exponents_representation() {
+    void Array<T>::powers_of_two_representation() {
         if (this->getDimensions() == 1) {
             for(int i = 0; i < this->shape[0]; i++) {
                 auto two_comp = (short)this->data1D[i];
-                auto two_exp = (uint16_t)abs(two_comp);
-                this->data1D[i] = two_exp;
+                auto powers_of_two = (uint16_t)abs(two_comp);
+                this->data1D[i] = powers_of_two;
             }
         } else if(this->getDimensions() == 2){
             for(int i = 0; i < this->shape[0]; i++) {
                 for(int j = 0; j < this->shape[1]; j++) {
                     auto two_comp = (short)this->data2D[i][j];
-                    auto two_exp = (uint16_t)abs(two_comp);
-                    this->data2D[i][j] = two_exp;
+                    auto powers_of_two = (uint16_t)abs(two_comp);
+                    this->data2D[i][j] = powers_of_two;
                 }
             }
         } else if (this->getDimensions() == 4) {
@@ -131,8 +131,8 @@ namespace cnpy {
                     for(int k = 0; k < this->shape[2]; k++) {
                         for(int l = 0; l < this->shape[3]; l++) {
                             auto two_comp = (short)this->data4D[i][j][k][l];
-                            auto two_exp = (uint16_t)abs(two_comp);
-                            this->data4D[i][j][k][l] = two_exp;
+                            auto powers_of_two = (uint16_t)abs(two_comp);
+                            this->data4D[i][j][k][l] = powers_of_two;
                         }
                     }
                 }

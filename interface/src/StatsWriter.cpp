@@ -30,7 +30,7 @@ namespace interface {
         }
         auto total_cycles = accumulate(stats.PRA_avg_cycles.begin(), stats.PRA_avg_cycles.end(), 0.0);
         auto total_baseline_cycles = accumulate(stats.PRA_baseline_cycles.begin(),
-                                                stats.PRA_baseline_cycles.end(), 0.0);
+                stats.PRA_baseline_cycles.end(), 0.0);
         char line[256];
         snprintf(line, sizeof(line), "TOTAL,AVG,%u,%u,%f\n", (uint32_t)total_cycles,
                  (uint32_t)total_baseline_cycles,total_time);
@@ -38,19 +38,37 @@ namespace interface {
     }
 
     void dump_csv_potentials(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        //TODO fix statistics
-        o_file << "layer,n_act,potentials,multiplications,one_bit_mult,act_precision,wgt_precision,time(s)"
+        o_file << "layer,n_act,potentials,parallel_mult,bit_mult,act_precision,wgt_precision,time(s)"
                << std::endl;
         for (int j = 0; j < stats.potentials.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
                 snprintf(line, sizeof(line), "%s,%d,%.2f,%ld,%ld,%d,%d,0\n", stats.layers[i].c_str(), j,
-                         stats.potentials[i][j], stats.multiplications[i],
-                         stats.one_bit_multiplications[i][j],
+                         stats.potentials[i][j], stats.parallel_multiplications[i],
+                         stats.bit_multiplications[i][j],
                          stats.act_prec[i], stats.wgt_prec[i]);
                 o_file << line;
             }
         }
+        double total_time = 0.;
+        for (int i = 0; i < stats.layers.size(); i++) {
+            total_time += stats.time[i].count();
+            char line[256];
+            snprintf(line, sizeof(line), "%s,AVG,%.2f,%ld,%ld,%d,%d,%f\n", stats.layers[i].c_str(),
+                    stats.avg_potentials[i], stats.avg_bit_multiplications[i], stats.parallel_multiplications[i],
+                    stats.act_prec[i], stats.wgt_prec[i], stats.time[i].count());
+            o_file << line;
+        }
+        auto avg_potentials = accumulate(stats.avg_potentials.begin(), stats.avg_potentials.end(), 0.0) /
+                stats.avg_potentials.size();
+        auto total_bit_multiplications = (uint64_t)accumulate(stats.avg_bit_multiplications.begin(),
+                stats.avg_bit_multiplications.end(), 0.0);
+        auto total_parallel_multiplications = (uint64_t)accumulate(stats.parallel_multiplications.begin(),
+                stats.parallel_multiplications.end(), 0.0);
+        char line[256];
+        snprintf(line, sizeof(line), "TOTAL,AVG,%.2f,%ld,%ld,-,-,%f\n", avg_potentials, total_bit_multiplications,
+                total_parallel_multiplications, total_time);
+        o_file << line;
     }
 
     void dump_csv_mem_accesses(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
