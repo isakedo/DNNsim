@@ -46,7 +46,7 @@ namespace core {
 
         //Get the slowest column
         std::vector<uint8_t> cycles;
-        for(int window = 0; window < list_act_x.size(); window++) {  // Process 16 windows
+        for(int window = 0; window < list_act_x.size(); window++) {
             uint8_t column_cycles = computePragmaticColumn(batch, list_act_x[window], list_act_y[window], kernel_x,
                     kernel_y, init_channel, stride, padded_act, max_channel);
             cycles.push_back(column_cycles);
@@ -84,10 +84,11 @@ namespace core {
         int groups = act_channels / (int)wgt_shape[1];
         auto num_filters_sets = (uint32_t)ceil(wgt_shape[0]/(double)N_ROWS/groups);
 
-        /* Stats */
+        // Stats
         std::vector<uint32_t> cycles (batch_size,0);
-        std::vector<int> list_x, list_y;
         uint32_t batch_cycles;
+
+        std::vector<int> list_x, list_y;
         int n;
 
         // Convolution
@@ -98,10 +99,9 @@ namespace core {
         #endif
         for(n=0; n<batch_size; n++) {
             batch_cycles = 0;
-            while(this->iterateWindows(out_x,out_y,list_x,list_y,N_COLUMNS)) { // Sixteen windows each time
+            while(this->iterateWindows(out_x,out_y,list_x,list_y,N_COLUMNS)) {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
-                        // Sixteen values depthwise, sixteen channels
                         for (int k = 0; k < act_channels; k += 16) {
                             batch_cycles += computePragmaticTile(n,list_x, list_y, i, j, k, stride, padded_act,
                                     act_channels);

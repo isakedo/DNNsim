@@ -10,6 +10,25 @@ namespace core {
 
     private:
 
+        /* Compute cycles for pragmatic tile
+         * @param batch         Current number of batch
+         * @param list_act_x    X position for the set of input windows
+         * @param list_act_y    Y position for the set of input windows
+         * @param kernel_x      X position in the kernel window
+         * @param kernel_y      Y position in the kernel window
+         * @param init_channel  Starting index for the channel
+         * @param init_filter   Starting index for the filter
+         * @param stride        Stride of the current layer
+         * @param padded_act    Set of padded input activations
+         * @param padded_act    Set of weights
+         * @param max_channel   Maximum number of channels
+         * @param max_filter    Maximum number of filters
+         * @return              Number of cycles
+         */
+        uint8_t computeLaconicTile(int batch, std::vector<int> &list_act_x, std::vector<int> &list_act_y, int kernel_x,
+                int kernel_y, int init_channel, int init_filter, int stride, const cnpy::Array<T> &padded_act,
+                const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter);
+
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs
          * @param stats     Statistics to fill
@@ -21,7 +40,7 @@ namespace core {
          * @param wgt       Weight
          * @return          Number of one bit multiplications
          */
-        uint8_t calculateBitMultiplications(uint16_t act, uint16_t wgt);
+        uint8_t computeLaconicPE(uint16_t act, uint16_t wgt);
 
         /* Compute the work reduction for a convolutional layer
          * @param layer     Layer for which we want to calculate potentials
