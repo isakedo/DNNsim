@@ -1,4 +1,4 @@
-# DNNsim 0.3.0
+# DNNsim 1.0.0
 
 Gitignore is set up for CLion IDE, if you want to use a different IDE add their project file extensions to .gitignore. 
 It recommend to used it from the command line. The folder "models" must contain a folder for each network. 
@@ -72,9 +72,9 @@ potentials for bvlc_googlenet:
     *   Network: class to store the network
     *   Layer: class to store the layer of the network
     *   InferenceSimulator: class that defines the behaviour of a standard deep learning inference simulation
-    *   TimingSimulator: class that define common behaviour for timing simulation
     *   BitPragmatic: class for the Bit-Pragmatic accelerator
     *   Laconic: class for the Laconic accelerator
+    *   BitFusion: class for the BitFusion accelerator
 *   **interface**: Folder to interface with input/output operations
     *   NetReader: class to read and load a network using different formats
     *   NetWriter: class to write and dump a network using different formats
@@ -83,9 +83,3 @@ potentials for bvlc_googlenet:
     * network.proto: Google protobuf definition for the network
     * caffe.proto: Caffe protobuf definition for Caffe networks
     * batch.proto: Google protobuf definition for the batch file
-        
-### Things to do:
-*  Pragmatic
-*  Laconic
-*  Bit-fusion
-*  LSTM

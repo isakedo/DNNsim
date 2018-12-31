@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.1)
 project(
         DNNsim
-        VERSION 0.1.0
+        VERSION 1.0.0
         LANGUAGES CXX
 )
 

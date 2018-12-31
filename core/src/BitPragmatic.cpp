@@ -336,7 +336,6 @@ namespace core {
 
     }
 
-
     template <typename T>
     void BitPragmatic<T>::potentials(const Network<T> &network) {
         // Initialize statistics
