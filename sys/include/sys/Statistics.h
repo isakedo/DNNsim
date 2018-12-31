@@ -33,10 +33,14 @@ namespace sys {
             /* Computation time per layer */
             std::vector<std::chrono::duration<double>> time;
 
-            /* Stats for Pragmatic */
+            /* Stats for Pragmatic cycles */
             std::vector<std::vector<uint32_t>> PRA_cycles;
             std::vector<uint32_t> PRA_avg_cycles;
             std::vector<uint32_t> PRA_baseline_cycles;
+
+            /* Stats for Laconic cycles */
+            std::vector<std::vector<uint32_t>>  LAC_cycles;
+            std::vector<uint32_t> LAC_avg_cycles;
 
             /* Stats for potentials */
             std::vector<std::vector<double>> potentials;

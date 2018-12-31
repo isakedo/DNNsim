@@ -132,11 +132,18 @@ namespace core {
                     start_group = wgt_channels*current_group;
                 }
             }
-            std::cout << batch_cycles << std::endl;
+            cycles[n] = batch_cycles;
         }
+
+        auto avg_cycles = accumulate(cycles.begin(), cycles.end(), 0.0)/cycles.size();
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+
+        stats.time.push_back(time_span);
+        stats.LAC_cycles.push_back(cycles);
+        stats.LAC_avg_cycles.push_back((uint32_t)avg_cycles);
+
     }
 
     template <typename T>
