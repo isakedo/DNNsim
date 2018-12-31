@@ -30,12 +30,10 @@ namespace core {
         int padding = layer.getPadding();
         int stride = layer.getStride();
 
-        //Adjust padding
         cnpy::Array<T> padded_act = this->adjustPadding(act,padding);
         long out_x = (Nx - Kx + 2*padding)/stride + 1;
         long out_y = (Ny - Ky + 2*padding)/stride + 1;
 
-        // Set filter grouping
         int groups = act_channels / wgt_channels;
         int it_per_group = num_filters / groups;
 

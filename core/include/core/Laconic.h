@@ -10,6 +10,13 @@ namespace core {
 
     private:
 
+        /* Compute number of one bit multiplications given a weights and an activation
+         * @param act       Activation
+         * @param wgt       Weight
+         * @return          Number of one bit multiplications
+         */
+        uint8_t computeLaconicPE(uint16_t act, uint16_t wgt);
+
         /* Compute cycles for pragmatic tile
          * @param batch         Current number of batch
          * @param list_act_x    X position for the set of input windows
@@ -34,13 +41,6 @@ namespace core {
          * @param stats     Statistics to fill
          */
         void computeConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats);
-
-        /* Compute number of one bit multiplications given a weights and an activation
-         * @param act       Activation
-         * @param wgt       Weight
-         * @return          Number of one bit multiplications
-         */
-        uint8_t computeLaconicPE(uint16_t act, uint16_t wgt);
 
         /* Compute the work reduction for a convolutional layer
          * @param layer     Layer for which we want to calculate potentials

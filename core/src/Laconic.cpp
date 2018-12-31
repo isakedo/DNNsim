@@ -8,6 +8,8 @@
 
 namespace core {
 
+    /* AUXILIARY FUNCTIONS */
+
     template <typename T>
     uint8_t Laconic<T>::computeLaconicPE(uint16_t act, uint16_t wgt) {
 
@@ -63,6 +65,8 @@ namespace core {
 
     }
 
+    /* CYCLES */
+
     template <typename T>
     void Laconic<T>::computeConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
 
@@ -93,7 +97,6 @@ namespace core {
         long out_x = (Nx - Kx + 2*padding)/stride + 1;
         long out_y = (Ny - Ky + 2*padding)/stride + 1;
 
-        // Set filter grouping
         int groups = act_channels / wgt_channels;
         int it_per_group = num_filters / groups;
 
@@ -167,6 +170,8 @@ namespace core {
         sys::Statistics::addStats(stats);
     }
 
+    /* POTENTIALS */
+
     template <typename T>
     void Laconic<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
 
@@ -197,7 +202,6 @@ namespace core {
         long out_x = (Nx - Kx + 2*padding)/stride + 1;
         long out_y = (Ny - Ky + 2*padding)/stride + 1;
 
-        // Set filter grouping
         int groups = act_channels / wgt_channels;
         int it_per_group = num_filters / groups;
 
@@ -326,8 +330,8 @@ namespace core {
             }
         }
 
-        auto avg_bit_multiplications = (uint64_t)accumulate(bit_multiplications.begin(), bit_multiplications.end(), 0.0) /
-                                       bit_multiplications.size();
+        auto avg_bit_multiplications = (uint64_t)accumulate(bit_multiplications.begin(), bit_multiplications.end(), 0.0)
+                / bit_multiplications.size();
         auto avg_potentials = accumulate(potentials.begin(), potentials.end(), 0.0) / potentials.size();
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();

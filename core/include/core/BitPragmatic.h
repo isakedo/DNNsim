@@ -10,6 +10,11 @@ namespace core {
 
     private:
 
+        /* Compute number of one bit multiplications given an activation
+         * @param act       Activation
+         * @return          Number of one bit multiplications
+         */
+        uint8_t computePragmaticPE(uint16_t act);
 
         /* Compute cycles for one column of pragmatic
          * @param batch         Current number of batch
@@ -47,17 +52,34 @@ namespace core {
          */
         void computeConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats);
 
-    public:
-
-        /* Calculate the number of memory accesses
-         * @param network   Network we want to simulate
+        /* Compute the work reduction for a convolutional layer
+         * @param layer     Layer for which we want to calculate potentials
+         * @param stats     Statistics to fill
          */
-        void memoryAccesses(const Network<T> &network);
+        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
+
+        /* Compute the work reduction for a inner product layer
+         * @param layer     Layer for which we want to calculate potentials
+         * @param stats     Statistics to fill
+         */
+        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
+
+    public:
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate
          */
         void run(const Network<T> &network);
+
+        /* Calculate work reduction for the given network
+         * @param network   Network we want to calculate work reduction
+         */
+        void potentials(const Network<T> &network);
+
+        /* Calculate the number of memory accesses
+         * @param network   Network we want to simulate
+         */
+        void memoryAccesses(const Network<T> &network);
 
     };
 

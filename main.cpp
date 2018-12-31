@@ -149,6 +149,7 @@ int main(int argc, char *argv[]) {
                         if(experiment.architecture == "BitPragmatic") {
                             core::BitPragmatic<uint16_t> DNNsim;
                             if(experiment.task == "Cycles") DNNsim.run(network);
+                            else if (experiment.task == "Potentials") DNNsim.potentials(network);
                             else if (experiment.task == "MemAccesses") DNNsim.memoryAccesses(network);
                         } else if (experiment.architecture == "Laconic") {
                             core::Laconic<uint16_t> DNNsim;

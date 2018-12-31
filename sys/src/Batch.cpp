@@ -79,9 +79,9 @@ namespace sys {
                 Batch::Simulate::Experiment experiment;
                 if(experiment_proto.architecture() == "BitPragmatic") {
                     value = experiment_proto.task();
-                    if(value  != "Cycles" && value != "MemAccesses")
+                    if(value  != "Cycles" && value != "MemAccesses" && value != "Potentials")
                         throw std::runtime_error("BitPragmatic simulation type for network " + simulate.network +
-                                                 " must be <Cycles|MemAccesses>.");
+                                                 " must be <Cycles|Potentials|MemAccesses>.");
                 } else if (experiment_proto.architecture() == "Laconic") {
                     value = experiment_proto.task();
                     if(value  != "Cycles" && value != "Potentials")

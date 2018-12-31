@@ -79,7 +79,7 @@ namespace interface {
             total_time += stats.time[i].count();
             char line[256];
             snprintf(line, sizeof(line), "%s,AVG,%.2f,%ld,%ld,%d,%d,%f\n", stats.layers[i].c_str(),
-                    stats.avg_potentials[i], stats.avg_bit_multiplications[i], stats.parallel_multiplications[i],
+                    stats.avg_potentials[i], stats.parallel_multiplications[i], stats.avg_bit_multiplications[i],
                     stats.act_prec[i], stats.wgt_prec[i], stats.time[i].count());
             o_file << line;
         }
@@ -90,8 +90,8 @@ namespace interface {
         auto total_parallel_multiplications = (uint64_t)accumulate(stats.parallel_multiplications.begin(),
                 stats.parallel_multiplications.end(), 0.0);
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%.2f,%ld,%ld,-,-,%f\n", avg_potentials, total_bit_multiplications,
-                total_parallel_multiplications, total_time);
+        snprintf(line, sizeof(line), "TOTAL,AVG,%.2f,%ld,%ld,-,-,%f\n", avg_potentials, total_parallel_multiplications,
+                total_bit_multiplications, total_time);
         o_file << line;
     }
 
