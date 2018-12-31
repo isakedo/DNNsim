@@ -142,6 +142,7 @@ namespace cnpy {
 
     template <typename T>
     void Array<T>::reshape_to_4D() {
+        this->data4D.clear();
         for(int i = 0; i < this->shape[0]; i++) {
             std::vector<std::vector<std::vector<T>>> second_dim;
             for(int j = 0; j < this->shape[1]; j++) {
@@ -153,9 +154,28 @@ namespace cnpy {
             }
             this->data4D.push_back(second_dim);
         }
+        this->shape.push_back(1);
+        this->shape.push_back(1);
         this->force4D = true;
     }
 
+    template <typename T>
+    void Array<T>::reshape_to_2D() {
+        for(int i = 0; i < this->shape[0]; i++) {
+            std::vector<T> second_dim;
+            for(int j = 0; j < this->shape[1]; j++) {
+                for(int k = 0; k < this->shape[2]; k++) {
+                    for(int l = 0; l < this->shape[3]; l++) {
+                        second_dim.push_back(this->data4D[i][j][k][l]);
+                    }
+                }
+            }
+            this->data2D.push_back(second_dim);
+        }
+        this->shape[1] = this->shape[1]*this->shape[2]*this->shape[3];
+        this->shape.pop_back();
+        this->shape.pop_back();
+    }
 
     template <typename T>
     T Array<T>::get (int i, int j, int k, int l) const {

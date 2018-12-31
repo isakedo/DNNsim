@@ -82,7 +82,7 @@ namespace core {
     void InferenceSimulator<T>::computeInnerProduct(const Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
 
         const cnpy::Array<T> &wgt = layer.getWeights();
-        const cnpy::Array<T> &act = layer.getActivations();
+        cnpy::Array<T> act = layer.getActivations();
         const cnpy::Array<T> &bias = layer.getBias();
 
         const std::vector<size_t> &act_shape = act.getShape();
@@ -97,31 +97,15 @@ namespace core {
         std::vector<size_t> output_shape;
         std::vector<T> output_activations;
 
-        if(act.getDimensions() == 2) {
-            for (uint16_t n = 0; n<batch_size; n++) {
-                for (uint16_t m = 0; m<num_filters; m++) {
-                    T sum = bias.get(m);
-                    for (uint16_t k = 0; k<wgt_channels; k++) {
-                        sum += act.get(n, k) * wgt.get(m, k);
-                    }
-                    if (has_ReLu) sum = ReLU(sum);
-                    output_activations.push_back(sum);
+        if(act.getDimensions() == 4) act.reshape_to_2D();
+        for (uint16_t n = 0; n<batch_size; n++) {
+            for (uint16_t m = 0; m<num_filters; m++) {
+                T sum = bias.get(m);
+                for (uint16_t k = 0; k<wgt_channels; k++) {
+                    sum += act.get(n, k) * wgt.get(m, k);
                 }
-            }
-        } else if (act.getDimensions() == 4) {
-            for (uint16_t n = 0; n<batch_size; n++) {
-                for (uint16_t m = 0; m<num_filters; m++) {
-                    T sum = bias.get(m);
-                    for (uint16_t k = 0; k<wgt_channels; k++) {
-                        int f_dim = k / (Nx * Ny);
-                        int rem = k % (Nx * Ny);
-                        int s_dim = rem / Ny;
-                        int t_dim = rem % Ny;
-                        sum += act.get(n, f_dim, s_dim, t_dim) * wgt.get(m, k);
-                    }
-                    if (has_ReLu) sum = ReLU(sum);
-                    output_activations.push_back(sum);
-                }
+                if (has_ReLu) sum = ReLU(sum);
+                output_activations.push_back(sum);
             }
         }
 

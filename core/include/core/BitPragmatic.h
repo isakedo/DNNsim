@@ -14,7 +14,7 @@ namespace core {
          * @param act       Activation
          * @return          Number of one bit multiplications
          */
-        uint8_t computePragmaticPE(uint16_t act);
+        uint8_t computePragmaticBitsPE(uint16_t act);
 
         /* Compute cycles for one column of pragmatic
          * @param batch         Current number of batch
@@ -51,6 +51,12 @@ namespace core {
          * @param stats     Statistics to fill
          */
         void computeConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats);
+
+        /* Compute the timing for a fully-connected layer
+         * @param layer     Layer for which we want to calculate the outputs
+         * @param stats     Statistics to fill
+         */
+        void computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats);
 
         /* Compute the work reduction for a convolutional layer
          * @param layer     Layer for which we want to calculate potentials

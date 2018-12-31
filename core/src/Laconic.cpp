@@ -113,7 +113,7 @@ namespace core {
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
-        #pragma omp parallel for private(n,current_group,group_m,start_group,cycles)
+        #pragma omp parallel for private(n,current_group,group_m,start_group,batch_cycles)
         #endif
         for(n=0; n<batch_size; n++) {
             current_group = 0; group_m =0; start_group = 0; batch_cycles = 0;
@@ -262,7 +262,6 @@ namespace core {
         stats.avg_bit_multiplications.push_back(avg_bit_multiplications);
     }
 
-
     template <typename T>
     void Laconic<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
 
@@ -290,44 +289,21 @@ namespace core {
 
         int n;
 
-        if(act.getDimensions() == 2) {
-
-            #ifdef OPENMP
-            auto max_threads = omp_get_max_threads();
-            omp_set_num_threads(max_threads);
-            #pragma omp parallel for private(n,bit_counter)
-            #endif
-            for (n = 0; n<batch_size; n++) {
-                bit_counter = 0;
-                for (uint16_t m = 0; m<num_filters; m++) {
-                    for (uint16_t k = 0; k<wgt_channels; k++) {
-                        bit_counter += computeLaconicPE(act.get(n, k), wgt.get(m, k));
-                    }
+        if(act.getDimensions() == 4) act.reshape_to_2D();
+        #ifdef OPENMP
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(max_threads);
+        #pragma omp parallel for private(n,bit_counter)
+        #endif
+        for (n = 0; n<batch_size; n++) {
+            bit_counter = 0;
+            for (uint16_t m = 0; m<num_filters; m++) {
+                for (uint16_t k = 0; k<wgt_channels; k++) {
+                    bit_counter += computeLaconicPE(act.get(n, k), wgt.get(m, k));
                 }
-                potentials[n] = 100 - ((double) bit_counter / (double) parallel_mult / 256. * 100);
-                bit_multiplications[n] = bit_counter;
             }
-        } else if (act.getDimensions() == 4) {
-
-            #ifdef OPENMP
-            auto max_threads = omp_get_max_threads();
-            omp_set_num_threads(max_threads);
-            #pragma omp parallel for private(n,bit_counter)
-            #endif
-            for (n = 0; n<batch_size; n++) {
-                bit_counter = 0;
-                for (uint16_t m = 0; m<num_filters; m++) {
-                    for (uint16_t k = 0; k<wgt_channels; k++) {
-                        int f_dim = k / (Nx * Ny);
-                        int rem = k % (Nx * Ny);
-                        int s_dim = rem / Ny;
-                        int t_dim = rem % Ny;
-                        bit_counter += computeLaconicPE(act.get(n,f_dim,s_dim,t_dim), wgt.get(m, k));
-                    }
-                }
-                potentials[n] = 100 - ((double) bit_counter / (double) parallel_mult / 256. * 100);
-                bit_multiplications[n] = bit_counter;
-            }
+            potentials[n] = 100 - ((double) bit_counter / (double) parallel_mult / 256. * 100);
+            bit_multiplications[n] = bit_counter;
         }
 
         auto avg_bit_multiplications = (uint64_t)accumulate(bit_multiplications.begin(), bit_multiplications.end(), 0.0)

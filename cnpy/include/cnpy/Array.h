@@ -49,6 +49,9 @@ namespace cnpy {
         /* Transform a 2D array into 4D to allow accessing it as 4D */
         void reshape_to_4D();
 
+        /* Transform a 4D array into 2D */
+        void reshape_to_2D();
+
         /*  Return the value inside the vector given the fourth dimensions
          * @param i     Index for the first dimension
          * @param j     Index for the second dimension

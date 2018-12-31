@@ -11,7 +11,7 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    uint8_t BitPragmatic<T>::computePragmaticPE(uint16_t act) {
+    uint8_t BitPragmatic<T>::computePragmaticBitsPE(uint16_t act) {
 
         uint16_t act_bits = act;
 
@@ -154,6 +154,60 @@ namespace core {
     }
 
     template <typename T>
+    void BitPragmatic<T>::computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
+
+        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+
+        cnpy::Array<T> act = layer.getActivations();
+        act.powers_of_two_representation();
+
+        const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &wgt_shape = layer.getWeights().getShape();
+
+        int batch_size = act_shape[0];
+        int act_channels = act_shape[1];
+        int Nx = act_shape[2];
+        int Ny = act_shape[3];
+
+        int num_filters = wgt_shape[0];
+
+        auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS);
+
+        // Stats
+        std::vector<uint32_t> cycles (batch_size,0);
+        uint32_t batch_cycles;
+
+        int n;
+
+        if(act.getDimensions() == 4) act.reshape_to_2D();
+        act.reshape_to_4D();
+        #ifdef OPENMP
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(max_threads);
+        #pragma omp parallel for private(n,batch_cycles)
+        #endif
+        for (n = 0; n<batch_size; n++) {
+            batch_cycles = 0;
+            for (uint16_t k = 0; k<act_channels; k += 16) {
+                batch_cycles += computePragmaticColumn(n,0,0,0,0,k,0,act,act_channels);
+            }
+            cycles[n] = batch_cycles*num_filters_sets;
+        }
+
+        //auto base_cycles = (uint32_t)(out_x * out_y * act_channels * Kx * Ky * num_filters_sets / 16);
+        auto avg_cycles = accumulate(cycles.begin(), cycles.end(), 0.0)/cycles.size();
+
+        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+
+        stats.time.push_back(time_span);
+        stats.PRA_cycles.push_back(cycles);
+        //stats.PRA_baseline_cycles.push_back(base_cycles);
+        stats.PRA_avg_cycles.push_back((uint32_t)avg_cycles);
+
+    }
+
+    template <typename T>
     void BitPragmatic<T>::run(const Network<T> &network) {
         // Initialize statistics
         sys::Statistics::Stats stats;
@@ -232,7 +286,8 @@ namespace core {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
                             for (int k = 0; k < act_channels; k ++) {
-                                bit_counter += computePragmaticPE(padded_act.get(n, k, stride * x + i,stride * y + j));
+                                bit_counter += computePragmaticBitsPE(
+                                        padded_act.get(n, k, stride * x + i,stride * y + j));
                             }
                         }
                     }
@@ -284,40 +339,19 @@ namespace core {
 
         int n;
 
-        if(act.getDimensions() == 2) {
-
-            #ifdef OPENMP
-            auto max_threads = omp_get_max_threads();
-            omp_set_num_threads(max_threads);
-            #pragma omp parallel for private(n,bit_counter)
-            #endif
-            for (n = 0; n<batch_size; n++) {
-                bit_counter = 0;
-                for (uint16_t k = 0; k<wgt_channels; k++) {
-                    bit_counter += computePragmaticPE(act.get(n, k));
-                }
-                potentials[n] = 100 - ((double)(bit_counter * num_filters) / (double) parallel_mult / 256. * 100);
-                bit_multiplications[n] = bit_counter * num_filters;
+        if(act.getDimensions() == 4) act.reshape_to_2D();
+        #ifdef OPENMP
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(max_threads);
+        #pragma omp parallel for private(n,bit_counter)
+        #endif
+        for (n = 0; n<batch_size; n++) {
+            bit_counter = 0;
+            for (uint16_t k = 0; k<wgt_channels; k++) {
+                bit_counter += computePragmaticBitsPE(act.get(n, k));
             }
-        } else if (act.getDimensions() == 4) {
-
-            #ifdef OPENMP
-            auto max_threads = omp_get_max_threads();
-            omp_set_num_threads(max_threads);
-            #pragma omp parallel for private(n,bit_counter)
-            #endif
-            for (n = 0; n<batch_size; n++) {
-                bit_counter = 0;
-                for (uint16_t k = 0; k<wgt_channels; k++) {
-                    int f_dim = k / (Nx * Ny);
-                    int rem = k % (Nx * Ny);
-                    int s_dim = rem / Ny;
-                    int t_dim = rem % Ny;
-                    bit_counter += computePragmaticPE(act.get(n,f_dim,s_dim,t_dim));
-                }
-                potentials[n] = 100 - ((double)(bit_counter * num_filters) / (double) parallel_mult / 256. * 100);
-                bit_multiplications[n] = bit_counter * num_filters;
-            }
+            potentials[n] = 100 - ((double)(bit_counter * num_filters) / (double) parallel_mult / 256. * 100);
+            bit_multiplications[n] = bit_counter * num_filters;
         }
 
         auto avg_bit_multiplications = (uint64_t)accumulate(bit_multiplications.begin(), bit_multiplications.end(), 0.0)
