@@ -20,13 +20,16 @@ THE SOFTWARE.
 #include <sys/common.h>
 #include <sys/cxxopts.h>
 #include <sys/Batch.h>
-#include <core/Network.h>
-#include <core/InferenceSimulator.h>
+
 #include <interface/NetReader.h>
 #include <interface/NetWriter.h>
+#include <interface/StatsWriter.h>
+
+#include <core/Network.h>
+#include <core/InferenceSimulator.h>
 #include <core/BitPragmatic.h>
 #include <core/Laconic.h>
-#include <interface/StatsWriter.h>
+#include <core/BitFusion.h>
 
 template <typename T>
 core::Network<T> read(const std::string &input_type, const std::string &network_name, bool activate_bias_and_out_act) {
@@ -155,6 +158,9 @@ int main(int argc, char *argv[]) {
                             core::Laconic<uint16_t> DNNsim;
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
+                        } else if (experiment.architecture == "BitFusion") {
+                            core::BitFusion<uint16_t> DNNsim;
+                            if(experiment.task == "Cycles") DNNsim.run(network);
                         }
                     }
                 }

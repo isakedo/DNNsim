@@ -87,8 +87,13 @@ namespace sys {
                     if(value  != "Cycles" && value != "Potentials")
                         throw std::runtime_error("Laconic simulation type for network " + simulate.network +
                                                  " must be <Cycles|Potentials>.");
+                } else if (experiment_proto.architecture() == "BitFusion") {
+                    value = experiment_proto.task();
+                    if(value  != "Cycles")
+                        throw std::runtime_error("BitFusion simulation type for network " + simulate.network +
+                                                 " must be <Cycles>.");
                 } else throw std::runtime_error("Architecture for network " + simulate.network +
-                                                " in Fixed16 must be <BitPragmatic|Laconic>.");
+                                                " in Fixed16 must be <BitPragmatic|Laconic|BitFusion>.");
                 experiment.architecture = experiment_proto.architecture();
                 experiment.task = experiment_proto.task();
                 simulate.experiments.emplace_back(experiment);
