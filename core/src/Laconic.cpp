@@ -278,8 +278,6 @@ namespace core {
         int batch_size = act_shape[0];
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
-        int Nx = act_shape[2];
-        int Ny = act_shape[3];
 
         // Operations
         const auto parallel_mult = (uint64_t)num_filters * wgt_channels;
