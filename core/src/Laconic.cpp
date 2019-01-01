@@ -40,6 +40,30 @@ namespace core {
         return bit_multiplications;
     }
 
+
+    template <typename T>
+    uint8_t Laconic<T>::computeLaconicColumn(int batch, int act_x, int act_y, int kernel_x, int kernel_y,
+            int init_channel, int init_filter, int stride, const cnpy::Array<T> &padded_act,
+            const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter) {
+
+        //Get the slowest PE
+        std::vector<uint8_t> cycles;
+        for (int filter = init_filter; filter < std::min(init_filter + N_ROWS, max_filter); filter++) {
+            for(int channel = init_channel; channel < std::min(init_channel + 16,max_channel); channel++) {
+
+                auto act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x,
+                        stride * act_y + kernel_y);
+                auto wgt_bits = wgt.get(filter, channel - start_group, kernel_x, kernel_y);
+
+                uint8_t PE_cycles = computeLaconicPE(act_bits, wgt_bits);
+                cycles.push_back(PE_cycles);
+            }
+        }
+
+        return *std::max_element(cycles.begin(), cycles.end());
+
+    }
+
     template <typename T>
     uint8_t Laconic<T>::computeLaconicTile(int batch, std::vector<int> &list_act_x, std::vector<int> &list_act_y,
             int kernel_x, int kernel_y, int init_channel, int init_filter, int stride, const cnpy::Array<T> &padded_act,
@@ -48,17 +72,9 @@ namespace core {
         //Get the slowest PE
         std::vector<uint8_t> cycles;
         for(int window = 0; window < list_act_x.size(); window++) {
-            for (int filter = init_filter; filter < std::min(init_filter + N_ROWS, max_filter); filter++) {
-                for(int channel = init_channel; channel < std::min(init_channel + 16,max_channel); channel++) {
-
-                        auto act_bits = padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
-                                stride * list_act_y[window] + kernel_y);
-                        auto wgt_bits = wgt.get(filter, channel - start_group, kernel_x, kernel_y);
-
-                        uint8_t PE_cycles = computeLaconicPE(act_bits, wgt_bits);
-                        cycles.push_back(PE_cycles);
-                }
-            }
+            uint8_t PE_cycles = computeLaconicColumn(batch,list_act_x[window],list_act_y[window],kernel_x,kernel_y,
+                    init_channel,init_filter,stride,padded_act,wgt,start_group,max_channel,max_filter);
+            cycles.push_back(PE_cycles);
         }
 
         return *std::max_element(cycles.begin(), cycles.end());
@@ -150,6 +166,58 @@ namespace core {
     }
 
     template <typename T>
+    void Laconic<T>::computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
+
+        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+
+        cnpy::Array<T> act = layer.getActivations();
+        act.powers_of_two_representation();
+        if(act.getDimensions() == 4) act.reshape_to_2D();
+        act.reshape_to_4D();
+        cnpy::Array<T> wgt = layer.getWeights();
+        wgt.powers_of_two_representation();
+        wgt.reshape_to_4D();
+
+        const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+        int batch_size = act_shape[0];
+        int num_filters = wgt_shape[0];
+        int wgt_channels = wgt_shape[1];
+
+        // Stats
+        std::vector<uint32_t> cycles (batch_size,0);
+        uint32_t batch_cycles;
+
+        int n;
+
+        #ifdef OPENMP
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(max_threads);
+        #pragma omp parallel for private(n,batch_cycles)
+        #endif
+        for (n = 0; n<batch_size; n++) {
+            batch_cycles = 0;
+            for (uint16_t m = 0; m<num_filters; m+=N_ROWS) {
+                for (uint16_t k = 0; k<wgt_channels; k+=16) {
+                    batch_cycles += computeLaconicColumn(n,0,0,0,0,k,m,0,act,wgt,0,wgt_channels,num_filters);
+                }
+            }
+            cycles[n] = batch_cycles;
+        }
+
+        auto avg_cycles = accumulate(cycles.begin(), cycles.end(), 0.0)/cycles.size();
+
+        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+
+        stats.time.push_back(time_span);
+        stats.LAC_cycles.push_back(cycles);
+        stats.LAC_avg_cycles.push_back((uint32_t)avg_cycles);
+
+    }
+
+    template <typename T>
     void Laconic<T>::run(const Network<T> &network) {
         // Initialize statistics
         sys::Statistics::Stats stats;
@@ -163,6 +231,9 @@ namespace core {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
                 computeConvolution(layer, stats);
+            } else if(layer.getType() == "InnerProduct") {
+                stats.layers.push_back(layer.getName());
+                computeInnerProduct(layer, stats);
             }
         }
 

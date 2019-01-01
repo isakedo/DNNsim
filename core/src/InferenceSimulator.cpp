@@ -41,7 +41,6 @@ namespace core {
         // Initialize variables
         std::vector<size_t> output_shape;
         std::vector<T> output_activations;
-        T sum;
 
         // Convolution
         for(int n=0; n<batch_size; n++) {
@@ -49,7 +48,7 @@ namespace core {
             for(int m=0; m<num_filters; m++) {
                 for(int x=0; x<out_x; x++) {
                     for(int y=0; y<out_y; y++) {
-                        sum = bias.get((unsigned)m);
+                        T sum = bias.get((unsigned)m);
                         for (int i = 0; i < Kx; i++) {
                             for (int j = 0; j < Ky; j++) {
                                 for (int k = start_group; k < wgt_channels + start_group; k++) {
