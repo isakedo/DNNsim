@@ -198,8 +198,8 @@ namespace core {
         #endif
         for (n = 0; n<batch_size; n++) {
             batch_cycles = 0;
-            for (uint16_t m = 0; m<num_filters; m+=N_ROWS) {
-                for (uint16_t k = 0; k<wgt_channels; k+=16) {
+            for (int m = 0; m<num_filters; m+=N_ROWS) {
+                for (int k = 0; k<wgt_channels; k+=16) {
                     batch_cycles += computeLaconicColumn(n,0,0,0,0,k,m,0,act,wgt,0,wgt_channels,num_filters);
                 }
             }
@@ -366,8 +366,8 @@ namespace core {
         #endif
         for (n = 0; n<batch_size; n++) {
             bit_counter = 0;
-            for (uint16_t m = 0; m<num_filters; m++) {
-                for (uint16_t k = 0; k<wgt_channels; k++) {
+            for (int m = 0; m<num_filters; m++) {
+                for (int k = 0; k<wgt_channels; k++) {
                     bit_counter += computeLaconicPE(act.get(n, k), wgt.get(m, k));
                 }
             }

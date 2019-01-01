@@ -40,15 +40,24 @@ namespace core {
 
         // Initialize variables
         std::vector<size_t> output_shape;
-        std::vector<T> output_activations;
+        long offset = out_x*out_y*num_filters;
+        std::vector<T> output_activations ((unsigned)(batch_size*offset), 0);
+        int current_group = 0, group_m =0, start_group = 0;
+        T sum;
+        int n;
 
         // Convolution
-        for(int n=0; n<batch_size; n++) {
-            int current_group = 0, group_m = 0, start_group = 0;
+        #ifdef OPENMP
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(max_threads);
+        #pragma omp parallel for private(n,current_group,group_m,start_group,sum)
+        #endif
+        for(n=0; n<batch_size; n++) {
+            current_group = 0; group_m = 0; start_group = 0;
             for(int m=0; m<num_filters; m++) {
                 for(int x=0; x<out_x; x++) {
                     for(int y=0; y<out_y; y++) {
-                        T sum = bias.get((unsigned)m);
+                        sum = bias.get((unsigned)m);
                         for (int i = 0; i < Kx; i++) {
                             for (int j = 0; j < Ky; j++) {
                                 for (int k = start_group; k < wgt_channels + start_group; k++) {
@@ -59,7 +68,8 @@ namespace core {
                             }
                         }
                         if (has_ReLu) sum = ReLU(sum);
-                        output_activations.push_back(sum);
+                        auto pos = m*out_x*out_y + x*out_y + y;
+                        output_activations[offset*n+pos] = sum;
                     }
                 }
                 group_m++;
@@ -93,16 +103,24 @@ namespace core {
         int wgt_channels = wgt_shape[1];
 
         std::vector<size_t> output_shape;
-        std::vector<T> output_activations;
+        std::vector<T> output_activations ((unsigned)(batch_size*num_filters), 0);
 
-        for (uint16_t n = 0; n<batch_size; n++) {
-            for (uint16_t m = 0; m<num_filters; m++) {
-                T sum = bias.get(m);
-                for (uint16_t k = 0; k<wgt_channels; k++) {
+        T sum;
+        int n;
+
+        #ifdef OPENMP
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(max_threads);
+        #pragma omp parallel for private(n,sum)
+        #endif
+        for (n = 0; n<batch_size; n++) {
+            for (int m = 0; m<num_filters; m++) {
+                sum = bias.get((unsigned)m);
+                for (int k = 0; k<wgt_channels; k++) {
                     sum += act.get(n, k) * wgt.get(m, k);
                 }
                 if (has_ReLu) sum = ReLU(sum);
-                output_activations.push_back(sum);
+                output_activations[n*num_filters + m] = sum;
             }
         }
 

@@ -187,7 +187,7 @@ namespace core {
         #endif
         for (n = 0; n<batch_size; n++) {
             batch_cycles = 0;
-            for (uint16_t k = 0; k<act_channels; k += 16) {
+            for (int k = 0; k<act_channels; k += 16) {
                 batch_cycles += computePragmaticColumn(n,0,0,0,0,k,0,act,act_channels);
             }
             cycles[n] = batch_cycles*num_filters_sets;
@@ -347,7 +347,7 @@ namespace core {
         #endif
         for (n = 0; n<batch_size; n++) {
             bit_counter = 0;
-            for (uint16_t k = 0; k<wgt_channels; k++) {
+            for (int k = 0; k<wgt_channels; k++) {
                 bit_counter += computePragmaticBitsPE(act.get(n, k));
             }
             potentials[n] = 100 - ((double)(bit_counter * num_filters) / (double) parallel_mult / 256. * 100);
