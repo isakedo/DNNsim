@@ -10,9 +10,10 @@ namespace core {
     template <typename T>
     void InferenceSimulator<T>::computeConvolution(const core::Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
 
-        cnpy::Array<T> wgt = layer.getWeights();
-        const cnpy::Array<T> &bias = layer.getBias();
         const cnpy::Array<T> &act = layer.getActivations();
+        cnpy::Array<T> wgt = layer.getWeights();
+        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+        const cnpy::Array<T> &bias = layer.getBias();
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
@@ -43,13 +44,12 @@ namespace core {
         T sum;
 
         // Convolution
-        if(wgt.getDimensions() == 2) wgt.reshape_to_4D(); //Necessary in the case that the data is in 2D but should be 4
         for(int n=0; n<batch_size; n++) {
             int current_group = 0, group_m = 0, start_group = 0;
             for(int m=0; m<num_filters; m++) {
                 for(int x=0; x<out_x; x++) {
                     for(int y=0; y<out_y; y++) {
-                        sum = bias.get(m);
+                        sum = bias.get((unsigned)m);
                         for (int i = 0; i < Kx; i++) {
                             for (int j = 0; j < Ky; j++) {
                                 for (int k = start_group; k < wgt_channels + start_group; k++) {
@@ -81,8 +81,9 @@ namespace core {
     template <typename T>
     void InferenceSimulator<T>::computeInnerProduct(const Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
 
-        const cnpy::Array<T> &wgt = layer.getWeights();
         cnpy::Array<T> act = layer.getActivations();
+        if(act.getDimensions() == 4) act.reshape_to_2D();
+        const cnpy::Array<T> &wgt = layer.getWeights();
         const cnpy::Array<T> &bias = layer.getBias();
 
         const std::vector<size_t> &act_shape = act.getShape();
@@ -95,7 +96,6 @@ namespace core {
         std::vector<size_t> output_shape;
         std::vector<T> output_activations;
 
-        if(act.getDimensions() == 4) act.reshape_to_2D();
         for (uint16_t n = 0; n<batch_size; n++) {
             for (uint16_t m = 0; m<num_filters; m++) {
                 T sum = bias.get(m);

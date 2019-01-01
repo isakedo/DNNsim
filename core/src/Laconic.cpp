@@ -72,10 +72,11 @@ namespace core {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
-        cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
         cnpy::Array<T> act = layer.getActivations();
         act.powers_of_two_representation();
+        cnpy::Array<T> wgt = layer.getWeights();
+        wgt.powers_of_two_representation();
+        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
@@ -109,7 +110,6 @@ namespace core {
         int n;
 
         // Convolution
-        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
@@ -177,10 +177,11 @@ namespace core {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
-        cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
         cnpy::Array<T> act = layer.getActivations();
         act.powers_of_two_representation();
+        cnpy::Array<T> wgt = layer.getWeights();
+        wgt.powers_of_two_representation();
+        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
@@ -215,7 +216,6 @@ namespace core {
         int n;
 
         // Convolution
-        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
@@ -267,10 +267,11 @@ namespace core {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
-        cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
         cnpy::Array<T> act = layer.getActivations();
         act.powers_of_two_representation();
+        if(act.getDimensions() == 4) act.reshape_to_2D();
+        cnpy::Array<T> wgt = layer.getWeights();
+        wgt.powers_of_two_representation();
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
@@ -287,7 +288,6 @@ namespace core {
 
         int n;
 
-        if(act.getDimensions() == 4) act.reshape_to_2D();
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);

@@ -89,9 +89,11 @@ namespace core {
 
         cnpy::Array<T> act = layer.getActivations();
         act.powers_of_two_representation();
+        cnpy::Array<T> wgt = layer.getWeights();
+        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
         std::vector<size_t> act_shape = act.getShape();
-        std::vector<size_t> wgt_shape = layer.getWeights().getShape();
+        std::vector<size_t> wgt_shape = wgt.getShape();
 
         int batch_size = act_shape[0];
         int act_channels = act_shape[1];
@@ -160,6 +162,8 @@ namespace core {
 
         cnpy::Array<T> act = layer.getActivations();
         act.powers_of_two_representation();
+        if(act.getDimensions() == 4) act.reshape_to_2D();
+        act.reshape_to_4D();
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = layer.getWeights().getShape();
@@ -176,8 +180,6 @@ namespace core {
 
         int n;
 
-        if(act.getDimensions() == 4) act.reshape_to_2D();
-        act.reshape_to_4D();
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
@@ -191,7 +193,7 @@ namespace core {
             cycles[n] = batch_cycles*num_filters_sets;
         }
 
-        //auto base_cycles = (uint32_t)(out_x * out_y * act_channels * Kx * Ky * num_filters_sets / 16);
+        auto base_cycles = (uint32_t)(act_channels * num_filters_sets / 16);
         auto avg_cycles = accumulate(cycles.begin(), cycles.end(), 0.0)/cycles.size();
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
@@ -199,7 +201,7 @@ namespace core {
 
         stats.time.push_back(time_span);
         stats.PRA_cycles.push_back(cycles);
-        //stats.PRA_baseline_cycles.push_back(base_cycles);
+        stats.PRA_baseline_cycles.push_back(base_cycles);
         stats.PRA_avg_cycles.push_back((uint32_t)avg_cycles);
 
     }
@@ -218,6 +220,9 @@ namespace core {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
                 computeConvolution(layer, stats);
+            } else if (layer.getType() == "InnerProduct") {
+                stats.layers.push_back(layer.getName());
+                computeInnerProduct(layer,stats);
             }
         }
 
@@ -233,10 +238,11 @@ namespace core {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
-        cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
         cnpy::Array<T> act = layer.getActivations();
         act.powers_of_two_representation();
+        cnpy::Array<T> wgt = layer.getWeights();
+        wgt.powers_of_two_representation();
+        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
@@ -270,7 +276,6 @@ namespace core {
         int n;
 
         // Convolution
-        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
@@ -314,10 +319,11 @@ namespace core {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
-        cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
         cnpy::Array<T> act = layer.getActivations();
         act.powers_of_two_representation();
+        if(act.getDimensions() == 4) act.reshape_to_2D();
+        cnpy::Array<T> wgt = layer.getWeights();
+        wgt.powers_of_two_representation();
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
@@ -334,7 +340,6 @@ namespace core {
 
         int n;
 
-        if(act.getDimensions() == 4) act.reshape_to_2D();
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
