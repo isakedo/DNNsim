@@ -280,7 +280,8 @@ namespace core {
         // Operations
         const auto parallel_mult = (uint64_t)(num_filters * out_x * out_y * Kx * Ky * wgt_channels);
         std::vector<uint64_t> bit_multiplications (batch_size,0);
-        std::vector<double> potentials (batch_size,0);
+        std::vector<double> work_reduction (batch_size,0);
+        std::vector<double> speedup (batch_size,0);
         uint64_t bit_counter = 0;
 
         int current_group = 0, group_m =0, start_group = 0;
@@ -314,20 +315,24 @@ namespace core {
                     start_group = wgt_channels*current_group;
                 }
             }
-            potentials[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
+            work_reduction[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
+            speedup[n] = (double)parallel_mult * 256. / (double)bit_counter;
             bit_multiplications[n] = bit_counter;
         }
 
         auto avg_bit_multiplications = (uint64_t)accumulate(bit_multiplications.begin(), bit_multiplications.end(), 0.0)
                 / bit_multiplications.size();
-        auto avg_potentials = accumulate(potentials.begin(), potentials.end(), 0.0) / potentials.size();
+        auto avg_work_reduction = accumulate(work_reduction.begin(), work_reduction.end(), 0.0) / work_reduction.size();
+        auto avg_speedup = accumulate(speedup.begin(), speedup.end(), 0.0) / speedup.size();
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
         stats.time.push_back(time_span);
-        stats.potentials.push_back(potentials);
-        stats.avg_potentials.push_back(avg_potentials);
+        stats.work_reduction.push_back(work_reduction);
+        stats.avg_work_reduction.push_back(avg_work_reduction);
+        stats.speedup.push_back(speedup);
+        stats.avg_speedup.push_back(avg_speedup);
         stats.parallel_multiplications.push_back(parallel_mult);
         stats.bit_multiplications.push_back(bit_multiplications);
         stats.avg_bit_multiplications.push_back(avg_bit_multiplications);
@@ -354,7 +359,8 @@ namespace core {
         // Operations
         const auto parallel_mult = (uint64_t)num_filters * wgt_channels;
         std::vector<uint64_t> bit_multiplications (batch_size,0);
-        std::vector<double> potentials (batch_size,0);
+        std::vector<double> work_reduction (batch_size,0);
+        std::vector<double> speedup (batch_size,0);
         uint64_t bit_counter = 0;
 
         int n;
@@ -371,20 +377,24 @@ namespace core {
                     bit_counter += computeLaconicPE(act.get(n, k), wgt.get(m, k));
                 }
             }
-            potentials[n] = 100 - ((double) bit_counter / (double) parallel_mult / 256. * 100);
+            work_reduction[n] = 100 - ((double) bit_counter / (double) parallel_mult / 256. * 100);
+            speedup[n] = (double)parallel_mult * 256. / (double)bit_counter;
             bit_multiplications[n] = bit_counter;
         }
 
         auto avg_bit_multiplications = (uint64_t)accumulate(bit_multiplications.begin(), bit_multiplications.end(), 0.0)
                 / bit_multiplications.size();
-        auto avg_potentials = accumulate(potentials.begin(), potentials.end(), 0.0) / potentials.size();
+        auto avg_work_reduction = accumulate(work_reduction.begin(), work_reduction.end(), 0.0) / work_reduction.size();
+        auto avg_speedup = accumulate(speedup.begin(), speedup.end(), 0.0) / speedup.size();
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
         stats.time.push_back(time_span);
-        stats.potentials.push_back(potentials);
-        stats.avg_potentials.push_back(avg_potentials);
+        stats.work_reduction.push_back(work_reduction);
+        stats.avg_work_reduction.push_back(avg_work_reduction);
+        stats.speedup.push_back(speedup);
+        stats.avg_speedup.push_back(avg_speedup);
         stats.parallel_multiplications.push_back(parallel_mult);
         stats.bit_multiplications.push_back(bit_multiplications);
         stats.avg_bit_multiplications.push_back(avg_bit_multiplications);

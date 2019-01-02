@@ -43,8 +43,10 @@ namespace sys {
             std::vector<uint32_t> LAC_avg_cycles;
 
             /* Stats for potentials */
-            std::vector<std::vector<double>> potentials;
-            std::vector<double> avg_potentials;
+            std::vector<std::vector<double>> work_reduction;
+            std::vector<double> avg_work_reduction;
+            std::vector<std::vector<double>> speedup;
+            std::vector<double> avg_speedup;
             std::vector<std::vector<uint64_t>> bit_multiplications;
             std::vector<uint64_t> avg_bit_multiplications;
             std::vector<uint64_t> parallel_multiplications;
