@@ -16,6 +16,12 @@ namespace core {
          */
         uint8_t computePragmaticBitsPE(uint16_t act);
 
+        /* Compute number of cycles for a two stage shift pragmatic PE
+         * @param offsets   Explicit position for the ones for all the values
+         * @return          Number of cycles
+         */
+        uint8_t computePragmaticPE(const std::vector<std::queue<uint8_t>> &offsets);
+
         /* Compute cycles for one column of pragmatic
          * @param batch         Current number of batch
          * @param act_x         X position in the input activations

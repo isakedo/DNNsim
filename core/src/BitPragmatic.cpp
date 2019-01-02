@@ -3,6 +3,7 @@
 
 #define N_COLUMNS 16
 #define N_ROWS 16
+#define BITS_FIRST_STAGE 2
 #define ZERO_COUNT
 #define BOOTH_ENCODING
 
@@ -33,34 +34,73 @@ namespace core {
         return bit_multiplications;
     }
 
+    bool check_act_bits(const std::vector<std::queue<uint8_t>> &offsets) {
+        for (const auto &act_bits : offsets) {
+            if (!act_bits.empty()) return true;
+        }
+        return false;
+    }
+
+    template <typename T>
+    uint8_t BitPragmatic<T>::computePragmaticPE(const std::vector<std::queue<uint8_t>> &offsets) {
+
+        // Two stages shifting
+        uint8_t PE_cycles = 0;
+        auto tmp_offsets = offsets;
+        uint8_t max_offset_first_stage = (1 << BITS_FIRST_STAGE) - 1;
+
+        bool still_ones = check_act_bits(tmp_offsets);
+        while (still_ones) {
+
+            // Get the offset for the second stage shift
+            std::vector<uint8_t> last_bit;
+            for (const auto &act_bits : tmp_offsets) {
+                if(!act_bits.empty()) last_bit.push_back(act_bits.front());
+            }
+            // Must be one to enter the while loop
+            uint8_t two_stage_offset = *std::min_element(last_bit.begin(), last_bit.end());
+            auto max_offset = two_stage_offset + max_offset_first_stage;
+
+            //Update values
+            for (auto &act_bits : tmp_offsets) {
+                if(!act_bits.empty() && act_bits.front() < max_offset) act_bits.pop();
+            }
+
+            PE_cycles++;
+            still_ones = check_act_bits(tmp_offsets);
+        }
+
+        #ifdef ZERO_COUNT
+        if(PE_cycles == 0) PE_cycles = 1;
+        #endif
+
+        return PE_cycles;
+    }
+
     template <typename T>
     uint8_t BitPragmatic<T>::computePragmaticColumn(int batch, int act_x, int act_y, int kernel_x, int kernel_y,
             int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel) {
 
-        //Get the slowest neuron in the column
-        std::vector<uint8_t> cycles;
+        std::vector<std::queue<uint8_t>> offsets;
         for(int channel = init_channel; channel < std::min(init_channel + 16,max_channel); channel++) {
-
             uint16_t act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
             #ifdef BOOTH_ENCODING
-                act_bits = this->booth_encoding(act_bits);
+            act_bits = this->booth_encoding(act_bits);
             #endif
 
-            uint8_t PE_cycles = 0;
+            uint8_t count = 0;
+            std::queue<uint8_t> act_offsets;
             while (act_bits) {
-                PE_cycles += act_bits & 1;
+                auto current_bit = act_bits & 1;
+                if(current_bit) act_offsets.push(count);
                 act_bits >>= 1;
+                count++;
             }
 
-            #ifdef ZERO_COUNT
-            if(PE_cycles == 0) PE_cycles = 1;
-            #endif
-
-            cycles.push_back(PE_cycles);
-
+            offsets.push_back(act_offsets);
         }
 
-        return *std::max_element(cycles.begin(), cycles.end());
+        return computePragmaticPE(offsets);
 
     }
 
@@ -214,7 +254,8 @@ namespace core {
 
         stats.task_name = "cycles";
         stats.net_name = network.getName();
-        stats.arch = "BitPragmatic_" + std::to_string(N_COLUMNS) + "_" + std::to_string(N_ROWS);
+        stats.arch = "BitPragmatic_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_B" +
+                std::to_string(BITS_FIRST_STAGE);
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {

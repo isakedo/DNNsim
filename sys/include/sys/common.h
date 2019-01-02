@@ -3,6 +3,7 @@
 
 #include <cstdlib>
 #include <vector>
+#include <queue>
 #include <string>
 #include <cmath>
 #include <memory>
