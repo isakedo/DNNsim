@@ -16,8 +16,8 @@
 	<experiment {
 		architecture: <BitPragmatic|Laconic>
 		task: <Cycles|MemAccesses|Potentials>
-		[n_columns: <pos_num>]
-		[n_rows: <pos_num>]
-		[bits_first_stage: <pos_num>] //Only for BitPragmatic
+		[n_columns: <pos_num>] // Default 16
+		[n_rows: <pos_num>] //Default PRA 16, LAC 8
+		[bits_first_stage: <pos_num>] //Only for BitPragmatic: Default 0
 	}>
 }>
