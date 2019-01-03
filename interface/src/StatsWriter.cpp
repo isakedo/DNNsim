@@ -11,12 +11,12 @@ namespace interface {
     }
 
     void dump_csv_BitPragmatic_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,cycles,baseline_cycles,time(s)" << std::endl;
+        o_file << "layer,n_act,cycles,baseline_cycles,speedup,time(s)" << std::endl;
         for (int j = 0; j < stats.PRA_cycles.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%u,%u,0\n", stats.layers[i].c_str(), j, stats.PRA_cycles[i][j],
-                        stats.PRA_baseline_cycles[i]);
+                snprintf(line, sizeof(line), "%s,%d,%u,%u,%.2f,0\n", stats.layers[i].c_str(), j, stats.PRA_cycles[i][j],
+                        stats.PRA_baseline_cycles[i], (double)stats.PRA_baseline_cycles[i]/stats.PRA_cycles[i][j]);
                 o_file << line;
             }
         }
@@ -24,16 +24,17 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%u,%u,%f\n", stats.layers[i].c_str(), stats.PRA_avg_cycles[i],
-                     stats.PRA_baseline_cycles[i], stats.time[i].count());
+            snprintf(line, sizeof(line), "%s,AVG,%u,%u,%.2f,%.2f\n", stats.layers[i].c_str(), stats.PRA_avg_cycles[i],
+                     stats.PRA_baseline_cycles[i], (double)stats.PRA_baseline_cycles[i]/stats.PRA_avg_cycles[i],
+                     stats.time[i].count());
             o_file << line;
         }
         auto total_cycles = accumulate(stats.PRA_avg_cycles.begin(), stats.PRA_avg_cycles.end(), 0.0);
         auto total_baseline_cycles = accumulate(stats.PRA_baseline_cycles.begin(),
                 stats.PRA_baseline_cycles.end(), 0.0);
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%u,%u,%f\n", (uint32_t)total_cycles,
-                 (uint32_t)total_baseline_cycles,total_time);
+        snprintf(line, sizeof(line), "TOTAL,AVG,%u,%u,%.2f,%.2f\n", (uint32_t)total_cycles,
+                 (uint32_t)total_baseline_cycles,total_baseline_cycles/total_cycles,total_time);
         o_file << line;
     }
 
@@ -50,14 +51,14 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%u,%f\n", stats.layers[i].c_str(), stats.LAC_avg_cycles[i],
+            snprintf(line, sizeof(line), "%s,AVG,%u,%.2f\n", stats.layers[i].c_str(), stats.LAC_avg_cycles[i],
                      stats.time[i].count());
             o_file << line;
         }
         auto total_cycles = accumulate(stats.LAC_avg_cycles.begin(), stats.LAC_avg_cycles.end(), 0.0);
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%u,%f\n", (uint32_t)total_cycles, total_time);
+        snprintf(line, sizeof(line), "TOTAL,AVG,%u,%.2f\n", (uint32_t)total_cycles, total_time);
         o_file << line;
     }
 

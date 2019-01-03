@@ -223,7 +223,7 @@ namespace core {
 
         stats.task_name = "cycles";
         stats.net_name = network.getName();
-        stats.arch = "Laconic_" + std::to_string(N_COLUMNS) + "_" + std::to_string(N_ROWS);
+        stats.arch = "Laconic_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS);
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
