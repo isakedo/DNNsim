@@ -16,5 +16,8 @@
 	<experiment {
 		architecture: <BitPragmatic|Laconic>
 		task: <Cycles|MemAccesses|Potentials>
+		[n_columns: <pos_num>]
+		[n_rows: <pos_num>]
+		[bits_first_stage: <pos_num>] //Only for BitPragmatic
 	}>
 }>

@@ -3,8 +3,14 @@ simulate {
 	inputType: "Protobuf"
 	inputDataType: "Fixed16"
 	experiment {
-        architecture: "BitPragmatic"
-        task: "MemAccesses"
+        architecture: "Laconic"
+        task: "Cycles"
+        n_columns: 16
+        n_rows: 8
+	}
+	experiment {
+	    architecture: "BitPragmatic"
+	    task: "Potentials"
 	}
     experiment {
         architecture: "Laconic"
@@ -18,10 +24,21 @@ simulate {
 	inputDataType: "Fixed16"
 	experiment {
         architecture: "BitPragmatic"
-        task: "MemAccesses"
+        task: "Cycles"
+        n_columns: 16
+        n_rows: 16
+        bits_first_stage: 2
 	}
     experiment {
-        architecture: "Laconic"
-        task: "Potentials"
+        architecture: "BitPragmatic"
+        task: "Cycles"
+        n_columns: 16
+        n_rows: 256
 	}
+	experiment {
+        architecture: "BitPragmatic"
+        task: "MemAccesses"
+        n_columns: 16
+        n_rows: 16
+    }
 }

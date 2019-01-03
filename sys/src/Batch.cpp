@@ -28,7 +28,7 @@ namespace sys {
         value = transform_proto.inputdatatype();
         if(value  != "Float32" && value != "Fixed16")
             throw std::runtime_error("Input data type configuration for network " + transform.network +
-                " must be <Float32|Fixed16.");
+                " must be <Float32|Fixed16>.");
         else
             transform.inputDataType = transform_proto.inputdatatype();
 
@@ -42,7 +42,7 @@ namespace sys {
         value = transform_proto.outputdatatype();
         if(value  != "Float32" && value != "Fixed16")
             throw std::runtime_error("Output data type configuration for network " + transform.network +
-                                     " must be <Float32|Fixed16.");
+                                     " must be <Float32|Fixed16>.");
         else {
             // Only allow conversion from float32 to fixed16
             std::string data_conversion = transform_proto.inputdatatype() == "Float32" &&
@@ -70,7 +70,7 @@ namespace sys {
         value = simulate_proto.inputdatatype();
         if(value  != "Float32" && value != "Fixed16")
             throw std::runtime_error("Input data type configuration for network " + simulate.network +
-                                     " must be <Float32|Fixed16.");
+                                     " must be <Float32|Fixed16>.");
         else
             simulate.inputDataType = simulate_proto.inputdatatype();
 
@@ -82,16 +82,25 @@ namespace sys {
                     if(value  != "Cycles" && value != "MemAccesses" && value != "Potentials")
                         throw std::runtime_error("BitPragmatic simulation type for network " + simulate.network +
                                                  " must be <Cycles|Potentials|MemAccesses>.");
+                    experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
+                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+                    experiment.bits_first_stage = experiment_proto.bits_first_stage() < 1 ? 2 :
+                            experiment_proto.bits_first_stage();
+
                 } else if (experiment_proto.architecture() == "Laconic") {
                     value = experiment_proto.task();
                     if(value  != "Cycles" && value != "Potentials")
                         throw std::runtime_error("Laconic simulation type for network " + simulate.network +
                                                  " must be <Cycles|Potentials>.");
+                    experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
+                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 8 : experiment_proto.n_rows();
+
                 } else if (experiment_proto.architecture() == "BitFusion") {
                     value = experiment_proto.task();
                     if(value  != "Cycles")
                         throw std::runtime_error("BitFusion simulation type for network " + simulate.network +
                                                  " must be <Cycles>.");
+
                 } else throw std::runtime_error("Architecture for network " + simulate.network +
                                                 " in Fixed16 must be <BitPragmatic|Laconic|BitFusion>.");
                 experiment.architecture = experiment_proto.architecture();

@@ -19,6 +19,13 @@ message Batch {
         message Experiment {
             string architecture = 1;
             string task = 2;
+
+            // For grid accelerators
+            uint32 n_columns = 3;
+            uint32 n_rows = 4;
+
+            // For pragmatic
+            uint32 bits_first_stage = 5;
         }
 
         string inputType = 1;

@@ -11,7 +11,7 @@ namespace sys {
 
     class Batch {
 
-    public:
+    private:
 
         /* Struct for the Transform instructions */
         struct Transform {
@@ -29,6 +29,9 @@ namespace sys {
             struct Experiment {
                 std::string architecture = "";
                 std::string task = "";
+                int n_columns = 0;
+                int n_rows = 0;
+                int bits_first_stage = 0;
             };
 
             std::string inputType = ""; // Protobuf/Gzip
@@ -37,8 +40,6 @@ namespace sys {
             bool activate_bias_out_act = false;
             std::vector<Experiment> experiments;
         };
-
-    private:
 
         /* Path to the batch file */
         std::string path;

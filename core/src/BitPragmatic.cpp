@@ -456,7 +456,7 @@ namespace core {
 
         stats.task_name = "mem_accesses";
         stats.net_name = network.getName();
-        stats.arch = "BitPragmatic";
+        stats.arch = "BitPragmatic_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS);
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
@@ -484,8 +484,8 @@ namespace core {
 
                 //Memory stats - 16 bits
                 int groups = act_channels / wgt_channels;
-                auto num_weights_sets = (uint32_t)ceil(num_filters/(double)N_ROWS)/groups; // Groups of 16 weights
-                auto num_activations_sets = (uint32_t)ceil(out_x*out_y/(double)N_COLUMNS); // Groups of 16 windows
+                auto num_weights_sets = (uint32_t)ceil(num_filters/(double)N_ROWS)/groups;
+                auto num_activations_sets = (uint32_t)ceil(out_x*out_y/(double)N_COLUMNS);
                 auto num_channel_sets = (uint32_t)ceil(wgt_channels/16.); // Groups of 16 channels
 
                 stats.layers.push_back(layer.getName());

@@ -150,12 +150,13 @@ int main(int argc, char *argv[]) {
                     network = read<uint16_t>(simulate.inputType, simulate.network, simulate.activate_bias_out_act);
                     for(const auto &experiment : simulate.experiments) {
                         if(experiment.architecture == "BitPragmatic") {
-                            core::BitPragmatic<uint16_t> DNNsim(16,16,2);
+                            core::BitPragmatic<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
+                                    experiment.bits_first_stage);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                             else if (experiment.task == "MemAccesses") DNNsim.memoryAccesses(network);
                         } else if (experiment.architecture == "Laconic") {
-                            core::Laconic<uint16_t> DNNsim(16,8);
+                            core::Laconic<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                         } else if (experiment.architecture == "BitFusion") {
