@@ -3,6 +3,7 @@
 
 #define ZERO_COUNT
 #define BOOTH_ENCODING
+#define TWO_REGISTERS_PER_SIP
 
 namespace core {
 
@@ -102,19 +103,29 @@ namespace core {
     }
 
     template <typename T>
-    uint8_t BitPragmatic<T>::computePragmaticTile(int batch, std::vector<int> &list_act_x, std::vector<int> &list_act_y,
+    void BitPragmatic<T>::computePragmaticTile(int batch, std::vector<int> &list_act_x, std::vector<int> &list_act_y,
             int kernel_x, int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act,
-            int max_channel) {
+            int max_channel, std::vector<uint32_t> &cycles_per_col, uint32_t &end_previous_pallet) {
 
-        //Get the slowest column
-        std::vector<uint8_t> cycles;
         for(int window = 0; window < list_act_x.size(); window++) {
             uint8_t column_cycles = computePragmaticColumn(batch, list_act_x[window], list_act_y[window], kernel_x,
                     kernel_y, init_channel, stride, padded_act, max_channel);
-            cycles.push_back(column_cycles);
+            cycles_per_col[window] += column_cycles;
         }
-        return *std::max_element(cycles.begin(), cycles.end());
 
+        #ifdef TWO_REGISTERS_PER_SIP
+        // Per-col synchronization assuming two registers per SIP
+        for(auto &column_cycles : cycles_per_col) {
+            if(column_cycles <= end_previous_pallet) {
+                column_cycles = end_previous_pallet + 1;
+            }
+        }
+        end_previous_pallet = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
+        #else
+        // Per-col synchronization assuming one register per SIP
+        auto slowest_column = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
+        cycles_per_col = std::vector<uint32_t>(N_COLUMNS,slowest_column);
+        #endif
     }
 
     /* CYCLES */
@@ -154,7 +165,8 @@ namespace core {
 
         // Stats
         std::vector<uint32_t> cycles (batch_size,0);
-        uint32_t batch_cycles;
+        std::vector<uint32_t> cycles_per_col;
+        uint32_t end_previous_pallet;
 
         std::vector<int> list_x, list_y;
         int n;
@@ -163,20 +175,22 @@ namespace core {
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
-        #pragma omp parallel for private(n,batch_cycles,list_x,list_y)
+        #pragma omp parallel for private(n,cycles_per_col,end_previous_pallet,list_x,list_y)
         #endif
         for(n=0; n<batch_size; n++) {
-            batch_cycles = 0;
+            end_previous_pallet = 0;
+            cycles_per_col = std::vector<uint32_t>(N_COLUMNS, 0);
             while(this->iterateWindows(out_x,out_y,list_x,list_y,N_COLUMNS)) {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
                         for (int k = 0; k < act_channels; k += 16) {
-                            batch_cycles += computePragmaticTile(n,list_x, list_y, i, j, k, stride, padded_act,
-                                    act_channels);
+                            computePragmaticTile(n,list_x, list_y, i, j, k, stride, padded_act, act_channels,
+                                    cycles_per_col, end_previous_pallet);
                         }
                     }
                 }
             }
+            auto batch_cycles = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
             cycles[n] = batch_cycles*num_filters_sets;
         }
 
