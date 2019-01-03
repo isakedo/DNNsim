@@ -10,6 +10,15 @@ namespace core {
 
     private:
 
+        /* Number of columns */
+        const int N_COLUMNS;
+
+        /* Number of rows */
+        const int N_ROWS;
+
+        /* Bits of the first stage in the two stages shifting */
+        const int BITS_FIRST_STAGE;
+
         /* Compute number of one bit multiplications given an activation
          * @param act       Activation
          * @return          Number of one bit multiplications
@@ -77,6 +86,14 @@ namespace core {
         void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
 
     public:
+
+        /* Constructor
+         * @param _N_COLUMNS            Number of columns
+         * @param _N_ROWS               Number of rows
+         * @param _BITS_FIRST_STAGE     Bits of the first stage in the two stages shifting
+         */
+        BitPragmatic(int _N_COLUMNS, int _N_ROWS, int _BITS_FIRST_STAGE) : N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS),
+            BITS_FIRST_STAGE(_BITS_FIRST_STAGE) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

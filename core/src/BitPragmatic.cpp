@@ -1,9 +1,6 @@
 
 #include <core/BitPragmatic.h>
 
-#define N_COLUMNS 16
-#define N_ROWS 16
-#define BITS_FIRST_STAGE 2
 #define ZERO_COUNT
 #define BOOTH_ENCODING
 
@@ -47,7 +44,7 @@ namespace core {
         // Two stages shifting
         uint8_t PE_cycles = 0;
         auto tmp_offsets = offsets;
-        uint8_t max_offset_first_stage = (1 << BITS_FIRST_STAGE) - 1;
+        auto max_offset_first_stage = (uint8_t)((1 << BITS_FIRST_STAGE) - 1);
 
         bool still_ones = check_act_bits(tmp_offsets);
         while (still_ones) {

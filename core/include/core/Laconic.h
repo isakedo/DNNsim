@@ -10,6 +10,12 @@ namespace core {
 
     private:
 
+        /* Number of columns */
+        const int N_COLUMNS;
+
+        /* Number of rows */
+        const int N_ROWS;
+
         /* Compute number of one bit multiplications given a weights and an activation
          * @param act       Activation
          * @param wgt       Weight
@@ -81,6 +87,12 @@ namespace core {
 
 
     public:
+
+        /* Constructor
+         * @param _N_COLUMNS            Number of columns
+         * @param _N_ROWS               Number of rows
+         */
+        Laconic(int _N_COLUMNS, int _N_ROWS) : N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

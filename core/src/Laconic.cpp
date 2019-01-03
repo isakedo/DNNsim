@@ -1,8 +1,6 @@
 
 #include <core/Laconic.h>
 
-#define N_COLUMNS 16
-#define N_ROWS 8
 #define ZERO_COUNT
 #define BOOTH_ENCODING
 
