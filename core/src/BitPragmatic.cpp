@@ -461,7 +461,6 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
 
-                // Simplify names getting their pointers
                 const cnpy::Array<T> &wgt = layer.getWeights();
                 const std::vector<size_t> &wgt_shape = wgt.getShape();
                 const cnpy::Array<T> &act = layer.getActivations();
@@ -484,20 +483,20 @@ namespace core {
 
                 //Memory stats - 16 bits
                 int groups = act_channels / wgt_channels;
-                auto num_weights_sets = (uint32_t)ceil(num_filters/(double)N_ROWS)/groups;
+                auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS)/groups;
                 auto num_activations_sets = (uint32_t)ceil(out_x*out_y/(double)N_COLUMNS);
-                auto num_channel_sets = (uint32_t)ceil(wgt_channels/16.); // Groups of 16 channels
+                auto num_channel_sets = (uint32_t)ceil(wgt_channels/16.);
 
                 stats.layers.push_back(layer.getName());
-                stats.on_chip_weights.push_back(num_weights_sets*num_activations_sets*num_channel_sets*Kx*Ky);
-                stats.on_chip_activations.push_back(num_weights_sets*num_activations_sets*num_channel_sets*Kx*Ky);
-                stats.off_chip_weights_sch3.push_back(1); // Filters per layer
-                stats.bits_weights.push_back((uint32_t)(num_filters*wgt_channels*Kx*Ky*16));
-                stats.off_chip_weights_sch4.push_back(num_weights_sets); // Working set of filters
-                stats.bits_working_weights.push_back((uint32_t)(16*wgt_channels*Kx*Ky*16));
-                stats.off_chip_activations.push_back((uint32_t)out_y); // One row of activations
-                stats.bits_one_activation_row.push_back((uint32_t)(Nx*Ky*act_channels*16));
-                stats.computations.push_back(num_weights_sets*num_activations_sets*num_channel_sets*Kx*Ky);
+                stats.on_chip_accesses_filters.push_back(num_filters_sets*num_activations_sets*num_channel_sets*Kx*Ky);
+                stats.on_chip_accesses_activations.push_back(num_filters_sets*num_activations_sets*num_channel_sets*Kx*Ky);
+                stats.off_chip_accesses_filters_sch3.push_back(1); // All filters per layer
+                stats.off_chip_accesses_filters_sch4.push_back(num_filters_sets); // Working set of filters
+                stats.off_chip_accesses_activations.push_back((uint32_t)out_y); // One row of activations
+                stats.num_bytes_filters_sche3.push_back((uint32_t)(num_filters*wgt_channels*Kx*Ky*16)/8);
+                stats.num_bytes_filters_sche4.push_back((uint32_t)(16*wgt_channels*Kx*Ky*16)/8);
+                stats.num_bytes_one_row_activations.push_back((uint32_t)(Nx*Ky*act_channels*16)/8);
+                stats.num_computations.push_back(num_filters_sets*num_activations_sets*num_channel_sets*Kx*Ky);
 
             }
         }
