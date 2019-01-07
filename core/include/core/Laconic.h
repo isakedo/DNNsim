@@ -73,13 +73,13 @@ namespace core {
          */
         void computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats);
 
-        /* Compute the work reduction for a convolutional layer
+        /* Compute the potentials for a convolutional layer
          * @param layer     Layer for which we want to calculate potentials
          * @param stats     Statistics to fill
          */
         void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
 
-        /* Compute the work reduction for a inner product layer
+        /* Compute the potentials for a inner product layer
          * @param layer     Layer for which we want to calculate potentials
          * @param stats     Statistics to fill
          */

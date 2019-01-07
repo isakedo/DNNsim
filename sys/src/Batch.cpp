@@ -86,6 +86,14 @@ namespace sys {
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.bits_first_stage = experiment_proto.bits_first_stage();
 
+                } else if(experiment_proto.architecture() == "Stripes") {
+                    value = experiment_proto.task();
+                    if(value  != "Cycles" && value != "MemAccesses" && value != "Potentials")
+                        throw std::runtime_error("Stripes simulation type for network " + simulate.network +
+                                                 " must be <Cycles|Potentials|MemAccesses>.");
+                    experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
+                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+
                 } else if (experiment_proto.architecture() == "Laconic") {
                     value = experiment_proto.task();
                     if(value  != "Cycles" && value != "Potentials")
@@ -101,7 +109,7 @@ namespace sys {
                                                  " must be <Cycles>.");
 
                 } else throw std::runtime_error("Architecture for network " + simulate.network +
-                                                " in Fixed16 must be <BitPragmatic|Laconic|BitFusion>.");
+                                                " in Fixed16 must be <BitPragmatic|Stripes|Laconic|BitFusion>.");
                 experiment.architecture = experiment_proto.architecture();
                 experiment.task = experiment_proto.task();
                 simulate.experiments.emplace_back(experiment);

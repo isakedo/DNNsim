@@ -15,8 +15,9 @@ contain global variables. Check this file before launch any simulation.
 | Architecture | Description | Parameters | Cycles | Mem. Accesses  | Potentials | Data type |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | Inference | Forward propagation | - | - | - | - | Float32 |
-| BitPragmatic | **Ae**: Exploit bit-level sparsity of activations | N_COLUMNS, N_ROWS, BITS_FIRST_STAGE| X | X | X | Fixed16 |
-| Laconic | **We + Ae**: Exploit bit-level sparsity of both weights and activations | N_COLUMNS, N_ROWS | X | - | X | Fixed16 |
+| Stripes | **Ap**: Exploits precision requirements of activations | N_COLUMNS, N_ROWS | X | X | - | Fixed16 |
+| BitPragmatic | **Ae**: Exploits bit-level sparsity of activations | N_COLUMNS, N_ROWS, BITS_FIRST_STAGE| X | X | X | Fixed16 |
+| Laconic | **We + Ae**: Exploits bit-level sparsity of both weights and activations | N_COLUMNS, N_ROWS | X | - | X | Fixed16 |
 
 Default features (*Can be removed in their specific file*): Booth encoding, 
 multiplication of a zero weight and a zero activation count as 1 cycle.
@@ -95,3 +96,8 @@ potentials for bvlc_googlenet:
     * network.proto: Google protobuf definition for the network
     * caffe.proto: Caffe protobuf definition for Caffe networks
     * batch.proto: Google protobuf definition for the batch file
+    
+### Fixes TODO
+*   Currently FC layers for STR, PRA, and LAC are using just one column
+*   Improve first layer in all three accelerators
+*   Add LSTM layers

@@ -27,6 +27,7 @@ THE SOFTWARE.
 
 #include <core/Network.h>
 #include <core/InferenceSimulator.h>
+#include <core/Stripes.h>
 #include <core/BitPragmatic.h>
 #include <core/Laconic.h>
 #include <core/BitFusion.h>
@@ -152,6 +153,11 @@ int main(int argc, char *argv[]) {
                         if(experiment.architecture == "BitPragmatic") {
                             core::BitPragmatic<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
                                     experiment.bits_first_stage);
+                            if(experiment.task == "Cycles") DNNsim.run(network);
+                            else if (experiment.task == "Potentials") DNNsim.potentials(network);
+                            else if (experiment.task == "MemAccesses") DNNsim.memoryAccesses(network);
+                        } else if(experiment.architecture == "Stripes") {
+                            core::Stripes<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                             else if (experiment.task == "MemAccesses") DNNsim.memoryAccesses(network);
