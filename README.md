@@ -10,6 +10,18 @@ The tool works with batch files that can be found in the folder "examples". All 
 in the README file in that folder using BNF like notation. The file "common.h" under the folder "sys/include/sys" 
 contain global variables. Check this file before launch any simulation.
 
+### Allowed simulations
+
+| Architecture | Description | Parameters | Cycles | Mem. Accesses  | Potentials | Data type |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Inference | Forward propagation | - | - | - | - | Float32 |
+| BitPragmatic | **Ae**: Exploit bit-level sparsity of activations | N_COLUMNS, N_ROWS, BITS_FIRST_STAGE| X | X | X | Fixed16 |
+| Laconic | **We + Ae**: Exploit bit-level sparsity of both weights and activations | N_COLUMNS, N_ROWS | X | - | X | Fixed16 |
+
+Default features (*Can be removed in their specific file*): Booth encoding, 
+multiplication of a zero weight and a zero activation count as 1 cycle.
+Two registers per SIP (For BitPragmatic)
+
 ### Requeriments
 *   Cmake posterior to version 3.10
 *   Google Protobuf for C++. Installation link:
