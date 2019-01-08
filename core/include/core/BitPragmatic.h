@@ -112,7 +112,7 @@ namespace core {
          */
         void run(const Network<T> &network);
 
-        /* Calculate work reduction for the given network
+        /* Calculate potentials for the given network
          * @param network   Network we want to calculate work reduction
          */
         void potentials(const Network<T> &network);
