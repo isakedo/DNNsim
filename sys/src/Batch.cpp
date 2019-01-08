@@ -91,15 +91,12 @@ namespace sys {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 8 : experiment_proto.n_rows();
 
-                } else if (experiment_proto.architecture() == "BitTactical_p") {
-                    continue;
-                } else if (experiment_proto.architecture() == "BitTactical_e") {
-                    continue;
+                } else if (experiment_proto.architecture() == "BitTacticalP") {
+                } else if (experiment_proto.architecture() == "BitTacticalE") {
                 } else if (experiment_proto.architecture() == "BitFusion") {
-                    continue;
                 } else throw std::runtime_error("Architecture for network " + simulate.network +
-                                                " in Fixed16 must be <BitPragmatic|Stripes|Laconic|BitTactical_p|"
-                                                "BitTactical_e|BitFusion>.");
+                                                " in Fixed16 must be <BitPragmatic|Stripes|Laconic|BitTacticalP|"
+                                                "BitTacticalE|BitFusion>.");
 
                 value = experiment_proto.task();
                 if(value  != "Cycles" && value != "MemAccesses" && value != "Potentials")

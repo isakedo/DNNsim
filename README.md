@@ -18,8 +18,8 @@ contain global variables. Check this file before launch any simulation.
 | Stripes | **Ap**: Exploits precision requirements of activations | N_COLUMNS, N_ROWS | NM_WIDTH | X | X | X | Fixed16 |
 | BitPragmatic | **Ae**: Exploits bit-level sparsity of activations | N_COLUMNS, N_ROWS, BITS_FIRST_STAGE| BOOTH_ENCODING, ZERO_COUNT, TWO_REGISTERS_PER_SIP| X | X | X | Fixed16 |
 | Laconic | **We + Ae**: Exploits bit-level sparsity of both weights and activations | N_COLUMNS, N_ROWS | BOOTH_ENCODING, ZERO_COUNT | X | - | X | Fixed16 |
-| BitTactical_p (Not yet) | **W + Ap**: Skips zero weights and exploits precision requirements of activations | - | - | - | - | - | Fixed16 |
-| BitTactical_e (Not yet) | **W + Ae**: Skips zero weights and exploits bit-level sparsity of activations | - | - | - | - | - | Fixed16 |
+| BitTacticalP | **W + Ap**: Skips zero weights and exploits precision requirements of activations | - | - | - | - | X | Fixed16 |
+| BitTacticalE | **W + Ae**: Skips zero weights and exploits bit-level sparsity of activations | - | BOOTH_ENCODING, ZERO_COUNT | - | - | X | Fixed16 |
 
 *\*Default features can be removed in their specific header file*
 
@@ -89,8 +89,8 @@ potentials for bvlc_googlenet:
     *   BitPragmatic: class for the Bit-Pragmatic accelerator
     *   Laconic: class for the Laconic accelerator
     *   BitTactical: common class for both BitTactical behaviors
-    *   BitTactical_p: class for the Bit-Tactical version p accelerator
-    *   BitTactical_e: class for the Bit-Tactical version e accelerator
+    *   BitTacticalP: class for the Bit-Tactical version p accelerator
+    *   BitTacticalE: class for the Bit-Tactical version e accelerator
     *   BitFusion: class for the BitFusion accelerator
 *   **interface**: Folder to interface with input/output operations
     *   NetReader: class to read and load a network using different formats
@@ -102,6 +102,7 @@ potentials for bvlc_googlenet:
     * batch.proto: Google protobuf definition for the batch file
     
 ### Fixes TODO
-*   Currently FC layers for STR, PRA, and LAC are using just one column
-*   Improve first layer in all three accelerators
+*   In BitTacticalP the potentials are using layer precision not per group
+*   Currently FC layers are using just one column of the accelerators
+*   Improve first layer dimensions
 *   Add LSTM layers

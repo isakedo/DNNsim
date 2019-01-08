@@ -1,15 +1,24 @@
-#ifndef DNNSIM_BITTACTICAL_P_H
-#define DNNSIM_BITTACTICAL_P_H
-
+#ifndef DNNSIM_BITTACTICAL_E_H
+#define DNNSIM_BITTACTICAL_E_H
 
 #include "BitTactical.h"
+
+#define ZERO_COUNT // Count zeroes as 1 cycle
+#define BOOTH_ENCODING // Activate booth-like encoding
 
 namespace core {
 
     template <typename T>
-    class BitTactical_p : public BitTactical<T> {
+    class BitTacticalE : public BitTactical<T> {
 
     private:
+
+        /* Compute number of one bit multiplications given a weights and an activation
+         * @param act               Activation
+         * @param wgt               Weight
+         * @return                  Number of one bit multiplications
+         */
+        uint8_t computeBitTacticalEBitsPE(uint16_t act, uint16_t wgt);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs
@@ -42,7 +51,7 @@ namespace core {
          */
         void run(const Network<T> &network) override;
 
-        /* Calculate potentials for the given network
+        /* Calculate work reduction for the given network
          * @param network   Network we want to calculate work reduction
          */
         void potentials(const Network<T> &network) override;
@@ -51,4 +60,4 @@ namespace core {
 
 }
 
-#endif //DNNSIM_BITTACTICAL_P_H
+#endif //DNNSIM_BITTACTICAL_E_H

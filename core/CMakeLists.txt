@@ -16,8 +16,8 @@ add_library(
         include/core/BitFusion.h
         include/core/Stripes.h
         include/core/BitTactical.h
-        include/core/BitTactical_p.h
-        include/core/BitTactical_e.h
+        include/core/BitTacticalP.h
+        include/core/BitTacticalE.h
         src/Simulator.cpp
         src/InferenceSimulator.cpp
         src/Laconic.cpp
@@ -25,8 +25,8 @@ add_library(
         src/BitFusion.cpp
         src/Stripes.cpp
         src/BitTactical.cpp
-        src/BitTactical_p.cpp
-        src/BitTactical_e.cpp
+        src/BitTacticalP.cpp
+        src/BitTacticalE.cpp
 )
 
 target_include_directories(
