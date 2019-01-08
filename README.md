@@ -20,6 +20,7 @@ contain global variables. Check this file before launch any simulation.
 | Laconic | **We + Ae**: Exploits bit-level sparsity of both weights and activations | N_COLUMNS, N_ROWS | BOOTH_ENCODING, ZERO_COUNT | X | - | X | Fixed16 |
 | BitTactical_p (Not yet) | **W + Ap**: Skips zero weights and exploits precision requirements of activations | - | - | - | - | - | Fixed16 |
 | BitTactical_e (Not yet) | **W + Ae**: Skips zero weights and exploits bit-level sparsity of activations | - | - | - | - | - | Fixed16 |
+
 *\*Default features can be removed in their specific header file*
 
 ### Requeriments
@@ -87,6 +88,9 @@ potentials for bvlc_googlenet:
     *   Stripes: class for the Stripes accelerator
     *   BitPragmatic: class for the Bit-Pragmatic accelerator
     *   Laconic: class for the Laconic accelerator
+    *   BitTactical: common class for both BitTactical behaviors
+    *   BitTactical_p: class for the Bit-Tactical version p accelerator
+    *   BitTactical_e: class for the Bit-Tactical version e accelerator
     *   BitFusion: class for the BitFusion accelerator
 *   **interface**: Folder to interface with input/output operations
     *   NetReader: class to read and load a network using different formats
