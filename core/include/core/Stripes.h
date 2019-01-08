@@ -18,6 +18,12 @@ namespace core {
         /* Number of rows */
         const int N_ROWS;
 
+        /* Compute number of one bit multiplications
+         * @param layer_prec    Layer precision
+         * @return              Number of one bit multiplications
+         */
+        static inline uint16_t computeStripesBitsPE(uint8_t layer_prec);
+
         /* Compute cycles for stripes column
          * @param act_x         X position in the input activations
          * @param act_y         Y position in the input activations
@@ -27,6 +33,7 @@ namespace core {
          * @param init_channel  Starting index for the channel
          * @param max_channel   Maximum number of channels
          * @param rowMap        3D mapping of each value in their corresponding row
+         * @return              Number of cycles
          */
         uint8_t computeStripesColumn(int act_x, int act_y, int kernel_x, int kernel_y, int layer_prec, int init_channel,
                 int max_channel, const std::vector<std::vector<std::vector<int>>> &rowMap);
@@ -40,6 +47,7 @@ namespace core {
          * @param init_channel  Starting index for the channel
          * @param max_channel   Maximum number of channels
          * @param rowMap        3D mapping of each value in their corresponding row
+         * @return              Number of cycles
          */
         uint8_t computeStripesTile(const std::vector<int> &list_act_x, const std::vector<int> &list_act_y, int kernel_x,
                 int kernel_y, int layer_prec, int init_channel, int max_channel,
