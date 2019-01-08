@@ -20,7 +20,7 @@ namespace interface {
         return output_name;
     }
 
-    /* Return value in sign-magnitude notation (not two complement) */
+    /* Return value in two complement */
     static inline
     uint16_t limitPrec(float num, int mag, int prec) {
         double scale = pow(2.,(double)prec);
@@ -30,9 +30,6 @@ namespace interface {
         if (ds > intmax) ds = intmax;
         if (ds < intmin) ds = intmin;
         auto two_comp = (int)round(ds);
-        auto mask = (uint16_t)intmax + 1;
-        auto abs_value = (uint16_t)abs(two_comp);
-        auto sign_mag = abs_value | (two_comp & mask);
         return (uint16_t)two_comp;
     }
 
@@ -126,6 +123,15 @@ namespace interface {
     void NetWriter<T>::write_network_protobuf(const core::Network<T> &network) {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
+        check_path("net_traces/" + this->name);
+        std::string path = "net_traces/" + this->name + '/' + outputName() + ".proto";
+
+        try {
+            // If Protobuf is found, do not overwrite
+            check_path(path);
+            return;
+        } catch (std::exception &exception) {}
+
         protobuf::Network network_proto;
         network_proto.set_name(network.getName());
 
@@ -134,8 +140,6 @@ namespace interface {
 
         {
             // Write the new network back to disk.
-            check_path("net_traces/" + this->name);
-            std::string path = "net_traces/" + this->name + '/' + outputName() + ".proto";
             std::fstream output(path, std::ios::out | std::ios::trunc | std::ios::binary);
             if (!network_proto.SerializeToOstream(&output)) {
                 throw std::runtime_error("Failed to write protobuf");
@@ -152,6 +156,15 @@ namespace interface {
     void NetWriter<T>::write_network_gzip(const core::Network<T> &network) {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
+        check_path("net_traces/" + this->name);
+        std::string path = "net_traces/" + this->name + '/' + outputName();
+
+        try {
+            // If Gzip is found, do not overwrite
+            check_path(path);
+            return;
+        } catch (std::exception &exception) {}
+
         protobuf::Network network_proto;
         network_proto.set_name(network.getName());
 
@@ -159,8 +172,6 @@ namespace interface {
             fillLayer(network_proto.add_layers(),layer);
 
         // Write the new network back to disk.
-        check_path("net_traces/" + this->name);
-        std::string path = "net_traces/" + this->name + '/' + outputName();
         std::fstream output(path, std::ios::out | std::ios::trunc | std::ios::binary);
 
         google::protobuf::io::OstreamOutputStream outputFileStream(&output);

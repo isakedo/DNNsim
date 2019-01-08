@@ -153,7 +153,6 @@ namespace core {
         act.powers_of_two_representation();
         if(act.getDimensions() == 4) act.reshape_to_2D();
         cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();

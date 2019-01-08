@@ -315,8 +315,8 @@ namespace interface {
             int i = 0;
             for(core::Layer<T> &layer : network.updateLayers()) {
                 if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                    layer.setAct_precision(std::make_tuple(13, 2));
-                    layer.setWgt_precision(std::make_tuple(0, 15));
+                    layer.setAct_precision(std::make_tuple(1 + 13, 2));
+                    layer.setWgt_precision(std::make_tuple(1 + 0, 15));
                     i++;
                 } else {
                     layer.setAct_precision(std::make_tuple(0,0));
