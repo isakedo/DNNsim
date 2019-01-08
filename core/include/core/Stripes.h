@@ -18,6 +18,19 @@ namespace core {
         /* Number of rows */
         const int N_ROWS;
 
+        /* Compute cycles for stripes column
+         * @param act_x         X position in the input activations
+         * @param act_y         Y position in the input activations
+         * @param kernel_x      X position in the kernel window
+         * @param kernel_y      Y position in the kernel window
+         * @param layer_prec    Activations precision per layer
+         * @param init_channel  Starting index for the channel
+         * @param max_channel   Maximum number of channels
+         * @param rowMap        3D mapping of each value in their corresponding row
+         */
+        uint8_t computeStripesColumn(int act_x, int act_y, int kernel_x, int kernel_y, int layer_prec, int init_channel,
+                int max_channel, const std::vector<std::vector<std::vector<int>>> &rowMap);
+
         /* Compute cycles for stripes tile
          * @param list_act_x    X position for the set of input windows
          * @param list_act_y    Y position for the set of input windows

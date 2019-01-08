@@ -6,6 +6,24 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
+    uint8_t Stripes<T>::computeStripesColumn(int act_x, int act_y, int kernel_x, int kernel_y, int layer_prec,
+            int init_channel, int max_channel, const std::vector<std::vector<std::vector<int>>> &rowMap) {
+
+        uint8_t fill_cycles = 0;
+        std::list<int> row_list;
+        for (int channel = init_channel; channel < std::min(init_channel + 16, max_channel); channel++) {
+            auto nmRow = rowMap[act_x + kernel_x][act_y + kernel_y][channel];
+            auto it = std::find(row_list.begin(), row_list.end(), nmRow);
+            if (it == row_list.end()) {
+                row_list.push_back(nmRow);
+                fill_cycles++;
+            }
+        }
+
+        return std::max((uint8_t)layer_prec, fill_cycles);
+    }
+
+    template <typename T>
     uint8_t Stripes<T>::computeStripesTile(const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
             int kernel_x, int kernel_y, int layer_prec, int init_channel, int max_channel,
             const std::vector<std::vector<std::vector<int>>> &rowMap) {
@@ -106,6 +124,60 @@ namespace core {
     template <typename T>
     void Stripes<T>::computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
 
+        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+
+        cnpy::Array<T> act = layer.getActivations();
+        act.powers_of_two_representation();
+        if(act.getDimensions() == 4) act.reshape_to_2D();
+        act.reshape_to_4D();
+
+        const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &wgt_shape = layer.getWeights().getShape();
+
+        int batch_size = act_shape[0];
+        int act_channels = act_shape[1];
+        int Nx = act_shape[2];
+        int Ny = act_shape[3];
+
+        int num_filters = wgt_shape[0];
+
+        const auto &rowMap = this->generate_rowMap(Nx, Ny, act_channels, NM_WIDTH);
+
+        auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS);
+
+        // Stats
+        std::vector<uint32_t> cycles (batch_size,0);
+        uint32_t batch_cycles;
+
+        int n;
+
+        // Get layer precision
+        auto layer_prec = std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision());
+
+        #ifdef OPENMP
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(max_threads);
+        #pragma omp parallel for private(n,batch_cycles)
+        #endif
+        for (n = 0; n<batch_size; n++) {
+            batch_cycles = 0;
+            for (int k = 0; k<act_channels; k += 16) {
+                batch_cycles += computeStripesColumn(0,0,0,0,layer_prec,k,act_channels,rowMap);
+            }
+            cycles[n] = batch_cycles*num_filters_sets;
+        }
+
+        auto base_cycles = (uint32_t)(act_channels * num_filters_sets / 16);
+        auto avg_cycles = accumulate(cycles.begin(), cycles.end(), 0.0)/cycles.size();
+
+        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+
+        stats.time.push_back(time_span);
+        stats.STR_cycles.push_back(cycles);
+        stats.STR_baseline_cycles.push_back(base_cycles);
+        stats.STR_avg_cycles.push_back((uint32_t)avg_cycles);
+
     }
 
     template <typename T>
@@ -123,6 +195,10 @@ namespace core {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision()));
                 computeConvolution(layer, stats);
+            } else if(layer.getType() == "InnerProduct") {
+                stats.layers.push_back(layer.getName());
+                stats.act_prec.push_back(std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision()));
+                computeInnerProduct(layer, stats);
             }
         }
 
