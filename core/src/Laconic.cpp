@@ -1,9 +1,6 @@
 
 #include <core/Laconic.h>
 
-#define ZERO_COUNT
-#define BOOTH_ENCODING
-
 namespace core {
 
     /* AUXILIARY FUNCTIONS */
@@ -63,9 +60,10 @@ namespace core {
     }
 
     template <typename T>
-    uint8_t Laconic<T>::computeLaconicTile(int batch, std::vector<int> &list_act_x, std::vector<int> &list_act_y,
-            int kernel_x, int kernel_y, int init_channel, int init_filter, int stride, const cnpy::Array<T> &padded_act,
-            const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter) {
+    uint8_t Laconic<T>::computeLaconicTile(int batch, const std::vector<int> &list_act_x,
+            const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int init_filter,
+            int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group, int max_channel,
+            int max_filter) {
 
         //Get the slowest PE
         std::vector<uint8_t> cycles;

@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <vector>
 #include <queue>
+#include <list>
 #include <string>
 #include <cmath>
 #include <memory>

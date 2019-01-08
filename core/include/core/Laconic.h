@@ -3,6 +3,9 @@
 
 #include "Simulator.h"
 
+#define ZERO_COUNT // Count zeroes as 1 cycle
+#define BOOTH_ENCODING // Activate booth-like encoding
+
 namespace core {
 
     template <typename T>
@@ -57,9 +60,10 @@ namespace core {
          * @param max_filter    Maximum number of filters
          * @return              Number of cycles
          */
-        uint8_t computeLaconicTile(int batch, std::vector<int> &list_act_x, std::vector<int> &list_act_y, int kernel_x,
-                int kernel_y, int init_channel, int init_filter, int stride, const cnpy::Array<T> &padded_act,
-                const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter);
+        uint8_t computeLaconicTile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
+                int kernel_x, int kernel_y, int init_channel, int init_filter, int stride,
+                const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group, int max_channel,
+                int max_filter);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs

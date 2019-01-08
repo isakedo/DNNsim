@@ -3,6 +3,8 @@
 
 #include "Simulator.h"
 
+#define NM_WIDTH 256 // Width of the neuron memory row in bits
+
 namespace core {
 
     template <typename T>
@@ -15,6 +17,20 @@ namespace core {
 
         /* Number of rows */
         const int N_ROWS;
+
+        /* Compute cycles for stripes tile
+         * @param list_act_x    X position for the set of input windows
+         * @param list_act_y    Y position for the set of input windows
+         * @param kernel_x      X position in the kernel window
+         * @param kernel_y      Y position in the kernel window
+         * @param layer_prec    Activations precision per layer
+         * @param init_channel  Starting index for the channel
+         * @param max_channel   Maximum number of channels
+         * @param rowMap        3D mapping of each value in their corresponding row
+         */
+        uint8_t computeStripesTile(const std::vector<int> &list_act_x, const std::vector<int> &list_act_y, int kernel_x,
+                int kernel_y, int layer_prec, int init_channel, int max_channel,
+                const std::vector<std::vector<std::vector<int>>> &rowMap);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs

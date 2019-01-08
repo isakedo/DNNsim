@@ -3,6 +3,10 @@
 
 #include "Simulator.h"
 
+#define ZERO_COUNT // Count zeroes as 1 cycle
+#define BOOTH_ENCODING // Activate booth-like encoding
+#define TWO_REGISTERS_PER_SIP // Per-col synchronization assuming two registers per SIP
+
 namespace core {
 
     template <typename T>
@@ -56,12 +60,12 @@ namespace core {
          * @param stride                Stride of the current layer
          * @param padded_act            Set of padded input activations
          * @param max_channel           Maximum number of channels
-         * @param cycles_per_col        Number of cycles per column. Updated
-         * @param end_previous_pallet   Cycle when the previous pallet finishes. Updated
+         * @param cycles_per_col        Number of cycles per column (Overwritten)
+         * @param end_previous_pallet   Cycle when the previous pallet finishes (Overwritten)
          */
-        void computePragmaticTile(int batch, std::vector<int> &list_act_x, std::vector<int> &list_act_y, int kernel_x,
-                int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel,
-                std::vector<uint32_t> &cycles_per_col, uint32_t &end_previous_pallet);
+        void computePragmaticTile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
+                int kernel_x, int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act,
+                int max_channel, std::vector<uint32_t> &cycles_per_col, uint32_t &end_previous_pallet);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs

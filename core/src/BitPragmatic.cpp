@@ -1,10 +1,6 @@
 
 #include <core/BitPragmatic.h>
 
-#define ZERO_COUNT
-#define BOOTH_ENCODING
-#define TWO_REGISTERS_PER_SIP
-
 namespace core {
 
     /* AUXILIARY FUNCTIONS */
@@ -103,9 +99,10 @@ namespace core {
     }
 
     template <typename T>
-    void BitPragmatic<T>::computePragmaticTile(int batch, std::vector<int> &list_act_x, std::vector<int> &list_act_y,
-            int kernel_x, int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act,
-            int max_channel, std::vector<uint32_t> &cycles_per_col, uint32_t &end_previous_pallet) {
+    void BitPragmatic<T>::computePragmaticTile(int batch, const std::vector<int> &list_act_x,
+            const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int stride,
+            const cnpy::Array<T> &padded_act, int max_channel, std::vector<uint32_t> &cycles_per_col,
+            uint32_t &end_previous_pallet) {
 
         for(int window = 0; window < list_act_x.size(); window++) {
             uint8_t column_cycles = computePragmaticColumn(batch, list_act_x[window], list_act_y[window], kernel_x,

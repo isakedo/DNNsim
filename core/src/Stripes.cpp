@@ -5,6 +5,26 @@ namespace core {
 
     /* AUXILIARY FUNCTIONS */
 
+    template <typename T>
+    uint8_t Stripes<T>::computeStripesTile(const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
+            int kernel_x, int kernel_y, int layer_prec, int init_channel, int max_channel,
+            const std::vector<std::vector<std::vector<int>>> &rowMap) {
+
+        uint8_t fill_cycles = 0;
+        std::list<int> row_list;
+        for(int window = 0; window < list_act_x.size(); window++) {
+            for (int channel = init_channel; channel < std::min(init_channel + 16, max_channel); channel++) {
+                auto nmRow = rowMap[list_act_x[window] + kernel_x][list_act_y[window] + kernel_y][channel];
+                auto it = std::find(row_list.begin(), row_list.end(), nmRow);
+                if (it == row_list.end()) {
+                    row_list.push_back(nmRow);
+                    fill_cycles++;
+                }
+            }
+        }
+
+        return std::max((uint8_t)layer_prec, fill_cycles);
+    }
 
     /* CYCLES */
 
@@ -33,7 +53,7 @@ namespace core {
         int padding = layer.getPadding();
         int stride = layer.getStride();
 
-        cnpy::Array<T> padded_act = this->adjustPadding(act,padding);
+        const auto &rowMap = this->generate_rowMap(Nx + 2*padding, Ny + 2*padding, act_channels, NM_WIDTH);
         long out_x = (Nx - Kx + 2*padding)/stride + 1;
         long out_y = (Ny - Ky + 2*padding)/stride + 1;
 
@@ -62,7 +82,8 @@ namespace core {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
                         for (int k = 0; k < act_channels; k += 16) {
-                            batch_cycles += layer_prec;
+                            batch_cycles += computeStripesTile(list_x, list_y, i, j, layer_prec, k,
+                                    act_channels, rowMap);
                         }
                     }
                 }

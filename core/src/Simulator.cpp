@@ -59,8 +59,29 @@ namespace core {
         return false;
     }
 
+    template <typename T>
+    std::vector<std::vector<std::vector<int>>> Simulator<T>::generate_rowMap(int padded_Nx, int padded_Ny,
+            int act_channels, int NM_WIDTH) {
+
+        uint32_t row_index = 0;
+        std::vector<std::vector<std::vector<int>>> rowMap((unsigned)padded_Nx,
+                std::vector<std::vector<int>>((unsigned)padded_Ny, std::vector<int>((unsigned)act_channels)));
+        for(int i = 0; i < act_channels; i+=16) {
+            for (int j = 0; j < padded_Nx; j++) {
+                for (int k = 0; k < padded_Ny; k++) {
+                    for (int l = i; l < std::min(i + 16, act_channels); l++) {
+                        rowMap[j][k][l] = row_index / NM_WIDTH;
+                        row_index++;
+                    }
+                }
+            }
+        }
+
+        return rowMap;
+    }
+
     /* Only encode the values when get less number of bits */
-    uint16_t generateBoothEnconding(uint16_t n) {
+    uint16_t generateBoothEncoding(uint16_t n) {
         uint32_t padded_n = n << 2;
         std::string bitstream = std::bitset<16 + 2>(padded_n).to_string();
         uint16_t booth_encoding = 0;
@@ -92,7 +113,7 @@ namespace core {
     std::vector<uint16_t> generateBoothTable() {
         std::vector<uint16_t> booth_table;
         for(long n = 0; n < 32768; n++)
-            booth_table.push_back(generateBoothEnconding((uint16_t)n));
+            booth_table.push_back(generateBoothEncoding((uint16_t)n));
         return booth_table;
     }
 
