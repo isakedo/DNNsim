@@ -10,31 +10,25 @@ namespace cnpy {
         std::vector<T> flat_array = data_npy.as_vec<T>();
         if (this->getDimensions() == 1) this->data1D = flat_array;
         else if(this->getDimensions() == 2){
+            this->data2D = std::vector<std::vector<T>>(this->shape[0],std::vector<T>(this->shape[1]));
             for(int i = 0; i < this->shape[0]; i++) {
-                std::vector<T> second_dim;
-                second_dim.reserve(this->shape[1]* sizeof(T));
                 for(int j = 0; j < this->shape[1]; j++)
-                    second_dim.push_back(flat_array[this->shape[1]*i + j]);
-                this->data2D.push_back(second_dim);
+                    this->data2D[i][j] = flat_array[this->shape[1]*i + j];
             }
 
         } else if (this->getDimensions() == 4) {
             unsigned long coef1 = shape[1]*shape[2]*shape[3];
             unsigned long coef2 = shape[2]*shape[3];
+            this->data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(this->shape[0],
+                    std::vector<std::vector<std::vector<T>>>(this->shape[1],std::vector<std::vector<T>>(this->shape[2],
+                    std::vector<T>(this->shape[3]))));
             for(int i = 0; i < this->shape[0]; i++) {
-                std::vector<std::vector<std::vector<T>>> second_dim;
                 for(int j = 0; j < this->shape[1]; j++) {
-                    std::vector<std::vector<T>> third_dim;
                     for(int k = 0; k < this->shape[2]; k++) {
-                        std::vector<T> fourth_dim;
-                        fourth_dim.reserve(this->shape[3]* sizeof(T));
                         for(int l = 0; l < this->shape[3]; l++)
-                            fourth_dim.push_back(flat_array[coef1*i + coef2*j + shape[3]*k + l]);
-                        third_dim.push_back(fourth_dim);
+                            this->data4D[i][j][k][l] = flat_array[coef1*i + coef2*j + shape[3]*k + l];
                     }
-                    second_dim.push_back(third_dim);
                 }
-                this->data4D.push_back(second_dim);
             }
         } else throw std::runtime_error("Array dimensions error");
     }
@@ -44,31 +38,24 @@ namespace cnpy {
         Array::shape = _shape;
         if (this->getDimensions() == 1) this->data1D = _data;
         else if(this->getDimensions() == 2){
+            this->data2D = std::vector<std::vector<T>>(this->shape[0],std::vector<T>(this->shape[1]));
             for(int i = 0; i < this->shape[0]; i++) {
-                std::vector<T> second_dim;
-                second_dim.reserve(this->shape[1]* sizeof(T));
                 for(int j = 0; j < this->shape[1]; j++)
-                    second_dim.push_back(_data[this->shape[1]*i + j]);
-                this->data2D.push_back(second_dim);
+                    this->data2D[i][j] = _data[this->shape[1]*i + j];
             }
-
         } else if (this->getDimensions() == 4) {
             auto coef1 = shape[1]*shape[2]*shape[3];
             auto coef2 = shape[2]*shape[3];
+            this->data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(this->shape[0],
+                    std::vector<std::vector<std::vector<T>>>(this->shape[1],std::vector<std::vector<T>>(this->shape[2],
+                    std::vector<T>(this->shape[3]))));
             for(int i = 0; i < this->shape[0]; i++) {
-                std::vector<std::vector<std::vector<T>>> second_dim;
                 for(int j = 0; j < this->shape[1]; j++) {
-                    std::vector<std::vector<T>> third_dim;
                     for(int k = 0; k < this->shape[2]; k++) {
-                        std::vector<T> fourth_dim;
-                        fourth_dim.reserve(this->shape[3]* sizeof(T));
                         for(int l = 0; l < this->shape[3]; l++)
-                            fourth_dim.push_back(_data[coef1*i + coef2*j + shape[3]*k + l]);
-                        third_dim.push_back(fourth_dim);
+                            this->data4D[i][j][k][l] = _data[coef1*i + coef2*j + shape[3]*k + l];
                     }
-                    second_dim.push_back(third_dim);
                 }
-                this->data4D.push_back(second_dim);
             }
         } else throw std::runtime_error("Array dimensions error");
     }
@@ -143,16 +130,13 @@ namespace cnpy {
     template <typename T>
     void Array<T>::reshape_to_4D() {
         this->data4D.clear();
+        this->data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(this->shape[0],
+                std::vector<std::vector<std::vector<T>>>(this->shape[1],std::vector<std::vector<T>>(1,
+                std::vector<T>(1))));
         for(int i = 0; i < this->shape[0]; i++) {
-            std::vector<std::vector<std::vector<T>>> second_dim;
             for(int j = 0; j < this->shape[1]; j++) {
-                std::vector<std::vector<T>> third_dim;
-                std::vector<T> fourth_dim;
-                fourth_dim.push_back(this->data2D[i][j]);
-                third_dim.push_back(fourth_dim);
-                second_dim.push_back(third_dim);
+                this->data4D[i][j][0][0] = this->data2D[i][j];
             }
-            this->data4D.push_back(second_dim);
         }
         this->shape.push_back(1);
         this->shape.push_back(1);
@@ -161,6 +145,7 @@ namespace cnpy {
 
     template <typename T>
     void Array<T>::reshape_to_2D() {
+        this->data2D.clear();
         for(int i = 0; i < this->shape[0]; i++) {
             std::vector<T> second_dim;
             for(int j = 0; j < this->shape[1]; j++) {
