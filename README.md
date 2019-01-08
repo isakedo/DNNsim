@@ -83,6 +83,7 @@ potentials for bvlc_googlenet:
     *   Network: class to store the network
     *   Layer: class to store the layer of the network
     *   InferenceSimulator: class that defines the behaviour of a standard deep learning inference simulation
+    *   Stripes: class for the Stripes accelerator
     *   BitPragmatic: class for the Bit-Pragmatic accelerator
     *   Laconic: class for the Laconic accelerator
     *   BitFusion: class for the BitFusion accelerator
