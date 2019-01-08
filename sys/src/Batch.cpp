@@ -76,46 +76,43 @@ namespace sys {
 
         if (simulate.inputDataType == "Fixed16") {
             for(const auto &experiment_proto : simulate_proto.experiment()) {
+
                 Batch::Simulate::Experiment experiment;
                 if(experiment_proto.architecture() == "BitPragmatic") {
-                    value = experiment_proto.task();
-                    if(value  != "Cycles" && value != "MemAccesses" && value != "Potentials")
-                        throw std::runtime_error("BitPragmatic simulation type for network " + simulate.network +
-                                                 " must be <Cycles|Potentials|MemAccesses>.");
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.bits_first_stage = experiment_proto.bits_first_stage();
 
                 } else if(experiment_proto.architecture() == "Stripes") {
-                    value = experiment_proto.task();
-                    if(value  != "Cycles" && value != "MemAccesses" && value != "Potentials")
-                        throw std::runtime_error("Stripes simulation type for network " + simulate.network +
-                                                 " must be <Cycles|Potentials|MemAccesses>.");
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
 
                 } else if (experiment_proto.architecture() == "Laconic") {
-                    value = experiment_proto.task();
-                    if(value  != "Cycles" && value != "Potentials")
-                        throw std::runtime_error("Laconic simulation type for network " + simulate.network +
-                                                 " must be <Cycles|Potentials>.");
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 8 : experiment_proto.n_rows();
 
+                } else if (experiment_proto.architecture() == "BitTactical_p") {
+                    continue;
+                } else if (experiment_proto.architecture() == "BitTactical_e") {
+                    continue;
                 } else if (experiment_proto.architecture() == "BitFusion") {
-                    value = experiment_proto.task();
-                    if(value  != "Cycles")
-                        throw std::runtime_error("BitFusion simulation type for network " + simulate.network +
-                                                 " must be <Cycles>.");
-
+                    continue;
                 } else throw std::runtime_error("Architecture for network " + simulate.network +
-                                                " in Fixed16 must be <BitPragmatic|Stripes|Laconic|BitFusion>.");
+                                                " in Fixed16 must be <BitPragmatic|Stripes|Laconic|BitTactical_p|"
+                                                "BitTactical_e|BitFusion>.");
+
+                value = experiment_proto.task();
+                if(value  != "Cycles" && value != "MemAccesses" && value != "Potentials")
+                    throw std::runtime_error("Simulation type for network " + simulate.network +
+                                             " must be <Cycles|Potentials|MemAccesses>.");
+
                 experiment.architecture = experiment_proto.architecture();
                 experiment.task = experiment_proto.task();
                 simulate.experiments.emplace_back(experiment);
+
             }
         } else if (simulate.inputDataType == "Float32" && !simulate_proto.activate_bias_and_out_act())
-            throw std::runtime_error("Float32 only allows inference simulation, which must has the flag "
+            throw std::runtime_error("Float32 only allows inference simulation, which must have the flag "
                                      "\"activate_bias_and_out_act\" activated");
 
         return simulate;

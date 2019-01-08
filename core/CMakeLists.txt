@@ -10,25 +10,29 @@ add_library(
         ${PROJECT_NAME}
         include/core/Layer.h
         include/core/Network.h
-        include/core/Simulator.h
         include/core/InferenceSimulator.h
         include/core/Laconic.h
         include/core/BitPragmatic.h
         include/core/BitFusion.h
         include/core/Stripes.h
+        include/core/BitTactical.h
+        include/core/BitTactical_p.h
+        include/core/BitTactical_e.h
         src/Simulator.cpp
         src/InferenceSimulator.cpp
         src/Laconic.cpp
         src/BitPragmatic.cpp
         src/BitFusion.cpp
         src/Stripes.cpp
+        src/BitTactical.cpp
+        src/BitTactical_p.cpp
+        src/BitTactical_e.cpp
 )
 
 target_include_directories(
         ${PROJECT_NAME}
         PUBLIC include/
 )
-
 
 target_link_libraries(
         ${PROJECT_NAME}

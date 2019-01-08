@@ -31,6 +31,8 @@ THE SOFTWARE.
 #include <core/BitPragmatic.h>
 #include <core/Laconic.h>
 #include <core/BitFusion.h>
+#include <core/BitTactical_e.h>
+#include <core/BitTactical_p.h>
 
 template <typename T>
 core::Network<T> read(const std::string &input_type, const std::string &network_name, bool activate_bias_and_out_act) {
@@ -163,6 +165,14 @@ int main(int argc, char *argv[]) {
                             else if (experiment.task == "MemAccesses") DNNsim.memoryAccesses(network);
                         } else if (experiment.architecture == "Laconic") {
                             core::Laconic<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows);
+                            if(experiment.task == "Cycles") DNNsim.run(network);
+                            else if (experiment.task == "Potentials") DNNsim.potentials(network);
+                        } else if (experiment.architecture == "BitTactical_p") {
+                            core::BitTactical_p<uint16_t> DNNsim;
+                            if(experiment.task == "Cycles") DNNsim.run(network);
+                            else if (experiment.task == "Potentials") DNNsim.potentials(network);
+                        } else if (experiment.architecture == "BitTactical_e") {
+                            core::BitTactical_e<uint16_t> DNNsim;
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                         } else if (experiment.architecture == "BitFusion") {

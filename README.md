@@ -14,11 +14,12 @@ contain global variables. Check this file before launch any simulation.
 
 | Architecture | Description | Input Parameters | Default Parameters\* | Cycles | Mem. Accesses  | Potentials | Data type |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Inference | Forward propagation | - | - | - | - | Float32 |
+| Inference | Forward propagation | - | - | - | - | - | Float32 |
 | Stripes | **Ap**: Exploits precision requirements of activations | N_COLUMNS, N_ROWS | NM_WIDTH | X | X | X | Fixed16 |
 | BitPragmatic | **Ae**: Exploits bit-level sparsity of activations | N_COLUMNS, N_ROWS, BITS_FIRST_STAGE| BOOTH_ENCODING, ZERO_COUNT, TWO_REGISTERS_PER_SIP| X | X | X | Fixed16 |
 | Laconic | **We + Ae**: Exploits bit-level sparsity of both weights and activations | N_COLUMNS, N_ROWS | BOOTH_ENCODING, ZERO_COUNT | X | - | X | Fixed16 |
-
+| BitTactical_p (Not yet) | **W + Ap**: Skips zero weights and exploits precision requirements of activations | - | - | - | - | - | Fixed16 |
+| BitTactical_e (Not yet) | **W + Ae**: Skips zero weights and exploits bit-level sparsity of activations | - | - | - | - | - | Fixed16 |
 *\*Default features can be removed in their specific header file*
 
 ### Requeriments
