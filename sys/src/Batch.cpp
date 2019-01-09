@@ -92,7 +92,13 @@ namespace sys {
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 8 : experiment_proto.n_rows();
 
                 } else if (experiment_proto.architecture() == "BitTacticalP") {
+                    experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
+                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+
                 } else if (experiment_proto.architecture() == "BitTacticalE") {
+                    experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
+                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+
                 } else if (experiment_proto.architecture() == "BitFusion") {
                 } else throw std::runtime_error("Architecture for network " + simulate.network +
                                                 " in Fixed16 must be <BitPragmatic|Stripes|Laconic|BitTacticalP|"

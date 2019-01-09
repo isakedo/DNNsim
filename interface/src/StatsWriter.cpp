@@ -116,11 +116,12 @@ namespace interface {
     }
 
     void dump_csv_BitTacticalP_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,cycles,time(s)" << std::endl;
+        o_file << "layer,n_act,cycles,act_precision,time(s)" << std::endl;
         for (int j = 0; j < stats.TCLP_cycles.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%u,0\n", stats.layers[i].c_str(), j, stats.TCLP_cycles[i][j]);
+                snprintf(line, sizeof(line), "%s,%d,%u,%d,0\n", stats.layers[i].c_str(), j, stats.TCLP_cycles[i][j],
+                        stats.act_prec[i]);
                 o_file << line;
             }
         }
@@ -128,14 +129,14 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%u,%.2f\n", stats.layers[i].c_str(), stats.TCLP_avg_cycles[i],
-                     stats.time[i].count());
+            snprintf(line, sizeof(line), "%s,AVG,%u,%d,%.2f\n", stats.layers[i].c_str(), stats.TCLP_avg_cycles[i],
+                     stats.act_prec[i], stats.time[i].count());
             o_file << line;
         }
         auto total_cycles = accumulate(stats.TCLP_avg_cycles.begin(), stats.TCLP_avg_cycles.end(), 0.0);
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%u,%.2f\n", (uint32_t)total_cycles, total_time);
+        snprintf(line, sizeof(line), "TOTAL,AVG,%u,-,%.2f\n", (uint32_t)total_cycles, total_time);
         o_file << line;
     }
 

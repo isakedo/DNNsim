@@ -15,6 +15,73 @@ namespace core {
     template <typename T>
     void BitTacticalP<T>::computeConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
 
+        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+
+        cnpy::Array<T> act = layer.getActivations();
+        act.powers_of_two_representation();
+        cnpy::Array<T> wgt = layer.getWeights();
+        wgt.powers_of_two_representation();
+        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+
+        const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+        int batch_size = act_shape[0];
+        int act_channels = act_shape[1];
+        int Nx = act_shape[2];
+        int Ny = act_shape[3];
+
+        int num_filters = wgt_shape[0];
+        int Kx = wgt_shape[2];
+        int Ky = wgt_shape[3];
+
+        int padding = layer.getPadding();
+        int stride = layer.getStride();
+
+        cnpy::Array<T> padded_act = this->adjustPadding(act,padding);
+        long out_x = (Nx - Kx + 2*padding)/stride + 1;
+        long out_y = (Ny - Ky + 2*padding)/stride + 1;
+
+        // Stats
+        std::vector<uint32_t> cycles (batch_size,0);
+        uint32_t batch_cycles;
+
+        std::vector<int> list_x, list_y;
+        int n;
+
+        // Get layer precision
+        auto layer_prec = std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision());
+
+        auto dense_schedule = this->scheduler(wgt,act_channels);
+
+        // Convolution
+        #ifdef OPENMP
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(max_threads);
+        #pragma omp parallel for private(n,batch_cycles,dense_schedule,list_x,list_y)
+        #endif
+        for(n=0; n<batch_size; n++) {
+            batch_cycles = 0;
+            for(int m=0; m<num_filters; m+=this->N_ROWS) {
+                while(this->check_schedule(dense_schedule,m,num_filters)) {
+                    while (this->iterateWindows(out_x, out_y, list_x, list_y, this->N_COLUMNS)) {
+                        batch_cycles += layer_prec;
+                    }
+                    this->update_schedule(dense_schedule,m,num_filters);
+                }
+            }
+            cycles[n] = batch_cycles;
+        }
+
+        auto avg_cycles = accumulate(cycles.begin(), cycles.end(), 0.0)/cycles.size();
+
+        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+
+        stats.time.push_back(time_span);
+        stats.TCLP_cycles.push_back(cycles);
+        stats.TCLP_avg_cycles.push_back((uint32_t)avg_cycles);
+
     }
 
     template <typename T>
@@ -24,7 +91,28 @@ namespace core {
 
     template <typename T>
     void BitTacticalP<T>::run(const Network<T> &network) {
+        // Initialize statistics
+        sys::Statistics::Stats stats;
+        sys::Statistics::initialize(stats);
 
+        stats.task_name = "cycles";
+        stats.net_name = network.getName();
+        stats.arch = "BitTacticalP_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS);
+
+        for(const Layer<T> &layer : network.getLayers()) {
+            if(layer.getType() == "Convolution") {
+                stats.layers.push_back(layer.getName());
+                stats.act_prec.push_back(std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision()));
+                computeConvolution(layer, stats);
+            } /*else if(layer.getType() == "InnerProduct") {
+                stats.layers.push_back(layer.getName());
+                stats.act_prec.push_back(std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision()));
+                computeInnerProduct(layer, stats);
+            }*/
+        }
+
+        // Set statistics to write
+        sys::Statistics::addStats(stats);
     }
 
     /* POTENTIALS */

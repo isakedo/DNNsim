@@ -26,7 +26,7 @@ namespace core {
          */
         uint8_t computeLaconicPE(uint16_t act, uint16_t wgt);
 
-        /* Compute cycles for pragmatic tile
+        /* Compute cycles for one column of laconic
          * @param batch         Current number of batch
          * @param act_x         X position for the input window
          * @param act_y         Y position for the input window
@@ -36,7 +36,7 @@ namespace core {
          * @param init_filter   Starting index for the filter
          * @param stride        Stride of the current layer
          * @param padded_act    Set of padded input activations
-         * @param padded_act    Set of weights
+         * @param wgt           Set of weights
          * @param max_channel   Maximum number of channels
          * @param max_filter    Maximum number of filters
          * @return              Number of cycles
@@ -45,7 +45,7 @@ namespace core {
                 int init_filter, int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt,
                 int start_group, int max_channel, int max_filter);
 
-        /* Compute cycles for pragmatic tile
+        /* Compute cycles for laconic tile
          * @param batch         Current number of batch
          * @param list_act_x    X position for the set of input windows
          * @param list_act_y    Y position for the set of input windows
@@ -55,7 +55,7 @@ namespace core {
          * @param init_filter   Starting index for the filter
          * @param stride        Stride of the current layer
          * @param padded_act    Set of padded input activations
-         * @param padded_act    Set of weights
+         * @param wgt           Set of weights
          * @param max_channel   Maximum number of channels
          * @param max_filter    Maximum number of filters
          * @return              Number of cycles
