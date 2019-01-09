@@ -140,7 +140,7 @@ namespace core {
                         }
                     }
                 }
-                group_m++;
+                group_m+=N_ROWS;
                 if(group_m >= it_per_group) {
                     group_m = 0;
                     current_group++;
