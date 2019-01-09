@@ -57,7 +57,7 @@ namespace core {
 
             //Update values
             for (auto &act_bits : tmp_offsets) {
-                if(!act_bits.empty() && act_bits.front() < max_offset) act_bits.pop();
+                if(!act_bits.empty() && act_bits.front() <= max_offset) act_bits.pop();
             }
 
             PE_cycles++;
