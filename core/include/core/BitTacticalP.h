@@ -15,7 +15,7 @@ namespace core {
          * @param act_layer_rec     Layer precision
          * @return                  Number of one bit multiplications
          */
-        uint8_t computeBitTacticalPBitsPE(uint16_t wgt, uint8_t act_layer_prec);
+        uint8_t computeTacticalPBitsPE(uint16_t wgt, uint8_t act_layer_prec);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs
@@ -42,6 +42,12 @@ namespace core {
         void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats) override;
 
     public:
+
+        /* Constructor
+         * @param _N_COLUMNS            Number of columns
+         * @param _N_ROWS               Number of rows
+         */
+        BitTacticalP(int _N_COLUMNS, int _N_ROWS) : BitTactical<T>(_N_COLUMNS,_N_ROWS) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

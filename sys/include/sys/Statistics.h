@@ -47,6 +47,14 @@ namespace sys {
             std::vector<std::vector<uint32_t>>  LAC_cycles;
             std::vector<uint32_t> LAC_avg_cycles;
 
+            /* Stats for BitTacticalE cycles */
+            std::vector<std::vector<uint32_t>>  TCLE_cycles;
+            std::vector<uint32_t> TCLE_avg_cycles;
+
+            /* Stats for BitTacticalP cycles */
+            std::vector<std::vector<uint32_t>>  TCLP_cycles;
+            std::vector<uint32_t> TCLP_avg_cycles;
+
             /* Stats for potentials */
             std::vector<std::vector<double>> work_reduction;
             std::vector<double> avg_work_reduction;

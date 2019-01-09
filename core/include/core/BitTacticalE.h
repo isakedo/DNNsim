@@ -18,7 +18,18 @@ namespace core {
          * @param wgt               Weight
          * @return                  Number of one bit multiplications
          */
-        uint8_t computeBitTacticalEBitsPE(uint16_t act, uint16_t wgt);
+        uint8_t computeTacticalEBitsPE(uint16_t act, uint16_t wgt);
+
+        uint8_t computeTacticalEPE(uint16_t act);
+
+        uint8_t computeTacticalEColumn(int batch, int act_x, int act_y, int init_filter, int stride,
+                const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_filter,
+                const std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> &dense_schedule);
+
+        uint8_t computeTacticalETile(int batch, const std::vector<int> &list_act_x,
+                const std::vector<int> &list_act_y, int init_filter, int stride, const cnpy::Array<T> &padded_act,
+                const cnpy::Array<T> &wgt, int max_filter,
+                const std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> &dense_schedule);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs
@@ -45,6 +56,12 @@ namespace core {
         void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats) override;
 
     public:
+
+        /* Constructor
+         * @param _N_COLUMNS            Number of columns
+         * @param _N_ROWS               Number of rows
+         */
+        BitTacticalE(int _N_COLUMNS, int _N_ROWS) : BitTactical<T>(_N_COLUMNS,_N_ROWS) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

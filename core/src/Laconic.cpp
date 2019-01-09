@@ -65,7 +65,7 @@ namespace core {
             int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group, int max_channel,
             int max_filter) {
 
-        //Get the slowest PE
+        //Get the slowest column
         std::vector<uint8_t> cycles;
         for(int window = 0; window < list_act_x.size(); window++) {
             uint8_t PE_cycles = computeLaconicColumn(batch,list_act_x[window],list_act_y[window],kernel_x,kernel_y,
@@ -125,10 +125,10 @@ namespace core {
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
-        #pragma omp parallel for private(n,current_group,group_m,start_group,batch_cycles)
+        #pragma omp parallel for private(n,current_group,group_m,start_group,batch_cycles,list_x,list_y)
         #endif
         for(n=0; n<batch_size; n++) {
-            current_group = 0; group_m =0; start_group = 0; batch_cycles = 0;
+            current_group = 0; group_m = 0; start_group = 0; batch_cycles = 0;
             for(int m=0; m<num_filters; m+=N_ROWS) {
                 while(this->iterateWindows(out_x,out_y,list_x,list_y,N_COLUMNS)) {
                     for (int i = 0; i < Kx; i++) {
@@ -140,7 +140,7 @@ namespace core {
                         }
                     }
                 }
-                group_m+=N_ROWS;
+                group_m += N_ROWS;
                 if(group_m >= it_per_group) {
                     group_m = 0;
                     current_group++;

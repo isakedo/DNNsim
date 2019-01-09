@@ -168,13 +168,13 @@ int main(int argc, char *argv[]) {
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                         } else if (experiment.architecture == "BitTacticalP") {
-                            core::BitTacticalP<uint16_t> DNNsim;
+                            core::BitTacticalP<uint16_t> DNNsim(16,16);
                             /*if(experiment.task == "Cycles") DNNsim.run(network);
                             else*/ if (experiment.task == "Potentials") DNNsim.potentials(network);
                         } else if (experiment.architecture == "BitTacticalE") {
-                            core::BitTacticalE<uint16_t> DNNsim;
-                            /*if(experiment.task == "Cycles") DNNsim.run(network);
-                            else*/ if (experiment.task == "Potentials") DNNsim.potentials(network);
+                            core::BitTacticalE<uint16_t> DNNsim(16,16);
+                            if(experiment.task == "Cycles") DNNsim.run(network);
+                            else if (experiment.task == "Potentials") DNNsim.potentials(network);
                         } else if (experiment.architecture == "BitFusion") {
                             core::BitFusion<uint16_t> DNNsim;
                             if(experiment.task == "Cycles") DNNsim.run(network);

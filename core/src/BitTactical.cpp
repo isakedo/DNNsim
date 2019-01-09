@@ -6,8 +6,83 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    void BitTactical<T>::scheduler() {
+    std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> BitTactical<T>::scheduler(const cnpy::Array<T> &wgt,
+            int act_channels) {
 
+        const auto &wgt_shape = wgt.getShape();
+
+        int num_filters = wgt_shape[0];
+        int wgt_channels = wgt_shape[1];
+        int Kx = wgt_shape[2];
+        int Ky = wgt_shape[3];
+
+        int groups = act_channels / wgt_channels;
+        int it_per_group = num_filters / groups;
+
+        std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> dense_schedule =
+                std::vector<std::vector<std::queue<std::tuple<int,int,int>>>>((unsigned)num_filters,
+                std::vector<std::queue<std::tuple<int,int,int>>>(16,std::queue<std::tuple<int,int,int>>()));
+
+        int current_group = 0, group_m = 0, start_group = 0;
+        for(int m=0; m<num_filters; m++) {
+            int index = 0;
+            for (int i = 0; i < Kx; i++) {
+                for (int j = 0; j < Ky; j++) {
+                    for (int k = start_group; k < wgt_channels + start_group; k+=16) {
+                        // NAIVE SCHEDULING WITHOUT LOOKAHEAD AND LOOKASIDE
+                        //##############################################################################################
+                        for(int channel = k; channel < std::min(k + 16,act_channels); channel++) {
+                                dense_schedule[m][index].push(std::make_tuple(channel,i,j));
+                                index++;
+                                if(index == 16) index = 0;
+                        }
+                        //##############################################################################################
+                    }
+                }
+            }
+
+            // Ensure all the queue are equal in length
+            while (index != 0) {
+                dense_schedule[m][index].push(std::make_tuple(0,0,0));
+                index++;
+                if(index == 16) index = 0;
+            }
+
+            group_m++;
+            if(group_m >= it_per_group) {
+                group_m = 0;
+                current_group++;
+                start_group = wgt_channels*current_group;
+            }
+
+        }
+
+        return dense_schedule;
+
+    }
+
+    template <typename T>
+    bool BitTactical<T>::check_schedule(const std::vector<std::vector<std::queue<std::tuple<int,int,int>>>>
+        &dense_schedule, int init_filter, int max_filter) {
+
+        for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
+            for(int i = 0; i < 16; i++) {
+                if(!dense_schedule[filter][i].empty())
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    template <typename T>
+    void BitTactical<T>::update_schedule(std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> &dense_schedule
+            ,int init_filter, int max_filter) {
+
+        for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
+            for(int i = 0; i < 16; i++) {
+                dense_schedule[filter][i].pop();
+            }
+        }
     }
 
     /* MEMORY ACCESSES */

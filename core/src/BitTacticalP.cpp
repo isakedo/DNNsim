@@ -6,7 +6,7 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    uint8_t BitTacticalP<T>::computeBitTacticalPBitsPE(uint16_t wgt, uint8_t act_layer_prec) {
+    uint8_t BitTacticalP<T>::computeTacticalPBitsPE(uint16_t wgt, uint8_t act_layer_prec) {
         return wgt == 0 ? (uint8_t)0 : act_layer_prec * (uint8_t)16;
     }
 
@@ -83,14 +83,14 @@ namespace core {
         for(n=0; n<batch_size; n++) {
             current_group = 0; group_m =0; start_group = 0; bit_counter = 0;
             for(int m=0; m<num_filters; m++) {
-                        for (int i = 0; i < Kx; i++) {
-                            for (int j = 0; j < Ky; j++) {
-                                for (int k = start_group; k < wgt_channels + start_group; k++) {
-                                    bit_counter += computeBitTacticalPBitsPE(wgt.get(m, k - start_group, i, j),
-                                            (uint8_t)act_layer_prec);
-                                }
-                            }
+                for (int i = 0; i < Kx; i++) {
+                    for (int j = 0; j < Ky; j++) {
+                        for (int k = start_group; k < wgt_channels + start_group; k++) {
+                            bit_counter += computeTacticalPBitsPE(wgt.get(m, k - start_group, i, j),
+                                    (uint8_t)act_layer_prec);
                         }
+                    }
+                }
                 group_m++;
                 if(group_m >= it_per_group) {
                     group_m = 0;
@@ -159,7 +159,7 @@ namespace core {
             bit_counter = 0;
             for (int m = 0; m<num_filters; m++) {
                 for (int k = 0; k<wgt_channels; k++) {
-                    bit_counter += computeBitTacticalPBitsPE(wgt.get(m, k), (uint8_t)act_layer_prec);
+                    bit_counter += computeTacticalPBitsPE(wgt.get(m, k), (uint8_t)act_layer_prec);
                 }
             }
             work_reduction[n] = 100 - ((double) bit_counter / (double) parallel_mult / 256. * 100);
