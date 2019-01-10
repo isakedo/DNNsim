@@ -94,6 +94,14 @@ namespace sys {
                 } else if (experiment_proto.architecture() == "BitTacticalP") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+                    experiment.lookahead_d = experiment_proto.lookahead_d() < 1 ? 2 : experiment_proto.lookahead_d();
+                    experiment.lookaside_h = experiment_proto.lookaside_h() < 1 ? 5 : experiment_proto.lookaside_h();
+                    experiment.search_shape = experiment_proto.search_shape().empty() ? 'L' :
+                            experiment_proto.search_shape().c_str()[0];
+                    value = experiment.search_shape;
+                    if(value != "L" && value != "T")
+                        throw std::runtime_error("BitTactical search shape for network " + simulate.network +
+                                                 " must be <L|T>.");
 
                 } else if (experiment_proto.architecture() == "BitTacticalE") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();

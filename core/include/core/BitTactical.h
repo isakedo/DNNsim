@@ -24,6 +24,15 @@ namespace core {
         /* Number of rows */
         const int N_ROWS;
 
+        /* Lookahead value of D*/
+        const int LOOKAHEAD_D;
+
+        /* Lookaside value of H*/
+        const int LOOKASIDE_H;
+
+        /* Search shape for the scheduler: must be 'L' or 'T' */
+        const char SEARCH_SHAPE;
+
         /*
          *
          */
@@ -73,8 +82,13 @@ namespace core {
         /* Constructor
          * @param _N_COLUMNS            Number of columns
          * @param _N_ROWS               Number of rows
+         * @param _LOOKAHEAD_D          Value for scheduler lookahead
+         * @param _LOOKASIDE_H          Value for scheduler lookaside
+         * @param _SEARCH_SHAPE         Type of search
          */
-        BitTactical(int _N_COLUMNS, int _N_ROWS) : N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS) {}
+        BitTactical(int _N_COLUMNS, int _N_ROWS, int _LOOKAHEAD_D, int _LOOKASIDE_H, const char _SEARCH_SHAPE) :
+            N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), LOOKAHEAD_D(_LOOKAHEAD_D), LOOKASIDE_H(_LOOKASIDE_H),
+            SEARCH_SHAPE(_SEARCH_SHAPE) {}
 
     public:
 

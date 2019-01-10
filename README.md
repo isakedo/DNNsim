@@ -18,8 +18,8 @@ contain global variables. Check this file before launch any simulation.
 | Stripes | **Ap**: Exploits precision requirements of activations | N_COLUMNS, N_ROWS | NM_WIDTH | X | X | X | Fixed16 |
 | BitPragmatic | **Ae**: Exploits bit-level sparsity of activations | N_COLUMNS, N_ROWS, BITS_FIRST_STAGE| BOOTH_ENCODING, ZERO_COUNT, TWO_REGISTERS_PER_SIP| X | X | X | Fixed16 |
 | Laconic | **We + Ae**: Exploits bit-level sparsity of both weights and activations | N_COLUMNS, N_ROWS | BOOTH_ENCODING, ZERO_COUNT | X | - | X | Fixed16 |
-| BitTacticalP | **W + Ap**: Skips zero weights and exploits precision requirements of activations | N_COLUMNS, N_ROWS | - | - | - | X | Fixed16 |
-| BitTacticalE | **W + Ae**: Skips zero weights and exploits bit-level sparsity of activations | N_COLUMNS, N_ROWS | BOOTH_ENCODING, ZERO_COUNT | - | - | X | Fixed16 |
+| BitTacticalP | **W + Ap**: Skips zero weights and exploits precision requirements of activations | N_COLUMNS, N_ROWS, LOOKAHEAD_D, LOOKASIDE_H, SEARCH_SHAPE | - | - | - | X | Fixed16 |
+| BitTacticalE | **W + Ae**: Skips zero weights and exploits bit-level sparsity of activations | N_COLUMNS, N_ROWS, LOOKAHEAD_D, LOOKASIDE_H, SEARCH_SHAPE | BOOTH_ENCODING, ZERO_COUNT | - | - | X | Fixed16 |
 
 *\*Default features can be removed in their specific header file*
 

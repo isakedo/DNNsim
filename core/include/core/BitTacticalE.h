@@ -88,8 +88,12 @@ namespace core {
         /* Constructor
          * @param _N_COLUMNS            Number of columns
          * @param _N_ROWS               Number of rows
+         * @param _LOOKAHEAD_D          Value for scheduler lookahead
+         * @param _LOOKASIDE_H          Value for scheduler lookaside
+         * @param _SEARCH_SHAPE         Type of search
          */
-        BitTacticalE(int _N_COLUMNS, int _N_ROWS) : BitTactical<T>(_N_COLUMNS,_N_ROWS) {}
+        BitTacticalE(int _N_COLUMNS, int _N_ROWS, int _LOOKAHEAD_D, int _LOOKASIDE_H, const char _SEARCH_SHAPE) :
+            BitTactical<T>(_N_COLUMNS,_N_ROWS,_LOOKAHEAD_D,_LOOKASIDE_H,_SEARCH_SHAPE) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

@@ -26,6 +26,11 @@ message Batch {
 
             // For pragmatic
             uint32 bits_first_stage = 5;
+
+            // For tactical
+            uint32 lookahead_d = 6;
+            uint32 lookaside_h = 7;
+            string search_shape = 8;
         }
 
         string inputType = 1;
