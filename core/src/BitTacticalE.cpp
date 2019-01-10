@@ -71,29 +71,37 @@ namespace core {
             const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_filter,
             const std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> &dense_schedule) {
 
+        std::list<uint16_t> unique_act_bits;
         std::vector<std::queue<uint8_t>> offsets;
-        for(int i = 0; i < 16; i++) {
+        for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
+            for (int i = 0; i < 16; i++) {
 
-            auto wgt_tuple = dense_schedule[init_filter][i].front();
-            int channel = std::get<0>(wgt_tuple);
-            int kernel_x = std::get<1>(wgt_tuple);
-            int kernel_y = std::get<2>(wgt_tuple);
+                auto wgt_tuple = dense_schedule[init_filter][i].front();
+                int channel = std::get<0>(wgt_tuple);
+                int kernel_x = std::get<1>(wgt_tuple);
+                int kernel_y = std::get<2>(wgt_tuple);
 
-            auto act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
-            #ifdef BOOTH_ENCODING
-            act_bits = this->booth_encoding(act_bits);
-            #endif
+                auto act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
+                #ifdef BOOTH_ENCODING
+                act_bits = this->booth_encoding(act_bits);
+                #endif
 
-            uint8_t count = 0;
-            std::queue<uint8_t> act_offsets;
-            while (act_bits) {
-                auto current_bit = act_bits & 1;
-                if(current_bit) act_offsets.push(count);
-                act_bits >>= 1;
-                count++;
+                // Performance optimization: Only store different activations
+                auto it = std::find(unique_act_bits.begin(), unique_act_bits.end(), act_bits);
+                if(it == unique_act_bits.end()) unique_act_bits.push_back(act_bits);
+                else continue;
+
+                uint8_t count = 0;
+                std::queue<uint8_t> act_offsets;
+                while (act_bits) {
+                    auto current_bit = act_bits & 1;
+                    if (current_bit) act_offsets.push(count);
+                    act_bits >>= 1;
+                    count++;
+                }
+
+                offsets.push_back(act_offsets);
             }
-
-            offsets.push_back(act_offsets);
         }
 
         return computeTacticalEPE(offsets);
