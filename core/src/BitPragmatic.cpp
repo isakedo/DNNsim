@@ -28,13 +28,6 @@ namespace core {
         return bit_multiplications;
     }
 
-    bool check_act_bits(const std::vector<std::queue<uint8_t>> &offsets) {
-        for (const auto &act_bits : offsets) {
-            if (!act_bits.empty()) return true;
-        }
-        return false;
-    }
-
     template <typename T>
     uint8_t BitPragmatic<T>::computePragmaticPE(const std::vector<std::queue<uint8_t>> &offsets) {
 
@@ -43,7 +36,7 @@ namespace core {
         auto tmp_offsets = offsets;
         auto max_offset_first_stage = (uint8_t)((1 << BITS_FIRST_STAGE) - 1);
 
-        bool still_ones = check_act_bits(tmp_offsets);
+        bool still_ones = this->check_act_bits(tmp_offsets);
         while (still_ones) {
 
             // Get the offset for the second stage shift
@@ -61,7 +54,7 @@ namespace core {
             }
 
             PE_cycles++;
-            still_ones = check_act_bits(tmp_offsets);
+            still_ones = this->check_act_bits(tmp_offsets);
         }
 
         #ifdef ZERO_COUNT

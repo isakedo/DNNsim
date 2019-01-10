@@ -123,6 +123,14 @@ namespace core {
         return booth_table[value];
     }
 
+    template <typename T>
+    bool Simulator<T>::check_act_bits(const std::vector<std::queue<uint8_t>> &offsets) {
+        for (const auto &act_bits : offsets) {
+            if (!act_bits.empty()) return true;
+        }
+        return false;
+    }
+
     INITIALISE_DATA_TYPES(Simulator);
 
 }

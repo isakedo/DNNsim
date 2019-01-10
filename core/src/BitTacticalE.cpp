@@ -31,26 +31,39 @@ namespace core {
     }
 
     template <typename T>
-    uint8_t BitTacticalE<T>::computeTacticalEPE(uint16_t act) {
+    uint8_t BitTacticalE<T>::computeTacticalEPE(const std::vector<std::queue<uint8_t>> &offsets) {
 
-        uint16_t act_bits = act;
+        // Two stages shifting
+        uint8_t PE_cycles = 0;
+        auto tmp_offsets = offsets;
+        auto max_offset_first_stage = (uint8_t)((1 << BITS_FIRST_STAGE) - 1);
 
-        #ifdef BOOTH_ENCODING
-        act_bits = this->booth_encoding(act_bits);
-        #endif
+        bool still_ones = this->check_act_bits(tmp_offsets);
+        while (still_ones) {
 
-        uint8_t act_effectual_bits = 0;
-        while (act_bits) {
-            act_effectual_bits += act_bits & 1;
-            act_bits >>= 1;
+            // Get the offset for the second stage shift
+            std::vector<uint8_t> last_bit;
+            for (const auto &act_bits : tmp_offsets) {
+                if(!act_bits.empty()) last_bit.push_back(act_bits.front());
+            }
+            // Must be one to enter the while loop
+            uint8_t two_stage_offset = *std::min_element(last_bit.begin(), last_bit.end());
+            auto max_offset = two_stage_offset + max_offset_first_stage;
+
+            //Update values
+            for (auto &act_bits : tmp_offsets) {
+                if(!act_bits.empty() && act_bits.front() <= max_offset) act_bits.pop();
+            }
+
+            PE_cycles++;
+            still_ones = this->check_act_bits(tmp_offsets);
         }
 
-        uint8_t cycles = act_effectual_bits;
         #ifdef ZERO_COUNT
-        if(cycles == 0) cycles = 1;
+        if(PE_cycles == 0) PE_cycles = 1;
         #endif
 
-        return cycles;
+        return PE_cycles;
     }
 
     template <typename T>
@@ -58,24 +71,32 @@ namespace core {
             const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_filter,
             const std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> &dense_schedule) {
 
-        //Get the slowest PE
-        std::vector<uint8_t> cycles;
-        for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
-            for(int i = 0; i < 16; i++) {
+        std::vector<std::queue<uint8_t>> offsets;
+        for(int i = 0; i < 16; i++) {
 
-                auto wgt_tuple = dense_schedule[filter][i].front();
-                int channel = std::get<0>(wgt_tuple);
-                int kernel_x = std::get<1>(wgt_tuple);
-                int kernel_y = std::get<2>(wgt_tuple);
+            auto wgt_tuple = dense_schedule[init_filter][i].front();
+            int channel = std::get<0>(wgt_tuple);
+            int kernel_x = std::get<1>(wgt_tuple);
+            int kernel_y = std::get<2>(wgt_tuple);
 
-                auto act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
+            auto act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
+            #ifdef BOOTH_ENCODING
+            act_bits = this->booth_encoding(act_bits);
+            #endif
 
-                uint8_t PE_cycles = computeTacticalEPE(act_bits);
-                cycles.push_back(PE_cycles);
+            uint8_t count = 0;
+            std::queue<uint8_t> act_offsets;
+            while (act_bits) {
+                auto current_bit = act_bits & 1;
+                if(current_bit) act_offsets.push(count);
+                act_bits >>= 1;
+                count++;
             }
+
+            offsets.push_back(act_offsets);
         }
 
-        return *std::max_element(cycles.begin(), cycles.end());
+        return computeTacticalEPE(offsets);
 
     }
 
@@ -182,7 +203,9 @@ namespace core {
 
         stats.task_name = "cycles";
         stats.net_name = network.getName();
-        stats.arch = "BitTacticalE_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS);
+        stats.arch = "BitTacticalE_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS) + "_B" +
+                std::to_string(BITS_FIRST_STAGE) + "_" + this->SEARCH_SHAPE + "|" + std::to_string(this->LOOKAHEAD_D) +
+                "," + std::to_string(this->LOOKAHEAD_D) + "|";
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {

@@ -52,6 +52,12 @@ namespace core {
          */
         uint16_t booth_encoding(uint16_t value);
 
+        /* Return true if all the queues of activation bits are empty
+         * @param offsets   Collection of activations with their explicit one positions in a queue
+         * @return          True if empty
+         */
+        bool check_act_bits(const std::vector<std::queue<uint8_t>> &offsets);
+
     };
 
 }

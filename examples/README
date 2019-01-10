@@ -14,11 +14,11 @@
 	inputDataType: <Float32|Fixed16>
 	[activate_bias_and_out_act: true]
 	<experiment {
-		architecture: <Stripes|BitPragmatic|Laconic|BitTacticalE|BitTacticalP>
+		architecture: <BitPragmatic|Stripes|Laconic|BitTacticalE|BitTacticalP>
 		task: <Cycles|MemAccesses|Potentials>
 		[n_columns: <pos_num>] // Default 16
 		[n_rows: <pos_num>] //Default 16 (LAC 8)
-		[bits_first_stage: <pos_num>] //Only for BitPragmatic: Default 0
+		[bits_first_stage: <pos_num>] //Only for BitPragmatic and BitTacticalE: Default 0
 		[lookahead_d: <pos_num>] //Only for BitTactical: Default 5
 		[lookaside_h: <pos_num>] //Only for BitTactical: Default 2
 		[search_shape: <L|T>] //Only for BitTactical: Default L

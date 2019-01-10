@@ -13,6 +13,9 @@ namespace core {
 
     private:
 
+        /* Bits of the first stage in the two stages shifting */
+        const int BITS_FIRST_STAGE;
+
         /* Compute number of one bit multiplications given a weights and an activation
          * @param act               Activation
          * @param wgt               Weight
@@ -20,11 +23,11 @@ namespace core {
          */
         uint8_t computeTacticalEBitsPE(uint16_t act, uint16_t wgt);
 
-        /* Compute number of cycles for pragmatic style PE
-         * @param act       Activation
+        /* Compute number of cycles for a two stage shift pragmatic PE
+         * @param offsets   Explicit position for the ones for all the values
          * @return          Number of cycles
          */
-        uint8_t computeTacticalEPE(uint16_t act);
+        uint8_t computeTacticalEPE(const std::vector<std::queue<uint8_t>> &offsets);
 
         /* Compute cycles for BitTacticalE column
          * @param batch             Current number of batch
@@ -91,9 +94,11 @@ namespace core {
          * @param _LOOKAHEAD_D          Value for scheduler lookahead
          * @param _LOOKASIDE_H          Value for scheduler lookaside
          * @param _SEARCH_SHAPE         Type of search
+         * @param _BITS_FIRST_STAGE     Bits of the first stage in the two stages shifting
          */
-        BitTacticalE(int _N_COLUMNS, int _N_ROWS, int _LOOKAHEAD_D, int _LOOKASIDE_H, const char _SEARCH_SHAPE) :
-            BitTactical<T>(_N_COLUMNS,_N_ROWS,_LOOKAHEAD_D,_LOOKASIDE_H,_SEARCH_SHAPE) {}
+        BitTacticalE(int _N_COLUMNS, int _N_ROWS, int _LOOKAHEAD_D, int _LOOKASIDE_H, const char _SEARCH_SHAPE,
+                int _BITS_FIRST_STAGE) : BitTactical<T>(_N_COLUMNS,_N_ROWS,_LOOKAHEAD_D,_LOOKASIDE_H,_SEARCH_SHAPE),
+                BITS_FIRST_STAGE(_BITS_FIRST_STAGE) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate
