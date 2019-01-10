@@ -14,7 +14,7 @@
 	inputDataType: <Float32|Fixed16>
 	[activate_bias_and_out_act: true]
 	<experiment {
-		architecture: <BitPragmatic|Laconic>
+		architecture: <Stripes|BitPragmatic|Laconic|BitTacticalE|BitTacticalP>
 		task: <Cycles|MemAccesses|Potentials>
 		[n_columns: <pos_num>] // Default 16
 		[n_rows: <pos_num>] //Default 16 (LAC 8)
