@@ -108,19 +108,31 @@ namespace core {
     }
 
     template <typename T>
-    uint8_t BitTacticalE<T>::computeTacticalETile(int batch, const std::vector<int> &list_act_x,
+    void BitTacticalE<T>::computeTacticalETile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int init_filter, int stride, const cnpy::Array<T> &padded_act,
-            const cnpy::Array<T> &wgt, int max_filter, schedule &dense_schedule) {
+            const cnpy::Array<T> &wgt, int max_filter, schedule &dense_schedule, std::vector<uint32_t> &cycles_per_col,
+            uint32_t &end_previous_pallet) {
 
         //Get the slowest column
-        std::vector<uint8_t> cycles;
         for(int window = 0; window < list_act_x.size(); window++) {
-            uint8_t PE_cycles = computeTacticalEColumn(batch,list_act_x[window],list_act_y[window],init_filter,stride,
-                    padded_act,wgt,max_filter,dense_schedule);
-            cycles.push_back(PE_cycles);
+            uint8_t column_cycles = computeTacticalEColumn(batch,list_act_x[window],list_act_y[window],init_filter,
+                    stride, padded_act,wgt,max_filter,dense_schedule);
+            cycles_per_col[window] += column_cycles;
         }
 
-        return *std::max_element(cycles.begin(), cycles.end());
+        #ifdef TWO_REGISTERS_PER_SIP
+        // Per-col synchronization assuming two registers per SIP
+        for(auto &column_cycles : cycles_per_col) {
+            if(column_cycles <= end_previous_pallet) {
+                column_cycles = end_previous_pallet + 1;
+            }
+        }
+        end_previous_pallet = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
+        #else
+        // Per-col synchronization assuming one register per SIP
+        auto slowest_column = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
+        cycles_per_col = std::vector<uint32_t>(this->N_COLUMNS,slowest_column);
+        #endif
 
     }
 
@@ -158,7 +170,8 @@ namespace core {
 
         // Stats
         std::vector<uint32_t> cycles (batch_size,0);
-        uint32_t batch_cycles;
+        std::vector<uint32_t> cycles_per_col;
+        uint32_t end_previous_pallet;
 
         std::vector<int> list_x, list_y;
         int n;
@@ -169,19 +182,21 @@ namespace core {
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
-        #pragma omp parallel for private(n,batch_cycles,dense_schedule,list_x,list_y)
+        #pragma omp parallel for private(n,cycles_per_col,end_previous_pallet,dense_schedule,list_x,list_y)
         #endif
         for(n=0; n<batch_size; n++) {
-            batch_cycles = 0;
+            end_previous_pallet = 0;
+            cycles_per_col = std::vector<uint32_t>(this->N_COLUMNS, 0);
             for(int m=0; m<num_filters; m+=this->N_ROWS) {
                 while(this->check_schedule(dense_schedule,m,num_filters)) {
                     while (this->iterateWindows(out_x, out_y, list_x, list_y, this->N_COLUMNS)) {
-                        batch_cycles += computeTacticalETile(n, list_x, list_y, m, stride, padded_act, wgt,
-                                num_filters, dense_schedule);
+                        computeTacticalETile(n, list_x, list_y, m, stride, padded_act, wgt, num_filters, dense_schedule,
+                                cycles_per_col, end_previous_pallet);
                     }
                     this->update_schedule(dense_schedule,m,num_filters);
                 }
             }
+            auto batch_cycles = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
             cycles[n] = batch_cycles;
         }
 

@@ -5,6 +5,7 @@
 
 #define ZERO_COUNT // Count zeroes as 1 cycle
 #define BOOTH_ENCODING // Activate booth-like encoding
+#define TWO_REGISTERS_PER_SIP // Per-col synchronization assuming two registers per SIP
 
 namespace core {
 
@@ -54,11 +55,13 @@ namespace core {
          * @param wgt               Set of weights
          * @param max_filter        Maximum number of filters
          * @param dense_schedule    Data structure containing the weights
-         * @return                  Number of cycles
+         * @param cycles_per_col        Number of cycles per column (Overwritten)
+         * @param end_previous_pallet   Cycle when the previous pallet finishes (Overwritten)
          */
-        uint8_t computeTacticalETile(int batch, const std::vector<int> &list_act_x,
-                const std::vector<int> &list_act_y, int init_filter, int stride, const cnpy::Array<T> &padded_act,
-                const cnpy::Array<T> &wgt, int max_filter, schedule &dense_schedule);
+        void computeTacticalETile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
+                int init_filter, int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt,
+                int max_filter, schedule &dense_schedule, std::vector<uint32_t> &cycles_per_col,
+                uint32_t &end_previous_pallet);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs
