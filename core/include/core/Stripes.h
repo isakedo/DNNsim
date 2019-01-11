@@ -37,7 +37,7 @@ namespace core {
          * @return              Number of cycles
          */
         uint8_t computeStripesColumn(int act_x, int act_y, int kernel_x, int kernel_y, int layer_prec, int init_channel,
-                int max_channel, const std::vector<std::vector<std::vector<int>>> &rowMap);
+                int max_channel, const idxMap &rowMap);
 
         /* Compute cycles for stripes tile
          * @param list_act_x    X position for the set of input windows
@@ -51,8 +51,7 @@ namespace core {
          * @return              Number of cycles
          */
         uint8_t computeStripesTile(const std::vector<int> &list_act_x, const std::vector<int> &list_act_y, int kernel_x,
-                int kernel_y, int layer_prec, int init_channel, int max_channel,
-                const std::vector<std::vector<std::vector<int>>> &rowMap);
+                int kernel_y, int layer_prec, int init_channel, int max_channel, const idxMap &rowMap);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs

@@ -73,9 +73,9 @@ namespace core {
         std::list<uint16_t> unique_act_bits;
         std::vector<std::queue<uint8_t>> offsets;
         for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
-            for (int i = 0; i < WEIGHT_LANES; i++) {
+            for (int wgt_idx = 0; wgt_idx < WEIGHT_LANES; wgt_idx++) {
 
-                auto wgt_tuple = dense_schedule[init_filter][i].front();
+                auto wgt_tuple = dense_schedule[init_filter].front()[wgt_idx];
                 int channel = std::get<0>(wgt_tuple);
                 int kernel_x = std::get<1>(wgt_tuple);
                 int kernel_y = std::get<2>(wgt_tuple);
@@ -210,8 +210,8 @@ namespace core {
         stats.task_name = "cycles";
         stats.net_name = network.getName();
         stats.arch = "BitTacticalE_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS) + "_B" +
-                std::to_string(BITS_FIRST_STAGE) + "_" + this->SEARCH_SHAPE + "|" + std::to_string(this->LOOKAHEAD_D) +
-                "," + std::to_string(this->LOOKAHEAD_D) + "|";
+                std::to_string(BITS_FIRST_STAGE) + "_" + this->SEARCH_SHAPE + "|" + std::to_string(this->LOOKAHEAD_H) +
+                "," + std::to_string(this->LOOKASIDE_D) + "|";
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {

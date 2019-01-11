@@ -32,8 +32,8 @@ namespace sys {
                 int n_columns = 0;
                 int n_rows = 0;
                 int bits_first_stage = 0;
-                int lookahead_d = 0;
-                int lookaside_h = 0;
+                int lookahead_h = 0;
+                int lookaside_d = 0;
                 char search_shape = 'X';
             };
 

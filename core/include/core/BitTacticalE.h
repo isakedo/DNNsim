@@ -94,8 +94,8 @@ namespace core {
          * @param _SEARCH_SHAPE         Type of search
          * @param _BITS_FIRST_STAGE     Bits of the first stage in the two stages shifting
          */
-        BitTacticalE(int _N_COLUMNS, int _N_ROWS, int _LOOKAHEAD_D, int _LOOKASIDE_H, const char _SEARCH_SHAPE,
-                int _BITS_FIRST_STAGE) : BitTactical<T>(_N_COLUMNS,_N_ROWS,_LOOKAHEAD_D,_LOOKASIDE_H,_SEARCH_SHAPE),
+        BitTacticalE(int _N_COLUMNS, int _N_ROWS, int _LOOKAHEAD_H, int _LOOKASIDE_D, const char _SEARCH_SHAPE,
+                int _BITS_FIRST_STAGE) : BitTactical<T>(_N_COLUMNS,_N_ROWS,_LOOKAHEAD_H,_LOOKASIDE_D,_SEARCH_SHAPE),
                 BITS_FIRST_STAGE(_BITS_FIRST_STAGE) {}
 
         /* Run the timing simulator of the architecture

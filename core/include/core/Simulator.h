@@ -12,6 +12,8 @@
 #include <omp.h>
 #endif
 
+typedef std::vector<std::vector<std::vector<int>>> idxMap;
+
 namespace core {
 
     template <typename T>
@@ -43,8 +45,7 @@ namespace core {
          * @param act_channels  Number of activations channels
          * @param NM_WIDTH      Width of the neuron memory row in bits
          */
-        std::vector<std::vector<std::vector<int>>> generate_rowMap(int padded_Nx, int padded_Ny, int act_channels,
-                int NM_WIDTH = 256);
+        idxMap generate_rowMap(int padded_Nx, int padded_Ny, int act_channels, int NM_WIDTH = 256);
 
         /* Return the optimal encoding for the given value
          * @param value     Value we want to encode WITHOUT the sign

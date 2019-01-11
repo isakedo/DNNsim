@@ -7,6 +7,9 @@
 
 typedef std::vector<std::vector<std::vector<std::tuple<int,int,int,uint16_t>>>> schedule;
 typedef std::vector<std::vector<std::tuple<int,int,int,uint16_t>>> filter_schedule;
+typedef std::vector<std::tuple<int,int,int,uint16_t>> time_schedule;
+typedef std::list<std::tuple<int,int>> weights_set;
+typedef std::tuple<int,int> weight_index;
 
 namespace core {
 
@@ -15,9 +18,9 @@ namespace core {
 
     private:
 
-        void filter_scheduler(filter_schedule &sparse_filter_schedule, int filter, int time);
+        void filter_scheduler(filter_schedule &sparse_filter_schedule, int time);
 
-        schedule dense_scheduler(schedule &sparse_schedule);
+        schedule dense_scheduler(const schedule &sparse_schedule);
 
         schedule sparse_scheduler(const cnpy::Array<T> &wgt, int act_channels);
 
@@ -35,11 +38,11 @@ namespace core {
         /* Number of rows */
         const int N_ROWS;
 
-        /* Lookahead value of D*/
-        const int LOOKAHEAD_D;
+        /* Lookahead value of H*/
+        const int LOOKAHEAD_H;
 
-        /* Lookaside value of H*/
-        const int LOOKASIDE_H;
+        /* Lookaside value of D*/
+        const int LOOKASIDE_D;
 
         /* Search shape for the scheduler: must be 'L' or 'T' */
         const char SEARCH_SHAPE;
@@ -94,8 +97,8 @@ namespace core {
          * @param _LOOKASIDE_H          Value for scheduler lookaside
          * @param _SEARCH_SHAPE         Type of search
          */
-        BitTactical(int _N_COLUMNS, int _N_ROWS, int _LOOKAHEAD_D, int _LOOKASIDE_H, const char _SEARCH_SHAPE) :
-            N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), LOOKAHEAD_D(_LOOKAHEAD_D), LOOKASIDE_H(_LOOKASIDE_H),
+        BitTactical(int _N_COLUMNS, int _N_ROWS, int _LOOKAHEAD_H, int _LOOKASIDE_D, const char _SEARCH_SHAPE) :
+            N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), LOOKAHEAD_H(_LOOKAHEAD_H), LOOKASIDE_D(_LOOKASIDE_D),
             SEARCH_SHAPE(_SEARCH_SHAPE) {}
 
     public:

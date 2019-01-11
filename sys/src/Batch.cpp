@@ -94,8 +94,8 @@ namespace sys {
                 } else if (experiment_proto.architecture() == "BitTacticalP") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
-                    experiment.lookahead_d = experiment_proto.lookahead_d() < 1 ? 2 : experiment_proto.lookahead_d();
-                    experiment.lookaside_h = experiment_proto.lookaside_h() < 1 ? 5 : experiment_proto.lookaside_h();
+                    experiment.lookahead_h = experiment_proto.lookahead_h() < 1 ? 2 : experiment_proto.lookahead_h();
+                    experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();
                     experiment.search_shape = experiment_proto.search_shape().empty() ? 'L' :
                             experiment_proto.search_shape().c_str()[0];
                     value = experiment.search_shape;
@@ -107,8 +107,8 @@ namespace sys {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.bits_first_stage = experiment_proto.bits_first_stage();
-                    experiment.lookahead_d = experiment_proto.lookahead_d() < 1 ? 2 : experiment_proto.lookahead_d();
-                    experiment.lookaside_h = experiment_proto.lookaside_h() < 1 ? 5 : experiment_proto.lookaside_h();
+                    experiment.lookahead_h = experiment_proto.lookahead_h() < 1 ? 2 : experiment_proto.lookahead_h();
+                    experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();
                     experiment.search_shape = experiment_proto.search_shape().empty() ? 'L' :
                                               experiment_proto.search_shape().c_str()[0];
                     value = experiment.search_shape;

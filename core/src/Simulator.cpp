@@ -60,12 +60,11 @@ namespace core {
     }
 
     template <typename T>
-    std::vector<std::vector<std::vector<int>>> Simulator<T>::generate_rowMap(int padded_Nx, int padded_Ny,
-            int act_channels, int NM_WIDTH) {
+    idxMap Simulator<T>::generate_rowMap(int padded_Nx, int padded_Ny, int act_channels, int NM_WIDTH) {
 
         uint32_t row_index = 0;
-        std::vector<std::vector<std::vector<int>>> rowMap((unsigned)padded_Nx,
-                std::vector<std::vector<int>>((unsigned)padded_Ny, std::vector<int>((unsigned)act_channels)));
+        idxMap rowMap((unsigned)padded_Nx, std::vector<std::vector<int>>((unsigned)padded_Ny,
+                std::vector<int>((unsigned)act_channels)));
         for(int i = 0; i < act_channels; i+=16) {
             for (int j = 0; j < padded_Nx; j++) {
                 for (int k = 0; k < padded_Ny; k++) {
