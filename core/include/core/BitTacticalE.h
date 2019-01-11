@@ -42,8 +42,7 @@ namespace core {
          * @return                  Number of cycles
          */
         uint8_t computeTacticalEColumn(int batch, int act_x, int act_y, int init_filter, int stride,
-                const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_filter,
-                const std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> &dense_schedule);
+                const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_filter, schedule &dense_schedule);
 
         /* Compute cycles for BitTacticalE tile
          * @param batch             Current number of batch
@@ -59,8 +58,7 @@ namespace core {
          */
         uint8_t computeTacticalETile(int batch, const std::vector<int> &list_act_x,
                 const std::vector<int> &list_act_y, int init_filter, int stride, const cnpy::Array<T> &padded_act,
-                const cnpy::Array<T> &wgt, int max_filter,
-                const std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> &dense_schedule);
+                const cnpy::Array<T> &wgt, int max_filter, schedule &dense_schedule);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs

@@ -6,8 +6,61 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    std::vector<std::vector<std::vector<std::tuple<int,int,int>>>> naive_scheduler(const cnpy::Array<T> &wgt,
-            int act_channels) {
+    bool BitTactical<T>::check_schedule(const schedule &dense_schedule, int init_filter, int max_filter) {
+
+        for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
+            for(int i = 0; i < WEIGHT_LANES; i++) {
+                if(!dense_schedule[filter][i].empty())
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    template <typename T>
+    void BitTactical<T>::update_schedule(schedule &dense_schedule, int init_filter, int max_filter) {
+
+        for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
+            for(int i = 0; i < WEIGHT_LANES; i++) {
+                dense_schedule[filter][i].erase(dense_schedule[filter][i].begin());
+            }
+        }
+    }
+
+
+    /* SCHEDULER */
+
+    void L_shape_search() {}
+
+    void T_shape_search() {}
+
+    void promote_weight() {}
+
+    template <typename T>
+    void BitTactical<T>::filter_scheduler(filter_schedule &sparse_filter_schedule, int filter, int time) {
+
+        auto search = SEARCH_SHAPE == 'L' ? L_shape_search : T_shape_search;
+
+    }
+
+    template <typename T>
+    schedule BitTactical<T>::dense_scheduler(schedule &sparse_schedule) {
+
+        schedule dense_schedule = schedule(sparse_schedule.size(),filter_schedule(WEIGHT_LANES,
+                std::vector<std::tuple<int,int,int>>()));
+
+        for(int m=0; m<sparse_schedule.size(); m++) {
+            for(int time=0; time<sparse_schedule.front().front().size(); time++) {
+                filter_scheduler(sparse_schedule[m],m,time);
+            }
+        }
+
+        return dense_schedule;
+
+    }
+
+    template <typename T>
+    schedule BitTactical<T>::sparse_scheduler(const cnpy::Array<T> &wgt, int act_channels) {
 
         const auto &wgt_shape = wgt.getShape();
 
@@ -19,9 +72,8 @@ namespace core {
         int groups = act_channels / wgt_channels;
         int it_per_group = num_filters / groups;
 
-        std::vector<std::vector<std::vector<std::tuple<int,int,int>>>> naive_schedule =
-                std::vector<std::vector<std::vector<std::tuple<int,int,int>>>>((unsigned)num_filters,
-                std::vector<std::vector<std::tuple<int,int,int>>>(WEIGHT_LANES,std::vector<std::tuple<int,int,int>>()));
+        schedule naive_schedule = schedule((unsigned)num_filters, filter_schedule(WEIGHT_LANES,
+                std::vector<std::tuple<int,int,int>>()));
 
         int current_group = 0, group_m = 0, start_group = 0;
         for(int m=0; m<num_filters; m++) {
@@ -57,71 +109,11 @@ namespace core {
         return naive_schedule;
     }
 
-    void promote_weight() {}
-
-    void weight_schedule_L_shape(std::vector<std::vector<std::vector<std::tuple<int,int,int>>>> &naive_schedule,
-            int filter, int time) {
-
-    }
-
-    std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> dense_scheduler_L_shape(
-            std::vector<std::vector<std::vector<std::tuple<int,int,int>>>> &naive_schedule) {
-
-        std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> dense_schedule =
-                std::vector<std::vector<std::queue<std::tuple<int,int,int>>>>(naive_schedule.size(),
-                std::vector<std::queue<std::tuple<int,int,int>>>(WEIGHT_LANES,std::queue<std::tuple<int,int,int>>()));
-
-        for(int m=0; m<naive_schedule.size(); m++) {
-            for(int time=0; time<naive_schedule.front().front().size(); time++) {
-
-            }
-        }
-
-        return dense_schedule;
-    }
-
-    std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> dense_scheduler_T_shape(
-            std::vector<std::vector<std::vector<std::tuple<int,int,int>>>> &naive_schedule) {
-
-        std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> dense_schedule =
-                std::vector<std::vector<std::queue<std::tuple<int,int,int>>>>(naive_schedule.size(),
-                std::vector<std::queue<std::tuple<int,int,int>>>(WEIGHT_LANES,std::queue<std::tuple<int,int,int>>()));
-
-        return dense_schedule;
-    }
-
     template <typename T>
-    std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> BitTactical<T>::scheduler(const cnpy::Array<T> &wgt,
-            int act_channels) {
-
-        auto naive_schedule = naive_scheduler(wgt,act_channels);
-
-        return SEARCH_SHAPE == 'L' ? dense_scheduler_L_shape(naive_schedule) : dense_scheduler_T_shape(naive_schedule);
-
-    }
-
-    template <typename T>
-    bool BitTactical<T>::check_schedule(const std::vector<std::vector<std::queue<std::tuple<int,int,int>>>>
-        &dense_schedule, int init_filter, int max_filter) {
-
-        for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
-            for(int i = 0; i < WEIGHT_LANES; i++) {
-                if(!dense_schedule[filter][i].empty())
-                    return true;
-            }
-        }
-        return false;
-    }
-
-    template <typename T>
-    void BitTactical<T>::update_schedule(std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> &dense_schedule
-            ,int init_filter, int max_filter) {
-
-        for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
-            for(int i = 0; i < WEIGHT_LANES; i++) {
-                dense_schedule[filter][i].pop();
-            }
-        }
+    schedule BitTactical<T>::scheduler(const cnpy::Array<T> &wgt, int act_channels) {
+        auto sparse_schedule = sparse_scheduler(wgt,act_channels);
+        //auto dense_schedule = dense_scheduler(sparse_schedule);
+        return sparse_schedule;
     }
 
     /* MEMORY ACCESSES */

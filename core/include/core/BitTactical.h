@@ -5,12 +5,21 @@
 
 #define WEIGHT_LANES 16 // Number of weight lanes
 
+typedef std::vector<std::vector<std::vector<std::tuple<int,int,int>>>> schedule;
+typedef std::vector<std::vector<std::tuple<int,int,int>>> filter_schedule;
+
 namespace core {
 
     template <typename T>
     class BitTactical : public Simulator<T> {
 
     private:
+
+        void filter_scheduler(filter_schedule &sparse_filter_schedule, int filter, int time);
+
+        schedule dense_scheduler(schedule &sparse_schedule);
+
+        schedule sparse_scheduler(const cnpy::Array<T> &wgt, int act_channels);
 
         /* Compute the potentials for a convolutional layer
          * @param layer     Layer for which we want to calculate potentials
@@ -35,17 +44,14 @@ namespace core {
         /* Search shape for the scheduler: must be 'L' or 'T' */
         const char SEARCH_SHAPE;
 
+        bool check_schedule(const schedule &dense_schedule, int init_filter, int max_filter);
+
+        void update_schedule(schedule &dense_schedule, int init_filter, int max_filter);
+
         /*
          *
          */
-        std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> scheduler(const cnpy::Array<T> &wgt,
-                int act_channels);
-
-        bool check_schedule(const std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> &dense_schedule,
-                             int init_filter, int max_filter);
-
-        void update_schedule(std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> &dense_schedule,
-                int init_filter, int max_filter);
+        schedule scheduler(const cnpy::Array<T> &wgt, int act_channels);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs

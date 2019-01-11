@@ -68,8 +68,7 @@ namespace core {
 
     template <typename T>
     uint8_t BitTacticalE<T>::computeTacticalEColumn(int batch, int act_x, int act_y, int init_filter, int stride,
-            const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_filter,
-            const std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> &dense_schedule) {
+            const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_filter, schedule &dense_schedule) {
 
         std::list<uint16_t> unique_act_bits;
         std::vector<std::queue<uint8_t>> offsets;
@@ -111,8 +110,7 @@ namespace core {
     template <typename T>
     uint8_t BitTacticalE<T>::computeTacticalETile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int init_filter, int stride, const cnpy::Array<T> &padded_act,
-            const cnpy::Array<T> &wgt, int max_filter,
-            const std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> &dense_schedule) {
+            const cnpy::Array<T> &wgt, int max_filter, schedule &dense_schedule) {
 
         //Get the slowest column
         std::vector<uint8_t> cycles;
