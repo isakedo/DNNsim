@@ -21,18 +21,18 @@ namespace core {
 
         std::vector<std::vector<std::vector<std::tuple<int,int,int>>>> naive_schedule =
                 std::vector<std::vector<std::vector<std::tuple<int,int,int>>>>((unsigned)num_filters,
-                std::vector<std::vector<std::tuple<int,int,int>>>(16,std::vector<std::tuple<int,int,int>>()));
+                std::vector<std::vector<std::tuple<int,int,int>>>(WEIGHT_LANES,std::vector<std::tuple<int,int,int>>()));
 
         int current_group = 0, group_m = 0, start_group = 0;
         for(int m=0; m<num_filters; m++) {
             int index = 0;
             for (int i = 0; i < Kx; i++) {
                 for (int j = 0; j < Ky; j++) {
-                    for (int k = start_group; k < wgt_channels + start_group; k+=16) {
-                        for(int channel = k; channel < std::min(k + 16,act_channels); channel++) {
+                    for (int k = start_group; k < wgt_channels + start_group; k+=WEIGHT_LANES) {
+                        for(int channel = k; channel < std::min(k + WEIGHT_LANES,act_channels); channel++) {
                             naive_schedule[m][index].push_back(std::make_tuple(channel,i,j));
                             index++;
-                            if(index == 16) index = 0;
+                            if(index == WEIGHT_LANES) index = 0;
                         }
                     }
                 }
@@ -42,7 +42,7 @@ namespace core {
             while (index != 0) {
                 naive_schedule[m][index].push_back(std::make_tuple(0,0,0));
                 index++;
-                if(index == 16) index = 0;
+                if(index == WEIGHT_LANES) index = 0;
             }
 
             group_m++;
@@ -57,30 +57,35 @@ namespace core {
         return naive_schedule;
     }
 
-    std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> dense_scheduler_L_shaped(int num_filters,
-            const std::vector<std::vector<std::vector<std::tuple<int,int,int>>>> &naive_schedule) {
+    void promote_weight() {}
+
+    void weight_schedule_L_shape(std::vector<std::vector<std::vector<std::tuple<int,int,int>>>> &naive_schedule,
+            int filter, int time) {
+
+    }
+
+    std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> dense_scheduler_L_shape(
+            std::vector<std::vector<std::vector<std::tuple<int,int,int>>>> &naive_schedule) {
 
         std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> dense_schedule =
-                std::vector<std::vector<std::queue<std::tuple<int,int,int>>>>((unsigned)num_filters,
-                std::vector<std::queue<std::tuple<int,int,int>>>(16,std::queue<std::tuple<int,int,int>>()));
+                std::vector<std::vector<std::queue<std::tuple<int,int,int>>>>(naive_schedule.size(),
+                std::vector<std::queue<std::tuple<int,int,int>>>(WEIGHT_LANES,std::queue<std::tuple<int,int,int>>()));
 
-        for(int m=0; m<num_filters; m++) {
+        for(int m=0; m<naive_schedule.size(); m++) {
+            for(int time=0; time<naive_schedule.front().front().size(); time++) {
 
+            }
         }
 
         return dense_schedule;
     }
 
-    std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> dense_scheduler_T_shaped(int num_filters,
-            const std::vector<std::vector<std::vector<std::tuple<int,int,int>>>> &naive_schedule) {
+    std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> dense_scheduler_T_shape(
+            std::vector<std::vector<std::vector<std::tuple<int,int,int>>>> &naive_schedule) {
 
         std::vector<std::vector<std::queue<std::tuple<int,int,int>>>> dense_schedule =
-                std::vector<std::vector<std::queue<std::tuple<int,int,int>>>>((unsigned)num_filters,
-                std::vector<std::queue<std::tuple<int,int,int>>>(16,std::queue<std::tuple<int,int,int>>()));
-
-        for(int m=0; m<num_filters; m++) {
-
-        }
+                std::vector<std::vector<std::queue<std::tuple<int,int,int>>>>(naive_schedule.size(),
+                std::vector<std::queue<std::tuple<int,int,int>>>(WEIGHT_LANES,std::queue<std::tuple<int,int,int>>()));
 
         return dense_schedule;
     }
@@ -91,8 +96,7 @@ namespace core {
 
         auto naive_schedule = naive_scheduler(wgt,act_channels);
 
-        return SEARCH_SHAPE == 'L' ? dense_scheduler_L_shaped(wgt.getShape()[0],naive_schedule) :
-            dense_scheduler_T_shaped(wgt.getShape()[0],naive_schedule);
+        return SEARCH_SHAPE == 'L' ? dense_scheduler_L_shape(naive_schedule) : dense_scheduler_T_shape(naive_schedule);
 
     }
 
@@ -101,7 +105,7 @@ namespace core {
         &dense_schedule, int init_filter, int max_filter) {
 
         for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
-            for(int i = 0; i < 16; i++) {
+            for(int i = 0; i < WEIGHT_LANES; i++) {
                 if(!dense_schedule[filter][i].empty())
                     return true;
             }
@@ -114,7 +118,7 @@ namespace core {
             ,int init_filter, int max_filter) {
 
         for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
-            for(int i = 0; i < 16; i++) {
+            for(int i = 0; i < WEIGHT_LANES; i++) {
                 dense_schedule[filter][i].pop();
             }
         }

@@ -74,7 +74,7 @@ namespace core {
         std::list<uint16_t> unique_act_bits;
         std::vector<std::queue<uint8_t>> offsets;
         for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
-            for (int i = 0; i < 16; i++) {
+            for (int i = 0; i < WEIGHT_LANES; i++) {
 
                 auto wgt_tuple = dense_schedule[init_filter][i].front();
                 int channel = std::get<0>(wgt_tuple);

@@ -3,6 +3,8 @@
 
 #include "Simulator.h"
 
+#define WEIGHT_LANES 16 // Number of weight lanes
+
 namespace core {
 
     template <typename T>

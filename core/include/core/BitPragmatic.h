@@ -6,6 +6,7 @@
 #define ZERO_COUNT // Count zeroes as 1 cycle
 #define BOOTH_ENCODING // Activate booth-like encoding
 #define TWO_REGISTERS_PER_SIP // Per-col synchronization assuming two registers per SIP
+#define WEIGHT_LANES 16 // Number of weight lanes
 
 namespace core {
 

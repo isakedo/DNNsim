@@ -69,7 +69,7 @@ namespace core {
             int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel) {
 
         std::vector<std::queue<uint8_t>> offsets;
-        for(int channel = init_channel; channel < std::min(init_channel + 16,max_channel); channel++) {
+        for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_channel); channel++) {
             uint16_t act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
             #ifdef BOOTH_ENCODING
             act_bits = this->booth_encoding(act_bits);
@@ -173,7 +173,7 @@ namespace core {
             while(this->iterateWindows(out_x,out_y,list_x,list_y,N_COLUMNS)) {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
-                        for (int k = 0; k < act_channels; k += 16) {
+                        for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
                             computePragmaticTile(n,list_x, list_y, i, j, k, stride, padded_act, act_channels,
                                     cycles_per_col, end_previous_pallet);
                         }
@@ -184,7 +184,7 @@ namespace core {
             cycles[n] = batch_cycles*num_filters_sets;
         }
 
-        auto base_cycles = (uint32_t)(out_x * out_y * act_channels * Kx * Ky * num_filters_sets / 16);
+        auto base_cycles = (uint32_t)(out_x * out_y * act_channels * Kx * Ky * num_filters_sets / N_ROWS);
         auto avg_cycles = accumulate(cycles.begin(), cycles.end(), 0.0)/cycles.size();
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
@@ -228,13 +228,13 @@ namespace core {
         #endif
         for (n = 0; n<batch_size; n++) {
             batch_cycles = 0;
-            for (int k = 0; k<act_channels; k += 16) {
+            for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
                 batch_cycles += computePragmaticColumn(n,0,0,0,0,k,0,act,act_channels);
             }
             cycles[n] = batch_cycles*num_filters_sets;
         }
 
-        auto base_cycles = (uint32_t)(act_channels * num_filters_sets / 16);
+        auto base_cycles = (uint32_t)(act_channels * num_filters_sets / N_ROWS);
         auto avg_cycles = accumulate(cycles.begin(), cycles.end(), 0.0)/cycles.size();
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
@@ -478,7 +478,7 @@ namespace core {
         int groups = act_channels / wgt_channels;
         auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS)/groups;
         auto num_activations_sets = (uint32_t)ceil(out_x*out_y/(double)N_COLUMNS);
-        auto num_channel_sets = (uint32_t)ceil(wgt_channels/16.);
+        auto num_channel_sets = (uint32_t)ceil(wgt_channels/(double)WEIGHT_LANES);
 
         stats.on_chip_accesses_filters.push_back(num_filters_sets*num_activations_sets*num_channel_sets*Kx*Ky);
         stats.on_chip_accesses_activations.push_back(num_filters_sets*num_activations_sets*num_channel_sets*Kx*Ky);
@@ -486,7 +486,7 @@ namespace core {
         stats.off_chip_accesses_filters_sch4.push_back(num_filters_sets); // Working set of filters
         stats.off_chip_accesses_activations.push_back((uint32_t)out_y); // One row of activations
         stats.num_bytes_filters_sche3.push_back((uint32_t)(num_filters*wgt_channels*Kx*Ky*16)/8);
-        stats.num_bytes_filters_sche4.push_back((uint32_t)(16*wgt_channels*Kx*Ky*16)/8);
+        stats.num_bytes_filters_sche4.push_back((uint32_t)(N_ROWS*wgt_channels*Kx*Ky*16)/8);
         stats.num_bytes_one_row_activations.push_back((uint32_t)(Nx*Ky*act_channels*16)/8);
         stats.num_computations.push_back(num_filters_sets*num_activations_sets*num_channel_sets*Kx*Ky);
     }

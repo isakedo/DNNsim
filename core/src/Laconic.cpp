@@ -44,7 +44,7 @@ namespace core {
         //Get the slowest PE
         std::vector<uint8_t> cycles;
         for (int filter = init_filter; filter < std::min(init_filter + N_ROWS, max_filter); filter++) {
-            for(int channel = init_channel; channel < std::min(init_channel + 16,max_channel); channel++) {
+            for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_channel); channel++) {
 
                 auto act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x,
                         stride * act_y + kernel_y);
@@ -133,7 +133,7 @@ namespace core {
                 while(this->iterateWindows(out_x,out_y,list_x,list_y,N_COLUMNS)) {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
-                            for (int k = start_group; k < wgt_channels + start_group; k+=16) {
+                            for (int k = start_group; k < wgt_channels + start_group; k+=WEIGHT_LANES) {
                                 batch_cycles += computeLaconicTile(n,list_x, list_y, i, j, k, m, stride, padded_act,
                                         wgt, start_group, act_channels, num_filters);
                             }
@@ -195,7 +195,7 @@ namespace core {
         for (n = 0; n<batch_size; n++) {
             batch_cycles = 0;
             for (int m = 0; m<num_filters; m+=N_ROWS) {
-                for (int k = 0; k<wgt_channels; k+=16) {
+                for (int k = 0; k<wgt_channels; k+=WEIGHT_LANES) {
                     batch_cycles += computeLaconicColumn(n,0,0,0,0,k,m,0,act,wgt,0,wgt_channels,num_filters);
                 }
             }
