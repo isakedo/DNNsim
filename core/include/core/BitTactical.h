@@ -5,8 +5,8 @@
 
 #define WEIGHT_LANES 16 // Number of weight lanes
 
-typedef std::vector<std::vector<std::vector<std::tuple<int,int,int>>>> schedule;
-typedef std::vector<std::vector<std::tuple<int,int,int>>> filter_schedule;
+typedef std::vector<std::vector<std::vector<std::tuple<int,int,int,uint16_t>>>> schedule;
+typedef std::vector<std::vector<std::tuple<int,int,int,uint16_t>>> filter_schedule;
 
 namespace core {
 

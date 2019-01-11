@@ -40,6 +40,19 @@ namespace core {
     void BitTactical<T>::filter_scheduler(filter_schedule &sparse_filter_schedule, int filter, int time) {
 
         auto search = SEARCH_SHAPE == 'L' ? L_shape_search : T_shape_search;
+        int overlap = 1;
+        while(overlap > 0) {
+            std::vector<int> num_candidates (WEIGHT_LANES, 0);
+
+            // Get effectual weights
+
+            // Num of candidates for each ineffectual weight
+
+            overlap = *std::min(num_candidates.begin(), num_candidates.end());
+
+            // Promote less flexible candidates first
+
+        }
 
     }
 
@@ -47,7 +60,7 @@ namespace core {
     schedule BitTactical<T>::dense_scheduler(schedule &sparse_schedule) {
 
         schedule dense_schedule = schedule(sparse_schedule.size(),filter_schedule(WEIGHT_LANES,
-                std::vector<std::tuple<int,int,int>>()));
+                std::vector<std::tuple<int,int,int,T>>()));
 
         for(int m=0; m<sparse_schedule.size(); m++) {
             for(int time=0; time<sparse_schedule.front().front().size(); time++) {
@@ -73,7 +86,7 @@ namespace core {
         int it_per_group = num_filters / groups;
 
         schedule naive_schedule = schedule((unsigned)num_filters, filter_schedule(WEIGHT_LANES,
-                std::vector<std::tuple<int,int,int>>()));
+                std::vector<std::tuple<int,int,int,T>>()));
 
         int current_group = 0, group_m = 0, start_group = 0;
         for(int m=0; m<num_filters; m++) {
@@ -82,7 +95,8 @@ namespace core {
                 for (int j = 0; j < Ky; j++) {
                     for (int k = start_group; k < wgt_channels + start_group; k+=WEIGHT_LANES) {
                         for(int channel = k; channel < std::min(k + WEIGHT_LANES,act_channels); channel++) {
-                            naive_schedule[m][index].push_back(std::make_tuple(channel,i,j));
+                            auto wgt_bits = wgt.get(m,channel - start_group, i, j);
+                            naive_schedule[m][index].push_back(std::make_tuple(channel,i,j,wgt_bits));
                             index++;
                             if(index == WEIGHT_LANES) index = 0;
                         }
@@ -92,7 +106,7 @@ namespace core {
 
             // Ensure all the queue are equal in length
             while (index != 0) {
-                naive_schedule[m][index].push_back(std::make_tuple(0,0,0));
+                naive_schedule[m][index].push_back(std::make_tuple(0,0,0,0));
                 index++;
                 if(index == WEIGHT_LANES) index = 0;
             }
