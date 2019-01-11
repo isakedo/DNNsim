@@ -23,7 +23,6 @@ namespace core {
         }
     }
 
-
     /* SCHEDULER */
 
     void promote_weight(filter_schedule &dense_filter_schedule, weight_index ineffectual, weight_index candidate) {
@@ -44,6 +43,7 @@ namespace core {
         auto next_time = time + 1;
         if(next_time >= dense_filter_schedule.size()) return effectual_candidates;
 
+        // Front
         for(int d = 1; d <= LOOKAHEAD_H; d++) {
             auto time_d = time + d;
             if(time_d >= dense_filter_schedule.size()) break;
@@ -52,6 +52,7 @@ namespace core {
             if(wgt_bits != 0) effectual_candidates.push_back(std::make_tuple(time_d,lane));
         }
 
+        // Up
         for(int h = 1; h <= LOOKASIDE_D; h++) {
             auto lane_h = lane - h;
             lane_h = (lane_h) < 0 ? WEIGHT_LANES + lane_h : lane_h; // Wrap around
@@ -63,8 +64,55 @@ namespace core {
         return effectual_candidates;
     }
 
-    weights_set T_shape_search(const filter_schedule &dense_filter_schedule, weight_index wgt_idx, int LOOKAHEAD_D,
-            int LOOKASIDE_H) {
+    // Currently only allowed for H=2 and D=5
+    weights_set T_shape_search(const filter_schedule &dense_filter_schedule, weight_index wgt_idx, int LOOKAHEAD_H,
+            int LOOKASIDE_D) {
+
+        auto time = std::get<0>(wgt_idx);
+        auto lane = std::get<1>(wgt_idx);
+        weights_set effectual_candidates;
+        auto next_time = time + 1;
+        if(next_time >= dense_filter_schedule.size()) return effectual_candidates;
+
+        // Front
+        for(int d = 1; d <= LOOKAHEAD_H; d++) {
+            auto time_d = time + d;
+            if(time_d >= dense_filter_schedule.size()) break;
+            auto wgt_tuple = dense_filter_schedule[time_d][lane];
+            auto wgt_bits = std::get<3>(wgt_tuple);
+            if(wgt_bits != 0) effectual_candidates.push_back(std::make_tuple(time_d,lane));
+        }
+
+        // Up
+        for(int h = 1; h <= LOOKAHEAD_H; h++) {
+            auto lane_h = lane - h;
+            auto time_h = time + h;
+            if(time_h >= dense_filter_schedule.size()) break;
+            lane_h = (lane_h) < 0 ? WEIGHT_LANES + lane_h : lane_h; // Wrap around
+            auto wgt_tuple = dense_filter_schedule[time_h][lane_h];
+            auto wgt_bits = std::get<3>(wgt_tuple);
+            if(wgt_bits != 0) effectual_candidates.push_back(std::make_tuple(time_h,lane_h));
+        }
+
+        // Down
+        for(int h = 1; h <= LOOKAHEAD_H; h++) {
+            auto lane_h = lane + h;
+            auto time_h = time + h;
+            if(time_h >= dense_filter_schedule.size()) break;
+            lane_h = (lane_h) >= WEIGHT_LANES ? lane_h - WEIGHT_LANES : lane_h; // Wrap around
+            auto wgt_tuple = dense_filter_schedule[time_h][lane_h];
+            auto wgt_bits = std::get<3>(wgt_tuple);
+            if(wgt_bits != 0) effectual_candidates.push_back(std::make_tuple(time_h,lane_h));
+        }
+
+        //For free
+        auto lane_h = lane - LOOKAHEAD_H - 1;
+        lane_h = (lane_h) < 0 ? WEIGHT_LANES + lane_h : lane_h; // Wrap around
+        auto wgt_tuple = dense_filter_schedule[next_time][lane_h];
+        auto wgt_bits = std::get<3>(wgt_tuple);
+        if(wgt_bits != 0) effectual_candidates.push_back(std::make_tuple(next_time,lane_h));
+
+        return effectual_candidates;
 
     }
 

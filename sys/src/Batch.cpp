@@ -102,6 +102,9 @@ namespace sys {
                     if(value != "L" && value != "T")
                         throw std::runtime_error("BitTactical search shape for network " + simulate.network +
                                                  " must be <L|T>.");
+                    if(value == "T" && (experiment.lookahead_h != 2 || experiment.lookaside_d != 5))
+                        throw std::runtime_error("BitTactical search T-shape for network " + simulate.network +
+                                                 " must be lookahead of 2, and lookaside of 5.");
 
                 } else if (experiment_proto.architecture() == "BitTacticalE") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
@@ -115,6 +118,9 @@ namespace sys {
                     if(value != "L" && value != "T")
                         throw std::runtime_error("BitTactical search shape for network " + simulate.network +
                                                  " must be <L|T>.");
+                    if(value == "T" && (experiment.lookahead_h != 2 || experiment.lookaside_d != 5))
+                        throw std::runtime_error("BitTactical search T-shape for network " + simulate.network +
+                                                 " must be lookahead of 2, and lookaside of 5.");
 
                 } else if (experiment_proto.architecture() == "BitFusion") {
                 } else throw std::runtime_error("Architecture for network " + simulate.network +

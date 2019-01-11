@@ -97,9 +97,10 @@ namespace core {
 
         stats.task_name = "cycles";
         stats.net_name = network.getName();
-        stats.arch = "BitTacticalP_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS) + + "_" +
-                this->SEARCH_SHAPE + "|" + std::to_string(this->LOOKAHEAD_H) + "," + std::to_string(this->LOOKASIDE_D) +
-                "|";
+        int mux_entries = this->LOOKAHEAD_H + this->LOOKASIDE_D + 1;
+        stats.arch = "BitTacticalE_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS) + "_" +
+                this->SEARCH_SHAPE + std::to_string(mux_entries) + "(" + std::to_string(this->LOOKAHEAD_H) + "-" +
+                std::to_string(this->LOOKASIDE_D) + ")";
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
