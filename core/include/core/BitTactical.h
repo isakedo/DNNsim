@@ -18,6 +18,20 @@ namespace core {
 
     private:
 
+        /* Search effectual weights in a L-shape search
+         * @param dense_filter_schedule     Filter scheduled so far
+         * @param wgt_index                 Index of the ineffectual weight that is going to be substituted
+         * @return                          Effectual candidates to substitute the ineffectual position
+         */
+        weights_set L_shape_search(const filter_schedule &dense_filter_schedule, weight_index wgt_idx);
+
+        /* Search effectual weights in a T-shape search
+         * @param dense_filter_schedule     Filter scheduled so far
+         * @param wgt_index                 Index of the ineffectual weight that is going to be substituted
+         * @return                          Effectual candidates to substitute the ineffectual position
+         */
+        weights_set T_shape_search(const filter_schedule &dense_filter_schedule, weight_index wgt_idx);
+
         /* Schedule the promotions for one filter given a specific time
          * @param sparse_filter_schedule    Schedule for a filter before removing zeroes (Overwritten)
          * @param time                      Specific time to schedule

@@ -34,8 +34,8 @@ namespace core {
         dense_filter_schedule[cand_time][cand_lane] = std::make_tuple(0,0,0,0);
     }
 
-    weights_set L_shape_search(const filter_schedule &dense_filter_schedule, weight_index wgt_idx, int LOOKAHEAD_H,
-            int LOOKASIDE_D) {
+    template <typename T>
+    weights_set BitTactical<T>::L_shape_search(const filter_schedule &dense_filter_schedule, weight_index wgt_idx) {
 
         auto time = std::get<0>(wgt_idx);
         auto lane = std::get<1>(wgt_idx);
@@ -65,8 +65,8 @@ namespace core {
     }
 
     // Currently only allowed for H=2 and D=5
-    weights_set T_shape_search(const filter_schedule &dense_filter_schedule, weight_index wgt_idx, int LOOKAHEAD_H,
-            int LOOKASIDE_D) {
+    template <typename T>
+    weights_set BitTactical<T>::T_shape_search(const filter_schedule &dense_filter_schedule, weight_index wgt_idx) {
 
         auto time = std::get<0>(wgt_idx);
         auto lane = std::get<1>(wgt_idx);
@@ -119,7 +119,7 @@ namespace core {
     template <typename T>
     void BitTactical<T>::filter_scheduler(filter_schedule &dense_filter_schedule, int time) {
 
-        auto search = SEARCH_SHAPE == 'L' ? L_shape_search : T_shape_search;
+        auto search = SEARCH_SHAPE == 'L' ? &BitTactical<T>::L_shape_search : &BitTactical<T>::T_shape_search;
         int overlap = 1;
         while(overlap > 0) {
 
@@ -139,7 +139,7 @@ namespace core {
             std::vector<weights_set> effectual_candidates (WEIGHT_LANES, weights_set());
             for(auto wgt_idx : ineffectual_weights) {
                 auto lane = std::get<1>(wgt_idx);
-                effectual_candidates[lane] = search(dense_filter_schedule,wgt_idx,LOOKAHEAD_H,LOOKASIDE_D);
+                effectual_candidates[lane] = (this->*search)(dense_filter_schedule,wgt_idx);
                 num_candidates[lane] = effectual_candidates[lane].size();
                 min_num_candidates.push_back(effectual_candidates[lane].size());
             }
