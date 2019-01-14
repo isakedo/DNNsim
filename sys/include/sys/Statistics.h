@@ -38,6 +38,11 @@ namespace sys {
             std::vector<uint32_t> STR_avg_cycles;
             std::vector<uint32_t> STR_baseline_cycles;
 
+            /* Stats for Dynamic Stripes cycles */
+            std::vector<std::vector<uint32_t>> DSTR_cycles;
+            std::vector<uint32_t> DSTR_avg_cycles;
+            std::vector<uint32_t> DSTR_baseline_cycles;
+
             /* Stats for Pragmatic cycles */
             std::vector<std::vector<uint32_t>> PRA_cycles;
             std::vector<uint32_t> PRA_avg_cycles;

@@ -28,6 +28,7 @@ THE SOFTWARE.
 #include <core/Network.h>
 #include <core/InferenceSimulator.h>
 #include <core/Stripes.h>
+#include <core/DynamicStripes.h>
 #include <core/BitPragmatic.h>
 #include <core/Laconic.h>
 #include <core/BitTacticalE.h>
@@ -158,26 +159,38 @@ int main(int argc, char *argv[]) {
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                             else if (experiment.task == "MemAccesses") DNNsim.memoryAccesses(network);
+
                         } else if(experiment.architecture == "Stripes") {
                             core::Stripes<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                             else if (experiment.task == "MemAccesses") DNNsim.memoryAccesses(network);
+
+                        } else if(experiment.architecture == "DynamicStripes") {
+                            core::DynamicStripes<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
+                                    experiment.precision_granularity);
+                            if(experiment.task == "Cycles") DNNsim.run(network);
+                            else if (experiment.task == "Potentials") DNNsim.potentials(network);
+                            else if (experiment.task == "MemAccesses") DNNsim.memoryAccesses(network);
+
                         } else if (experiment.architecture == "Laconic") {
                             core::Laconic<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
+
                         } else if (experiment.architecture == "BitTacticalP") {
                             core::BitTacticalP<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
                                     experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
+
                         } else if (experiment.architecture == "BitTacticalE") {
                             core::BitTacticalE<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
                                     experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape,
                                     experiment.bits_first_stage);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
+
                         } else if (experiment.architecture == "BitFusion") {
                             core::BitFusion<uint16_t> DNNsim;
                             if(experiment.task == "Cycles") DNNsim.run(network);

@@ -15,6 +15,7 @@ add_library(
         include/core/BitPragmatic.h
         include/core/BitFusion.h
         include/core/Stripes.h
+        include/core/DynamicStripes.h
         include/core/BitTactical.h
         include/core/BitTacticalP.h
         include/core/BitTacticalE.h
@@ -27,6 +28,7 @@ add_library(
         src/BitTactical.cpp
         src/BitTacticalP.cpp
         src/BitTacticalE.cpp
+        src/DynamicStripes.cpp
 )
 
 target_include_directories(

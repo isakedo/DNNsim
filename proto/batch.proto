@@ -24,13 +24,16 @@ message Batch {
             uint32 n_columns = 3;
             uint32 n_rows = 4;
 
+            // For Dynamic Stripes
+            string precision_granularity = 5;
+
             // For pragmatic
-            uint32 bits_first_stage = 5;
+            uint32 bits_first_stage = 6;
 
             // For tactical
-            uint32 lookahead_h = 6;
-            uint32 lookaside_d = 7;
-            string search_shape = 8;
+            uint32 lookahead_h = 7;
+            uint32 lookaside_d = 8;
+            string search_shape = 9;
         }
 
         string inputType = 1;

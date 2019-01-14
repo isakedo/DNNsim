@@ -87,6 +87,16 @@ namespace sys {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
 
+                } else if(experiment_proto.architecture() == "DynamicStripes") {
+                    experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
+                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+                    experiment.precision_granularity = experiment_proto.precision_granularity().empty() ? "Tile" :
+                            experiment_proto.precision_granularity();
+                    value = experiment.precision_granularity;
+                    if(value != "Tile" && value != "SIP")
+                        throw std::runtime_error("Dynamic-Stripes per precision granularity specification for network "
+                                                + simulate.network + " must be <Tile|SIP>.");
+
                 } else if (experiment_proto.architecture() == "Laconic") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 8 : experiment_proto.n_rows();
