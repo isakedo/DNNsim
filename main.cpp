@@ -180,7 +180,8 @@ int main(int argc, char *argv[]) {
 
                         } else if (experiment.architecture == "BitTacticalP") {
                             core::BitTacticalP<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
-                                    experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape);
+                                    experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape,
+                                    experiment.precision_granularity);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 

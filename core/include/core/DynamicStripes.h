@@ -97,9 +97,9 @@ namespace core {
     public:
 
         /* Constructor
-         * @param _N_COLUMNS    Number of columns
-         * @param _N_ROWS       Number of rows
-         * @param _GROUP        Type of the group for dynamic precisions
+         * @param _N_COLUMNS                Number of columns
+         * @param _N_ROWS                   Number of rows
+         * @param _PRECISION_GRANULARITY    Granularity for dynamic precisions
          */
         DynamicStripes(int _N_COLUMNS, int _N_ROWS, const std::string &_PRECISION_GRANULARITY) : N_COLUMNS(_N_COLUMNS),
         N_ROWS(_N_ROWS){

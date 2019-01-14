@@ -68,7 +68,7 @@ namespace core {
 
     template <typename T>
     uint8_t BitTacticalE<T>::computeTacticalEColumn(int batch, int act_x, int act_y, int init_filter, int stride,
-            const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_filter, schedule &dense_schedule) {
+            const cnpy::Array<T> &padded_act, int max_filter, schedule &dense_schedule) {
 
         std::list<uint16_t> unique_act_bits;
         std::vector<std::queue<uint8_t>> offsets;
@@ -110,13 +110,13 @@ namespace core {
     template <typename T>
     void BitTacticalE<T>::computeTacticalETile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int init_filter, int stride, const cnpy::Array<T> &padded_act,
-            const cnpy::Array<T> &wgt, int max_filter, schedule &dense_schedule, std::vector<uint32_t> &cycles_per_col,
+            int max_filter, schedule &dense_schedule, std::vector<uint32_t> &cycles_per_col,
             uint32_t &end_previous_pallet) {
 
         //Get the slowest column
         for(int window = 0; window < list_act_x.size(); window++) {
             uint8_t column_cycles = computeTacticalEColumn(batch,list_act_x[window],list_act_y[window],init_filter,
-                    stride, padded_act,wgt,max_filter,dense_schedule);
+                    stride, padded_act,max_filter,dense_schedule);
             cycles_per_col[window] += column_cycles;
         }
 
@@ -191,7 +191,7 @@ namespace core {
             for(int m=0; m<num_filters; m+=this->N_ROWS) {
                 while(this->check_schedule(tmp_schedule,m,num_filters)) {
                     while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, this->N_COLUMNS)) {
-                        computeTacticalETile(n, list_x, list_y, m, stride, padded_act, wgt, num_filters, tmp_schedule,
+                        computeTacticalETile(n, list_x, list_y, m, stride, padded_act, num_filters, tmp_schedule,
                                 cycles_per_col, end_previous_pallet);
                     }
                     this->update_schedule(tmp_schedule,m,num_filters);

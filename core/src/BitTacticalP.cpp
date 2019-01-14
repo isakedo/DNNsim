@@ -10,6 +10,96 @@ namespace core {
         return wgt == 0 ? (uint8_t)0 : act_layer_prec * (uint8_t)16;
     }
 
+    template <typename T>
+    uint8_t BitTacticalP<T>::computeTacticalPColumn(int batch, int act_x, int act_y, int init_filter, int stride,
+            const cnpy::Array<T> &padded_act, int max_filter, schedule &dense_schedule) {
+
+        uint8_t max_bit = 0, min_bit = 16;
+        for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
+            for (int wgt_idx = 0; wgt_idx < WEIGHT_LANES; wgt_idx++) {
+
+                auto wgt_tuple = dense_schedule[init_filter].front()[wgt_idx];
+                int channel = std::get<0>(wgt_tuple);
+                int kernel_x = std::get<1>(wgt_tuple);
+                int kernel_y = std::get<2>(wgt_tuple);
+
+                // Computation cycles
+                uint16_t act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x,
+                        stride * act_y + kernel_y);
+
+                uint8_t count = 0;
+                std::vector<uint8_t> act_offsets;
+                while (act_bits) {
+                    auto current_bit = act_bits & 1;
+                    if (current_bit) act_offsets.push_back(count);
+                    act_bits >>= 1;
+                    count++;
+                }
+
+                auto max_act_bit = act_offsets.empty() ? 0 : *std::max_element(act_offsets.begin(), act_offsets.end());
+                auto min_act_bit = act_offsets.empty() ? 16 : *std::min_element(act_offsets.begin(), act_offsets.end());
+
+                if (max_act_bit > max_bit) max_bit = max_act_bit;
+                if (min_act_bit < min_bit) min_bit = min_act_bit;
+
+            }
+        }
+
+        uint8_t n_bits = min_bit > max_bit ? (uint8_t)1 : max_bit - min_bit + (uint8_t)1;
+        return n_bits;
+
+
+    }
+
+    template <typename T>
+    uint8_t BitTacticalP<T>::computeTacticalPTile(int batch, const std::vector<int> &list_act_x,
+            const std::vector<int> &list_act_y, int init_filter, int stride, const cnpy::Array<T> &padded_act,
+            int max_filter, schedule &dense_schedule) {
+
+        std::vector<uint8_t> per_SIP_n_bits (list_act_x.size(), 0);
+        uint8_t max_bit = 0, min_bit = 16;
+        for(int window = 0; window < list_act_x.size(); window++) {
+            if(PRECISION_GRANULARITY == "SIP") max_bit = 0, min_bit = 16;
+            for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
+                for (int wgt_idx = 0; wgt_idx < WEIGHT_LANES; wgt_idx++) {
+
+                    auto wgt_tuple = dense_schedule[init_filter].front()[wgt_idx];
+                    int channel = std::get<0>(wgt_tuple);
+                    int kernel_x = std::get<1>(wgt_tuple);
+                    int kernel_y = std::get<2>(wgt_tuple);
+
+                    // Computation cycles
+                    uint16_t act_bits = padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
+                            stride * list_act_y[window] + kernel_y);
+
+                    uint8_t count = 0;
+                    std::vector<uint8_t> act_offsets;
+                    while (act_bits) {
+                        auto current_bit = act_bits & 1;
+                        if (current_bit) act_offsets.push_back(count);
+                        act_bits >>= 1;
+                        count++;
+                    }
+
+                    auto max_act_bit = act_offsets.empty() ? 0 : *std::max_element(act_offsets.begin(),
+                            act_offsets.end());
+                    auto min_act_bit = act_offsets.empty() ? 16 : *std::min_element(act_offsets.begin(),
+                            act_offsets.end());
+
+                    if (max_act_bit > max_bit) max_bit = max_act_bit;
+                    if (min_act_bit < min_bit) min_bit = min_act_bit;
+
+                }
+            }
+            per_SIP_n_bits[window] = min_bit > max_bit ? 1 : max_bit - min_bit + 1;
+        }
+
+        uint8_t n_bits = PRECISION_GRANULARITY == "SIP" ?
+                         *std::max_element(per_SIP_n_bits.begin(), per_SIP_n_bits.end()) :
+                         min_bit > max_bit ? 1 : max_bit - min_bit + 1;
+        return n_bits;
+    }
+
     /* CYCLES */
 
     template <typename T>
@@ -50,9 +140,6 @@ namespace core {
         int n, x_counter, y_counter;
         schedule tmp_schedule;
 
-        // Get layer precision
-        auto layer_prec = std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision());
-
         const auto &dense_schedule = this->scheduler(wgt,act_channels);
 
         // Convolution
@@ -67,7 +154,8 @@ namespace core {
             for(int m=0; m<num_filters; m+=this->N_ROWS) {
                 while(this->check_schedule(tmp_schedule,m,num_filters)) {
                     while (this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,this->N_COLUMNS)) {
-                        batch_cycles += layer_prec;
+                        batch_cycles += computeTacticalPTile(n, list_x, list_y, m, stride, padded_act, num_filters,
+                                tmp_schedule);
                     }
                     this->update_schedule(tmp_schedule,m,num_filters);
                 }

@@ -104,6 +104,8 @@ namespace sys {
                 } else if (experiment_proto.architecture() == "BitTacticalP") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+                    experiment.precision_granularity = experiment_proto.precision_granularity().empty() ? "Tile" :
+                            experiment_proto.precision_granularity();
                     experiment.lookahead_h = experiment_proto.lookahead_h() < 1 ? 2 : experiment_proto.lookahead_h();
                     experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();
                     experiment.search_shape = experiment_proto.search_shape().empty() ? 'L' :
@@ -115,6 +117,10 @@ namespace sys {
                     if(value == "T" && (experiment.lookahead_h != 2 || experiment.lookaside_d != 5))
                         throw std::runtime_error("BitTactical search T-shape for network " + simulate.network +
                                                  " must be lookahead of 2, and lookaside of 5.");
+                    value = experiment.precision_granularity;
+                    if(value != "Tile" && value != "SIP")
+                        throw std::runtime_error("Dynamic-Stripes per precision granularity specification for network "
+                                                 + simulate.network + " must be <Tile|SIP>.");
 
                 } else if (experiment_proto.architecture() == "BitTacticalE") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
