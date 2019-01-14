@@ -104,7 +104,7 @@ potentials for bvlc_googlenet:
     *   batch.proto: Google protobuf definition for the batch file
     
 ### Fixes TODO
-*   BitTacticalP is using layer precision not per group
 *   Currently FC layers are using just one column of the accelerators
 *   Improve first layer dimensions
+*   Dispatcher for BitTacticalP?
 *   Add LSTM layers
