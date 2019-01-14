@@ -33,11 +33,13 @@ namespace core {
          * @param out_y         Output activations Y size
          * @param list_x        X position for the set of input windows (Overwritten)
          * @param list_y        Y position for the set of input windows (Overwritten)
+         * @param x_counter     X input window counter (Overwritten)
+         * @param y_counter     Y input window counter (Overwritten)
          * @param max_windows   Maximum number of windows (Number of columns in the accelerator)
          * @return              Return false when all input windows are read
          */
         bool iterateWindows(long out_x, long out_y, std::vector<int> &list_x, std::vector<int> &list_y,
-                int max_windows = 16);
+                int &x_counter, int &y_counter, int max_windows = 16);
 
         /* Calculate the 3D mapping of each activation value in their corresponding dispatcher row
          * @param padded_Nx     Input activations X size including padding

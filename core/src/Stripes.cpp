@@ -88,7 +88,7 @@ namespace core {
         uint32_t batch_cycles;
 
         std::vector<int> list_x, list_y;
-        int n;
+        int n, x_counter, y_counter;
 
         // Get layer precision
         auto layer_prec = std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision());
@@ -97,11 +97,11 @@ namespace core {
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
-        #pragma omp parallel for private(n,batch_cycles,list_x,list_y)
+        #pragma omp parallel for private(n,batch_cycles,x_counter,y_counter,list_x,list_y)
         #endif
         for(n=0; n<batch_size; n++) {
-            batch_cycles = 0;
-            while(this->iterateWindows(out_x,out_y,list_x,list_y,N_COLUMNS)) {
+            batch_cycles = 0, x_counter = 0, y_counter = 0;
+            while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter, y_counter, N_COLUMNS)) {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
                         for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
@@ -216,6 +216,7 @@ namespace core {
 
     template <typename T>
     void Stripes<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
@@ -282,6 +283,7 @@ namespace core {
         stats.parallel_multiplications.push_back(parallel_mult);
         stats.bit_multiplications.push_back(bit_multiplications);
         stats.avg_bit_multiplications.push_back(avg_bit_multiplications);
+
     }
 
     template <typename T>

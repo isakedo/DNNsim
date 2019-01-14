@@ -119,18 +119,18 @@ namespace core {
 
         int current_group = 0, group_m =0, start_group = 0;
         std::vector<int> list_x, list_y;
-        int n;
+        int n, x_counter, y_counter;
 
         // Convolution
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
-        #pragma omp parallel for private(n,current_group,group_m,start_group,batch_cycles,list_x,list_y)
+        #pragma omp parallel for private(n,current_group,group_m,start_group,batch_cycles,x_counter,y_counter,list_x,list_y)
         #endif
         for(n=0; n<batch_size; n++) {
-            current_group = 0; group_m = 0; start_group = 0; batch_cycles = 0;
+            current_group = 0, group_m = 0, start_group = 0, batch_cycles = 0, x_counter = 0, y_counter = 0;
             for(int m=0; m<num_filters; m+=N_ROWS) {
-                while(this->iterateWindows(out_x,out_y,list_x,list_y,N_COLUMNS)) {
+                while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
                             for (int k = start_group; k < wgt_channels + start_group; k+=WEIGHT_LANES) {

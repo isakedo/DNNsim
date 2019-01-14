@@ -34,28 +34,26 @@ namespace core {
 
     template <typename T>
     bool Simulator<T>::iterateWindows(long out_x, long out_y, std::vector<int> &list_x, std::vector<int> &list_y,
-            int max_windows) {
-        static int x = 0;
-        static int y = 0;
+            int &x_counter, int &y_counter, int max_windows) {
         list_x.clear();
         list_y.clear();
         int current_windows = 0;
-        while(x < out_x) {
-            while(y < out_y) {
-                list_x.push_back(x);
-                list_y.push_back(y);
+        while(x_counter < out_x) {
+            while(y_counter < out_y) {
+                list_x.push_back(x_counter);
+                list_y.push_back(y_counter);
                 current_windows++;
-                y++;
+                y_counter++;
                 if(current_windows >= max_windows)
                     return true;
             }
-            y = 0;
-            x++;
+            y_counter = 0;
+            x_counter++;
         }
         if(current_windows > 0)
             return true;
 
-        x = 0;
+        x_counter = 0;
         return false;
     }
 

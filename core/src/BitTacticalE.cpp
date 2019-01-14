@@ -174,26 +174,27 @@ namespace core {
         uint32_t end_previous_pallet;
 
         std::vector<int> list_x, list_y;
-        int n;
+        int n, x_counter, y_counter;
 
-        auto dense_schedule = this->scheduler(wgt,act_channels);
+        const auto &dense_schedule = this->scheduler(wgt,act_channels);
+        schedule tmp_schedule;
 
         // Convolution
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
-        #pragma omp parallel for private(n,cycles_per_col,end_previous_pallet,dense_schedule,list_x,list_y)
+        #pragma omp parallel for private(n,cycles_per_col,end_previous_pallet,tmp_schedule,x_counter,y_counter,list_x,list_y)
         #endif
         for(n=0; n<batch_size; n++) {
-            end_previous_pallet = 0;
+            end_previous_pallet = 0, x_counter = 0, y_counter = 0;
             cycles_per_col = std::vector<uint32_t>(this->N_COLUMNS, 0);
             for(int m=0; m<num_filters; m+=this->N_ROWS) {
-                while(this->check_schedule(dense_schedule,m,num_filters)) {
-                    while (this->iterateWindows(out_x, out_y, list_x, list_y, this->N_COLUMNS)) {
-                        computeTacticalETile(n, list_x, list_y, m, stride, padded_act, wgt, num_filters, dense_schedule,
+                while(this->check_schedule(tmp_schedule,m,num_filters)) {
+                    while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, this->N_COLUMNS)) {
+                        computeTacticalETile(n, list_x, list_y, m, stride, padded_act, wgt, num_filters, tmp_schedule,
                                 cycles_per_col, end_previous_pallet);
                     }
-                    this->update_schedule(dense_schedule,m,num_filters);
+                    this->update_schedule(tmp_schedule,m,num_filters);
                 }
             }
             auto batch_cycles = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());

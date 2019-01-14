@@ -47,27 +47,29 @@ namespace core {
         uint32_t batch_cycles;
 
         std::vector<int> list_x, list_y;
-        int n;
+        int n, x_counter, y_counter;
+        schedule tmp_schedule;
 
         // Get layer precision
         auto layer_prec = std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision());
 
-        auto dense_schedule = this->scheduler(wgt,act_channels);
+        const auto &dense_schedule = this->scheduler(wgt,act_channels);
 
         // Convolution
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
-        #pragma omp parallel for private(n,batch_cycles,dense_schedule,list_x,list_y)
+        #pragma omp parallel for private(n,batch_cycles,tmp_schedule,x_counter,y_counter,list_x,list_y)
         #endif
         for(n=0; n<batch_size; n++) {
-            batch_cycles = 0;
+            batch_cycles = 0, x_counter = 0, y_counter = 0;
+            tmp_schedule = dense_schedule;
             for(int m=0; m<num_filters; m+=this->N_ROWS) {
-                while(this->check_schedule(dense_schedule,m,num_filters)) {
-                    while (this->iterateWindows(out_x, out_y, list_x, list_y, this->N_COLUMNS)) {
+                while(this->check_schedule(tmp_schedule,m,num_filters)) {
+                    while (this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,this->N_COLUMNS)) {
                         batch_cycles += layer_prec;
                     }
-                    this->update_schedule(dense_schedule,m,num_filters);
+                    this->update_schedule(tmp_schedule,m,num_filters);
                 }
             }
             cycles[n] = batch_cycles;
@@ -98,7 +100,7 @@ namespace core {
         stats.task_name = "cycles";
         stats.net_name = network.getName();
         int mux_entries = this->LOOKAHEAD_H + this->LOOKASIDE_D + 1;
-        stats.arch = "BitTacticalE_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS) + "_" +
+        stats.arch = "BitTacticalP_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS) + "_" +
                 this->SEARCH_SHAPE + std::to_string(mux_entries) + "(" + std::to_string(this->LOOKAHEAD_H) + "-" +
                 std::to_string(this->LOOKASIDE_D) + ")";
 
