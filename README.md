@@ -16,7 +16,7 @@ contain global variables. Check this file before launch any simulation.
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | Inference | Forward propagation | - | - | - | - | - | Float32 |
 | Stripes | **Ap**: Exploits precision requirements of activations | N_COLUMNS, N_ROWS | NM_WIDTH, WEIGHT_LANES 16 | X | X | X | Fixed16 |
-| DynamicStripes | **Ap**: Exploits dynamic precision requirements of a group of activations | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY | NM_WIDTH, WEIGHT_LANES 16 | - | X | - | Fixed16 |
+| DynamicStripes | **Ap**: Exploits dynamic precision requirements of a group of activations | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY | NM_WIDTH, WEIGHT_LANES 16 | X | X | X | Fixed16 |
 | BitPragmatic | **Ae**: Exploits bit-level sparsity of activations | N_COLUMNS, N_ROWS, BITS_FIRST_STAGE| BOOTH_ENCODING, ZERO_COUNT, TWO_REGISTERS_PER_SIP, WEIGHT_LANES 16| X | X | X | Fixed16 |
 | Laconic | **We + Ae**: Exploits bit-level sparsity of both weights and activations | N_COLUMNS, N_ROWS | BOOTH_ENCODING, ZERO_COUNT, WEIGHT_LANES 16 | X | - | X | Fixed16 |
 | BitTacticalP | **W + Ap**: Skips zero weights and exploits precision requirements of activations | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE | WEIGHT_LANES 16 | - | - | X | Fixed16 |

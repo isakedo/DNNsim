@@ -23,7 +23,13 @@ namespace core {
         /* Number of activations per group: Tile, SIP */
         std::string PRECISION_GRANULARITY;
 
-        /* Compute cycles for stripes column
+        /* Compute number of one bit multiplications
+         * @param layer_prec    Layer precision
+         * @return              Number of one bit multiplications
+         */
+        static inline uint16_t computeDynamicStripesBitsPE(uint8_t layer_prec);
+
+        /* Compute cycles for dynamic stripes column
          * @param batch         Current number of batch
          * @param act_x         X position in the input activations
          * @param act_y         Y position in the input activations
@@ -40,7 +46,7 @@ namespace core {
         uint8_t computeDynamicStripesColumn(int batch, int act_x, int act_y, int kernel_x, int kernel_y,
                 int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, const idxMap &rowMap);
 
-        /* Compute cycles for stripes tile
+        /* Compute cycles for dynamic stripes tile
          * @param batch         Current number of batch
          * @param list_act_x    X position for the set of input windows
          * @param list_act_y    Y position for the set of input windows

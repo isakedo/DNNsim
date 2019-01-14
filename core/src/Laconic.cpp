@@ -332,6 +332,7 @@ namespace core {
         stats.parallel_multiplications.push_back(parallel_mult);
         stats.bit_multiplications.push_back(bit_multiplications);
         stats.avg_bit_multiplications.push_back(avg_bit_multiplications);
+
     }
 
     template <typename T>
