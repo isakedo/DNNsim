@@ -75,6 +75,7 @@ namespace core {
         for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
             for (int wgt_idx = 0; wgt_idx < WEIGHT_LANES; wgt_idx++) {
 
+                if(dense_schedule[init_filter].empty()) continue;
                 auto wgt_tuple = dense_schedule[init_filter].front()[wgt_idx];
                 int channel = std::get<0>(wgt_tuple);
                 int kernel_x = std::get<1>(wgt_tuple);
@@ -175,9 +176,9 @@ namespace core {
 
         std::vector<int> list_x, list_y;
         int n, x_counter, y_counter;
+        schedule tmp_schedule;
 
         const auto &dense_schedule = this->scheduler(wgt,act_channels);
-        schedule tmp_schedule;
 
         // Convolution
         #ifdef OPENMP
@@ -188,6 +189,7 @@ namespace core {
         for(n=0; n<batch_size; n++) {
             end_previous_pallet = 0, x_counter = 0, y_counter = 0;
             cycles_per_col = std::vector<uint32_t>(this->N_COLUMNS, 0);
+            tmp_schedule = dense_schedule;
             for(int m=0; m<num_filters; m+=this->N_ROWS) {
                 while(this->check_schedule(tmp_schedule,m,num_filters)) {
                     while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, this->N_COLUMNS)) {
@@ -215,6 +217,58 @@ namespace core {
     template <typename T>
     void BitTacticalE<T>::computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
 
+        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+
+        cnpy::Array<T> act = layer.getActivations();
+        act.powers_of_two_representation();
+        if(act.getDimensions() == 4) act.reshape_to_2D();
+        act.reshape_to_4D();
+        cnpy::Array<T> wgt = layer.getWeights();
+        wgt.powers_of_two_representation();
+        wgt.reshape_to_4D();
+
+        const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+        int batch_size = act_shape[0];
+        int act_channels = act_shape[1];
+        int num_filters = wgt_shape[0];
+
+        // Stats
+        std::vector<uint32_t> cycles (batch_size,0);
+        uint32_t batch_cycles;
+
+        int n;
+        schedule tmp_schedule;
+
+        const auto &dense_schedule = this->scheduler(wgt,act_channels);
+
+        #ifdef OPENMP
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(max_threads);
+        #pragma omp parallel for private(n,batch_cycles)
+        #endif
+        for (n = 0; n<batch_size; n++) {
+            batch_cycles = 0;
+            tmp_schedule = dense_schedule;
+            for (int m = 0; m<num_filters; m+=this->N_ROWS) {
+                while(this->check_schedule(tmp_schedule,m,num_filters)) {
+                    batch_cycles += computeTacticalEColumn(n,0,0,m,0,act,act_channels,tmp_schedule);
+                    this->update_schedule(tmp_schedule,m,num_filters);
+                }
+            }
+            cycles[n] = batch_cycles;
+        }
+
+        auto avg_cycles = accumulate(cycles.begin(), cycles.end(), 0.0)/cycles.size();
+
+        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+
+        stats.time.push_back(time_span);
+        stats.TCLE_cycles.push_back(cycles);
+        stats.TCLE_avg_cycles.push_back((uint32_t)avg_cycles);
+
     }
 
     template <typename T>
@@ -234,10 +288,10 @@ namespace core {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
                 computeConvolution(layer, stats);
-            } /*else if(layer.getType() == "InnerProduct") {
+            } else if(layer.getType() == "InnerProduct") {
                 stats.layers.push_back(layer.getName());
                 computeInnerProduct(layer, stats);
-            }*/
+            }
         }
 
         // Set statistics to write

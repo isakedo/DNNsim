@@ -18,6 +18,7 @@ namespace core {
         for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
             for (int wgt_idx = 0; wgt_idx < WEIGHT_LANES; wgt_idx++) {
 
+                if(dense_schedule[init_filter].empty()) continue;
                 auto wgt_tuple = dense_schedule[init_filter].front()[wgt_idx];
                 int channel = std::get<0>(wgt_tuple);
                 int kernel_x = std::get<1>(wgt_tuple);
@@ -63,6 +64,7 @@ namespace core {
             for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
                 for (int wgt_idx = 0; wgt_idx < WEIGHT_LANES; wgt_idx++) {
 
+                    if(dense_schedule[init_filter].empty()) continue;
                     auto wgt_tuple = dense_schedule[init_filter].front()[wgt_idx];
                     int channel = std::get<0>(wgt_tuple);
                     int kernel_x = std::get<1>(wgt_tuple);
@@ -177,6 +179,58 @@ namespace core {
     template <typename T>
     void BitTacticalP<T>::computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
 
+        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+
+        cnpy::Array<T> act = layer.getActivations();
+        act.powers_of_two_representation();
+        if(act.getDimensions() == 4) act.reshape_to_2D();
+        act.reshape_to_4D();
+        cnpy::Array<T> wgt = layer.getWeights();
+        wgt.powers_of_two_representation();
+        wgt.reshape_to_4D();
+
+        const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+        int batch_size = act_shape[0];
+        int act_channels = act_shape[1];
+        int num_filters = wgt_shape[0];
+
+        // Stats
+        std::vector<uint32_t> cycles (batch_size,0);
+        uint32_t batch_cycles;
+
+        int n;
+        schedule tmp_schedule;
+
+        const auto &dense_schedule = this->scheduler(wgt,act_channels);
+
+        #ifdef OPENMP
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(max_threads);
+        #pragma omp parallel for private(n,batch_cycles)
+        #endif
+        for (n = 0; n<batch_size; n++) {
+            batch_cycles = 0;
+            tmp_schedule = dense_schedule;
+            for (int m = 0; m<num_filters; m+=this->N_ROWS) {
+                while(this->check_schedule(tmp_schedule,m,num_filters)) {
+                    batch_cycles += computeTacticalPColumn(n,0,0,m,0,act,act_channels,tmp_schedule);
+                    this->update_schedule(tmp_schedule,m,num_filters);
+                }
+            }
+            cycles[n] = batch_cycles;
+        }
+
+        auto avg_cycles = accumulate(cycles.begin(), cycles.end(), 0.0)/cycles.size();
+
+        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+
+        stats.time.push_back(time_span);
+        stats.TCLP_cycles.push_back(cycles);
+        stats.TCLP_avg_cycles.push_back((uint32_t)avg_cycles);
+
     }
 
     template <typename T>
@@ -188,20 +242,20 @@ namespace core {
         stats.task_name = "cycles";
         stats.net_name = network.getName();
         int mux_entries = this->LOOKAHEAD_H + this->LOOKASIDE_D + 1;
-        stats.arch = "BitTacticalP_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS) + "_" +
-                this->SEARCH_SHAPE + std::to_string(mux_entries) + "(" + std::to_string(this->LOOKAHEAD_H) + "-" +
-                std::to_string(this->LOOKASIDE_D) + ")";
+        stats.arch = "BitTacticalP_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS) + "_PG_" +
+                PRECISION_GRANULARITY + "_" + this->SEARCH_SHAPE + std::to_string(mux_entries) + "(" +
+                std::to_string(this->LOOKAHEAD_H) + "-" + std::to_string(this->LOOKASIDE_D) + ")";
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision()));
                 computeConvolution(layer, stats);
-            } /*else if(layer.getType() == "InnerProduct") {
+            } else if(layer.getType() == "InnerProduct") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision()));
                 computeInnerProduct(layer, stats);
-            }*/
+            }
         }
 
         // Set statistics to write
