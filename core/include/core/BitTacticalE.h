@@ -39,10 +39,11 @@ namespace core {
          * @param padded_act        Set of padded input activations
          * @param max_filter        Maximum number of filters
          * @param dense_schedule    Data structure containing the weights
+         * @param schedule_time     Time index for the scheduler
          * @return                  Number of cycles
          */
         uint8_t computeTacticalEColumn(int batch, int act_x, int act_y, int init_filter, int stride,
-                const cnpy::Array<T> &padded_act, int max_filter, schedule &dense_schedule);
+                const cnpy::Array<T> &padded_act, int max_filter, const schedule &dense_schedule, int schedule_time);
 
         /* Compute cycles for BitTacticalE tile
          * @param batch                 Current number of batch
@@ -53,12 +54,14 @@ namespace core {
          * @param padded_act            Set of padded input activations
          * @param max_filter            Maximum number of filters
          * @param dense_schedule        Data structure containing the weights
+         * @param schedule_time         Time index for the scheduler
          * @param cycles_per_col        Number of cycles per column (Overwritten)
          * @param end_previous_pallet   Cycle when the previous pallet finishes (Overwritten)
          */
         void computeTacticalETile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
-                int init_filter, int stride, const cnpy::Array<T> &padded_act, int max_filter, schedule &dense_schedule,
-                std::vector<uint32_t> &cycles_per_col, uint32_t &end_previous_pallet);
+                int init_filter, int stride, const cnpy::Array<T> &padded_act, int max_filter,
+                const schedule &dense_schedule, int schedule_time, std::vector<uint32_t> &cycles_per_col,
+                uint32_t &end_previous_pallet);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs

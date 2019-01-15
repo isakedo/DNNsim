@@ -76,18 +76,12 @@ namespace core {
 
         /* Check if the current working set of filters is empty
          * @param dense_schedule    Scheduled weights
+         * @param schedule_time     Time index for the scheduler
          * @param init_filter       First filter in the working set
          * @param max_filter        Maximum number of filters
          * @return                  Return false if all working set of filters are empty
          */
-        bool check_schedule(const schedule &dense_schedule, int init_filter, int max_filter);
-
-        /* Remove the time already processed in the working set of filters
-         * @param dense_schedule    Scheduled weights (Overwritten)
-         * @param init_filter       First filter in the working set
-         * @param max_filter        Maximum number of filters
-         */
-        void update_schedule(schedule &dense_schedule, int init_filter, int max_filter);
+        bool check_schedule(const schedule &dense_schedule, int schedule_time, int init_filter, int max_filter);
 
         /* Schedule the weights in the scratchpad trying to remove zero weights
          * @param wgt           Weights per layer

@@ -1,26 +1,19 @@
 
 #include <core/BitTactical.h>
-
+#include <iomanip>
 namespace core {
 
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    bool BitTactical<T>::check_schedule(const schedule &dense_schedule, int init_filter, int max_filter) {
+    bool BitTactical<T>::check_schedule(const schedule &dense_schedule, int schedule_time, int init_filter,
+            int max_filter) {
 
         for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
-            if(!dense_schedule[filter].empty())
+            if(schedule_time < dense_schedule[filter].size())
                 return true;
         }
         return false;
-    }
-
-    template <typename T>
-    void BitTactical<T>::update_schedule(schedule &dense_schedule, int init_filter, int max_filter) {
-
-        for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
-            if(!dense_schedule[filter].empty()) dense_schedule[filter].erase(dense_schedule[filter].begin());
-        }
     }
 
     /* SCHEDULER */
@@ -140,8 +133,10 @@ namespace core {
             for(auto wgt_idx : ineffectual_weights) {
                 auto lane = std::get<1>(wgt_idx);
                 effectual_candidates[lane] = (this->*search)(dense_filter_schedule,wgt_idx);
-                num_candidates[lane] = effectual_candidates[lane].size();
-                min_num_candidates.push_back(effectual_candidates[lane].size());
+                if(!effectual_candidates[lane].empty()) {
+                    num_candidates[lane] = effectual_candidates[lane].size();
+                    min_num_candidates.push_back(effectual_candidates[lane].size());
+                }
             }
 
             // Promote less flexible candidates first
@@ -175,20 +170,25 @@ namespace core {
         schedule result_schedule = schedule((unsigned)sparse_schedule.size(), filter_schedule());
 
 
+        int skip = 0;
+        #ifdef OPENMP
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(max_threads);
+        #pragma omp parallel for private(m,skip)
+        #endif
         for(int m=0; m < sparse_schedule.size(); m++) {
             for(int time=0; time < sparse_schedule.front().size(); time++) {
-                filter_scheduler(dense_schedule[m],time);
-                result_schedule[m].push_back(dense_schedule[m][time]);
 
                 //Skip zero lines
-                int skip = 0;
-                int next_time = time + 1;
-                while (next_time < sparse_schedule.front().size() && skip < LOOKAHEAD_H &&
-                        check_zero_line(dense_schedule[m][next_time])) {
-                    next_time++;
-                    time++;
+                if(skip < LOOKAHEAD_H && check_zero_line(dense_schedule[m][time])) {
                     skip++;
+                    continue;
                 }
+
+                filter_scheduler(dense_schedule[m],time);
+                result_schedule[m].push_back(dense_schedule[m][time]);
+                skip = 0;
+
             }
         }
 

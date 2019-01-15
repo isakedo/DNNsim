@@ -12,14 +12,14 @@ namespace core {
 
     template <typename T>
     uint8_t BitTacticalP<T>::computeTacticalPColumn(int batch, int act_x, int act_y, int init_filter, int stride,
-            const cnpy::Array<T> &padded_act, int max_filter, schedule &dense_schedule) {
+            const cnpy::Array<T> &padded_act, int max_filter, const schedule &dense_schedule, int schedule_time) {
 
         uint8_t max_bit = 0, min_bit = 16;
         for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
             for (int wgt_idx = 0; wgt_idx < WEIGHT_LANES; wgt_idx++) {
 
-                if(dense_schedule[init_filter].empty()) continue;
-                auto wgt_tuple = dense_schedule[init_filter].front()[wgt_idx];
+                if(schedule_time >= dense_schedule[filter].size()) continue;
+                auto wgt_tuple = dense_schedule[filter][schedule_time][wgt_idx];
                 int channel = std::get<0>(wgt_tuple);
                 int kernel_x = std::get<1>(wgt_tuple);
                 int kernel_y = std::get<2>(wgt_tuple);
@@ -55,7 +55,7 @@ namespace core {
     template <typename T>
     uint8_t BitTacticalP<T>::computeTacticalPTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int init_filter, int stride, const cnpy::Array<T> &padded_act,
-            int max_filter, schedule &dense_schedule) {
+            int max_filter, const schedule &dense_schedule, int schedule_time) {
 
         std::vector<uint8_t> per_SIP_n_bits (list_act_x.size(), 0);
         uint8_t max_bit = 0, min_bit = 16;
@@ -64,8 +64,8 @@ namespace core {
             for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
                 for (int wgt_idx = 0; wgt_idx < WEIGHT_LANES; wgt_idx++) {
 
-                    if(dense_schedule[init_filter].empty()) continue;
-                    auto wgt_tuple = dense_schedule[init_filter].front()[wgt_idx];
+                    if(schedule_time >= dense_schedule[filter].size()) continue;
+                    auto wgt_tuple = dense_schedule[filter][schedule_time][wgt_idx];
                     int channel = std::get<0>(wgt_tuple);
                     int kernel_x = std::get<1>(wgt_tuple);
                     int kernel_y = std::get<2>(wgt_tuple);
@@ -139,8 +139,7 @@ namespace core {
         uint32_t batch_cycles;
 
         std::vector<int> list_x, list_y;
-        int n, x_counter, y_counter;
-        schedule tmp_schedule;
+        int n, x_counter, y_counter, schedule_time;
 
         const auto &dense_schedule = this->scheduler(wgt,act_channels);
 
@@ -148,18 +147,18 @@ namespace core {
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
-        #pragma omp parallel for private(n,batch_cycles,tmp_schedule,x_counter,y_counter,list_x,list_y)
+        #pragma omp parallel for private(n,batch_cycles,schedule_time,x_counter,y_counter,list_x,list_y)
         #endif
         for(n=0; n<batch_size; n++) {
             batch_cycles = 0, x_counter = 0, y_counter = 0;
-            tmp_schedule = dense_schedule;
             for(int m=0; m<num_filters; m+=this->N_ROWS) {
-                while(this->check_schedule(tmp_schedule,m,num_filters)) {
-                    while (this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,this->N_COLUMNS)) {
+                while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, this->N_COLUMNS)) {
+                    schedule_time = 0;
+                    while(this->check_schedule(dense_schedule,schedule_time,m,num_filters)) {
                         batch_cycles += computeTacticalPTile(n, list_x, list_y, m, stride, padded_act, num_filters,
-                                tmp_schedule);
+                                dense_schedule, schedule_time);
+                        schedule_time++;
                     }
-                    this->update_schedule(tmp_schedule,m,num_filters);
                 }
             }
             cycles[n] = batch_cycles;
@@ -200,23 +199,22 @@ namespace core {
         std::vector<uint32_t> cycles (batch_size,0);
         uint32_t batch_cycles;
 
-        int n;
-        schedule tmp_schedule;
+        int n, schedule_time;
 
         const auto &dense_schedule = this->scheduler(wgt,act_channels);
 
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
-        #pragma omp parallel for private(n,batch_cycles)
+        #pragma omp parallel for private(n,batch_cycles,schedule_time)
         #endif
         for (n = 0; n<batch_size; n++) {
             batch_cycles = 0;
-            tmp_schedule = dense_schedule;
             for (int m = 0; m<num_filters; m+=this->N_ROWS) {
-                while(this->check_schedule(tmp_schedule,m,num_filters)) {
-                    batch_cycles += computeTacticalPColumn(n,0,0,m,0,act,act_channels,tmp_schedule);
-                    this->update_schedule(tmp_schedule,m,num_filters);
+                schedule_time = 0;
+                while(this->check_schedule(dense_schedule,schedule_time,m,num_filters)) {
+                    batch_cycles += computeTacticalPColumn(n,0,0,m,0,act,num_filters,dense_schedule,schedule_time);
+                    schedule_time++;
                 }
             }
             cycles[n] = batch_cycles;

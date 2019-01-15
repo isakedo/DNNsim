@@ -104,7 +104,10 @@ potentials for bvlc_googlenet:
     *   batch.proto: Google protobuf definition for the batch file
     
 ### Fixes TODO
-*   Currently FC layers are using just one column of the accelerators
+*   Currently FC layers are using just one column of the accelerators. (Stripes and PRA: one weight can be put every 
+    cycle in one column to match baseline cycles)
 *   Improve first layer dimensions
 *   Dispatcher for BitTacticalP?
 *   Add LSTM layers
+*   Select cores command line
+*   Separate scheduler in tactical. Only do scheduler, or add scheduler from file.

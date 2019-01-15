@@ -68,19 +68,18 @@ namespace core {
 
     template <typename T>
     uint8_t BitTacticalE<T>::computeTacticalEColumn(int batch, int act_x, int act_y, int init_filter, int stride,
-            const cnpy::Array<T> &padded_act, int max_filter, schedule &dense_schedule) {
+            const cnpy::Array<T> &padded_act, int max_filter, const schedule &dense_schedule, int schedule_time) {
 
         std::list<uint16_t> unique_act_bits;
         std::vector<std::queue<uint8_t>> offsets;
         for (int filter = init_filter; filter < std::min(init_filter + this->N_ROWS, max_filter); filter++) {
             for (int wgt_idx = 0; wgt_idx < WEIGHT_LANES; wgt_idx++) {
 
-                if(dense_schedule[init_filter].empty()) continue;
-                auto wgt_tuple = dense_schedule[init_filter].front()[wgt_idx];
+                if(schedule_time >= dense_schedule[filter].size()) continue;
+                auto wgt_tuple = dense_schedule[filter][schedule_time][wgt_idx];
                 int channel = std::get<0>(wgt_tuple);
                 int kernel_x = std::get<1>(wgt_tuple);
                 int kernel_y = std::get<2>(wgt_tuple);
-
                 auto act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
                 #ifdef BOOTH_ENCODING
                 act_bits = this->booth_encoding(act_bits);
@@ -111,13 +110,13 @@ namespace core {
     template <typename T>
     void BitTacticalE<T>::computeTacticalETile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int init_filter, int stride, const cnpy::Array<T> &padded_act,
-            int max_filter, schedule &dense_schedule, std::vector<uint32_t> &cycles_per_col,
+            int max_filter, const schedule &dense_schedule, int schedule_time, std::vector<uint32_t> &cycles_per_col,
             uint32_t &end_previous_pallet) {
 
         //Get the slowest column
         for(int window = 0; window < list_act_x.size(); window++) {
             uint8_t column_cycles = computeTacticalEColumn(batch,list_act_x[window],list_act_y[window],init_filter,
-                    stride, padded_act,max_filter,dense_schedule);
+                    stride, padded_act,max_filter,dense_schedule,schedule_time);
             cycles_per_col[window] += column_cycles;
         }
 
@@ -134,7 +133,6 @@ namespace core {
         auto slowest_column = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
         cycles_per_col = std::vector<uint32_t>(this->N_COLUMNS,slowest_column);
         #endif
-
     }
 
     /* CYCLES */
@@ -175,8 +173,7 @@ namespace core {
         uint32_t end_previous_pallet;
 
         std::vector<int> list_x, list_y;
-        int n, x_counter, y_counter;
-        schedule tmp_schedule;
+        int n, x_counter, y_counter, schedule_time;
 
         const auto &dense_schedule = this->scheduler(wgt,act_channels);
 
@@ -184,19 +181,19 @@ namespace core {
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
-        #pragma omp parallel for private(n,cycles_per_col,end_previous_pallet,tmp_schedule,x_counter,y_counter,list_x,list_y)
+        #pragma omp parallel for private(n,cycles_per_col,end_previous_pallet,schedule_time,x_counter,y_counter,list_x,list_y)
         #endif
         for(n=0; n<batch_size; n++) {
             end_previous_pallet = 0, x_counter = 0, y_counter = 0;
             cycles_per_col = std::vector<uint32_t>(this->N_COLUMNS, 0);
-            tmp_schedule = dense_schedule;
             for(int m=0; m<num_filters; m+=this->N_ROWS) {
-                while(this->check_schedule(tmp_schedule,m,num_filters)) {
-                    while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, this->N_COLUMNS)) {
-                        computeTacticalETile(n, list_x, list_y, m, stride, padded_act, num_filters, tmp_schedule,
-                                cycles_per_col, end_previous_pallet);
+                while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, this->N_COLUMNS)) {
+                    schedule_time = 0;
+                    while(this->check_schedule(dense_schedule,schedule_time,m,num_filters)) {
+                        computeTacticalETile(n, list_x, list_y, m, stride, padded_act, num_filters, dense_schedule,
+                                schedule_time, cycles_per_col, end_previous_pallet);
+                        schedule_time++;
                     }
-                    this->update_schedule(tmp_schedule,m,num_filters);
                 }
             }
             auto batch_cycles = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
@@ -238,23 +235,22 @@ namespace core {
         std::vector<uint32_t> cycles (batch_size,0);
         uint32_t batch_cycles;
 
-        int n;
-        schedule tmp_schedule;
+        int n, schedule_time;
 
         const auto &dense_schedule = this->scheduler(wgt,act_channels);
 
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
-        #pragma omp parallel for private(n,batch_cycles)
+        #pragma omp parallel for private(n,batch_cycles,schedule_time)
         #endif
         for (n = 0; n<batch_size; n++) {
             batch_cycles = 0;
-            tmp_schedule = dense_schedule;
             for (int m = 0; m<num_filters; m+=this->N_ROWS) {
-                while(this->check_schedule(tmp_schedule,m,num_filters)) {
-                    batch_cycles += computeTacticalEColumn(n,0,0,m,0,act,act_channels,tmp_schedule);
-                    this->update_schedule(tmp_schedule,m,num_filters);
+                schedule_time = 0;
+                while(this->check_schedule(dense_schedule,schedule_time,m,num_filters)) {
+                    batch_cycles += computeTacticalEColumn(n,0,0,m,0,act,num_filters,dense_schedule,schedule_time);
+                    schedule_time++;
                 }
             }
             cycles[n] = batch_cycles;
@@ -293,7 +289,6 @@ namespace core {
                 computeInnerProduct(layer, stats);
             }
         }
-
         // Set statistics to write
         sys::Statistics::addStats(stats);
     }
