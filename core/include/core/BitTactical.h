@@ -5,8 +5,7 @@
 
 #define WEIGHT_LANES 16 // Number of weight lanes
 
-typedef std::vector<std::vector<std::vector<std::tuple<int,int,int,uint16_t>>>> schedule;
-typedef std::vector<std::vector<std::tuple<int,int,int,uint16_t>>> filter_schedule;
+typedef std::vector<std::vector<std::tuple<int,int,int,uint16_t>>> schedule;
 typedef std::vector<std::tuple<int,int,int,uint16_t>> time_schedule;
 typedef std::list<std::tuple<int,int>> weights_set;
 typedef std::tuple<int,int> weight_index;
@@ -19,24 +18,24 @@ namespace core {
     private:
 
         /* Search effectual weights in a L-shape search
-         * @param dense_filter_schedule     Filter scheduled so far
-         * @param wgt_index                 Index of the ineffectual weight that is going to be substituted
-         * @return                          Effectual candidates to substitute the ineffectual position
+         * @param dense_schedule     Filter scheduled so far
+         * @param wgt_index          Index of the ineffectual weight that is going to be substituted
+         * @return                   Effectual candidates to substitute the ineffectual position
          */
-        weights_set L_shape_search(const filter_schedule &dense_filter_schedule, weight_index wgt_idx);
+        weights_set L_shape_search(const schedule &dense_schedule, weight_index wgt_idx);
 
         /* Search effectual weights in a T-shape search
-         * @param dense_filter_schedule     Filter scheduled so far
-         * @param wgt_index                 Index of the ineffectual weight that is going to be substituted
-         * @return                          Effectual candidates to substitute the ineffectual position
+         * @param dense_schedule     Filter scheduled so far
+         * @param wgt_index          Index of the ineffectual weight that is going to be substituted
+         * @return                   Effectual candidates to substitute the ineffectual position
          */
-        weights_set T_shape_search(const filter_schedule &dense_filter_schedule, weight_index wgt_idx);
+        weights_set T_shape_search(const schedule &dense_schedule, weight_index wgt_idx);
 
         /* Schedule the promotions for one filter given a specific time
-         * @param sparse_filter_schedule    Schedule for a filter before removing zeroes (Overwritten)
-         * @param time                      Specific time to schedule
+         * @param dense_schedule    Schedule for a filter before removing zeroes (Overwritten)
+         * @param time              Specific time to schedule
          */
-        void filter_scheduler(filter_schedule &sparse_filter_schedule, int time);
+        void filter_scheduler(schedule &dense_schedule, int time);
 
         /* Schedule the weights in the scratchpad removing zero weights
          * @param sparse_Schedule   Schedule of the weights without removing zeroes
@@ -73,15 +72,6 @@ namespace core {
 
         /* Search shape for the scheduler: must be 'L' or 'T' */
         const char SEARCH_SHAPE;
-
-        /* Check if the current working set of filters is empty
-         * @param dense_schedule    Scheduled weights
-         * @param schedule_time     Time index for the scheduler
-         * @param init_filter       First filter in the working set
-         * @param max_filter        Maximum number of filters
-         * @return                  Return false if all working set of filters are empty
-         */
-        bool check_schedule(const schedule &dense_schedule, int schedule_time, int init_filter, int max_filter);
 
         /* Schedule the weights in the scratchpad trying to remove zero weights
          * @param wgt           Weights per layer

@@ -24,32 +24,28 @@ namespace core {
          * @param batch             Current number of batch
          * @param act_x             X position for the input window
          * @param act_y             Y position for the input window
-         * @param init_filter       Starting index for the filter
          * @param stride            Stride of the current layer
          * @param padded_act        Set of padded input activations
-         * @param max_filter        Maximum number of filters
          * @param dense_schedule    Data structure containing the weights
          * @param schedule_time     Time index for the scheduler
          * @return                  Number of cycles
          */
-        uint8_t computeTacticalPColumn(int batch, int act_x, int act_y, int init_filter, int stride,
-                const cnpy::Array<T> &padded_act, int max_filter, const schedule &dense_schedule, int schedule_time);
+        uint8_t computeTacticalPColumn(int batch, int act_x, int act_y, int stride, const cnpy::Array<T> &padded_act,
+                const schedule &dense_schedule, int schedule_time);
 
         /* Compute cycles for Bit-Tactical P tile
          * @param batch             Current number of batch
          * @param list_act_x        X position for the set of input windows
          * @param list_act_y        Y position for the set of input windows
-         * @param init_filter       Starting index for the filter
          * @param stride            Stride of the current layer
          * @param padded_act        Set of padded input activations
-         * @param max_filter        Maximum number of filters
          * @param dense_schedule    Data structure containing the weights
          * @param schedule_time     Time index for the scheduler
          * @return                  Number of cycles
          */
         uint8_t computeTacticalPTile(int batch, const std::vector<int> &list_act_x, const std::vector<int>
-                &list_act_y, int init_filter, int stride, const cnpy::Array<T> &padded_act, int max_filter,
-                const schedule &dense_schedule, int schedule_time);
+                &list_act_y, int stride, const cnpy::Array<T> &padded_act, const schedule &dense_schedule,
+                int schedule_time);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs
