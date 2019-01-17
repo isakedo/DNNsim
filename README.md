@@ -108,4 +108,3 @@ potentials for bvlc_googlenet:
 *   Add LSTM layers
 *   Select cores command line
 *   Separate scheduler in tactical. Only do scheduler, or add scheduler from file.
-*   Simplify stats

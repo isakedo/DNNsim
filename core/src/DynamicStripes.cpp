@@ -170,9 +170,9 @@ namespace core {
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
         stats.time.push_back(time_span);
-        stats.DSTR_cycles.push_back(cycles);
-        stats.DSTR_baseline_cycles.push_back(base_cycles);
-        stats.DSTR_avg_cycles.push_back((uint32_t)avg_cycles);
+        stats.cycles.push_back(cycles);
+        stats.baseline_cycles.push_back(base_cycles);
+        stats.avg_cycles.push_back((uint32_t)avg_cycles);
     }
 
     template <typename T>
@@ -252,9 +252,9 @@ namespace core {
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
         stats.time.push_back(time_span);
-        stats.DSTR_cycles.push_back(cycles);
-        stats.DSTR_baseline_cycles.push_back(base_cycles);
-        stats.DSTR_avg_cycles.push_back((uint32_t)avg_cycles);
+        stats.cycles.push_back(cycles);
+        stats.baseline_cycles.push_back(base_cycles);
+        stats.avg_cycles.push_back((uint32_t)avg_cycles);
 
     }
 

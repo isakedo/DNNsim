@@ -201,8 +201,8 @@ namespace core {
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
         stats.time.push_back(time_span);
-        stats.TCLE_cycles.push_back(cycles);
-        stats.TCLE_avg_cycles.push_back((uint32_t)avg_cycles);
+        stats.cycles.push_back(cycles);
+        stats.avg_cycles.push_back((uint32_t)avg_cycles);
 
     }
 
@@ -280,8 +280,8 @@ namespace core {
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
         stats.time.push_back(time_span);
-        stats.TCLE_cycles.push_back(cycles);
-        stats.TCLE_avg_cycles.push_back((uint32_t)avg_cycles);
+        stats.cycles.push_back(cycles);
+        stats.avg_cycles.push_back((uint32_t)avg_cycles);
 
     }
 

@@ -33,32 +33,10 @@ namespace sys {
             /* Computation time per layer */
             std::vector<std::chrono::duration<double>> time;
 
-            /* Stats for Stripes cycles */
-            std::vector<std::vector<uint32_t>> STR_cycles;
-            std::vector<uint32_t> STR_avg_cycles;
-            std::vector<uint32_t> STR_baseline_cycles;
-
-            /* Stats for Dynamic Stripes cycles */
-            std::vector<std::vector<uint32_t>> DSTR_cycles;
-            std::vector<uint32_t> DSTR_avg_cycles;
-            std::vector<uint32_t> DSTR_baseline_cycles;
-
-            /* Stats for Pragmatic cycles */
-            std::vector<std::vector<uint32_t>> PRA_cycles;
-            std::vector<uint32_t> PRA_avg_cycles;
-            std::vector<uint32_t> PRA_baseline_cycles;
-
-            /* Stats for Laconic cycles */
-            std::vector<std::vector<uint32_t>>  LAC_cycles;
-            std::vector<uint32_t> LAC_avg_cycles;
-
-            /* Stats for BitTacticalE cycles */
-            std::vector<std::vector<uint32_t>>  TCLE_cycles;
-            std::vector<uint32_t> TCLE_avg_cycles;
-
-            /* Stats for BitTacticalP cycles */
-            std::vector<std::vector<uint32_t>>  TCLP_cycles;
-            std::vector<uint32_t> TCLP_avg_cycles;
+            /* Stats for cycles */
+            std::vector<std::vector<uint32_t>> cycles;
+            std::vector<uint32_t> avg_cycles;
+            std::vector<uint32_t> baseline_cycles;
 
             /* Stats for potentials */
             std::vector<std::vector<double>> work_reduction;
