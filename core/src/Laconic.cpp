@@ -187,6 +187,9 @@ namespace core {
 
         int n;
 
+        #ifndef FC_MULTIPLEX_COLUMNS
+
+        // All FC in one column
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
@@ -201,6 +204,33 @@ namespace core {
             }
             cycles[n] = batch_cycles;
         }
+
+        #else
+
+        int column_index;
+        std::vector<int> column_end (N_COLUMNS, 0);
+
+        #ifdef OPENMP
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(max_threads);
+        #pragma omp parallel for private(n,batch_cycles,column_index,column_end)
+        #endif
+        for (n = 0; n<batch_size; n++) {
+            batch_cycles = 0, column_index = 0;
+            for (int m = 0; m<num_filters; m+=N_ROWS) {
+                for (int k = 0; k<wgt_channels; k+=WEIGHT_LANES) {
+                    if(batch_cycles < column_end[column_index]) batch_cycles = column_end[column_index];
+                    auto column_cycles = computeLaconicColumn(n,0,0,0,0,k,m,0,act,wgt,0,wgt_channels,num_filters);
+                    column_end[column_index] = batch_cycles + column_cycles;
+                    batch_cycles++;
+                    column_index++;
+                    if(column_index >= N_COLUMNS) column_index = 0;
+                }
+            }
+            cycles[n] = batch_cycles;
+        }
+
+        #endif
 
         auto avg_cycles = accumulate(cycles.begin(), cycles.end(), 0.0)/cycles.size();
 

@@ -197,6 +197,9 @@ namespace core {
 
         const auto &dense_schedule = this->scheduler(wgt,act_channels);
 
+        #ifndef FC_MULTIPLEX_COLUMNS
+
+        // All FC in one column
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
@@ -209,6 +212,31 @@ namespace core {
             }
             cycles[n] = batch_cycles;
         }
+
+        #else
+
+        int column_index;
+        std::vector<int> column_end (this->N_COLUMNS, 0);
+
+        #ifdef OPENMP
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(max_threads);
+        #pragma omp parallel for private(n,batch_cycles,schedule_time,column_index,column_end)
+        #endif
+        for (n = 0; n<batch_size; n++) {
+            batch_cycles = 0, column_index = 0;
+            for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
+                if(batch_cycles < column_end[column_index]) batch_cycles = column_end[column_index];
+                auto column_cycles = computeTacticalPColumn(n,0,0,0,act,dense_schedule,schedule_time);
+                column_end[column_index] = batch_cycles + column_cycles;
+                batch_cycles++;
+                column_index++;
+                if(column_index >= this->N_COLUMNS) column_index = 0;
+            }
+            cycles[n] = batch_cycles;
+        }
+
+        #endif
 
         auto avg_cycles = accumulate(cycles.begin(), cycles.end(), 0.0)/cycles.size();
 

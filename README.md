@@ -15,12 +15,12 @@ contain global variables. Check this file before launch any simulation.
 | Architecture | Description | Input Parameters | Default Parameters\* | Cycles | Mem. Accesses  | Potentials | Data type |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | Inference | Forward propagation | - | - | - | - | - | Float32 |
-| Stripes | **Ap**: Exploits precision requirements of activations | N_COLUMNS, N_ROWS | NM_WIDTH 256, WEIGHT_LANES 16 | X | X | X | Fixed16 |
-| DynamicStripes | **Ap**: Exploits dynamic precision requirements of a group of activations | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY | NM_WIDTH 256, WEIGHT_LANES 16 | X | X | X | Fixed16 |
-| BitPragmatic | **Ae**: Exploits bit-level sparsity of activations | N_COLUMNS, N_ROWS, BITS_FIRST_STAGE| BOOTH_ENCODING, ZERO_COUNT, TWO_REGISTERS_PER_SIP, WEIGHT_LANES 16| X | X | X | Fixed16 |
-| Laconic | **We + Ae**: Exploits bit-level sparsity of both weights and activations | N_COLUMNS, N_ROWS | BOOTH_ENCODING, ZERO_COUNT, WEIGHT_LANES 16 | X | - | X | Fixed16 |
-| BitTacticalP | **W + Ap**: Skips zero weights and exploits precision requirements of activations | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, PRECISION_GRANULARITY | WEIGHT_LANES 16 | X | - | X | Fixed16 |
-| BitTacticalE | **W + Ae**: Skips zero weights and exploits bit-level sparsity of activations | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, BITS_FIRST_STAGE | BOOTH_ENCODING, ZERO_COUNT, TWO_REGISTERS_PER_SIP, WEIGHT_LANES 16 | X | - | X | Fixed16 |
+| Stripes | **Ap**: Exploits precision requirements of activations | N_COLUMNS, N_ROWS | NM_WIDTH 256, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | X | Fixed16 |
+| DynamicStripes | **Ap**: Exploits dynamic precision requirements of a group of activations | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY | NM_WIDTH 256, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | X | Fixed16 |
+| BitPragmatic | **Ae**: Exploits bit-level sparsity of activations | N_COLUMNS, N_ROWS, BITS_FIRST_STAGE| BOOTH_ENCODING, ZERO_COUNT, TWO_REGISTERS_PER_SIP, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16| X | X | X | Fixed16 |
+| Laconic | **We + Ae**: Exploits bit-level sparsity of both weights and activations | N_COLUMNS, N_ROWS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | - | X | Fixed16 |
+| BitTacticalP | **W + Ap**: Skips zero weights and exploits precision requirements of activations | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, PRECISION_GRANULARITY | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | - | X | Fixed16 |
+| BitTacticalE | **W + Ae**: Skips zero weights and exploits bit-level sparsity of activations | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, BITS_FIRST_STAGE | BOOTH_ENCODING, ZERO_COUNT, TWO_REGISTERS_PER_SIP, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | - | X | Fixed16 |
 
 *\*Default features can be removed in their specific header file*
 
@@ -93,7 +93,6 @@ potentials for bvlc_googlenet:
     *   BitTactical: common class for both BitTactical behaviors
     *   BitTacticalP: class for the Bit-Tactical version p accelerator
     *   BitTacticalE: class for the Bit-Tactical version e accelerator
-    *   BitFusion: class for the BitFusion accelerator
 *   **interface**: Folder to interface with input/output operations
     *   NetReader: class to read and load a network using different formats
     *   NetWriter: class to write and dump a network using different formats
@@ -104,8 +103,6 @@ potentials for bvlc_googlenet:
     *   batch.proto: Google protobuf definition for the batch file
     
 ### Fixes TODO
-*   Currently FC layers are using just one column of the accelerators. (Stripes and PRA: one weight can be put every 
-    cycle in one column to match baseline cycles)
 *   Improve first layer dimensions
 *   Dispatcher for BitTacticalP?
 *   Add LSTM layers

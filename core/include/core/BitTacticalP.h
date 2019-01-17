@@ -3,6 +3,8 @@
 
 #include "BitTactical.h"
 
+#define FC_MULTIPLEX_COLUMNS // Execute each mult-add in a different column
+
 namespace core {
 
     template <typename T>

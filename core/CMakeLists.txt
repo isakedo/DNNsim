@@ -13,7 +13,6 @@ add_library(
         include/core/InferenceSimulator.h
         include/core/Laconic.h
         include/core/BitPragmatic.h
-        include/core/BitFusion.h
         include/core/Stripes.h
         include/core/DynamicStripes.h
         include/core/BitTactical.h
@@ -23,7 +22,6 @@ add_library(
         src/InferenceSimulator.cpp
         src/Laconic.cpp
         src/BitPragmatic.cpp
-        src/BitFusion.cpp
         src/Stripes.cpp
         src/BitTactical.cpp
         src/BitTacticalP.cpp

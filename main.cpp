@@ -33,7 +33,6 @@ THE SOFTWARE.
 #include <core/Laconic.h>
 #include <core/BitTacticalE.h>
 #include <core/BitTacticalP.h>
-#include <core/BitFusion.h>
 
 template <typename T>
 core::Network<T> read(const std::string &input_type, const std::string &network_name, bool activate_bias_and_out_act) {
@@ -192,9 +191,6 @@ int main(int argc, char *argv[]) {
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
-                        } else if (experiment.architecture == "BitFusion") {
-                            core::BitFusion<uint16_t> DNNsim;
-                            if(experiment.task == "Cycles") DNNsim.run(network);
                         }
                     }
                 }

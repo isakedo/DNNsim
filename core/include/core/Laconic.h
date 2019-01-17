@@ -5,6 +5,7 @@
 
 #define ZERO_COUNT // Count zeroes as 1 cycle
 #define BOOTH_ENCODING // Activate booth-like encoding
+#define FC_MULTIPLEX_COLUMNS // Execute each mult-add in a different column
 #define WEIGHT_LANES 16 // Number of weight lanes
 
 namespace core {

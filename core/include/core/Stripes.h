@@ -4,6 +4,7 @@
 #include "Simulator.h"
 
 #define NM_WIDTH 256 // Width of the neuron memory row in bits
+#define FC_MULTIPLEX_COLUMNS // Execute each mult-add in a different column
 #define WEIGHT_LANES 16 // Number of weight lanes
 
 namespace core {
