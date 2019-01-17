@@ -129,7 +129,7 @@ namespace core {
             }
 
             // Promote less flexible candidates first
-            overlap = min_num_candidates.empty() ? 0 : *std::min_element(min_num_candidates.begin(),
+            overlap = min_num_candidates.empty() ? -1 : *std::min_element(min_num_candidates.begin(),
                     min_num_candidates.end());
             for(auto wgt_idx : ineffectual_weights) {
                 auto lane = std::get<1>(wgt_idx);
