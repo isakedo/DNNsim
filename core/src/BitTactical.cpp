@@ -100,7 +100,7 @@ namespace core {
     }
 
     template <typename T>
-    void BitTactical<T>::filter_scheduler(schedule &dense_schedule, int time) {
+    void BitTactical<T>::filter_scheduler(schedule &dense_schedule, int time, int row) {
 
         auto search = SEARCH_SHAPE == 'L' ? &BitTactical<T>::L_shape_search : &BitTactical<T>::T_shape_search;
         int overlap = 1;
@@ -110,8 +110,9 @@ namespace core {
             std::vector<int> min_num_candidates;
 
             // Get ineffectual weights
+            int init_lane = row*WEIGHT_LANES;
             weights_set ineffectual_weights;
-            for(int lane = 0; lane < N_ROWS*WEIGHT_LANES; lane++) {
+            for(int lane = init_lane; lane < init_lane + WEIGHT_LANES; lane++) {
                 auto wgt_tuple = dense_schedule[time][lane];
                 auto wgt_bits = std::get<3>(wgt_tuple);
                 if(wgt_bits == 0) ineffectual_weights.push_back(std::make_tuple(time,lane));
@@ -169,7 +170,12 @@ namespace core {
             }
 
             skip = 0;
-            filter_scheduler(dense_schedule,time);
+
+            // Divide in filters to process faster
+            for(int row = 0; row < N_ROWS; row++) {
+                filter_scheduler(dense_schedule, time, row);
+            }
+
             result_schedule.push_back(dense_schedule[time]);
         }
 

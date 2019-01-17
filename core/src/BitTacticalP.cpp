@@ -7,7 +7,7 @@ namespace core {
 
     template <typename T>
     uint8_t BitTacticalP<T>::computeTacticalPBitsPE(uint16_t wgt, uint8_t act_layer_prec) {
-        return wgt == 0 ? (uint8_t)0 : act_layer_prec * (uint8_t)16;
+        return wgt == 0 ? (uint8_t)1 : act_layer_prec * (uint8_t)16;
     }
 
     template <typename T>
@@ -221,7 +221,7 @@ namespace core {
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
-        #pragma omp parallel for private(n,batch_cycles,schedule_time,column_index,column_end)
+        #pragma omp parallel for private(n,batch_cycles,column_index,column_end)
         #endif
         for (n = 0; n<batch_size; n++) {
             batch_cycles = 0, column_index = 0;

@@ -34,8 +34,9 @@ namespace core {
         /* Schedule the promotions for one filter given a specific time
          * @param dense_schedule    Schedule for a filter before removing zeroes (Overwritten)
          * @param time              Specific time to schedule
+         * @param row               Row of X weight lanes to schedule
          */
-        void filter_scheduler(schedule &dense_schedule, int time);
+        void filter_scheduler(schedule &dense_schedule, int time, int row);
 
         /* Schedule the weights in the scratchpad removing zero weights
          * @param sparse_Schedule   Schedule of the weights without removing zeroes

@@ -8,7 +8,7 @@ namespace core {
     template <typename T>
     uint8_t BitTacticalE<T>::computeTacticalEBitsPE(uint16_t act, uint16_t wgt) {
 
-        if(wgt == 0) return 0;
+        if(wgt == 0) return 1;
 
         uint16_t act_bits = act;
 
@@ -85,7 +85,7 @@ namespace core {
                 act_bits = this->booth_encoding(act_bits);
                 #endif
 
-                // Performance optimization: Only store different activations
+                // Only store different activations
                 auto it = std::find(unique_act_bits.begin(), unique_act_bits.end(), act_bits);
                 if(it == unique_act_bits.end()) unique_act_bits.push_back(act_bits);
                 else continue;
@@ -257,7 +257,7 @@ namespace core {
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(max_threads);
-        #pragma omp parallel for private(n,batch_cycles,schedule_time,column_index,column_end)
+        #pragma omp parallel for private(n,batch_cycles,column_index,column_end)
         #endif
         for (n = 0; n<batch_size; n++) {
             batch_cycles = 0, column_index = 0;
