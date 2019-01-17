@@ -138,7 +138,8 @@ namespace core {
     /* CYCLES */
 
     template <typename T>
-    void BitTacticalE<T>::computeConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void BitTacticalE<T>::computeConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
+            const schedule &proto_dense_schedule) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
@@ -174,7 +175,11 @@ namespace core {
         std::vector<int> list_x, list_y;
         int n, x_counter, y_counter;
 
-        const auto &dense_schedule = this->scheduler(wgt,act_channels);
+        schedule dense_schedule;
+        if(proto_dense_schedule.empty())
+            dense_schedule = this->scheduler(wgt,act_channels);
+        else
+            dense_schedule = proto_dense_schedule;
 
         // Convolution
         #ifdef OPENMP
@@ -207,7 +212,8 @@ namespace core {
     }
 
     template <typename T>
-    void BitTacticalE<T>::computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void BitTacticalE<T>::computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats,
+            const schedule &proto_dense_schedule) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
@@ -231,7 +237,11 @@ namespace core {
 
         int n;
 
-        const auto &dense_schedule = this->scheduler(wgt,act_channels);
+        schedule dense_schedule;
+        if(proto_dense_schedule.empty())
+            dense_schedule = this->scheduler(wgt,act_channels);
+        else
+            dense_schedule = proto_dense_schedule;
 
         #ifndef FC_MULTIPLEX_COLUMNS
 
@@ -301,10 +311,41 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                computeConvolution(layer, stats);
+                computeConvolution(layer, stats, schedule());
             } else if(layer.getType() == "InnerProduct") {
                 stats.layers.push_back(layer.getName());
-                computeInnerProduct(layer, stats);
+                computeInnerProduct(layer, stats, schedule());
+            }
+        }
+        // Set statistics to write
+        sys::Statistics::addStats(stats);
+    }
+
+    template <typename T>
+    void BitTacticalE<T>::run(const Network<T> &network, const std::vector<schedule> &schedules) {
+        // Initialize statistics
+        sys::Statistics::Stats stats;
+        sys::Statistics::initialize(stats);
+
+        stats.task_name = "cycles";
+        stats.net_name = network.getName();
+        int mux_entries = this->LOOKAHEAD_H + this->LOOKASIDE_D + 1;
+        stats.arch = "BitTacticalE_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS) + "_B" +
+                     std::to_string(BITS_FIRST_STAGE) + "_" + this->SEARCH_SHAPE + std::to_string(mux_entries) + "(" +
+                     std::to_string(this->LOOKAHEAD_H) + "-" + std::to_string(this->LOOKASIDE_D) + ")";
+
+        int sch_index = 0;
+        for(const Layer<T> &layer : network.getLayers()) {
+            if(layer.getType() == "Convolution") {
+                const schedule &proto_dense_schedule = schedules[sch_index];
+                stats.layers.push_back(layer.getName());
+                computeConvolution(layer, stats, proto_dense_schedule);
+                sch_index++;
+            } else if(layer.getType() == "InnerProduct") {
+                const schedule &proto_dense_schedule = schedules[sch_index];
+                stats.layers.push_back(layer.getName());
+                computeInnerProduct(layer, stats, proto_dense_schedule);
+                sch_index++;
             }
         }
         // Set statistics to write

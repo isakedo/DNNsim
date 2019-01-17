@@ -110,6 +110,7 @@ namespace sys {
                     experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();
                     experiment.search_shape = experiment_proto.search_shape().empty() ? 'L' :
                             experiment_proto.search_shape().c_str()[0];
+                    experiment.read_schedule_from_proto = experiment_proto.read_schedule_from_proto();
                     value = experiment.search_shape;
                     if(value != "L" && value != "T")
                         throw std::runtime_error("BitTactical search shape for network " + simulate.network +
@@ -130,6 +131,7 @@ namespace sys {
                     experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();
                     experiment.search_shape = experiment_proto.search_shape().empty() ? 'L' :
                                               experiment_proto.search_shape().c_str()[0];
+                    experiment.read_schedule_from_proto = experiment_proto.read_schedule_from_proto();
                     value = experiment.search_shape;
                     if(value != "L" && value != "T")
                         throw std::runtime_error("BitTactical search shape for network " + simulate.network +
@@ -143,9 +145,9 @@ namespace sys {
                                                 "BitTacticalE>.");
 
                 value = experiment_proto.task();
-                if(value  != "Cycles" && value != "MemAccesses" && value != "Potentials")
+                if(value  != "Cycles" && value != "MemAccesses" && value != "Potentials" && value != "Schedule")
                     throw std::runtime_error("Simulation type for network " + simulate.network +
-                                             " must be <Cycles|Potentials|MemAccesses>.");
+                                             " must be <Cycles|Potentials|MemAccesses|Schedule>.");
 
                 experiment.architecture = experiment_proto.architecture();
                 experiment.task = experiment_proto.task();

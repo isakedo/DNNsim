@@ -15,13 +15,14 @@
 	[activate_bias_and_out_act: true]
 	<experiment {
 		architecture: <BitPragmatic|Stripes|Laconic|BitTacticalE|BitTacticalP>
-		task: <Cycles|MemAccesses|Potentials>
+		task: <Cycles|MemAccesses|Potentials|Schedule> //Schedule only for BitTactical
 		[n_columns: <pos_num>] //Default 16
 		[n_rows: <pos_num>] //Default 16 (LAC 8)
-		[precision_granularity: <Tile|SIP>] //Only for Dynamic Stripes: Default Tile
+		[precision_granularity: <Tile|SIP>] //Only for Dynamic Stripes and BitTacticalP: Default Tile
 		[bits_first_stage: <pos_num>] //Only for BitPragmatic and BitTacticalE: Default 0
 		[lookahead_d: <pos_num>] //Only for BitTactical: Default 5
 		[lookaside_h: <pos_num>] //Only for BitTactical: Default 2
 		[search_shape: <L|T>] //Only for BitTactical: Default L
+		[read_schedule_from_proto: true] //Only for BitTactical: Default false
 	}>
 }>

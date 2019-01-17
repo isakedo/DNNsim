@@ -36,6 +36,7 @@ namespace sys {
                 int lookahead_h = 0;
                 int lookaside_d = 0;
                 char search_shape = 'X';
+                bool read_schedule_from_proto = false;
             };
 
             std::string inputType = ""; // Protobuf/Gzip

@@ -50,16 +50,20 @@ namespace core {
                 int schedule_time);
 
         /* Compute the timing for a convolutional layer
-         * @param layer     Layer for which we want to calculate the outputs
-         * @param stats     Statistics to fill
+         * @param layer                 Layer for which we want to calculate the outputs
+         * @param stats                 Statistics to fill
+         * @param proto_dense_schedule  Schedule read from protobuf file
          */
-        void computeConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats) override;
+        void computeConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats,
+                                const schedule &proto_dense_schedule) override;
 
         /* Compute the timing for a fully-connected layer
-         * @param layer     Layer for which we want to calculate the outputs
-         * @param stats     Statistics to fill
+         * @param layer                 Layer for which we want to calculate the outputs
+         * @param stats                 Statistics to fill
+         * @param proto_dense_schedule  Schedule read from protobuf file
          */
-        void computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) override;
+        void computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats,
+                                 const schedule &proto_dense_schedule) override;
 
         /* Compute the potentials for a convolutional layer
          * @param layer     Layer for which we want to calculate potentials
@@ -93,6 +97,12 @@ namespace core {
          * @param network   Network we want to simulate
          */
         void run(const Network<T> &network) override;
+
+        /* Run the timing simulator of the architecture
+         * @param network   Network we want to simulate
+         * @param schedules Dense schedules for the layer we want to simulate
+         */
+        void run(const Network<T> &network, const std::vector<schedule> &schedules) override;
 
         /* Calculate potentials for the given network
          * @param network   Network we want to calculate work reduction

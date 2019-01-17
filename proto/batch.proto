@@ -34,6 +34,7 @@ message Batch {
             uint32 lookahead_h = 7;
             uint32 lookaside_d = 8;
             string search_shape = 9;
+            bool read_schedule_from_proto = 10;
         }
 
         string inputType = 1;

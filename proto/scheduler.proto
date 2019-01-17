@@ -1,0 +1,29 @@
+
+syntax = "proto3";
+
+package protobuf;
+
+message Schedule {
+
+    message Layer {
+
+        message Row {
+
+            message Tuple {
+                int32 channel = 1;
+                int32 kernel_x = 2;
+                int32 kernel_y = 3;
+                uint32 wgt_bits = 4;
+            }
+
+            repeated Tuple tuples = 1;
+
+        }
+
+        repeated Row rows = 1;
+
+    }
+
+    repeated Layer layers = 1;
+
+}

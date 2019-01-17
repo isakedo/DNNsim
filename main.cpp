@@ -181,14 +181,30 @@ int main(int argc, char *argv[]) {
                             core::BitTacticalP<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
                                     experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape,
                                     experiment.precision_granularity);
-                            if(experiment.task == "Cycles") DNNsim.run(network);
+                            if(experiment.task == "Cycles" && experiment.read_schedule_from_proto) {
+                                // Read from proto
+                                DNNsim.run(network, std::vector<schedule>(0,schedule()));
+                            }
+                            else if (experiment.task == "Schedule") {
+                                const auto &network_schedule = DNNsim.network_scheduler(network);
+                                //Write to proto
+                            }
+                            else if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
                         } else if (experiment.architecture == "BitTacticalE") {
                             core::BitTacticalE<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
                                     experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape,
                                     experiment.bits_first_stage);
-                            if(experiment.task == "Cycles") DNNsim.run(network);
+                            if(experiment.task == "Cycles" && experiment.read_schedule_from_proto) {
+                                // Read from proto
+                                DNNsim.run(network, std::vector<schedule>(0,schedule()));
+                            }
+                            else if (experiment.task == "Schedule") {
+                                const auto &network_schedule = DNNsim.network_scheduler(network);
+                                //Write to proto
+                            }
+                            else if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
                         }

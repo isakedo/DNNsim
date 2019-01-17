@@ -82,16 +82,20 @@ namespace core {
         schedule scheduler(const cnpy::Array<T> &wgt, int act_channels);
 
         /* Compute the timing for a convolutional layer
-         * @param layer     Layer for which we want to calculate the outputs
-         * @param stats     Statistics to fill
+         * @param layer                 Layer for which we want to calculate the outputs
+         * @param stats                 Statistics to fill
+         * @param proto_dense_schedule  Schedule read from protobuf file
          */
-        virtual void computeConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats) = 0;
+        virtual void computeConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats, const schedule
+                &proto_dense_schedule) = 0;
 
         /* Compute the timing for a fully-connected layer
-         * @param layer     Layer for which we want to calculate the outputs
-         * @param stats     Statistics to fill
+         * @param layer                 Layer for which we want to calculate the outputs
+         * @param stats                 Statistics to fill
+         * @param proto_dense_schedule  Schedule read from protobuf file
          */
-        virtual void computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) = 0;
+        virtual void computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats,const schedule
+                &proto_dense_schedule) = 0;
 
         /* Compute the potentials for a convolutional layer
          * @param layer     Layer for which we want to calculate potentials
@@ -110,6 +114,12 @@ namespace core {
          */
         virtual void run(const Network<T> &network) = 0;
 
+        /* Run the timing simulator of the architecture
+         * @param network   Network we want to simulate
+         * @param schedules Dense schedules for the layer we want to simulate
+         */
+        virtual void run(const Network<T> &network, const std::vector<schedule> &schedules) = 0;
+
         /* Calculate work reduction for the given network
          * @param network   Network we want to calculate work reduction
          */
@@ -127,6 +137,11 @@ namespace core {
             SEARCH_SHAPE(_SEARCH_SHAPE) {}
 
     public:
+
+        /* Return the weights scheduled for all the layers
+         * @param network   Network we want to get the scheduler
+         */
+        std::vector<schedule> network_scheduler(const Network<T> &network);
 
         /* Calculate the number of memory accesses
          * @param network   Network we want to simulate

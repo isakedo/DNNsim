@@ -251,6 +251,23 @@ namespace core {
         return dense_schedule;
     }
 
+    template <typename T>
+    std::vector<schedule> BitTactical<T>::network_scheduler(const Network<T> &network) {
+
+        std::vector<schedule> network_schedule;
+        for(const Layer<T> &layer : network.getLayers()) {
+            if(layer.getType() == "Convolution") {
+                const auto &dense_schedule = scheduler(layer.getWeights(), layer.getActivations().getShape()[1]);
+                network_schedule.push_back(dense_schedule);
+            } else if(layer.getType() == "InnerProduct") {
+                const auto &dense_schedule = scheduler(layer.getWeights(), layer.getActivations().getShape()[1]);
+                network_schedule.push_back(dense_schedule);
+            }
+        }
+        return network_schedule;
+
+    }
+
     /* MEMORY ACCESSES */
 
     template <typename T>
