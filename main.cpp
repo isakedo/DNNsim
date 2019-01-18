@@ -73,6 +73,31 @@ void write(const core::Network<T> &network, const std::string &output_type, cons
     }
 }
 
+template <typename T>
+std::vector<schedule> read_schedule(const std::string &network_name, const std::string &arch,
+        const sys::Batch::Simulate::Experiment &experiment) {
+
+    interface::NetReader<T> reader = interface::NetReader<T>(network_name, false);
+    int mux_entries = experiment.lookahead_h + experiment.lookaside_d + 1;
+    std::string schedule_type = arch + "_" + experiment.search_shape + std::to_string(mux_entries) + "("
+                                + std::to_string(experiment.lookahead_h) + "-" +
+                                std::to_string(experiment.lookaside_d) + ")";
+    return reader.read_schedule_protobuf(schedule_type);
+}
+
+template <typename T>
+void write_schedule(const core::Network<T> &network, core::BitTactical<T> &DNNsim, const std::string &arch,
+        const sys::Batch::Simulate::Experiment &experiment) {
+    const auto &network_schedule = DNNsim.network_scheduler(network);
+    interface::NetWriter<uint16_t> writer = interface::NetWriter<uint16_t>(network.getName()
+            ,"Not", false);
+    int mux_entries = experiment.lookahead_h + experiment.lookaside_d + 1;
+    std::string schedule_type = arch + "_" + experiment.search_shape + std::to_string(mux_entries) + "("
+                                + std::to_string(experiment.lookahead_h) + "-" +
+                                std::to_string(experiment.lookaside_d) + ")";
+    writer.write_schedule_protobuf(network_schedule,schedule_type);
+}
+
 void check_options(const cxxopts::Options &options)
 {
     if(options.count("batch") == 0) {
@@ -93,7 +118,7 @@ cxxopts::Options parse_options(int argc, char *argv[]) {
     options.add_options("help")("h,help", "Print this help message", cxxopts::value<bool>(), "");
 
     options.add_options("batch")
-    ("batch", "Specify a batch file with intrusctions. Examples in folder \"examples\"",cxxopts::value<std::string>(),
+    ("batch", "Specify a batch file with instructions. Examples in folder \"examples\"",cxxopts::value<std::string>(),
             "<Prototxt file>");
 
     options.parse_positional("batch");
@@ -182,13 +207,12 @@ int main(int argc, char *argv[]) {
                                     experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape,
                                     experiment.precision_granularity);
                             if(experiment.task == "Cycles" && experiment.read_schedule_from_proto) {
-                                // Read from proto
-                                DNNsim.run(network, std::vector<schedule>(0,schedule()));
+                                auto dense_schedule = read_schedule<uint16_t>(network.getName(),"BitTactical",
+                                        experiment);
+                                DNNsim.run(network, dense_schedule);
                             }
-                            else if (experiment.task == "Schedule") {
-                                const auto &network_schedule = DNNsim.network_scheduler(network);
-                                //Write to proto
-                            }
+                            else if (experiment.task == "Schedule")
+                                write_schedule<uint16_t>(network,DNNsim,"BitTactical",experiment);
                             else if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
@@ -197,13 +221,12 @@ int main(int argc, char *argv[]) {
                                     experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape,
                                     experiment.bits_first_stage);
                             if(experiment.task == "Cycles" && experiment.read_schedule_from_proto) {
-                                // Read from proto
-                                DNNsim.run(network, std::vector<schedule>(0,schedule()));
+                                auto dense_schedule = read_schedule<uint16_t>(network.getName(),"BitTactical",
+                                        experiment);
+                                DNNsim.run(network, dense_schedule);
                             }
-                            else if (experiment.task == "Schedule") {
-                                const auto &network_schedule = DNNsim.network_scheduler(network);
-                                //Write to proto
-                            }
+                            else if (experiment.task == "Schedule")
+                                write_schedule<uint16_t>(network,DNNsim,"BitTactical",experiment);
                             else if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 

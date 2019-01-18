@@ -107,4 +107,3 @@ potentials for bvlc_googlenet:
 *   Dispatcher for BitTacticalP?
 *   Add LSTM layers
 *   Select cores command line
-*   Separate scheduler in tactical. Only do scheduler, or add scheduler from file.

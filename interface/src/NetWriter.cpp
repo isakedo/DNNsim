@@ -34,7 +34,7 @@ namespace interface {
     }
 
     template <typename T>
-    void NetWriter<T>::fillLayer(protobuf::Network_Layer* layer_proto, const core::Layer<T> &layer) {
+    void NetWriter<T>::fill_layer(protobuf::Network_Layer* layer_proto, const core::Layer<T> &layer) {
         layer_proto->set_type(layer.getType());
         layer_proto->set_name(layer.getName());
         layer_proto->set_input(layer.getInput());
@@ -136,7 +136,7 @@ namespace interface {
         network_proto.set_name(network.getName());
 
         for(const core::Layer<T> &layer : network.getLayers())
-            fillLayer(network_proto.add_layers(),layer);
+            fill_layer(network_proto.add_layers(),layer);
 
         {
             // Write the new network back to disk.
@@ -169,7 +169,7 @@ namespace interface {
         network_proto.set_name(network.getName());
 
         for(const core::Layer<T> &layer : network.getLayers())
-            fillLayer(network_proto.add_layers(),layer);
+            fill_layer(network_proto.add_layers(),layer);
 
         // Write the new network back to disk.
         std::fstream output(path, std::ios::out | std::ios::trunc | std::ios::binary);
@@ -188,6 +188,53 @@ namespace interface {
         #ifdef DEBUG
         std::cout << "Gzip Protobuf written in: " << path << std::endl;
         #endif
+    }
+
+    template <typename T>
+    void NetWriter<T>::fill_schedule_tuple(protobuf::Schedule_Layer_Time_Tuple* schedule_tuple_proto,
+            const schedule_tuple &dense_schedule_tuple) {
+        schedule_tuple_proto->set_channel(std::get<0>(dense_schedule_tuple));
+        schedule_tuple_proto->set_kernel_x(std::get<1>(dense_schedule_tuple));
+        schedule_tuple_proto->set_kernel_y(std::get<2>(dense_schedule_tuple));
+        schedule_tuple_proto->set_wgt_bits(std::get<3>(dense_schedule_tuple));
+    }
+
+    template <typename T>
+    void NetWriter<T>::write_schedule_protobuf(const std::vector<schedule> &network_schedule,
+            const std::string &schedule_type) {
+        GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+        check_path("net_traces/" + this->name);
+        std::string path = "net_traces/" + this->name + '/' + outputName() + "_" + schedule_type + "_schedule.proto";
+        /*
+        try {
+            // If Protobuf is found, do not overwrite
+            check_path(path);
+            return;
+        } catch (std::exception &exception) {}*/
+
+        protobuf::Schedule network_schedule_proto;
+
+        for(const auto &schedule : network_schedule) {
+            auto layer_proto_ptr = network_schedule_proto.add_layers();
+            for (const auto &schedule_time : schedule) {
+                auto time_proto_ptr = layer_proto_ptr->add_times();
+                for (const auto &schedule_tuple : schedule_time)
+                    fill_schedule_tuple(time_proto_ptr->add_tuples(),schedule_tuple);
+            }
+        }
+
+        {
+            // Write the schedule back to disk.
+            std::fstream output(path, std::ios::out | std::ios::trunc | std::ios::binary);
+            if (!network_schedule_proto.SerializeToOstream(&output)) {
+                throw std::runtime_error("Failed to write protobuf");
+            }
+
+            #ifdef DEBUG
+            std::cout << "Schedule written in: " << path << std::endl;
+            #endif
+        }
     }
 
     INITIALISE_DATA_TYPES(NetWriter);

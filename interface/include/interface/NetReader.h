@@ -4,8 +4,10 @@
 #include <sys/common.h>
 #include <core/Network.h>
 #include <core/Layer.h>
+#include <core/BitTactical.h>
 #include <network.pb.h>
 #include <caffe.pb.h>
+#include <schedule.pb.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/text_format.h>
@@ -72,6 +74,11 @@ namespace interface {
          * @return          Network architecture
          */
         core::Network<T> read_network_gzip();
+
+        /* Read the weights schedule from the schedule in the path and the schedule
+         * @return          Schedule for the network
+         */
+        std::vector<schedule> read_schedule_protobuf(const std::string &schedule_type);
 
         /* Read the weights into initialized given network
          * @param network       Network with the layers already initialized

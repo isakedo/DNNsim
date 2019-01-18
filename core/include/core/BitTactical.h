@@ -7,6 +7,7 @@
 
 typedef std::vector<std::vector<std::tuple<int,int,int,uint16_t>>> schedule;
 typedef std::vector<std::tuple<int,int,int,uint16_t>> time_schedule;
+typedef std::tuple<int,int,int,uint16_t> schedule_tuple;
 typedef std::list<std::tuple<int,int>> weights_set;
 typedef std::tuple<int,int> weight_index;
 
@@ -22,34 +23,34 @@ namespace core {
          * @param wgt_index          Index of the ineffectual weight that is going to be substituted
          * @return                   Effectual candidates to substitute the ineffectual position
          */
-        weights_set L_shape_search(const schedule &dense_schedule, weight_index wgt_idx);
+        weights_set L_shape_search(const schedule &dense_schedule, weight_index wgt_idx, int max_time);
 
         /* Search effectual weights in a T-shape search
          * @param dense_schedule     Filter scheduled so far
          * @param wgt_index          Index of the ineffectual weight that is going to be substituted
          * @return                   Effectual candidates to substitute the ineffectual position
          */
-        weights_set T_shape_search(const schedule &dense_schedule, weight_index wgt_idx);
+        weights_set T_shape_search(const schedule &dense_schedule, weight_index wgt_idx, int max_time);
 
         /* Schedule the promotions for one filter given a specific time
          * @param dense_schedule    Schedule for a filter before removing zeroes (Overwritten)
          * @param time              Specific time to schedule
          * @param row               Row of X weight lanes to schedule
          */
-        void filter_scheduler(schedule &dense_schedule, int time, int row);
+        void filter_scheduler(schedule &dense_schedule, int time, int row, int max_time);
 
         /* Schedule the weights in the scratchpad removing zero weights
          * @param sparse_Schedule   Schedule of the weights without removing zeroes
          * @return                  Return the dense scheduled weights
          */
-        schedule dense_scheduler(const schedule &sparse_schedule);
+        schedule dense_scheduler(const schedule &sparse_schedule, const std::vector<int> &max_time);
 
         /* Schedule the weights in the scratchpad without removing zero weights
          * @param wgt           Weights per layer
          * @param act_channels  Number of activation channels
          * @return              Return the sparse scheduled weights
          */
-        schedule sparse_scheduler(const cnpy::Array<T> &wgt, int act_channels);
+        schedule sparse_scheduler(const cnpy::Array<T> &wgt, int act_channels, std::vector<int> &max_time);
 
         /* Compute the potentials for a convolutional layer
          * @param layer     Layer for which we want to calculate potentials

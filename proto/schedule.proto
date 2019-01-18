@@ -7,7 +7,7 @@ message Schedule {
 
     message Layer {
 
-        message Row {
+        message Time {
 
             message Tuple {
                 int32 channel = 1;
@@ -17,10 +17,9 @@ message Schedule {
             }
 
             repeated Tuple tuples = 1;
-
         }
 
-        repeated Row rows = 1;
+        repeated Time times = 1;
 
     }
 

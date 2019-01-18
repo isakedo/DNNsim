@@ -80,6 +80,7 @@ namespace core {
                 int channel = std::get<0>(wgt_tuple);
                 int kernel_x = std::get<1>(wgt_tuple);
                 int kernel_y = std::get<2>(wgt_tuple);
+                if(channel < 0) continue;
                 auto act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
                 #ifdef BOOTH_ENCODING
                 act_bits = this->booth_encoding(act_bits);

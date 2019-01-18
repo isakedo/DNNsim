@@ -11,7 +11,7 @@ namespace sys {
 
     class Batch {
 
-    private:
+    public:
 
         /* Struct for the Transform instructions */
         struct Transform {
@@ -45,6 +45,8 @@ namespace sys {
             bool activate_bias_out_act = false;
             std::vector<Experiment> experiments;
         };
+
+    private:
 
         /* Path to the batch file */
         std::string path;
