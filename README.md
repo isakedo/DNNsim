@@ -1,4 +1,4 @@
-# DNNsim 1.0.0
+# DNNsim 1.1.0
 
 Gitignore is set up for CLion IDE, if you want to use a different IDE add their project file extensions to .gitignore. 
 It recommend to used it from the command line. The folder "models" must contain a folder for each network. 
@@ -106,4 +106,3 @@ potentials for bvlc_googlenet:
 *   Improve first layer dimensions
 *   Dispatcher for BitTacticalP?
 *   Add LSTM layers
-*   Select cores command line - Add fast mode, one image

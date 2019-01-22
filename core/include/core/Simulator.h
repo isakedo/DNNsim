@@ -1,6 +1,5 @@
-#ifndef DNNSIM_TIMINGSIMULATOR_H
-#define DNNSIM_TIMINGSIMULATOR_H
-
+#ifndef DNNSIM_SIMULATOR_H
+#define DNNSIM_SIMULATOR_H
 
 #include <sys/common.h>
 #include <sys/Statistics.h>
@@ -20,6 +19,12 @@ namespace core {
     class Simulator {
 
     protected:
+
+        /* Number of parallel cores */
+        const int N_THREADS;
+
+        /* Enable fast mode: only one image */
+        const bool FAST_MODE = false;
 
         /* Return a vector zero padded
          * @param array     Array we want to apply padding
@@ -61,8 +66,17 @@ namespace core {
          */
         bool check_act_bits(const std::vector<std::queue<uint8_t>> &offsets);
 
+        /* Constructor
+         * @param _N_THREADS    Number of parallel threads for multi-threading execution
+         * @param _FAST_MODE    Enable fast mode to simulate only one image
+         */
+        Simulator(uint8_t _N_THREADS, bool _FAST_MODE) : N_THREADS(_N_THREADS), FAST_MODE(_FAST_MODE) {}
+
+        /* Virtual destructor, force class to be abstract */
+        virtual ~Simulator() = default;
+
     };
 
 }
 
-#endif //DNNSIM_TIMINGSIMULATOR_H
+#endif //DNNSIM_SIMULATOR_H

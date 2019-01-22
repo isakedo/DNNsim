@@ -109,6 +109,11 @@ void check_options(const cxxopts::Options &options)
             throw std::runtime_error("The path " + batch_path + " does not exist.");
         }
     }
+
+    if(options.count("threads") == 1 && options["threads"].as<uint16_t>() < 1) {
+        throw std::runtime_error("The number of threads must be at least one.");
+    }
+
 }
 
 cxxopts::Options parse_options(int argc, char *argv[]) {
@@ -120,6 +125,12 @@ cxxopts::Options parse_options(int argc, char *argv[]) {
     options.add_options("batch")
     ("batch", "Specify a batch file with instructions. Examples in folder \"examples\"",cxxopts::value<std::string>(),
             "<Prototxt file>");
+
+    options.add_options("openmp")
+    ("t,threads", "Specify the number of threads",cxxopts::value<uint16_t>(),"<Positive number>");
+
+    options.add_options("simulation")
+    ("fast_mode", "Enable fast mode: simulate only one image",cxxopts::value<bool>(),"<Boolean>");
 
     options.parse_positional("batch");
 
@@ -134,12 +145,14 @@ int main(int argc, char *argv[]) {
 
         // Help
         if (options.count("h") == 1) {
-            std::cout << options.help({"help", "batch"}) << std::endl;
+            std::cout << options.help({"help", "batch", "openmp", "simulation"}) << std::endl;
             return 0;
         }
 
         check_options(options);
 
+        uint8_t N_THREADS = options.count("threads") == 0 ? (uint8_t)1 : (uint8_t)options["threads"].as<uint16_t>();
+        bool FAST_MODE = options.count("fast_mode") == 0 ? false : options["fast_mode"].as<bool>();
         std::string batch_path = options["batch"].as<std::string>();
         sys::Batch batch = sys::Batch(batch_path);
         batch.read_batch();
@@ -171,7 +184,7 @@ int main(int argc, char *argv[]) {
                 if (simulate.inputDataType == "Float32") {
                     core::Network<float> network;
                     network = read<float>(simulate.inputType, simulate.network, simulate.activate_bias_out_act);
-                    core::InferenceSimulator<float> DNNsim;
+                    core::InferenceSimulator<float> DNNsim(N_THREADS,FAST_MODE);
                     DNNsim.run(network);
                 } else if (simulate.inputDataType == "Fixed16") {
                     core::Network<uint16_t> network;
@@ -179,33 +192,33 @@ int main(int argc, char *argv[]) {
                     for(const auto &experiment : simulate.experiments) {
                         if(experiment.architecture == "BitPragmatic") {
                             core::BitPragmatic<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
-                                    experiment.bits_first_stage);
+                                    experiment.bits_first_stage,N_THREADS,FAST_MODE);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                             else if (experiment.task == "MemAccesses") DNNsim.memoryAccesses(network);
 
                         } else if(experiment.architecture == "Stripes") {
-                            core::Stripes<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows);
+                            core::Stripes<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,N_THREADS,FAST_MODE);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                             else if (experiment.task == "MemAccesses") DNNsim.memoryAccesses(network);
 
                         } else if(experiment.architecture == "DynamicStripes") {
                             core::DynamicStripes<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
-                                    experiment.precision_granularity);
+                                    experiment.precision_granularity,N_THREADS,FAST_MODE);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                             else if (experiment.task == "MemAccesses") DNNsim.memoryAccesses(network);
 
                         } else if (experiment.architecture == "Laconic") {
-                            core::Laconic<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows);
+                            core::Laconic<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,N_THREADS,FAST_MODE);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
                         } else if (experiment.architecture == "BitTacticalP") {
                             core::BitTacticalP<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
                                     experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape,
-                                    experiment.precision_granularity);
+                                    experiment.precision_granularity,N_THREADS,FAST_MODE);
                             if(experiment.task == "Cycles" && experiment.read_schedule_from_proto) {
                                 auto dense_schedule = read_schedule<uint16_t>(network.getName(),"BitTactical",
                                         experiment);
@@ -219,7 +232,7 @@ int main(int argc, char *argv[]) {
                         } else if (experiment.architecture == "BitTacticalE") {
                             core::BitTacticalE<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
                                     experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape,
-                                    experiment.bits_first_stage);
+                                    experiment.bits_first_stage,N_THREADS,FAST_MODE);
                             if(experiment.task == "Cycles" && experiment.read_schedule_from_proto) {
                                 auto dense_schedule = read_schedule<uint16_t>(network.getName(),"BitTactical",
                                         experiment);

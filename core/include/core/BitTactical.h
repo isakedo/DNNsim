@@ -21,6 +21,7 @@ namespace core {
         /* Search effectual weights in a L-shape search
          * @param dense_schedule     Filter scheduled so far
          * @param wgt_index          Index of the ineffectual weight that is going to be substituted
+         * @param max_time          Maximum time than can be scheduled (assuming stationary PSUM FIX)
          * @return                   Effectual candidates to substitute the ineffectual position
          */
         weights_set L_shape_search(const schedule &dense_schedule, weight_index wgt_idx, int max_time);
@@ -28,6 +29,7 @@ namespace core {
         /* Search effectual weights in a T-shape search
          * @param dense_schedule     Filter scheduled so far
          * @param wgt_index          Index of the ineffectual weight that is going to be substituted
+         * @param max_time          Maximum time than can be scheduled (assuming stationary PSUM FIX)
          * @return                   Effectual candidates to substitute the ineffectual position
          */
         weights_set T_shape_search(const schedule &dense_schedule, weight_index wgt_idx, int max_time);
@@ -36,11 +38,13 @@ namespace core {
          * @param dense_schedule    Schedule for a filter before removing zeroes (Overwritten)
          * @param time              Specific time to schedule
          * @param row               Row of X weight lanes to schedule
+         * @param max_time          Maximum time than can be scheduled (assuming stationary PSUM FIX)
          */
         void filter_scheduler(schedule &dense_schedule, int time, int row, int max_time);
 
         /* Schedule the weights in the scratchpad removing zero weights
          * @param sparse_Schedule   Schedule of the weights without removing zeroes
+         * @param max_time          Maximum time than can be scheduled (assuming stationary PSUM FIX)
          * @return                  Return the dense scheduled weights
          */
         schedule dense_scheduler(const schedule &sparse_schedule, const std::vector<int> &max_time);
@@ -48,6 +52,7 @@ namespace core {
         /* Schedule the weights in the scratchpad without removing zero weights
          * @param wgt           Weights per layer
          * @param act_channels  Number of activation channels
+         * @param max_time          Maximum time than can be scheduled (assuming stationary PSUM FIX)
          * @return              Return the sparse scheduled weights
          */
         schedule sparse_scheduler(const cnpy::Array<T> &wgt, int act_channels, std::vector<int> &max_time);
@@ -127,15 +132,17 @@ namespace core {
         virtual void potentials(const Network<T> &network) = 0;
 
         /* Constructor
-         * @param _N_COLUMNS            Number of columns
-         * @param _N_ROWS               Number of rows
-         * @param _LOOKAHEAD_D          Value for scheduler lookahead
-         * @param _LOOKASIDE_H          Value for scheduler lookaside
-         * @param _SEARCH_SHAPE         Type of search
+         * @param _N_COLUMNS        Number of columns
+         * @param _N_ROWS           Number of rows
+         * @param _LOOKAHEAD_D      Value for scheduler lookahead
+         * @param _LOOKASIDE_H      Value for scheduler lookaside
+         * @param _SEARCH_SHAPE     Type of search
+         * @param _N_THREADS        Number of parallel threads for multi-threading execution
+         * @param _FAST_MODE        Enable fast mode to simulate only one image
          */
-        BitTactical(int _N_COLUMNS, int _N_ROWS, int _LOOKAHEAD_H, int _LOOKASIDE_D, const char _SEARCH_SHAPE) :
-            N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), LOOKAHEAD_H(_LOOKAHEAD_H), LOOKASIDE_D(_LOOKASIDE_D),
-            SEARCH_SHAPE(_SEARCH_SHAPE) {}
+        BitTactical(int _N_COLUMNS, int _N_ROWS, int _LOOKAHEAD_H, int _LOOKASIDE_D, const char _SEARCH_SHAPE,
+                uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS),
+                N_ROWS(_N_ROWS), LOOKAHEAD_H(_LOOKAHEAD_H), LOOKASIDE_D(_LOOKASIDE_D), SEARCH_SHAPE(_SEARCH_SHAPE) {}
 
     public:
 

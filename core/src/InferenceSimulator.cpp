@@ -22,6 +22,7 @@ namespace core {
         int act_channels = act_shape[1];
         int Nx = act_shape[2];
         int Ny = act_shape[3];
+        if(this->FAST_MODE) batch_size = 1;
 
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
@@ -49,7 +50,7 @@ namespace core {
         // Convolution
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(max_threads);
+        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n,current_group,group_m,start_group,sum)
         #endif
         for(n=0; n<batch_size; n++) {
@@ -101,6 +102,7 @@ namespace core {
         int batch_size = act_shape[0];
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
+        if(this->FAST_MODE) batch_size = 1;
 
         std::vector<size_t> output_shape;
         std::vector<T> output_activations ((unsigned)(batch_size*num_filters), 0);
@@ -110,7 +112,7 @@ namespace core {
 
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(max_threads);
+        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n,sum)
         #endif
         for (n = 0; n<batch_size; n++) {
@@ -131,20 +133,22 @@ namespace core {
     }
 
     template <typename T>
-    void check_values(const Layer<T> &layer, const cnpy::Array<T> &test, const cnpy::Array<T> &result,
-            float min_error = .01) {
+    void InferenceSimulator<T>::check_values(const Layer<T> &layer, const cnpy::Array<T> &test,
+            const cnpy::Array<T> &result, float min_error) {
 
         std::cout << "Checking values for layer: " << layer.getName() << " of type: "<< layer.getType() << "... ";
-        if(test.getMax_index() != result.getMax_index()) {
+        uint32_t test_size = this->FAST_MODE ?
+                test.getMax_index() / layer.getActivations().getShape()[0] : test.getMax_index();
+        if(test_size != result.getMax_index()) {
             std::cout << "SIZE ERROR" << std::endl;
             return;
         }
         int count = 0;
-        for(uint32_t i = 0; i < test.getMax_index(); i++) {
+        for(uint32_t i = 0; i < result.getMax_index(); i++) {
             if(fabsf(test.get(i) - result.get(i)) > min_error) count++;
         }
-        std::cout << "ERRORS: " << count << " out of " << test.getMax_index() << " absolute error tolerance of "
-        << min_error << std::endl;
+        std::cout << "ERRORS: " << count << " out of " << result.getMax_index() << " absolute error tolerance of "
+            << min_error << std::endl;
     }
 
     template <typename T>

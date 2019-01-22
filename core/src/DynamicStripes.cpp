@@ -118,6 +118,7 @@ namespace core {
         int act_channels = act_shape[1];
         int Nx = act_shape[2];
         int Ny = act_shape[3];
+        if(this->FAST_MODE) batch_size = 1;
 
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
@@ -145,7 +146,7 @@ namespace core {
         // Convolution
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(max_threads);
+        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n,batch_cycles,x_counter,y_counter,list_x,list_y)
         #endif
         for(n=0; n<batch_size; n++) {
@@ -192,6 +193,7 @@ namespace core {
         int act_channels = act_shape[1];
         int Nx = act_shape[2];
         int Ny = act_shape[3];
+        if(this->FAST_MODE) batch_size = 1;
 
         int num_filters = wgt_shape[0];
 
@@ -210,7 +212,7 @@ namespace core {
         // All FC in one column
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(max_threads);
+        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n,batch_cycles)
         #endif
         for (n = 0; n<batch_size; n++) {
@@ -228,7 +230,7 @@ namespace core {
 
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(max_threads);
+        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n,batch_cycles,column_index,column_end)
         #endif
         for (n = 0; n<batch_size; n++) {
@@ -308,6 +310,7 @@ namespace core {
         int act_channels = act_shape[1];
         int Nx = act_shape[2];
         int Ny = act_shape[3];
+        if(this->FAST_MODE) batch_size = 1;
 
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
@@ -380,6 +383,7 @@ namespace core {
         int batch_size = act_shape[0];
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
+        if(this->FAST_MODE) batch_size = 1;
 
         // Operations
         const auto parallel_mult = (uint64_t)num_filters * wgt_channels;

@@ -105,9 +105,12 @@ namespace core {
          * @param _N_COLUMNS            Number of columns
          * @param _N_ROWS               Number of rows
          * @param _BITS_FIRST_STAGE     Bits of the first stage in the two stages shifting
+         * @param _N_THREADS            Number of parallel threads for multi-threading execution
+         * @param _FAST_MODE            Enable fast mode to simulate only one image
          */
-        BitPragmatic(int _N_COLUMNS, int _N_ROWS, int _BITS_FIRST_STAGE) : N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS),
-            BITS_FIRST_STAGE(_BITS_FIRST_STAGE) {}
+        BitPragmatic(int _N_COLUMNS, int _N_ROWS, int _BITS_FIRST_STAGE, uint8_t _N_THREADS, bool _FAST_MODE) :
+                Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS),
+                BITS_FIRST_STAGE(_BITS_FIRST_STAGE) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate
