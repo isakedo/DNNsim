@@ -206,6 +206,7 @@ namespace core {
         int n;
 
         #ifndef FC_MULTIPLEX_COLUMNS
+
         // All FC in one column
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
@@ -223,7 +224,7 @@ namespace core {
         #else
 
         int column_index;
-        std::vector<int> column_end (N_COLUMNS, 0);
+        std::vector<int> column_end;
 
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
@@ -232,6 +233,7 @@ namespace core {
         #endif
         for (n = 0; n<batch_size; n++) {
             batch_cycles = 0, column_index = 0;
+            column_end = std::vector<int>(this->N_COLUMNS, 0);
             for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
                 if(batch_cycles < column_end[column_index]) batch_cycles = column_end[column_index];
                 auto column_cycles = computeDynamicStripesColumn(n,0,0,0,0,k,0,act,act_channels,rowMap);

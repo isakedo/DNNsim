@@ -106,4 +106,4 @@ potentials for bvlc_googlenet:
 *   Improve first layer dimensions
 *   Dispatcher for BitTacticalP?
 *   Add LSTM layers
-*   Select cores command line
+*   Select cores command line - Add fast mode, one image

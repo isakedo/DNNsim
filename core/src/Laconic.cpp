@@ -208,7 +208,7 @@ namespace core {
         #else
 
         int column_index;
-        std::vector<int> column_end (N_COLUMNS, 0);
+        std::vector<int> column_end;
 
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
@@ -217,6 +217,7 @@ namespace core {
         #endif
         for (n = 0; n<batch_size; n++) {
             batch_cycles = 0, column_index = 0;
+            column_end = std::vector<int>(this->N_COLUMNS, 0);
             for (int m = 0; m<num_filters; m+=N_ROWS) {
                 for (int k = 0; k<wgt_channels; k+=WEIGHT_LANES) {
                     if(batch_cycles < column_end[column_index]) batch_cycles = column_end[column_index];

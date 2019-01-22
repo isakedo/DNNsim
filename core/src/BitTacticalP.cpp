@@ -228,7 +228,7 @@ namespace core {
         #else
 
         int column_index;
-        std::vector<int> column_end (this->N_COLUMNS, 0);
+        std::vector<int> column_end;
 
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
@@ -237,6 +237,7 @@ namespace core {
         #endif
         for (n = 0; n<batch_size; n++) {
             batch_cycles = 0, column_index = 0;
+            column_end = std::vector<int>(this->N_COLUMNS, 0);
             for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
                 if(batch_cycles < column_end[column_index]) batch_cycles = column_end[column_index];
                 auto column_cycles = computeTacticalPColumn(n,0,0,0,act,dense_schedule,schedule_time);
