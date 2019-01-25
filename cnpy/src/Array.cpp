@@ -171,21 +171,22 @@ namespace cnpy {
         auto Nx = this->shape[2];
         auto Ny = this->shape[3];
 
-        auto new_act_channels = (uint16_t)15;
-        auto new_Nx = (uint16_t)ceil(Nx/5.);
-        new_Nx = new_Nx + stride - (new_Nx%stride); // Ceil to a multiple of the stride
+        auto new_act_channels = (uint16_t)act_channels*stride*stride;
+        auto new_Nx = (uint16_t)ceil(Nx/(double)stride);
+        auto new_Ny = (uint16_t)ceil(Nx/(double)stride);
 
         auto tmp_data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(batch_size,
                 std::vector<std::vector<std::vector<T>>>(new_act_channels,std::vector<std::vector<T>>(new_Nx,
-                std::vector<T>(Ny,0))));
+                std::vector<T>(new_Ny,0))));
 
         for(int n = 0; n < batch_size; n++)
             for(int k = 0; k < act_channels; k++)
                 for(int i = 0; i < Nx; i++)
                     for(int j = 0; j < Ny; j++) {
-                        auto new_i = i%new_Nx;
-                        auto new_k = act_channels*(i/new_Nx) + k;
-                        tmp_data4D[n][new_k][new_i][j] = this->data4D[n][k][i][j];
+                        auto new_i = i/stride;
+                        auto new_j = j/stride;
+                        auto new_k = (j%stride)*stride*act_channels + act_channels*(i%stride) + k;
+                        tmp_data4D[n][new_k][new_i][new_j] = this->data4D[n][k][i][j];
                     }
 
         this->data4D.clear();
@@ -194,35 +195,42 @@ namespace cnpy {
         this->shape.push_back(batch_size);
         this->shape.push_back(new_act_channels);
         this->shape.push_back(new_Nx);
-        this->shape.push_back(Ny);
+        this->shape.push_back(new_Ny);
     }
 
-
     template <typename T>
-    void Array<T>::reshape_first_layer_wgt() {
+    void Array<T>::reshape_first_layer_wgt(uint16_t stride) {
         if(getDimensions() != 4 || this->shape[1] != 3) return;
         auto num_filters = this->shape[0];
         auto wgt_channels = this->shape[1];
         auto Kx = this->shape[2];
         auto Ky = this->shape[3];
 
-        auto new_wgt_channels = (uint16_t)15;
+        auto new_wgt_channels = (uint16_t)(uint16_t)wgt_channels*stride*stride;
+        auto new_Kx = (uint16_t)ceil(Kx/(double)stride);
+        auto new_Ky = (uint16_t)ceil(Ky/(double)stride);
 
         auto tmp_data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(num_filters,
-                std::vector<std::vector<std::vector<T>>>(new_wgt_channels,std::vector<std::vector<T>>(Kx,
-                std::vector<T>(Ky,0))));
+                std::vector<std::vector<std::vector<T>>>(new_wgt_channels,std::vector<std::vector<T>>(new_Kx,
+                std::vector<T>(new_Ky,0))));
 
-        for(int n = 0; n < num_filters; n++)
-            for(int k = 0; k < new_wgt_channels; k++)
+        for(int m = 0; m < num_filters; m++)
+            for(int k = 0; k < wgt_channels; k++)
                 for(int i = 0; i < Kx; i++)
                     for(int j = 0; j < Ky; j++) {
-                        auto old_k = k % wgt_channels;
-                        tmp_data4D[n][k][i][j] = this->data4D[n][old_k][i][j];
+                        auto new_i = i/stride;
+                        auto new_j = j/stride;
+                        auto new_k = (j%stride)*stride*wgt_channels + wgt_channels*(i%stride) + k;
+                        tmp_data4D[m][new_k][new_i][new_j] = this->data4D[m][k][i][j];
                     }
 
         this->data4D.clear();
         this->data4D = tmp_data4D;
-        this->shape[1] = new_wgt_channels;
+        this->shape.clear();
+        this->shape.push_back(num_filters);
+        this->shape.push_back(new_wgt_channels);
+        this->shape.push_back(new_Kx);
+        this->shape.push_back(new_Ky);
     }
 
     template <typename T>

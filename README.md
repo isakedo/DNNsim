@@ -103,6 +103,5 @@ potentials for bvlc_googlenet:
     *   batch.proto: Google protobuf definition for the batch file
     
 ### Fixes TODO
-*   Improve first layer dimensions
-*   Dispatcher for BitTacticalP?
+*   Dispatchers?
 *   Add LSTM layers
