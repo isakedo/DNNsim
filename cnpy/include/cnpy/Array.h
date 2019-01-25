@@ -52,6 +52,12 @@ namespace cnpy {
         /* Transform a 4D array into 2D */
         void reshape_to_2D();
 
+        /* Reshape the input activations to a better shape for the first layer*/
+        void reshape_first_layer_act(uint16_t stride);
+
+        /* Reshape the weights to a better shape for the first layer*/
+        void reshape_first_layer_wgt();
+
         /*  Return the value inside the vector given the fourth dimensions
          * @param i     Index for the first dimension
          * @param j     Index for the second dimension

@@ -90,6 +90,12 @@ namespace core {
         wgt.powers_of_two_representation();
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
+        if(act.getShape()[1] == 3 && layer.getStride() > 1) {
+            const std::vector<size_t> &act_shape = act.getShape();
+            act.reshape_first_layer_act((uint16_t)layer.getStride());
+            wgt.reshape_first_layer_wgt();
+        }
+
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
@@ -123,11 +129,11 @@ namespace core {
         int n, x_counter, y_counter;
 
         // Convolution
-        #ifdef OPENMP
+        /*#ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n,current_group,group_m,start_group,batch_cycles,x_counter,y_counter,list_x,list_y)
-        #endif
+        #endif*/
         for(n=0; n<batch_size; n++) {
             current_group = 0, group_m = 0, start_group = 0, batch_cycles = 0, x_counter = 0, y_counter = 0;
             for(int m=0; m<num_filters; m+=N_ROWS) {

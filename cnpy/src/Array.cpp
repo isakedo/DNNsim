@@ -129,6 +129,7 @@ namespace cnpy {
 
     template <typename T>
     void Array<T>::reshape_to_4D() {
+        //if(getDimensions() == 4 || (this->shape[2] == 1 && this->shape[3] == 1)) return;
         this->data4D.clear();
         this->data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(this->shape[0],
                 std::vector<std::vector<std::vector<T>>>(this->shape[1],std::vector<std::vector<T>>(1,
@@ -160,6 +161,68 @@ namespace cnpy {
         this->shape[1] = this->shape[1]*this->shape[2]*this->shape[3];
         this->shape.pop_back();
         this->shape.pop_back();
+    }
+
+    template <typename T>
+    void Array<T>::reshape_first_layer_act(uint16_t stride) {
+        if(getDimensions() != 4 || this->shape[1] != 3) return;
+        auto batch_size = this->shape[0];
+        auto act_channels = this->shape[1];
+        auto Nx = this->shape[2];
+        auto Ny = this->shape[3];
+
+        auto new_act_channels = (uint16_t)15;
+        auto new_Nx = (uint16_t)ceil(Nx/5.);
+        new_Nx = new_Nx + stride - (new_Nx%stride); // Ceil to a multiple of the stride
+
+        auto tmp_data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(batch_size,
+                std::vector<std::vector<std::vector<T>>>(new_act_channels,std::vector<std::vector<T>>(new_Nx,
+                std::vector<T>(Ny,0))));
+
+        for(int n = 0; n < batch_size; n++)
+            for(int k = 0; k < act_channels; k++)
+                for(int i = 0; i < Nx; i++)
+                    for(int j = 0; j < Ny; j++) {
+                        auto new_i = i%new_Nx;
+                        auto new_k = act_channels*(i/new_Nx) + k;
+                        tmp_data4D[n][new_k][new_i][j] = this->data4D[n][k][i][j];
+                    }
+
+        this->data4D.clear();
+        this->data4D = tmp_data4D;
+        this->shape.clear();
+        this->shape.push_back(batch_size);
+        this->shape.push_back(new_act_channels);
+        this->shape.push_back(new_Nx);
+        this->shape.push_back(Ny);
+    }
+
+
+    template <typename T>
+    void Array<T>::reshape_first_layer_wgt() {
+        if(getDimensions() != 4 || this->shape[1] != 3) return;
+        auto num_filters = this->shape[0];
+        auto wgt_channels = this->shape[1];
+        auto Kx = this->shape[2];
+        auto Ky = this->shape[3];
+
+        auto new_wgt_channels = (uint16_t)15;
+
+        auto tmp_data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(num_filters,
+                std::vector<std::vector<std::vector<T>>>(new_wgt_channels,std::vector<std::vector<T>>(Kx,
+                std::vector<T>(Ky,0))));
+
+        for(int n = 0; n < num_filters; n++)
+            for(int k = 0; k < new_wgt_channels; k++)
+                for(int i = 0; i < Kx; i++)
+                    for(int j = 0; j < Ky; j++) {
+                        auto old_k = k % wgt_channels;
+                        tmp_data4D[n][k][i][j] = this->data4D[n][old_k][i][j];
+                    }
+
+        this->data4D.clear();
+        this->data4D = tmp_data4D;
+        this->shape[1] = new_wgt_channels;
     }
 
     template <typename T>
