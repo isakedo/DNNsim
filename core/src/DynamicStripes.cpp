@@ -458,69 +458,6 @@ namespace core {
         sys::Statistics::addStats(stats);
     }
 
-    /* MEMORY ACCESSES */
-
-    template <typename T>
-    void DynamicStripes<T>::computeMemAccessesConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
-        const cnpy::Array<T> &wgt = layer.getWeights();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-        const cnpy::Array<T> &act = layer.getActivations();
-        const std::vector<size_t> &act_shape = act.getShape();
-
-        int act_channels = act_shape[1];
-        int Nx = act_shape[2];
-        int Ny = act_shape[3];
-
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
-        int Kx = wgt_shape[2];
-        int Ky = wgt_shape[3];
-
-        int padding = layer.getPadding();
-        int stride = layer.getStride();
-
-        long out_x = (Nx - Kx + 2*padding)/stride + 1;
-        long out_y = (Ny - Ky + 2*padding)/stride + 1;
-
-        //Memory stats - 16 bits
-        int groups = act_channels / wgt_channels;
-        auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS)/groups;
-        auto num_activations_sets = (uint32_t)ceil(out_x*out_y/(double)N_COLUMNS);
-        auto num_channel_sets = (uint32_t)ceil(wgt_channels/(double)WEIGHT_LANES);
-
-        stats.on_chip_accesses_filters.push_back(num_filters_sets*num_activations_sets*num_channel_sets*Kx*Ky);
-        stats.on_chip_accesses_activations.push_back(num_filters_sets*num_activations_sets*num_channel_sets*Kx*Ky);
-        stats.off_chip_accesses_filters_sch3.push_back(1); // All filters per layer
-        stats.off_chip_accesses_filters_sch4.push_back(num_filters_sets); // Working set of filters
-        stats.off_chip_accesses_activations.push_back((uint32_t)out_y); // One row of activations
-        stats.num_bytes_filters_sche3.push_back((uint32_t)(num_filters*wgt_channels*Kx*Ky*16)/8);
-        stats.num_bytes_filters_sche4.push_back((uint32_t)(N_ROWS*wgt_channels*Kx*Ky*16)/8);
-        stats.num_bytes_one_row_activations.push_back((uint32_t)(Nx*Ky*act_channels*16)/8);
-        stats.num_computations.push_back(num_filters_sets*num_activations_sets*num_channel_sets*Kx*Ky);
-    }
-
-
-    template <typename T>
-    void DynamicStripes<T>::memoryAccesses(const Network<T> &network) {
-        // Initialize statistics
-        sys::Statistics::Stats stats;
-        sys::Statistics::initialize(stats);
-
-        stats.task_name = "mem_accesses";
-        stats.net_name = network.getName();
-        stats.arch = "DynamicStripes_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS);
-
-        for(const Layer<T> &layer : network.getLayers()) {
-            if(layer.getType() == "Convolution") {
-                stats.layers.push_back(layer.getName());
-                computeMemAccessesConvolution(layer,stats);
-            }
-        }
-
-        // Set statistics to write
-        sys::Statistics::addStats(stats);
-    }
-
     template class DynamicStripes<uint16_t>;
 
 }

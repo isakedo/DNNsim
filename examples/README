@@ -15,7 +15,7 @@
 	[activate_bias_and_out_act: true]
 	<experiment {
 		architecture: <BitPragmatic|Stripes|Laconic|BitTacticalE|BitTacticalP>
-		task: <Cycles|MemAccesses|Potentials|Schedule> //Schedule only for BitTactical
+		task: <Cycles|Potentials|Schedule> //Schedule only for BitTactical
 		[n_columns: <pos_num>] //Default 16
 		[n_rows: <pos_num>] //Default 16 (LAC 8)
 		[precision_granularity: <Tile|SIP>] //Only for Dynamic Stripes and BitTacticalP: Default Tile

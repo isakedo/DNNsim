@@ -29,7 +29,7 @@ namespace core {
         /* Search effectual weights in a T-shape search
          * @param dense_schedule     Filter scheduled so far
          * @param wgt_index          Index of the ineffectual weight that is going to be substituted
-         * @param max_time          Maximum time than can be scheduled (assuming stationary PSUM FIX)
+         * @param max_time           Maximum time than can be scheduled (assuming stationary PSUM FIX)
          * @return                   Effectual candidates to substitute the ineffectual position
          */
         weights_set T_shape_search(const schedule &dense_schedule, weight_index wgt_idx, int max_time);
@@ -52,16 +52,10 @@ namespace core {
         /* Schedule the weights in the scratchpad without removing zero weights
          * @param wgt           Weights per layer
          * @param act_channels  Number of activation channels
-         * @param max_time          Maximum time than can be scheduled (assuming stationary PSUM FIX)
+         * @param max_time      Maximum time than can be scheduled (assuming stationary PSUM FIX)
          * @return              Return the sparse scheduled weights
          */
         schedule sparse_scheduler(const cnpy::Array<T> &wgt, int act_channels, std::vector<int> &max_time);
-
-        /* Compute the potentials for a convolutional layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
-         */
-        void computeMemAccessesConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
 
     protected:
 
@@ -150,11 +144,6 @@ namespace core {
          * @param network   Network we want to get the scheduler
          */
         std::vector<schedule> network_scheduler(const Network<T> &network);
-
-        /* Calculate the number of memory accesses
-         * @param network   Network we want to simulate
-         */
-        void memoryAccesses(const Network<T> &network);
 
     };
 

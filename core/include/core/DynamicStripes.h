@@ -89,12 +89,6 @@ namespace core {
          */
         void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
 
-        /* Compute the potentials for a convolutional layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
-         */
-        void computeMemAccessesConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
-
     public:
 
         /* Constructor
@@ -118,11 +112,6 @@ namespace core {
          * @param network   Network we want to calculate work reduction
          */
         void potentials(const Network<T> &network);
-
-        /* Calculate the number of memory accesses
-         * @param network   Network we want to simulate
-         */
-        void memoryAccesses(const Network<T> &network);
 
     };
 

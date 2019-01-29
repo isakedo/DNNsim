@@ -145,9 +145,9 @@ namespace sys {
                                                 "BitTacticalE>.");
 
                 value = experiment_proto.task();
-                if(value  != "Cycles" && value != "MemAccesses" && value != "Potentials" && value != "Schedule")
+                if(value  != "Cycles" && value != "Potentials" && value != "Schedule")
                     throw std::runtime_error("Simulation type for network " + simulate.network +
-                                             " must be <Cycles|Potentials|MemAccesses|Schedule>.");
+                                             " must be <Cycles|Potentials|Schedule>.");
 
                 experiment.architecture = experiment_proto.architecture();
                 experiment.task = experiment_proto.task();
