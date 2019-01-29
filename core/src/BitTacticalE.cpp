@@ -157,15 +157,15 @@ namespace core {
         int padding = layer.getPadding();
         int stride = layer.getStride();
 
-        cnpy::Array<T> padded_act = this->adjustPadding(act,padding);
+        act.zero_pad(padding);
 
         if(act.getShape()[1] == 3 && stride > 1) {
-            padded_act.reshape_first_layer_act((uint16_t)stride);
+            act.reshape_first_layer_act((uint16_t)stride);
             wgt.reshape_first_layer_wgt((uint16_t)stride);
             stride = 1;
         }
 
-        const std::vector<size_t> &act_shape = padded_act.getShape();
+        const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = act_shape[0];
@@ -205,7 +205,7 @@ namespace core {
             cycles_per_col = std::vector<uint32_t>(this->N_COLUMNS, 0);
             while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, this->N_COLUMNS)) {
                 for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                    computeTacticalETile(n, list_x, list_y, stride, padded_act, dense_schedule, schedule_time,
+                    computeTacticalETile(n, list_x, list_y, stride, act, dense_schedule, schedule_time,
                             cycles_per_col, end_previous_pallet);
                 }
             }
@@ -396,7 +396,7 @@ namespace core {
         int padding = layer.getPadding();
         int stride = layer.getStride();
 
-        cnpy::Array<T> padded_act = this->adjustPadding(act,padding);
+        act.zero_pad(padding);
         long out_x = (Nx - Kx + 2*padding)/stride + 1;
         long out_y = (Ny - Ky + 2*padding)/stride + 1;
 
@@ -427,7 +427,7 @@ namespace core {
                         for (int i = 0; i < Kx; i++) {
                             for (int j = 0; j < Ky; j++) {
                                 for (int k = start_group; k < wgt_channels + start_group; k++) {
-                                    bit_counter += computeTacticalEBitsPE(padded_act.get(n, k, stride * x + i,
+                                    bit_counter += computeTacticalEBitsPE(act.get(n, k, stride * x + i,
                                             stride * y + j),wgt.get(m, k - start_group, i, j));
                                 }
                             }

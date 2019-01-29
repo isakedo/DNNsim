@@ -46,6 +46,11 @@ namespace cnpy {
         /* Change fixed point representation to powers of two */
         void powers_of_two_representation();
 
+        /* zero pad the activations
+         * @param padding   Padding of the layer
+         */
+        void zero_pad(int padding);
+
         /* Transform a 2D array into 4D to allow accessing it as 4D */
         void reshape_to_4D();
 

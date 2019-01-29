@@ -26,13 +26,6 @@ namespace core {
         /* Enable fast mode: only one image */
         const bool FAST_MODE = false;
 
-        /* Return a vector zero padded
-         * @param array     Array we want to apply padding
-         * @param padding   Padding of the layer
-         * @return          Array zero padded
-         */
-        cnpy::Array<T> adjustPadding(const cnpy::Array<T> &array, int padding);
-
         /* Iterate set of windows in groups
          * @param out_x         Output activations X size
          * @param out_y         Output activations Y size

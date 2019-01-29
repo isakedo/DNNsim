@@ -125,15 +125,15 @@ namespace core {
         int padding = layer.getPadding();
         int stride = layer.getStride();
 
-        cnpy::Array<T> padded_act = this->adjustPadding(act,padding);
+        act.zero_pad(padding);
 
         if(act.getShape()[1] == 3 && stride > 1) {
-            padded_act.reshape_first_layer_act((uint16_t)stride);
+            act.reshape_first_layer_act((uint16_t)stride);
             wgt.reshape_first_layer_wgt((uint16_t)stride);
             stride = 1;
         }
 
-        const std::vector<size_t> &act_shape = padded_act.getShape();
+        const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = act_shape[0];
@@ -171,7 +171,7 @@ namespace core {
             batch_cycles = 0, x_counter = 0, y_counter = 0;
             while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, this->N_COLUMNS)) {
                 for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                    batch_cycles += computeTacticalPTile(n, list_x, list_y, stride, padded_act, dense_schedule,
+                    batch_cycles += computeTacticalPTile(n, list_x, list_y, stride, act, dense_schedule,
                             schedule_time);
                 }
             }
@@ -342,7 +342,7 @@ namespace core {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
-        const cnpy::Array<T> &act = layer.getActivations();
+        cnpy::Array<T> act = layer.getActivations();
         cnpy::Array<T> wgt = layer.getWeights();
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
@@ -363,7 +363,7 @@ namespace core {
         int padding = layer.getPadding();
         int stride = layer.getStride();
 
-        cnpy::Array<T> padded_act = this->adjustPadding(act,padding);
+        act.zero_pad(padding);
         long out_x = (Nx - Kx + 2*padding)/stride + 1;
         long out_y = (Ny - Ky + 2*padding)/stride + 1;
 

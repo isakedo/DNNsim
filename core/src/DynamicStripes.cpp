@@ -114,15 +114,15 @@ namespace core {
         int padding = layer.getPadding();
         int stride = layer.getStride();
 
-        cnpy::Array<T> padded_act = this->adjustPadding(act,padding);
+        act.zero_pad(padding);
 
         if(act.getShape()[1] == 3 && stride > 1) {
-            padded_act.reshape_first_layer_act((uint16_t)stride);
+            act.reshape_first_layer_act((uint16_t)stride);
             wgt.reshape_first_layer_wgt((uint16_t)stride);
             stride = 1;
         }
 
-        const std::vector<size_t> &act_shape = padded_act.getShape();
+        const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = act_shape[0];
@@ -162,7 +162,7 @@ namespace core {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
                         for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
-                            batch_cycles += computeDynamicStripesTile(n, list_x, list_y, i, j, k, stride, padded_act,
+                            batch_cycles += computeDynamicStripesTile(n, list_x, list_y, i, j, k, stride, act,
                                     act_channels, rowMap);
                         }
                     }
