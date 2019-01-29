@@ -8,7 +8,11 @@ namespace core {
     template <typename T>
     uint8_t BitTacticalE<T>::computeTacticalEBitsPE(uint16_t act, uint16_t wgt) {
 
+        #ifdef ZERO_COUNT
         if(wgt == 0) return 1;
+        #else
+        if(wgt == 0) return 0;
+        #endif
 
         uint16_t act_bits = act;
 

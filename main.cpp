@@ -33,6 +33,7 @@ THE SOFTWARE.
 #include <core/Laconic.h>
 #include <core/BitTacticalE.h>
 #include <core/BitTacticalP.h>
+#include <core/SCNN.h>
 
 template <typename T>
 core::Network<T> read(const std::string &input_type, const std::string &network_name, bool activate_bias_and_out_act) {
@@ -240,6 +241,10 @@ int main(int argc, char *argv[]) {
                             else if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
+                        } else if (experiment.architecture == "SCNN") {
+                            core::SCNN<uint16_t> DNNsim(experiment.n_columns, experiment.n_rows, N_THREADS, FAST_MODE);
+                            if (experiment.task == "Cycles") DNNsim.run(network);
+                            else if (experiment.task == "Potentials") DNNsim.potentials(network);
                         }
                     }
                 }

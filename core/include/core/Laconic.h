@@ -91,7 +91,6 @@ namespace core {
          */
         void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
 
-
     public:
 
         /* Constructor

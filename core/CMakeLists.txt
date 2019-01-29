@@ -18,6 +18,7 @@ add_library(
         include/core/BitTactical.h
         include/core/BitTacticalP.h
         include/core/BitTacticalE.h
+        include/core/SCNN.h
         src/Simulator.cpp
         src/InferenceSimulator.cpp
         src/Laconic.cpp
@@ -27,6 +28,7 @@ add_library(
         src/BitTacticalP.cpp
         src/BitTacticalE.cpp
         src/DynamicStripes.cpp
+        src/SCNN.cpp
 )
 
 target_include_directories(

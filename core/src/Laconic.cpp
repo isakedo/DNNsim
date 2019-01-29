@@ -35,7 +35,6 @@ namespace core {
         return bit_multiplications;
     }
 
-
     template <typename T>
     uint8_t Laconic<T>::computeLaconicColumn(int batch, int act_x, int act_y, int kernel_x, int kernel_y,
             int init_channel, int init_filter, int stride, const cnpy::Array<T> &padded_act,
