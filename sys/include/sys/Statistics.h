@@ -47,17 +47,6 @@ namespace sys {
             std::vector<uint64_t> avg_bit_multiplications;
             std::vector<uint64_t> parallel_multiplications;
 
-            /* Stats for memory accesses */
-            std::vector<uint32_t> on_chip_accesses_filters;
-            std::vector<uint32_t> on_chip_accesses_activations;
-            std::vector<uint32_t> off_chip_accesses_filters_sch3; //Store all filters per layer
-            std::vector<uint32_t> off_chip_accesses_filters_sch4; //Store only working set
-            std::vector<uint32_t> num_bytes_filters_sche3;
-            std::vector<uint32_t> num_bytes_filters_sche4;
-            std::vector<uint32_t> off_chip_accesses_activations;
-            std::vector<uint32_t> num_bytes_one_row_activations;
-            std::vector<uint32_t> num_computations;
-
         };
 
     private:

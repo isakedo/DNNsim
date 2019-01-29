@@ -207,23 +207,6 @@ namespace interface {
         o_file << line;
     }
 
-    void dump_csv_mem_accesses(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "Sch3: Store all filters per layer" << std::endl;
-        o_file << "Sch4: Store only the working set of filters" << std::endl;
-        o_file << "layer,on_chip_accesses_filters,on_chip_accesses_activations,off_chip_accesses_filters_sch3,"
-                  "off_chip_accesses_filters_sch4,off_chip_accesses_activations,num_bytes_filters_sche3,"
-                  "num_bytes_filters_sche4,num_bytes_one_row_activations,num_computations" << std::endl;
-        for (int i = 0; i < stats.layers.size(); i++) {
-            char line[256];
-            snprintf(line, sizeof(line), "%s,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", stats.layers[i].c_str(),
-                     stats.on_chip_accesses_filters[i], stats.on_chip_accesses_activations[i],
-                     stats.off_chip_accesses_filters_sch3[i], stats.off_chip_accesses_filters_sch4[i],
-                     stats.off_chip_accesses_activations[i],stats.num_bytes_filters_sche3[i],
-                     stats.num_bytes_filters_sche4[i],stats.num_bytes_one_row_activations[i],stats.num_computations[i]);
-            o_file << line;
-        }
-    }
-
     void StatsWriter::dump_csv() {
 
         for(const sys::Statistics::Stats &stats : sys::Statistics::getAll_stats()) {
@@ -241,7 +224,6 @@ namespace interface {
             else if(!stats.cycles.empty() && arch == "BitTacticalE") dump_csv_BitTacticalE_cycles(o_file,stats);
             else if(!stats.cycles.empty() && arch == "BitTacticalP") dump_csv_BitTacticalP_cycles(o_file,stats);
             else if(!stats.work_reduction.empty()) dump_csv_potentials(o_file,stats);
-            else if(!stats.on_chip_accesses_filters.empty()) dump_csv_mem_accesses(o_file,stats);
 
             o_file.close();
         }
