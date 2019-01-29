@@ -35,6 +35,14 @@ message Batch {
             uint32 lookaside_d = 8;
             string search_shape = 9;
             bool read_schedule_from_proto = 10;
+
+            // SCNN
+            uint32 Wt = 11;
+            uint32 Ht = 12;
+            uint32 Kt = 13;
+            uint32 I = 14;
+            uint32 F = 15;
+            uint32 out_acc_size = 16;
         }
 
         string inputType = 1;

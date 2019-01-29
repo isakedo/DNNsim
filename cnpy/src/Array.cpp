@@ -138,10 +138,10 @@ namespace cnpy {
                 std::vector<std::vector<std::vector<T>>>(act_channels,std::vector<std::vector<T>>(Nx + 2*padding,
                 std::vector<T>(Ny + 2*padding,0))));
 
-        for(int n = 0; n < shape[0]; n++) {
-            for (int k = 0; k < shape[1]; k++) {
-                for (int i = 0; i < shape[2]; i++) {
-                    for(int j = 0; j < shape[3]; j++) {
+        for(int n = 0; n < batch_size; n++) {
+            for (int k = 0; k < act_channels; k++) {
+                for (int i = 0; i < Nx; i++) {
+                    for(int j = 0; j < Ny; j++) {
                         tmp_data4D[n][k][padding + i][padding + j] = this->data4D[n][k][i][j];
                     }
                 }
@@ -155,6 +155,36 @@ namespace cnpy {
         this->shape.push_back(act_channels);
         this->shape.push_back(Nx + 2*padding);
         this->shape.push_back(Ny + 2*padding);
+    }
+
+    template <typename T>
+    void Array<T>::grid_zero_pad(int X, int Y) {
+        auto batch_size = this->shape[0];
+        auto act_channels = this->shape[1];
+        auto Nx = this->shape[2];
+        auto Ny = this->shape[3];
+
+        auto tmp_data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(batch_size,
+                std::vector<std::vector<std::vector<T>>>(act_channels,std::vector<std::vector<T>>((unsigned)X,
+                        std::vector<T>((unsigned)Y,0))));
+
+        for(int n = 0; n < batch_size; n++) {
+            for (int k = 0; k < act_channels; k++) {
+                for (int i = 0; i < Nx; i++) {
+                    for(int j = 0; j < Ny; j++) {
+                        tmp_data4D[n][k][i][j] = this->data4D[n][k][i][j];
+                    }
+                }
+            }
+        }
+
+        this->data4D.clear();
+        this->data4D = tmp_data4D;
+        this->shape.clear();
+        this->shape.push_back(batch_size);
+        this->shape.push_back(act_channels);
+        this->shape.push_back((unsigned)X);
+        this->shape.push_back((unsigned)Y);
     }
 
     template <typename T>

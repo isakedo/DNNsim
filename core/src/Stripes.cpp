@@ -12,7 +12,7 @@ namespace core {
 
     template <typename T>
     uint8_t Stripes<T>::computeStripesColumn(int act_x, int act_y, int kernel_x, int kernel_y, int layer_prec,
-            int init_channel, int max_channel, const idxMap &rowMap) {
+            int init_channel, int max_channel, const rowIdxMap &rowMap) {
 
         uint8_t fill_cycles = 0;
         std::list<int> row_list;
@@ -30,7 +30,7 @@ namespace core {
 
     template <typename T>
     uint8_t Stripes<T>::computeStripesTile(const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
-            int kernel_x, int kernel_y, int layer_prec, int init_channel, int max_channel, const idxMap &rowMap) {
+            int kernel_x, int kernel_y, int layer_prec, int init_channel, int max_channel, const rowIdxMap &rowMap) {
 
         uint8_t fill_cycles = 0;
         std::list<int> row_list;

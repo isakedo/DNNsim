@@ -23,6 +23,52 @@ namespace core {
     template <typename T>
     void SCNN<T>::computeConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
 
+        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+
+        cnpy::Array<T> act = layer.getActivations();
+        const cnpy::Array<T> &wgt = layer.getWeights();
+
+        const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+        int N = act_shape[0];
+        int C = act_shape[1];
+        int X = act_shape[2];
+        int Y = act_shape[3];
+        if(this->FAST_MODE) N = 1;
+
+        int K = wgt_shape[0];
+        int Ck = wgt_shape[1];
+        int R = wgt_shape[2];
+        int S = wgt_shape[3];
+
+        int padding = layer.getPadding();
+        int stride = layer.getStride();
+
+        long W = (X - R + 2*padding)/stride + 1;
+        long H = (Y - S + 2*padding)/stride + 1;
+
+        auto W_round = (int)(ceil(W/(double)Wt))*Wt;
+        auto H_round = (int)(ceil(H/(double)Ht))*Ht;
+        auto tw = W_round/Wt;
+        auto th = H_round/Ht;
+        auto Kc = (int)floor(out_acc_size/(double)(th*tw));
+
+        // Stats
+        std::vector<uint32_t> cycles (N,0);
+        uint32_t batch_cycles;
+
+        X = (int)(ceil(X/(double)Wt))*Wt;
+        Y = (int)(ceil(Y/(double)Ht))*Ht;
+        tw = X/Wt;
+        th = Y/Wt;
+
+        act.grid_zero_pad(X ,Y);
+        const auto &act_idx = this->generate_idxMap(act);
+
+        // Convolution
+
+
     }
 
     template <typename T>
@@ -38,16 +84,17 @@ namespace core {
 
         stats.task_name = "cycles";
         stats.net_name = network.getName();
-        stats.arch = "SCNN_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS);
+        stats.arch = "SCNN_Wt" + std::to_string(Wt) + "_Ht" + std::to_string(Ht) + "_Kt" + std::to_string(Kt) +
+                "_I" + std::to_string(I) + "_F" + std::to_string(F) + "_acc_out" + std::to_string(out_acc_size);
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
                 computeConvolution(layer, stats);
-            } else if(layer.getType() == "InnerProduct") {
+            } /*else if(layer.getType() == "InnerProduct") {
                 stats.layers.push_back(layer.getName());
                 computeInnerProduct(layer, stats);
-            }
+            }*/
         }
 
         // Set statistics to write
@@ -84,7 +131,7 @@ namespace core {
         int padding = layer.getPadding();
         int stride = layer.getStride();
 
-        cnpy::Array<T> padded_act = this->adjustPadding(act,padding);
+        act.zero_pad(padding);
         long out_x = (Nx - Kx + 2*padding)/stride + 1;
         long out_y = (Ny - Ky + 2*padding)/stride + 1;
 
@@ -115,7 +162,7 @@ namespace core {
                         for (int i = 0; i < Kx; i++) {
                             for (int j = 0; j < Ky; j++) {
                                 for (int k = start_group; k < wgt_channels + start_group; k++) {
-                                    bit_counter += computeSCNNBitsPE(padded_act.get(n, k, stride * x + i,stride * y + j)
+                                    bit_counter += computeSCNNBitsPE(act.get(n, k, stride * x + i,stride * y + j)
                                             , wgt.get(m, k - start_group, i, j));
                                 }
                             }

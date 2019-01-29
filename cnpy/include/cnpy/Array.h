@@ -51,6 +51,12 @@ namespace cnpy {
          */
         void zero_pad(int padding);
 
+        /* zero pad the activations to fit on the grid size
+         * @param X   New X dimension for the activations
+         * @param Y   New Y dimension for the activations
+         */
+        void grid_zero_pad(int X, int Y);
+
         /* Transform a 2D array into 4D to allow accessing it as 4D */
         void reshape_to_4D();
 

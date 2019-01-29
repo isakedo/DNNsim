@@ -141,8 +141,13 @@ namespace sys {
                                                  " must be lookahead of 2, and lookaside of 5.");
 
                 } else if (experiment_proto.architecture() == "SCNN") {
-                    experiment.n_columns = experiment_proto.n_columns() < 1 ? 8 : experiment_proto.n_columns();
-                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 8 : experiment_proto.n_rows();
+                    experiment.Wt = experiment_proto.wt() < 1 ? 8 : experiment_proto.wt();
+                    experiment.Ht = experiment_proto.ht() < 1 ? 8 : experiment_proto.ht();
+                    experiment.Kt = experiment_proto.kt() < 1 ? 64 : experiment_proto.kt();
+                    experiment.I = experiment_proto.i() < 1 ? 4 : experiment_proto.i();
+                    experiment.F = experiment_proto.f() < 1 ? 4 : experiment_proto.f();
+                    experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
+                            1024 : experiment_proto.out_acc_size();
 
                 } else throw std::runtime_error("Architecture for network " + simulate.network +
                                                 " in Fixed16 must be <BitPragmatic|Stripes|Laconic|BitTacticalP|"

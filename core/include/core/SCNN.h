@@ -4,8 +4,6 @@
 #include "Simulator.h"
 
 #define ZERO_COUNT // Count zeroes as 1 cycle
-#define F 4 // Row multipliers
-#define I 4 // Column multipliers
 
 namespace core {
 
@@ -23,11 +21,23 @@ namespace core {
 
     protected:
 
-        /* Number of columns */
-        const int N_COLUMNS;
+        /* Number of PE columns */
+        const int Wt;
 
-        /* Number of rows */
-        const int N_ROWS;
+        /* Number of PE rows */
+        const int Ht;
+
+        /* Number of max filters per PE */
+        const int Kt;
+
+        /* Column multipliers per PE */
+        const int I;
+
+        /* Row multipliers per PE */
+        const int F;
+
+        /* Output accumulator size */
+        const int out_acc_size;
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs
@@ -56,23 +66,27 @@ namespace core {
     public:
 
         /* Constructor
-         * @param _N_COLUMNS    Number of columns
-         * @param _N_ROWS       Number of rows
+         * @param _Wt           Number of PE columns
+         * @param _Ht           Number of PE rows
+         * @param _Kt           Number of max filters per PE
+         * @param _I            Column multipliers per PE
+         * @param _F            Row multipliers per PE
+         * @param _out_acc_size Output accumulator size
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          */
-        SCNN(int _N_COLUMNS, int _N_ROWS, uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE),
-            N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS) {}
+        SCNN(int _Wt, int _Ht, int _Kt, int _I, int _F, int _out_acc_size, uint8_t _N_THREADS, bool _FAST_MODE) :
+            Simulator<T>(_N_THREADS, _FAST_MODE), Wt(_Wt), Ht(_Ht), Kt(_Kt), I(_I), F(_F), out_acc_size(_out_acc_size) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate
          */
-        void run(const Network<T> &network);
+        virtual void run(const Network<T> &network);
 
         /* Calculate potentials for the given network
          * @param network   Network we want to calculate work reduction
          */
-        void potentials(const Network<T> &network);
+        virtual void potentials(const Network<T> &network);
 
     };
 

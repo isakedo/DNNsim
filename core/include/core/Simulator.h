@@ -11,7 +11,8 @@
 #include <omp.h>
 #endif
 
-typedef std::vector<std::vector<std::vector<int>>> idxMap;
+typedef std::vector<std::vector<std::vector<std::vector<std::tuple<int,int,int,int>>>>> idxMap;
+typedef std::vector<std::vector<std::vector<int>>> rowIdxMap;
 
 namespace core {
 
@@ -45,7 +46,12 @@ namespace core {
          * @param act_channels  Number of activations channels
          * @param NM_WIDTH      Width of the neuron memory row in bits
          */
-        idxMap generate_rowMap(int padded_Nx, int padded_Ny, int act_channels, int NM_WIDTH = 256);
+        rowIdxMap generate_rowMap(int padded_Nx, int padded_Ny, int act_channels, int NM_WIDTH = 256);
+
+        /* Calculate and store the index mapping of each value in the data array
+         * @param data   Array that we want to generate the idx map
+         */
+        idxMap generate_idxMap(const cnpy::Array<T> &data);
 
         /* Return the optimal encoding for the given value
          * @param value     Value we want to encode WITHOUT the sign

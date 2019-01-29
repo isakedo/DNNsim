@@ -1,7 +1,6 @@
 #ifndef DNNSIM_DYNAMICSTRIPES_H
 #define DNNSIM_DYNAMICSTRIPES_H
 
-
 #include "Simulator.h"
 
 #define NM_WIDTH 256 // Width of the neuron memory row in bits
@@ -45,7 +44,8 @@ namespace core {
          * @return              Number of cycles
          */
         uint8_t computeDynamicStripesColumn(int batch, int act_x, int act_y, int kernel_x, int kernel_y,
-                int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, const idxMap &rowMap);
+                int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel,
+                const rowIdxMap &rowMap);
 
         /* Compute cycles for dynamic stripes tile
          * @param batch         Current number of batch
@@ -63,7 +63,7 @@ namespace core {
          */
         uint8_t computeDynamicStripesTile(int batch, const std::vector<int> &list_act_x, const std::vector<int>
                 &list_act_y, int kernel_x, int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act,
-                int max_channel, const idxMap &rowMap);
+                int max_channel, const rowIdxMap &rowMap);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs

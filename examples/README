@@ -24,5 +24,12 @@
 		[lookaside_h: <pos_num>] //Only for BitTactical: Default 2
 		[search_shape: <L|T>] //Only for BitTactical: Default L
 		[read_schedule_from_proto: true] //Only for BitTactical: Default false
+		//SCNN
+		[Ht: <pos_num>] //Default 8
+		[Wt: <pos_num>] //Default 8
+		[Kt: <pos_num>] //Default 64
+		[I: <pos_num>] //Default 4
+		[F: <pos_num>] //Default 4
+		[Kc: <pos_num>] //Default 4096
 	}>
 }>

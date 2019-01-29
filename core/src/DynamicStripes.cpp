@@ -12,7 +12,7 @@ namespace core {
 
     template <typename T>
     uint8_t DynamicStripes<T>::computeDynamicStripesColumn(int batch, int act_x, int act_y, int kernel_x, int kernel_y,
-            int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, const idxMap &rowMap) {
+            int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, const rowIdxMap &rowMap) {
 
         std::list<int> row_list;
         uint8_t fill_cycles = 0, max_bit = 0, min_bit = 16;
@@ -53,7 +53,7 @@ namespace core {
     template <typename T>
     uint8_t DynamicStripes<T>::computeDynamicStripesTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int stride,
-            const cnpy::Array<T> &padded_act, int max_channel, const idxMap &rowMap) {
+            const cnpy::Array<T> &padded_act, int max_channel, const rowIdxMap &rowMap) {
 
         std::list<int> row_list;
         std::vector<uint8_t> per_SIP_n_bits (list_act_x.size(), 0);
