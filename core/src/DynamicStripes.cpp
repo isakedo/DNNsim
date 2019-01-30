@@ -178,7 +178,6 @@ namespace core {
 
         stats.time.push_back(time_span);
         stats.baseline_cycles.push_back(base_cycles);
-        stats.avg_cycles.push_back(stats.get_average(stats.cycles[index]));
 
     }
 
@@ -261,7 +260,6 @@ namespace core {
 
         stats.time.push_back(time_span);
         stats.baseline_cycles.push_back(base_cycles);
-        stats.avg_cycles.push_back(stats.get_average(stats.cycles[index]));
 
     }
 
@@ -355,12 +353,9 @@ namespace core {
 
         stats.time.push_back(time_span);
         stats.work_reduction.push_back(work_reduction);
-        stats.avg_work_reduction.push_back(stats.get_average(work_reduction));
         stats.speedup.push_back(speedup);
-        stats.avg_speedup.push_back(stats.get_average(speedup));
         stats.parallel_multiplications.push_back(parallel_mult);
         stats.bit_multiplications.push_back(bit_multiplications);
-        stats.avg_bit_multiplications.push_back(stats.get_average(bit_multiplications));
 
     }
 
@@ -407,12 +402,9 @@ namespace core {
 
         stats.time.push_back(time_span);
         stats.work_reduction.push_back(work_reduction);
-        stats.avg_work_reduction.push_back(stats.get_average(work_reduction));
         stats.speedup.push_back(speedup);
-        stats.avg_speedup.push_back(stats.get_average(speedup));
         stats.parallel_multiplications.push_back(parallel_mult);
         stats.bit_multiplications.push_back(bit_multiplications);
-        stats.avg_bit_multiplications.push_back(stats.get_average(bit_multiplications));
 
     }
 

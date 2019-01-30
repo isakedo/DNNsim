@@ -55,7 +55,7 @@ namespace core {
         auto Kc = (int)floor(out_acc_size/(double)(th*tw));
 
         // Stats
-        auto layer_index = stats.cycles.size();
+        auto index = stats.cycles.size();
         stats.cycles.emplace_back(std::vector<uint32_t>(N,0));
         stats.dense_cycles.emplace_back(std::vector<uint32_t>(N,0));
         stats.mults.emplace_back(std::vector<uint32_t>(N,0));
@@ -94,6 +94,8 @@ namespace core {
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+
+        stats.time.push_back(time_span);
 
     }
 
@@ -210,12 +212,9 @@ namespace core {
 
         stats.time.push_back(time_span);
         stats.work_reduction.push_back(work_reduction);
-        stats.avg_work_reduction.push_back(stats.get_average(work_reduction));
         stats.speedup.push_back(speedup);
-        stats.avg_speedup.push_back(stats.get_average(speedup));
         stats.parallel_multiplications.push_back(parallel_mult);
         stats.bit_multiplications.push_back(bit_multiplications);
-        stats.avg_bit_multiplications.push_back(stats.get_average(bit_multiplications));
 
     }
 
@@ -267,12 +266,9 @@ namespace core {
 
         stats.time.push_back(time_span);
         stats.work_reduction.push_back(work_reduction);
-        stats.avg_work_reduction.push_back(stats.get_average(work_reduction));
         stats.speedup.push_back(speedup);
-        stats.avg_speedup.push_back(stats.get_average(speedup));
         stats.parallel_multiplications.push_back(parallel_mult);
         stats.bit_multiplications.push_back(bit_multiplications);
-        stats.avg_bit_multiplications.push_back(stats.get_average(bit_multiplications));
 
     }
 

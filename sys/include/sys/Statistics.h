@@ -35,7 +35,6 @@ namespace sys {
 
             /* Stats for cycles */
             std::vector<std::vector<uint32_t>> cycles;
-            std::vector<uint32_t> avg_cycles;
             std::vector<uint32_t> baseline_cycles;
 
             /* SCNN */
@@ -53,27 +52,10 @@ namespace sys {
             std::vector<std::vector<uint32_t>> f_loop;
             std::vector<std::vector<uint32_t>> offchip_weight_reads;
 
-            std::vector<uint32_t> avg_dense_cycles;
-            std::vector<uint32_t> avg_mults;
-            std::vector<uint32_t> avg_idle_bricks;
-            std::vector<uint32_t> avg_idle_conflicts;
-            std::vector<uint32_t> avg_idle_pe;
-            std::vector<uint32_t> avg_idle_halo;
-            std::vector<uint32_t> avg_halo_transfers;
-            std::vector<uint32_t> avg_weight_buff_reads;
-            std::vector<uint32_t> avg_act_buff_reads;
-            std::vector<uint32_t> avg_accumulator_updates;
-            std::vector<uint32_t> avg_i_loop;
-            std::vector<uint32_t> avg_f_loop;
-            std::vector<uint32_t> avg_offchip_weight_reads;
-
             /* Stats for potentials */
             std::vector<std::vector<double>> work_reduction;
-            std::vector<double> avg_work_reduction;
             std::vector<std::vector<double>> speedup;
-            std::vector<double> avg_speedup;
             std::vector<std::vector<uint64_t>> bit_multiplications;
-            std::vector<uint64_t> avg_bit_multiplications;
             std::vector<uint64_t> parallel_multiplications;
 
             template <typename T>
@@ -82,8 +64,26 @@ namespace sys {
             }
 
             template <typename T>
+            T get_average(const std::vector<std::vector<T>> &vector_stat) const {
+                std::vector<T> averages = std::vector<T>(vector_stat.size(),0);
+                for(int i = 0; i < vector_stat.size(); i++) {
+                    averages[i] = this->get_average(vector_stat[i]);
+                }
+                return this->get_average(averages);
+            }
+
+            template <typename T>
             T get_total(const std::vector<T> &vector_stat) const {
                 return accumulate(vector_stat.begin(), vector_stat.end(), 0.0);
+            }
+
+            template <typename T>
+            T get_total(const std::vector<std::vector<T>> &vector_stat) const {
+                std::vector<T> averages = std::vector<T>(vector_stat.size(),0);
+                for(int i = 0; i < vector_stat.size(); i++) {
+                    averages[i] = this->get_average(vector_stat[i]);
+                }
+                return this->get_total(averages);
             }
 
         };
