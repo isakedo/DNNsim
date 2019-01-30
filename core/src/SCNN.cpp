@@ -55,8 +55,21 @@ namespace core {
         auto Kc = (int)floor(out_acc_size/(double)(th*tw));
 
         // Stats
-        std::vector<uint32_t> cycles (N,0);
-        uint32_t batch_cycles;
+        auto layer_index = stats.cycles.size();
+        stats.cycles.emplace_back(std::vector<uint32_t>(N,0));
+        stats.dense_cycles.emplace_back(std::vector<uint32_t>(N,0));
+        stats.mults.emplace_back(std::vector<uint32_t>(N,0));
+        stats.idle_bricks.emplace_back(std::vector<uint32_t>(N,0));
+        stats.idle_conflicts.emplace_back(std::vector<uint32_t>(N,0));
+        stats.idle_pe.emplace_back(std::vector<uint32_t>(N,0));
+        stats.idle_halo.emplace_back(std::vector<uint32_t>(N,0));
+        stats.halo_transfers.emplace_back(std::vector<uint32_t>(N,0));
+        stats.weight_buff_reads.emplace_back(std::vector<uint32_t>(N,0));
+        stats.act_buff_reads.emplace_back(std::vector<uint32_t>(N,0));
+        stats.accumulator_updates.emplace_back(std::vector<uint32_t>(N,0));
+        stats.i_loop.emplace_back(std::vector<uint32_t>(N,0));
+        stats.f_loop.emplace_back(std::vector<uint32_t>(N,0));
+        stats.offchip_weight_reads.emplace_back(std::vector<uint32_t>(N,0));
 
         X = (int)(ceil(X/(double)Wt))*Wt;
         Y = (int)(ceil(Y/(double)Ht))*Ht;
@@ -66,8 +79,21 @@ namespace core {
         act.grid_zero_pad(X ,Y);
         const auto &act_idx = this->generate_idxMap(act);
 
-        // Convolution
+        int n;
 
+        // Convolution
+        for(n = 0; n < N; n++) {
+            for(int kc = 0; kc < K; kc+=Kc) {
+                for(int ct = 0; ct < C; ct+=Ck) {
+                    for(int ck = 0; ck < Ck; ck++) {
+
+                    }
+                }
+            }
+        }
+
+        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
     }
 
@@ -181,22 +207,17 @@ namespace core {
             bit_multiplications[n] = bit_counter;
         }
 
-        auto avg_bit_multiplications = (uint64_t)accumulate(bit_multiplications.begin(), bit_multiplications.end(), 0.0)
-                                       / bit_multiplications.size();
-        auto avg_work_reduction = accumulate(work_reduction.begin(), work_reduction.end(), 0.0) / work_reduction.size();
-        auto avg_speedup = accumulate(speedup.begin(), speedup.end(), 0.0) / speedup.size();
-
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
         stats.time.push_back(time_span);
         stats.work_reduction.push_back(work_reduction);
-        stats.avg_work_reduction.push_back(avg_work_reduction);
+        stats.avg_work_reduction.push_back(stats.get_average(work_reduction));
         stats.speedup.push_back(speedup);
-        stats.avg_speedup.push_back(avg_speedup);
+        stats.avg_speedup.push_back(stats.get_average(speedup));
         stats.parallel_multiplications.push_back(parallel_mult);
         stats.bit_multiplications.push_back(bit_multiplications);
-        stats.avg_bit_multiplications.push_back(avg_bit_multiplications);
+        stats.avg_bit_multiplications.push_back(stats.get_average(bit_multiplications));
 
     }
 
@@ -245,22 +266,17 @@ namespace core {
             bit_multiplications[n] = bit_counter;
         }
 
-        auto avg_bit_multiplications = (uint64_t)accumulate(bit_multiplications.begin(), bit_multiplications.end(), 0.0)
-                                       / bit_multiplications.size();
-        auto avg_work_reduction = accumulate(work_reduction.begin(), work_reduction.end(), 0.0) / work_reduction.size();
-        auto avg_speedup = accumulate(speedup.begin(), speedup.end(), 0.0) / speedup.size();
-
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
         stats.time.push_back(time_span);
         stats.work_reduction.push_back(work_reduction);
-        stats.avg_work_reduction.push_back(avg_work_reduction);
+        stats.avg_work_reduction.push_back(stats.get_average(work_reduction));
         stats.speedup.push_back(speedup);
-        stats.avg_speedup.push_back(avg_speedup);
+        stats.avg_speedup.push_back(stats.get_average(speedup));
         stats.parallel_multiplications.push_back(parallel_mult);
         stats.bit_multiplications.push_back(bit_multiplications);
-        stats.avg_bit_multiplications.push_back(avg_bit_multiplications);
+        stats.avg_bit_multiplications.push_back(stats.get_average(bit_multiplications));
 
     }
 

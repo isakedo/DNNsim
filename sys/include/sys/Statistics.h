@@ -38,6 +38,35 @@ namespace sys {
             std::vector<uint32_t> avg_cycles;
             std::vector<uint32_t> baseline_cycles;
 
+            /* SCNN */
+            std::vector<std::vector<uint32_t>> dense_cycles;
+            std::vector<std::vector<uint32_t>> mults;
+            std::vector<std::vector<uint32_t>> idle_bricks;
+            std::vector<std::vector<uint32_t>> idle_conflicts;
+            std::vector<std::vector<uint32_t>> idle_pe;
+            std::vector<std::vector<uint32_t>> idle_halo;
+            std::vector<std::vector<uint32_t>> halo_transfers;
+            std::vector<std::vector<uint32_t>> weight_buff_reads;
+            std::vector<std::vector<uint32_t>> act_buff_reads;
+            std::vector<std::vector<uint32_t>> accumulator_updates;
+            std::vector<std::vector<uint32_t>> i_loop;
+            std::vector<std::vector<uint32_t>> f_loop;
+            std::vector<std::vector<uint32_t>> offchip_weight_reads;
+
+            std::vector<uint32_t> avg_dense_cycles;
+            std::vector<uint32_t> avg_mults;
+            std::vector<uint32_t> avg_idle_bricks;
+            std::vector<uint32_t> avg_idle_conflicts;
+            std::vector<uint32_t> avg_idle_pe;
+            std::vector<uint32_t> avg_idle_halo;
+            std::vector<uint32_t> avg_halo_transfers;
+            std::vector<uint32_t> avg_weight_buff_reads;
+            std::vector<uint32_t> avg_act_buff_reads;
+            std::vector<uint32_t> avg_accumulator_updates;
+            std::vector<uint32_t> avg_i_loop;
+            std::vector<uint32_t> avg_f_loop;
+            std::vector<uint32_t> avg_offchip_weight_reads;
+
             /* Stats for potentials */
             std::vector<std::vector<double>> work_reduction;
             std::vector<double> avg_work_reduction;
@@ -46,6 +75,16 @@ namespace sys {
             std::vector<std::vector<uint64_t>> bit_multiplications;
             std::vector<uint64_t> avg_bit_multiplications;
             std::vector<uint64_t> parallel_multiplications;
+
+            template <typename T>
+            T get_average(const std::vector<T> &vector_stat) const {
+                return accumulate(vector_stat.begin(), vector_stat.end(), 0.0) / vector_stat.size();
+            }
+
+            template <typename T>
+            T get_total(const std::vector<T> &vector_stat) const {
+                return accumulate(vector_stat.begin(), vector_stat.end(), 0.0);
+            }
 
         };
 

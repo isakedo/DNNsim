@@ -149,8 +149,8 @@ namespace core {
         long out_y = (Ny - Ky)/stride + 1;
 
         // Stats
-        std::vector<uint32_t> cycles (batch_size,0);
-        uint32_t batch_cycles;
+        auto index = stats.cycles.size();
+        stats.cycles.emplace_back(std::vector<uint32_t>(batch_size,0));
 
         std::vector<int> list_x, list_y;
         int n, x_counter, y_counter;
@@ -165,27 +165,23 @@ namespace core {
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n,batch_cycles,x_counter,y_counter,list_x,list_y)
+        #pragma omp parallel for private(n,x_counter,y_counter,list_x,list_y)
         #endif
         for(n=0; n<batch_size; n++) {
-            batch_cycles = 0, x_counter = 0, y_counter = 0;
+            x_counter = 0, y_counter = 0;
             while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, this->N_COLUMNS)) {
                 for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                    batch_cycles += computeTacticalPTile(n, list_x, list_y, stride, act, dense_schedule,
+                    stats.cycles[index][n] += computeTacticalPTile(n, list_x, list_y, stride, act, dense_schedule,
                             schedule_time);
                 }
             }
-            cycles[n] = batch_cycles;
         }
-
-        auto avg_cycles = accumulate(cycles.begin(), cycles.end(), 0.0)/cycles.size();
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
         stats.time.push_back(time_span);
-        stats.cycles.push_back(cycles);
-        stats.avg_cycles.push_back((uint32_t)avg_cycles);
+        stats.avg_cycles.push_back(stats.get_average(stats.cycles[index]));
 
     }
 
@@ -211,8 +207,8 @@ namespace core {
         if(this->FAST_MODE) batch_size = 1;
 
         // Stats
-        std::vector<uint32_t> cycles (batch_size,0);
-        uint32_t batch_cycles;
+        auto index = stats.cycles.size();
+        stats.cycles.emplace_back(std::vector<uint32_t>(batch_size,0));
 
         int n;
 
@@ -228,14 +224,12 @@ namespace core {
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n,batch_cycles,schedule_time)
+        #pragma omp parallel for private(n)
         #endif
         for (n = 0; n<batch_size; n++) {
-            batch_cycles = 0;
             for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                batch_cycles += computeTacticalPColumn(n,0,0,0,act,dense_schedule,schedule_time);
+                stats.cycles[index][n] += computeTacticalPColumn(n,0,0,0,act,dense_schedule,schedule_time);
             }
-            cycles[n] = batch_cycles;
         }
 
         #else
@@ -246,32 +240,28 @@ namespace core {
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n,batch_cycles,column_index,column_end)
+        #pragma omp parallel for private(n,column_index,column_end)
         #endif
         for (n = 0; n<batch_size; n++) {
-            batch_cycles = 0, column_index = 0;
+            column_index = 0;
             column_end = std::vector<int>(this->N_COLUMNS, 0);
             for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                if(batch_cycles < column_end[column_index]) batch_cycles = column_end[column_index];
+                if(stats.cycles[index][n] < column_end[column_index]) stats.cycles[index][n] = column_end[column_index];
                 auto column_cycles = computeTacticalPColumn(n,0,0,0,act,dense_schedule,schedule_time);
-                column_end[column_index] = batch_cycles + column_cycles;
-                batch_cycles++;
+                column_end[column_index] = stats.cycles[index][n] + column_cycles;
+                stats.cycles[index][n]++;
                 column_index++;
                 if(column_index >= this->N_COLUMNS) column_index = 0;
             }
-            cycles[n] = batch_cycles;
         }
 
         #endif
-
-        auto avg_cycles = accumulate(cycles.begin(), cycles.end(), 0.0)/cycles.size();
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
         stats.time.push_back(time_span);
-        stats.cycles.push_back(cycles);
-        stats.avg_cycles.push_back((uint32_t)avg_cycles);
+        stats.avg_cycles.push_back(stats.get_average(stats.cycles[index]));
 
     }
 
@@ -412,22 +402,17 @@ namespace core {
             bit_multiplications[n] = bit_counter * out_x * out_y;
         }
 
-        auto avg_bit_multiplications = (uint64_t)accumulate(bit_multiplications.begin(), bit_multiplications.end(), 0.0)
-                                       / bit_multiplications.size();
-        auto avg_work_reduction = accumulate(work_reduction.begin(), work_reduction.end(), 0.0) / work_reduction.size();
-        auto avg_speedup = accumulate(speedup.begin(), speedup.end(), 0.0) / speedup.size();
-
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
         stats.time.push_back(time_span);
         stats.work_reduction.push_back(work_reduction);
-        stats.avg_work_reduction.push_back(avg_work_reduction);
+        stats.avg_work_reduction.push_back(stats.get_average(work_reduction));
         stats.speedup.push_back(speedup);
-        stats.avg_speedup.push_back(avg_speedup);
+        stats.avg_speedup.push_back(stats.get_average(speedup));
         stats.parallel_multiplications.push_back(parallel_mult);
         stats.bit_multiplications.push_back(bit_multiplications);
-        stats.avg_bit_multiplications.push_back(avg_bit_multiplications);
+        stats.avg_bit_multiplications.push_back(stats.get_average(bit_multiplications));
 
     }
 
@@ -477,22 +462,17 @@ namespace core {
             bit_multiplications[n] = bit_counter;
         }
 
-        auto avg_bit_multiplications = (uint64_t)accumulate(bit_multiplications.begin(), bit_multiplications.end(), 0.0)
-                                       / bit_multiplications.size();
-        auto avg_work_reduction = accumulate(work_reduction.begin(), work_reduction.end(), 0.0) / work_reduction.size();
-        auto avg_speedup = accumulate(speedup.begin(), speedup.end(), 0.0) / speedup.size();
-
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
         stats.time.push_back(time_span);
         stats.work_reduction.push_back(work_reduction);
-        stats.avg_work_reduction.push_back(avg_work_reduction);
+        stats.avg_work_reduction.push_back(stats.get_average(work_reduction));
         stats.speedup.push_back(speedup);
-        stats.avg_speedup.push_back(avg_speedup);
+        stats.avg_speedup.push_back(stats.get_average(speedup));
         stats.parallel_multiplications.push_back(parallel_mult);
         stats.bit_multiplications.push_back(bit_multiplications);
-        stats.avg_bit_multiplications.push_back(avg_bit_multiplications);
+        stats.avg_bit_multiplications.push_back(stats.get_average(bit_multiplications));
 
     }
 
