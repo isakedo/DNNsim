@@ -155,17 +155,58 @@ namespace sys {
 
                 value = experiment_proto.task();
                 if(value  != "Cycles" && value != "Potentials" && value != "Schedule")
-                    throw std::runtime_error("Simulation type for network " + simulate.network +
-                                             " must be <Cycles|Potentials|Schedule>.");
+                    throw std::runtime_error("Task for network " + simulate.network +
+                                             " in Fixed16 must be <Cycles|Potentials|Schedule>.");
 
                 experiment.architecture = experiment_proto.architecture();
                 experiment.task = experiment_proto.task();
                 simulate.experiments.emplace_back(experiment);
 
             }
-        } else if (simulate.inputDataType == "Float32" && !simulate_proto.activate_bias_and_out_act())
-            throw std::runtime_error("Float32 only allows inference simulation, which must have the flag "
-                                     "\"activate_bias_and_out_act\" activated");
+        } else if (simulate.inputDataType == "Float32") {
+            for(const auto &experiment_proto : simulate_proto.experiment()) {
+
+                Batch::Simulate::Experiment experiment;
+                if(experiment_proto.architecture() == "None") {
+                    if(!simulate_proto.activate_bias_and_out_act() || experiment_proto.task() != "Inference")
+                        throw std::runtime_error("Float32 None only allows \"Inference\" task, with the flag "
+                                                 "\"activate_bias_and_out_act\" activated");
+
+                } else if (experiment_proto.architecture() == "SCNN") {
+                    experiment.Wt = experiment_proto.wt() < 1 ? 8 : experiment_proto.wt();
+                    experiment.Ht = experiment_proto.ht() < 1 ? 8 : experiment_proto.ht();
+                    experiment.Kt = experiment_proto.kt() < 1 ? 64 : experiment_proto.kt();
+                    experiment.I = experiment_proto.i() < 1 ? 4 : experiment_proto.i();
+                    experiment.F = experiment_proto.f() < 1 ? 4 : experiment_proto.f();
+                    experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
+                                              1024 : experiment_proto.out_acc_size();
+
+                } else throw std::runtime_error("Architecture for network " + simulate.network +
+                                                " in Float32 must be <Inference|SCNN>.");
+
+                value = experiment_proto.task();
+                if(value  != "Cycles" && value != "Potentials" && value != "Inference")
+                    throw std::runtime_error("Task for network " + simulate.network +
+                                             " in Float32 must be <Inference|Cycles|Potentials>.");
+
+                experiment.architecture = experiment_proto.architecture();
+                experiment.task = experiment_proto.task();
+                simulate.experiments.emplace_back(experiment);
+
+            }
+        }
+
+        // Allow fixed point directly from Caffe
+        if(simulate.inputDataType == "Fixed16" && simulate.inputType == "Caffe") {
+            Batch::Transform transform;
+            transform.network = simulate_proto.network();
+            transform.inputType = "Caffe";
+            transform.inputDataType = "Float32";
+            transform.outputType = "Protobuf";
+            transform.outputDataType = "Fixed16";
+            this->transformations.emplace_back(transform);
+            simulate.inputType = "Protobuf";
+        }
 
         return simulate;
     }

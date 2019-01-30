@@ -3,6 +3,10 @@ simulate {
 	inputType: "Gzip"
 	inputDataType: "Float32"
 	activate_bias_and_out_act: true
+	experiment {
+	    architecture: "None"
+	    task: "Inference"
+	}
 }
 
 simulate {
@@ -10,4 +14,8 @@ simulate {
 	inputType: "Caffe"
 	inputDataType: "Float32"
 	activate_bias_and_out_act: true
+	experiment {
+	    architecture: "None"
+	    task: "Inference"
+	}
 }

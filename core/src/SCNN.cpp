@@ -6,7 +6,7 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    uint16_t SCNN<T>::computeSCNNBitsPE(uint16_t act, uint16_t wgt) {
+    uint16_t SCNN<T>::computeSCNNBitsPE(T act, T wgt) {
 
         #ifdef ZERO_COUNT
         if(wgt == 0) return 1;
@@ -135,9 +135,7 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation();
         cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
         const std::vector<size_t> &act_shape = act.getShape();
@@ -171,7 +169,7 @@ namespace core {
         std::vector<double> speedup (batch_size,0);
         uint64_t bit_counter = 0;
 
-        int current_group = 0, group_m =0, start_group = 0;
+        int current_group = 0, group_m = 0, start_group = 0;
         int n;
 
         // Convolution
@@ -227,10 +225,8 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation();
         if(act.getDimensions() == 4) act.reshape_to_2D();
         cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
@@ -309,6 +305,6 @@ namespace core {
         sys::Statistics::addStats(stats);
     }
 
-    template class SCNN<uint16_t>;
+    INITIALISE_DATA_TYPES(SCNN);
 
 }

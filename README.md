@@ -21,7 +21,7 @@ contain global variables. Check this file before launch any simulation.
 | Laconic | **We + Ae**: Exploits bit-level sparsity of both weights and activations | N_COLUMNS, N_ROWS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
 | BitTacticalP | **W + Ap**: Skips zero weights and exploits precision requirements of activations | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, PRECISION_GRANULARITY | ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
 | BitTacticalE | **W + Ae**: Skips zero weights and exploits bit-level sparsity of activations | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, BITS_FIRST_STAGE | BOOTH_ENCODING, ZERO_COUNT, TWO_REGISTERS_PER_SIP, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
-| SCNN | **W + A**: Skips zero weights and zero activations | Wt, Ht, Kt, I, F, out_acc_size | ZERO_COUNT | - | X | Fixed16 |
+| SCNN | **W + A**: Skips zero weights and zero activations | Wt, Ht, Kt, I, F, out_acc_size | ZERO_COUNT | - | X | Fixed16, Float32 |
 
 *\*Default features can be removed in their specific header file*
 
@@ -108,3 +108,4 @@ potentials for bvlc_googlenet:
 *   Dispatchers?
 *   Add LSTM layers
 *   Add documentacion
+

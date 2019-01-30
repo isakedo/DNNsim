@@ -185,8 +185,17 @@ int main(int argc, char *argv[]) {
                 if (simulate.inputDataType == "Float32") {
                     core::Network<float> network;
                     network = read<float>(simulate.inputType, simulate.network, simulate.activate_bias_out_act);
-                    core::InferenceSimulator<float> DNNsim(N_THREADS,FAST_MODE);
-                    DNNsim.run(network);
+                    for(const auto &experiment : simulate.experiments) {
+                        if(experiment.architecture == "None") {
+                            core::InferenceSimulator<float> DNNsim(N_THREADS,FAST_MODE);
+                            if(experiment.task == "Inference") DNNsim.run(network);
+                        } else if (experiment.architecture == "SCNN") {
+                            core::SCNN<float> DNNsim(experiment.Wt, experiment.Ht, experiment.Kt, experiment.I,
+                                    experiment.F, experiment.out_acc_size, N_THREADS, FAST_MODE);
+                            if (experiment.task == "Cycles") DNNsim.run(network);
+                            else if (experiment.task == "Potentials") DNNsim.potentials(network);
+                        }
+                    }
                 } else if (simulate.inputDataType == "Fixed16") {
                     core::Network<uint16_t> network;
                     network = read<uint16_t>(simulate.inputType, simulate.network, simulate.activate_bias_out_act);

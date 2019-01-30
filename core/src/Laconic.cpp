@@ -311,7 +311,7 @@ namespace core {
         std::vector<double> speedup (batch_size,0);
         uint64_t bit_counter = 0;
 
-        int current_group = 0, group_m =0, start_group = 0;
+        int current_group = 0, group_m = 0, start_group = 0;
         int n;
 
         // Convolution
