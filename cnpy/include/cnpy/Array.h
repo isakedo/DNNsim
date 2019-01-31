@@ -26,12 +26,33 @@ namespace cnpy {
 
     public:
 
+        /* Constructor */
+        Array() = default;
+
+        /* Constructor
+         * @param _data     Vector containing the data
+         * @param _shape    Shape of the data
+         */
+        Array(const std::vector<std::vector<T>> &_data, const std::vector<size_t> &_shape) {
+            this->data2D = _data;
+            this->shape = _shape;
+        }
+
+        /* Constructor
+         * @param _data     Vector containing the data
+         * @param _shape    Shape of the data
+         */
+        Array(const std::vector<std::vector<std::vector<std::vector<T>>>> &_data, const std::vector<size_t> &_shape) {
+            this->data4D = _data;
+            this->shape = _shape;
+        }
+
         /* Read the numpy array from the npy file, copy the direction, and set the size
          * @param path  Path to the numpy file with extension .npy
          */
         void set_values(const std::string &path);
 
-        /* Load the vector into the data vector, is_numpy set to false
+        /* Load the vector into the data vector
          * @param _data     Dynamic vector containing the data
          * @param _shape    Shape of the data
          */
@@ -73,6 +94,27 @@ namespace cnpy {
          */
         void reshape_first_layer_wgt(uint16_t stride);
 
+        /* Return sub-array of the data given the indices
+         * @param i_begin   First index for first dimension
+         * @param i_end     Last index for first dimension
+         * @param j_begin   First index for second dimension
+         * @param j_end     Last index for second dimension
+         */
+        Array<T> subarray(int i_begin, int i_end, int j_begin, int j_end) const;
+
+        /* Return sub-array of the data given the indices
+         * @param i_begin   First index for first dimension
+         * @param i_end     Last index for first dimension
+         * @param j_begin   First index for second dimension
+         * @param j_end     Last index for second dimension
+         * @param k_begin   First index for third dimension
+         * @param k_end     Last index for third dimension
+         * @param l_begin   First index for fourth dimension
+         * @param l_end     Last index for fourth dimension
+         */
+        Array<T> subarray(int i_begin, int i_end, int j_begin, int j_end, int k_begin, int k_end, int l_begin,
+                int l_end) const;
+
         /*  Return the value inside the vector given the fourth dimensions
          * @param i     Index for the first dimension
          * @param j     Index for the second dimension
@@ -108,7 +150,6 @@ namespace cnpy {
         unsigned long long getMax_index() const;
 
     };
-
 }
 
 

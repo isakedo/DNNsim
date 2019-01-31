@@ -6,6 +6,11 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
+    int SCNN<T>::map_accumulator(int k, int x, int y, int K, int X, int Y, int N) {
+        return ((((k & 4) << 2) ^ ((x & 2) << 3) ^ ((y & 2) << 3)) + ((x & 1) << 3) + ((y & 1) << 2) + (k & 3));
+    }
+
+    template <typename T>
     uint16_t SCNN<T>::computeSCNNBitsPE(T act, T wgt) {
 
         #ifdef ZERO_COUNT
@@ -16,6 +21,114 @@ namespace core {
         else if(act == 0) return 0;
         #endif
         else return 256;
+    }
+
+    template <typename T>
+    typename SCNN<T>::PE_stats SCNN<T>::computeSCNNPE(int K, int W, int H, int stride, int padding, const idxMap &act,
+            const idxMap &wgt) {
+
+        PE_stats pe_stats;
+        pe_stats.cycles = 0;
+
+        for(int i = 0; i < act.size(); i+=I) {
+            for(int f = 0; f < wgt.size(); f+=F) {
+                std::vector<uint8_t> acc(2 * F * I, 0);
+                for(int ii = i; ii < std::min(i + I, (int)act.size()); ii++) {
+                    for(int ff = f; ff < std::min(f + F, (int)wgt.size()); ff++) {
+                        const auto &act_index = act[ii];
+                        const auto &wgt_index = wgt[ff];
+
+                        auto n = std::get<0>(act_index);
+                        auto x = std::get<1>(act_index);
+                        auto y = std::get<2>(act_index);
+
+                        auto k = std::get<0>(wgt_index);
+                        auto r = std::get<1>(wgt_index);
+                        auto s = std::get<2>(wgt_index);
+
+                        int w = (x - r + padding) / stride;
+                        int h = (y - s + padding) / stride;
+
+                        int acc_idx = map_accumulator(k, w, h, K, W, H, 2 * F * I);
+                        acc[acc_idx] += 1;
+                    }
+                }
+                auto max_acc = *std::max_element(acc.begin(), acc.end());
+                auto warp_time = std::max(max_acc, (uint8_t) 1);
+                pe_stats.cycles += warp_time;
+            }
+        }
+
+        return pe_stats;
+    }
+
+    template <typename T>
+    void SCNN<T>::computeSCNNTile(int n, int ct, int ck, int kc, int tw, int th, int X, int Y, int Kc, int K, int W,
+            int H, int R, int S, int stride, int padding, const cnpy::Array<T> &act, const cnpy::Array<T> &wgt,
+            sys::Statistics::Stats &stats) {
+
+        std::vector<uint32_t> tile_cycles;
+        std::vector<uint32_t> tile_dense_cycles;
+
+        for(int pex = 0; pex < Wt; pex++) {
+            for(int pey = 0; pey < Ht; pey++) {
+                int x_begin = pex * tw, y_begin = pey * th, k_begin = kc;
+                int x_end = std::min(x_begin + tw, X), y_end = std::min(y_begin + th, Y), k_end = std::min(kc + Kc, K);
+
+                std::vector<std::vector<idxMap>> act_queue = std::vector<std::vector<idxMap>>((unsigned)stride,
+                        std::vector<idxMap>((unsigned)stride,idxMap()));
+                std::vector<std::vector<uint16_t>> dense_act_counter = std::vector<std::vector<uint16_t>>(
+                        (unsigned)stride, std::vector<uint16_t>((unsigned)stride,0));
+                for(int x = x_begin; x < x_end; x++) {
+                    int sx = x % stride;
+                    for(int y = y_begin; y < y_end; y++) {
+                        int sy = y % stride;
+                        auto act_bits = act.get(n,ct+ck,x,y);
+                        if(act_bits != 0)
+                            act_queue[sx][sy].emplace_back(std::make_tuple(n,x,y));
+                        dense_act_counter[sx][sy] += 1;
+                    }
+                }
+
+                std::vector<std::vector<idxMap>> wgt_queue = std::vector<std::vector<idxMap>>((unsigned)stride,
+                        std::vector<idxMap>((unsigned)stride,idxMap()));
+                std::vector<std::vector<uint16_t>> dense_wgt_counter = std::vector<std::vector<uint16_t>>(
+                        (unsigned)stride, std::vector<uint16_t>((unsigned)stride,0));
+                for(int r = 0; r < R; r++) {
+                    int sx = (r + padding) % stride;
+                    for(int s = 0; s < S; s++) {
+                        int sy = (s + padding) % stride;
+                        for(int k = k_begin; k < k_end; k++) {
+                            auto wgt_bits = wgt.get(k,ck,r,s);
+                            if(wgt_bits != 0)
+                                wgt_queue[sx][sy].emplace_back(std::make_tuple(k,r,s));
+                            dense_wgt_counter[sx][sy] += 1;
+                        }
+                    }
+                }
+
+                uint16_t PE_cycles = 0;
+                uint16_t PE_dense_cycles = 0;
+                for(int sx = 0; sx < stride; sx++) {
+                    for(int sy = 0; sy < stride; sy++) {
+
+                        const PE_stats &pe_stats = computeSCNNPE(K,W,H,stride,padding,act_queue[sx][sy],
+                                wgt_queue[sx][sy]);
+
+                        PE_cycles += pe_stats.cycles;
+                        PE_dense_cycles += (uint16_t)(ceil(dense_act_counter[sx][sy]/(double)I) *
+                                ceil(dense_wgt_counter[sx][sy]/(double)F));
+                    }
+                }
+                tile_cycles.push_back(PE_cycles);
+                tile_dense_cycles.push_back(PE_dense_cycles);
+
+            }
+        }
+
+        stats.cycles.back()[n] += *std::max_element(tile_cycles.begin(), tile_cycles.end());
+        stats.dense_cycles.back()[n] += *std::max_element(tile_dense_cycles.begin(), tile_dense_cycles.end());
+
     }
 
     /* CYCLES */
@@ -45,8 +158,8 @@ namespace core {
         int padding = layer.getPadding();
         int stride = layer.getStride();
 
-        long W = (X - R + 2*padding)/stride + 1;
-        long H = (Y - S + 2*padding)/stride + 1;
+        int W = (X - R + 2*padding)/stride + 1;
+        int H = (Y - S + 2*padding)/stride + 1;
 
         auto W_round = (int)(ceil(W/(double)Wt))*Wt;
         auto H_round = (int)(ceil(H/(double)Ht))*Ht;
@@ -55,7 +168,6 @@ namespace core {
         auto Kc = (int)floor(out_acc_size/(double)(th*tw));
 
         // Stats
-        auto index = stats.cycles.size();
         stats.cycles.emplace_back(std::vector<uint32_t>(N,0));
         stats.dense_cycles.emplace_back(std::vector<uint32_t>(N,0));
         stats.mults.emplace_back(std::vector<uint32_t>(N,0));
@@ -77,18 +189,34 @@ namespace core {
         th = Y/Wt;
 
         act.grid_zero_pad(X ,Y);
-        const auto &act_idx = this->generate_idxMap(act);
 
         int n;
 
-        // Convolution
         for(n = 0; n < N; n++) {
             for(int kc = 0; kc < K; kc+=Kc) {
                 for(int ct = 0; ct < C; ct+=Ck) {
                     for(int ck = 0; ck < Ck; ck++) {
-
+                        computeSCNNTile(n,ct,ck,kc,tw,th,X,Y,Kc,K,W,H,R,S,stride,padding,act,wgt,stats);
                     }
                 }
+
+                // resolve halos
+                // compute the areas of the halo regions around a non edge PE
+                // that is, how many psums need to get transferred
+                const int DIM = 3;
+                int x_vec[] = {R - 1 - padding, tw, padding};
+                int y_vec[] = {S - 1 - padding, th, padding};
+                int max_psum = 0;
+                for(int x = 0; x < DIM; x++) {
+                    for (int y = 0; y < DIM; y++) {
+                        int psum = x_vec[x] * y_vec[y];
+                        if((x != 1 || y != 1) && psum > max_psum)
+                            max_psum = psum;
+                    }
+                }
+                auto max_psums = max_psum * std::min(Kc, K - kc);
+                stats.cycles.back()[n] += max_psums;
+                stats.dense_cycles.back()[n] += max_psums;
             }
         }
 
@@ -116,7 +244,7 @@ namespace core {
                 "_I" + std::to_string(I) + "_F" + std::to_string(F) + "_acc_out" + std::to_string(out_acc_size);
 
         for(const Layer<T> &layer : network.getLayers()) {
-            if(layer.getType() == "Convolution") {
+            if(layer.getName() == "conv1") {
                 stats.layers.push_back(layer.getName());
                 computeConvolution(layer, stats);
             } /*else if(layer.getType() == "InnerProduct") {

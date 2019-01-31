@@ -294,6 +294,54 @@ namespace cnpy {
     }
 
     template <typename T>
+    Array<T> Array<T>::subarray(int i_begin, int i_end, int j_begin, int j_end) const {
+
+        auto i_dim = (unsigned)(i_end - i_begin);
+        auto j_dim = (unsigned)(j_end - j_begin);
+
+        auto out_data = std::vector<std::vector<T>>(i_dim, std::vector<T>(j_dim,0));
+
+        for(int i = 0; i < i_dim; i++)
+            for(int j = 0; j < j_dim; j++)
+                        out_data[i][j] = this->data2D[i+i_begin][j+j_begin];
+
+        std::vector<size_t> out_shape;
+        out_shape.push_back(i_dim);
+        out_shape.push_back(j_dim);
+        return Array(out_data,out_shape);
+
+    }
+
+
+    template <typename T>
+    Array<T> Array<T>::subarray(int i_begin, int i_end, int j_begin, int j_end, int k_begin, int k_end, int l_begin,
+            int l_end) const {
+
+        auto i_dim = (unsigned)(i_end - i_begin);
+        auto j_dim = (unsigned)(j_end - j_begin);
+        auto k_dim = (unsigned)(k_end - k_begin);
+        auto l_dim = (unsigned)(l_end - l_begin);
+
+        auto out_data = std::vector<std::vector<std::vector<std::vector<T>>>>(i_dim,
+                std::vector<std::vector<std::vector<T>>>(j_dim,std::vector<std::vector<T>>(k_dim, std::vector<T>
+                (l_dim,0))));
+
+        for(int i = 0; i < i_dim; i++)
+            for(int j = 0; j < j_dim; j++)
+                for(int k = 0; k < k_dim; k++)
+                    for(int l = 0; l < l_dim; l++)
+                        out_data[i][j][k][l] = this->data4D[i+i_begin][j+j_begin][k+k_begin][l+l_begin];
+
+        std::vector<size_t> out_shape;
+        out_shape.push_back(i_dim);
+        out_shape.push_back(j_dim);
+        out_shape.push_back(k_dim);
+        out_shape.push_back(l_dim);
+        return Array(out_data,out_shape);
+
+    }
+
+    template <typename T>
     T Array<T>::get (int i, int j, int k, int l) const {
         #ifdef DEBUG
         if(getDimensions() != 4)
@@ -344,7 +392,6 @@ namespace cnpy {
         else if (this->getDimensions() == 4) return this->shape[0]*this->shape[1]*this->shape[2]*this->shape[3];
         else throw std::runtime_error("Array dimensions error");
     }
-
 
     INITIALISE_DATA_TYPES(Array);
 

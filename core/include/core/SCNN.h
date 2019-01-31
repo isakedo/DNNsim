@@ -5,6 +5,8 @@
 
 #define ZERO_COUNT // Count zeroes as 1 cycle
 
+typedef std::vector<std::tuple<int,int,int>> idxMap;
+
 namespace core {
 
     template <typename T>
@@ -30,12 +32,24 @@ namespace core {
         /* Output accumulator size */
         const int out_acc_size;
 
+        struct PE_stats {
+            uint16_t cycles = 0;
+        };
+
+        int map_accumulator(int k, int x, int y, int K, int X, int Y, int N);
+
         /* Compute number of one bit multiplications given a weight and an activation
          * @param act       Activation
          * @param wgt       Weight
          * @return          Number of one bit multiplications
          */
         uint16_t computeSCNNBitsPE(T act, T wgt);
+
+        PE_stats computeSCNNPE(int K, int W, int H, int stride, int padding, const idxMap &act, const idxMap &wgt);
+
+        void computeSCNNTile(int n, int ct, int ck, int kc, int tw, int th, int X, int Y, int Kc, int K, int W, int H,
+                int R, int S, int stride, int padding, const cnpy::Array<T> &act, const cnpy::Array<T> &wgt,
+                sys::Statistics::Stats &stats);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs

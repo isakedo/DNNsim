@@ -48,35 +48,6 @@ namespace core {
         return rowMap;
     }
 
-    template <typename T>
-    idxMap Simulator<T>::generate_idxMap(const cnpy::Array<T> &data) {
-        typedef std::vector<std::vector<std::vector<std::vector<std::tuple<int,int,int,int>>>>> idxMap;
-
-        const std::vector<size_t> &act_shape = data.getShape();
-
-        auto N = act_shape[0];
-        auto K = act_shape[1];
-        auto X = act_shape[2];
-        auto Y = act_shape[3];
-
-        idxMap idxmap = idxMap(N, std::vector<std::vector<std::vector<std::tuple<int,int,int,int>>>>(K,
-                std::vector<std::vector<std::tuple<int,int,int,int>>>(X, std::vector<std::tuple<int,int,int,int>>(Y,
-                std::tuple<int,int,int,int>()))));
-
-        for(int n = 0; n < N; n++) {
-            for(int k = 0; k < K; k++) {
-                for(int x = 0; x < X; x++) {
-                    for(int y = 0; y < Y; y++) {
-                        idxmap[n][k][x][y] = std::make_tuple(n,k,x,y);
-                    }
-                }
-            }
-        }
-
-        return idxmap;
-    }
-
-
     /* Only encode the values when get less number of bits */
     uint16_t generateBoothEncoding(uint16_t n) {
         uint32_t padded_n = n << 2;
