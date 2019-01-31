@@ -150,7 +150,7 @@ namespace core {
 
         // Stats
         auto index = stats.cycles.size();
-        stats.cycles.emplace_back(std::vector<uint32_t>(batch_size,0));
+        stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         std::vector<int> list_x, list_y;
         int n, x_counter, y_counter;
@@ -207,7 +207,7 @@ namespace core {
 
         // Stats
         auto index = stats.cycles.size();
-        stats.cycles.emplace_back(std::vector<uint32_t>(batch_size,0));
+        stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         int n;
 

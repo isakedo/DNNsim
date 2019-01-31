@@ -164,7 +164,7 @@ namespace core {
 
         // Stats
         auto index = stats.cycles.size();
-        stats.cycles.emplace_back(std::vector<uint32_t>(batch_size,0));
+        stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
         std::vector<uint32_t> cycles_per_col;
         uint32_t end_previous_pallet;
 
@@ -194,7 +194,7 @@ namespace core {
             stats.cycles[index][n] = batch_cycles*num_filters_sets;
         }
 
-        auto base_cycles = (uint32_t)(out_x * out_y * act_channels * Kx * Ky * num_filters_sets / N_ROWS);
+        auto base_cycles = (uint64_t)(out_x * out_y * act_channels * Kx * Ky * num_filters_sets / N_ROWS);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
@@ -226,7 +226,7 @@ namespace core {
 
         // Stats
         auto index = stats.cycles.size();
-        stats.cycles.emplace_back(std::vector<uint32_t>(batch_size,0));
+        stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         int n;
 
@@ -271,7 +271,7 @@ namespace core {
 
         #endif
 
-        auto base_cycles = (uint32_t)(act_channels * num_filters_sets / N_ROWS);
+        auto base_cycles = (uint64_t)(act_channels * num_filters_sets / N_ROWS);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);

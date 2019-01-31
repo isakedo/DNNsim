@@ -15,7 +15,7 @@ namespace interface {
         for (int j = 0; j < stats.cycles.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%u,%u,%.2f,0\n", stats.layers[i].c_str(), j, stats.cycles[i][j],
+                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%.2f,0\n", stats.layers[i].c_str(), j, stats.cycles[i][j],
                         stats.baseline_cycles[i], (double)stats.baseline_cycles[i]/stats.cycles[i][j]);
                 o_file << line;
             }
@@ -25,14 +25,14 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%u,%u,%.2f,%.2f\n", stats.layers[i].c_str(),
+            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%.2f,%.2f\n", stats.layers[i].c_str(),
                     stats.get_average(stats.cycles[i]), stats.baseline_cycles[i], (double)stats.baseline_cycles[i] /
                     stats.get_average(stats.cycles[i]), stats.time[i].count());
             o_file << line;
         }
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%u,%u,%.2f,%.2f\n", stats.get_total(stats.cycles),
+        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%.2f,%.2f\n", stats.get_total(stats.cycles),
                  stats.get_total(stats.baseline_cycles),stats.get_total(stats.baseline_cycles)/
                          (double)stats.get_total(stats.cycles),total_time);
         o_file << line;
@@ -43,7 +43,7 @@ namespace interface {
         for (int j = 0; j < stats.cycles.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%u,%u,%.2f,%d,0\n", stats.layers[i].c_str(), j,
+                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%.2f,%d,0\n", stats.layers[i].c_str(), j,
                         stats.cycles[i][j], stats.baseline_cycles[i],
                         (double)stats.baseline_cycles[i]/stats.cycles[i][j], stats.act_prec[i]);
                 o_file << line;
@@ -54,7 +54,7 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%u,%u,%.2f,%d,%.2f\n", stats.layers[i].c_str(),
+            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%.2f,%d,%.2f\n", stats.layers[i].c_str(),
                     stats.get_average(stats.cycles[i]), stats.baseline_cycles[i],
                     (double)stats.baseline_cycles[i]/stats.get_average(stats.cycles[i]), stats.act_prec[i],
                     stats.time[i].count());
@@ -62,7 +62,7 @@ namespace interface {
         }
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%u,%u,%.2f,-,%.2f\n", stats.get_total(stats.cycles),
+        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%.2f,-,%.2f\n", stats.get_total(stats.cycles),
                  stats.get_total(stats.baseline_cycles),stats.get_total(stats.baseline_cycles)/
                          (double)stats.get_total(stats.cycles),total_time);
         o_file << line;
@@ -73,7 +73,7 @@ namespace interface {
         for (int j = 0; j < stats.cycles.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%u,%u,%.2f,%d,0\n", stats.layers[i].c_str(), j,
+                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%.2f,%d,0\n", stats.layers[i].c_str(), j,
                         stats.cycles[i][j], stats.baseline_cycles[i],
                         (double)stats.baseline_cycles[i]/stats.cycles[i][j], stats.act_prec[i]);
                 o_file << line;
@@ -84,7 +84,7 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%u,%u,%.2f,%d,%.2f\n", stats.layers[i].c_str(),
+            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%.2f,%d,%.2f\n", stats.layers[i].c_str(),
                     stats.get_average(stats.cycles[i]), stats.baseline_cycles[i],
                     (double)stats.baseline_cycles[i]/stats.get_average(stats.cycles[i]), stats.act_prec[i],
                     stats.time[i].count());
@@ -92,7 +92,7 @@ namespace interface {
         }
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%u,%u,%.2f,-,%.2f\n", stats.get_total(stats.cycles),
+        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%.2f,-,%.2f\n", stats.get_total(stats.cycles),
                  stats.get_total(stats.baseline_cycles),stats.get_total(stats.baseline_cycles)/
                          (double)stats.get_total(stats.cycles),total_time);
         o_file << line;
@@ -103,7 +103,7 @@ namespace interface {
         for (int j = 0; j < stats.cycles.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%u,0\n", stats.layers[i].c_str(), j, stats.cycles[i][j]);
+                snprintf(line, sizeof(line), "%s,%d,%lu,0\n", stats.layers[i].c_str(), j, stats.cycles[i][j]);
                 o_file << line;
             }
         }
@@ -112,13 +112,13 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%u,%.2f\n", stats.layers[i].c_str(),stats.get_average(stats.cycles[i]),
-                     stats.time[i].count());
+            snprintf(line, sizeof(line), "%s,AVG,%lu,%.2f\n", stats.layers[i].c_str(),stats.get_average(stats.cycles[i])
+                    , stats.time[i].count());
             o_file << line;
         }
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%u,%.2f\n", stats.get_total(stats.cycles), total_time);
+        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%.2f\n", stats.get_total(stats.cycles), total_time);
         o_file << line;
     }
 
@@ -127,7 +127,7 @@ namespace interface {
         for (int j = 0; j < stats.cycles.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%u,0\n", stats.layers[i].c_str(), j, stats.cycles[i][j]);
+                snprintf(line, sizeof(line), "%s,%d,%lu,0\n", stats.layers[i].c_str(), j, stats.cycles[i][j]);
                 o_file << line;
             }
         }
@@ -136,13 +136,13 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%u,%.2f\n", stats.layers[i].c_str(),stats.get_average(stats.cycles[i]),
-                     stats.time[i].count());
+            snprintf(line, sizeof(line), "%s,AVG,%lu,%.2f\n", stats.layers[i].c_str(),stats.get_average(stats.cycles[i])
+                    , stats.time[i].count());
             o_file << line;
         }
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%u,%.2f\n", stats.get_total(stats.cycles), total_time);
+        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%.2f\n", stats.get_total(stats.cycles), total_time);
         o_file << line;
     }
 
@@ -151,7 +151,7 @@ namespace interface {
         for (int j = 0; j < stats.cycles.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%u,%d,0\n", stats.layers[i].c_str(), j, stats.cycles[i][j],
+                snprintf(line, sizeof(line), "%s,%d,%lu,%d,0\n", stats.layers[i].c_str(), j, stats.cycles[i][j],
                         stats.act_prec[i]);
                 o_file << line;
             }
@@ -161,13 +161,13 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%u,%d,%.2f\n", stats.layers[i].c_str(),
+            snprintf(line, sizeof(line), "%s,AVG,%lu,%d,%.2f\n", stats.layers[i].c_str(),
                     stats.get_average(stats.cycles[i]), stats.act_prec[i], stats.time[i].count());
             o_file << line;
         }
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%u,-,%.2f\n", stats.get_total(stats.cycles), total_time);
+        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,-,%.2f\n", stats.get_total(stats.cycles), total_time);
         o_file << line;
     }
 
@@ -178,9 +178,9 @@ namespace interface {
         for (int j = 0; j < stats.cycles.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[512];
-                snprintf(line, sizeof(line), "%s,%d,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,0\n",stats.layers[i].c_str(),
-                        j, stats.cycles[i][j], stats.dense_cycles[i][j], stats.mults[i][j], stats.idle_bricks[i][j],
-                        stats.idle_conflicts[i][j], stats.idle_pe[i][j], stats.idle_halo[i][j],
+                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,0\n",
+                        stats.layers[i].c_str(), j, stats.cycles[i][j], stats.dense_cycles[i][j], stats.mults[i][j],
+                        stats.idle_bricks[i][j], stats.idle_conflicts[i][j], stats.idle_pe[i][j], stats.idle_halo[i][j],
                         stats.halo_transfers[i][j], stats.weight_buff_reads[i][j], stats.act_buff_reads[i][j],
                         stats.i_loop[i][j], stats.f_loop[i][j], stats.offchip_weight_reads[i][j]);
                 o_file << line;
@@ -191,19 +191,20 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[512];
-            snprintf(line, sizeof(line), "%s,AVG,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%.2f\n",stats.layers[i].c_str(),
-                    stats.get_average(stats.cycles[i]), stats.get_average(stats.dense_cycles[i]),
-                    stats.get_average(stats.mults[i]), stats.get_average(stats.idle_bricks[i]),
-                    stats.get_average(stats.idle_conflicts[i]), stats.get_average(stats.idle_pe[i]),
-                    stats.get_average(stats.idle_halo[i]), stats.get_average(stats.halo_transfers[i]),
-                    stats.get_average(stats.weight_buff_reads[i]), stats.get_average(stats.act_buff_reads[i]),
-                    stats.get_average(stats.i_loop[i]), stats.get_average(stats.f_loop[i]),
-                    stats.get_average(stats.offchip_weight_reads[i]),stats.time[i].count());
+            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n",
+                    stats.layers[i].c_str(), stats.get_average(stats.cycles[i]),
+                    stats.get_average(stats.dense_cycles[i]), stats.get_average(stats.mults[i]),
+                    stats.get_average(stats.idle_bricks[i]), stats.get_average(stats.idle_conflicts[i]),
+                    stats.get_average(stats.idle_pe[i]), stats.get_average(stats.idle_halo[i]),
+                    stats.get_average(stats.halo_transfers[i]), stats.get_average(stats.weight_buff_reads[i]),
+                    stats.get_average(stats.act_buff_reads[i]), stats.get_average(stats.i_loop[i]),
+                    stats.get_average(stats.f_loop[i]), stats.get_average(stats.offchip_weight_reads[i]),
+                    stats.time[i].count());
             o_file << line;
         }
 
         char line[512];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%.2f\n",
+        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n",
                 stats.get_total(stats.cycles), stats.get_total(stats.dense_cycles), stats.get_total(stats.mults),
                 stats.get_total(stats.idle_bricks), stats.get_total(stats.idle_conflicts),
                 stats.get_total(stats.idle_pe), stats.get_total(stats.idle_halo), stats.get_total(stats.halo_transfers),

@@ -182,7 +182,7 @@ namespace core {
 
         // Stats
         auto index = stats.cycles.size();
-        stats.cycles.emplace_back(std::vector<uint32_t>(batch_size,0));
+        stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
         std::vector<uint32_t> cycles_per_col;
         uint32_t end_previous_pallet;
 
@@ -244,7 +244,7 @@ namespace core {
 
         // Stats
         auto index = stats.cycles.size();
-        stats.cycles.emplace_back(std::vector<uint32_t>(batch_size,0));
+        stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         int n;
 

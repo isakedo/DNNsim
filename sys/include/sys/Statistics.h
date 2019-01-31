@@ -34,23 +34,23 @@ namespace sys {
             std::vector<std::chrono::duration<double>> time;
 
             /* Stats for cycles */
-            std::vector<std::vector<uint32_t>> cycles;
-            std::vector<uint32_t> baseline_cycles;
+            std::vector<std::vector<uint64_t>> cycles;
+            std::vector<uint64_t> baseline_cycles;
 
             /* SCNN */
-            std::vector<std::vector<uint32_t>> dense_cycles;
-            std::vector<std::vector<uint32_t>> mults;
-            std::vector<std::vector<uint32_t>> idle_bricks;
-            std::vector<std::vector<uint32_t>> idle_conflicts;
-            std::vector<std::vector<uint32_t>> idle_pe;
-            std::vector<std::vector<uint32_t>> idle_halo;
-            std::vector<std::vector<uint32_t>> halo_transfers;
-            std::vector<std::vector<uint32_t>> weight_buff_reads;
-            std::vector<std::vector<uint32_t>> act_buff_reads;
-            std::vector<std::vector<uint32_t>> accumulator_updates;
-            std::vector<std::vector<uint32_t>> i_loop;
-            std::vector<std::vector<uint32_t>> f_loop;
-            std::vector<std::vector<uint32_t>> offchip_weight_reads;
+            std::vector<std::vector<uint64_t>> dense_cycles;
+            std::vector<std::vector<uint64_t>> mults;
+            std::vector<std::vector<uint64_t>> idle_bricks;
+            std::vector<std::vector<uint64_t>> idle_conflicts;
+            std::vector<std::vector<uint64_t>> idle_pe;
+            std::vector<std::vector<uint64_t>> idle_halo;
+            std::vector<std::vector<uint64_t>> halo_transfers;
+            std::vector<std::vector<uint64_t>> weight_buff_reads;
+            std::vector<std::vector<uint64_t>> act_buff_reads;
+            std::vector<std::vector<uint64_t>> accumulator_updates;
+            std::vector<std::vector<uint64_t>> i_loop;
+            std::vector<std::vector<uint64_t>> f_loop;
+            std::vector<std::vector<uint64_t>> offchip_weight_reads;
 
             /* Stats for potentials */
             std::vector<std::vector<double>> work_reduction;
