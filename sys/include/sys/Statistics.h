@@ -44,6 +44,7 @@ namespace sys {
             std::vector<std::vector<uint64_t>> idle_conflicts;
             std::vector<std::vector<uint64_t>> idle_pe;
             std::vector<std::vector<uint64_t>> idle_halo;
+            std::vector<std::vector<uint64_t>> total_mult_cycles;
             std::vector<std::vector<uint64_t>> halo_transfers;
             std::vector<std::vector<uint64_t>> weight_buff_reads;
             std::vector<std::vector<uint64_t>> act_buff_reads;

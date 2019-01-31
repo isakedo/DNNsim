@@ -33,10 +33,15 @@ namespace core {
         const int out_acc_size;
 
         struct PE_stats {
-            uint16_t cycles = 0;
+            uint32_t cycles = 0;
+            uint32_t mults = 0;
+            uint32_t idle_conflicts = 0;
+            uint32_t accumulator_updates = 0;
+            uint32_t i_loop = 0;
+            uint32_t f_loop = 0;
         };
 
-        int map_accumulator(int k, int x, int y, int K, int X, int Y, int N);
+        int map_accumulator(int k, int x, int y);
 
         /* Compute number of one bit multiplications given a weight and an activation
          * @param act       Activation
@@ -45,7 +50,7 @@ namespace core {
          */
         uint16_t computeSCNNBitsPE(T act, T wgt);
 
-        PE_stats computeSCNNPE(int K, int W, int H, int stride, int padding, const idxMap &act, const idxMap &wgt);
+        PE_stats computeSCNNPE(int W, int H, int stride, int padding, const idxMap &act, const idxMap &wgt);
 
         void computeSCNNTile(int n, int ct, int ck, int kc, int tw, int th, int X, int Y, int Kc, int K, int W, int H,
                 int R, int S, int stride, int padding, const cnpy::Array<T> &act, const cnpy::Array<T> &wgt,

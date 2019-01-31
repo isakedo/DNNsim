@@ -6,7 +6,7 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    int SCNN<T>::map_accumulator(int k, int x, int y, int K, int X, int Y, int N) {
+    int SCNN<T>::map_accumulator(int k, int x, int y) {
         return ((((k & 4) << 2) ^ ((x & 2) << 3) ^ ((y & 2) << 3)) + ((x & 1) << 3) + ((y & 1) << 2) + (k & 3));
     }
 
@@ -24,14 +24,21 @@ namespace core {
     }
 
     template <typename T>
-    typename SCNN<T>::PE_stats SCNN<T>::computeSCNNPE(int K, int W, int H, int stride, int padding, const idxMap &act,
+    typename SCNN<T>::PE_stats SCNN<T>::computeSCNNPE(int W, int H, int stride, int padding, const idxMap &act,
             const idxMap &wgt) {
 
         PE_stats pe_stats;
         pe_stats.cycles = 0;
+        pe_stats.mults = 0;
+        pe_stats.idle_conflicts = 0;
+        pe_stats.accumulator_updates = 0;
+        pe_stats.i_loop = 0;
+        pe_stats.f_loop = 0;
 
         for(int i = 0; i < act.size(); i+=I) {
+            pe_stats.i_loop += 1;
             for(int f = 0; f < wgt.size(); f+=F) {
+                pe_stats.f_loop += 1;
                 std::vector<uint8_t> acc(2 * F * I, 0);
                 for(int ii = i; ii < std::min(i + I, (int)act.size()); ii++) {
                     for(int ff = f; ff < std::min(f + F, (int)wgt.size()); ff++) {
@@ -49,13 +56,19 @@ namespace core {
                         int w = (x - r + padding) / stride;
                         int h = (y - s + padding) / stride;
 
-                        int acc_idx = map_accumulator(k, w, h, K, W, H, 2 * F * I);
-                        acc[acc_idx] += 1;
+                        if(w >= 0 && w < W && h >= 0 && h < H) {
+                            int acc_idx = map_accumulator(k, w, h);
+                            acc[acc_idx] += 1;
+
+                            pe_stats.mults += 1;
+                        }
                     }
                 }
                 auto max_acc = *std::max_element(acc.begin(), acc.end());
                 auto warp_time = std::max(max_acc, (uint8_t) 1);
                 pe_stats.cycles += warp_time;
+                pe_stats.idle_conflicts += (warp_time - 1) * I * F;
+                pe_stats.accumulator_updates += accumulate(acc.begin(), acc.end(), 0.0);
             }
         }
 
@@ -69,6 +82,8 @@ namespace core {
 
         std::vector<uint32_t> tile_cycles;
         std::vector<uint32_t> tile_dense_cycles;
+        std::vector<uint32_t> tile_i_loop;
+        uint32_t wgt_size = 0;
 
         for(int pex = 0; pex < Wt; pex++) {
             for(int pey = 0; pey < Ht; pey++) {
@@ -107,27 +122,61 @@ namespace core {
                     }
                 }
 
-                uint16_t PE_cycles = 0;
-                uint16_t PE_dense_cycles = 0;
+                uint32_t PE_cycles = 0;
+                uint32_t PE_dense_cycles = 0;
+                uint32_t PE_mults = 0;
+                uint32_t PE_idle_conflicts = 0;
+                uint32_t PE_accumulator_updates = 0;
+                uint32_t PE_i_loop = 0;
+                uint32_t PE_f_loop = 0;
+                uint32_t PE_wgt_size = 0;
+
                 for(int sx = 0; sx < stride; sx++) {
                     for(int sy = 0; sy < stride; sy++) {
 
-                        const PE_stats &pe_stats = computeSCNNPE(K,W,H,stride,padding,act_queue[sx][sy],
+                        const PE_stats &pe_stats = computeSCNNPE(W,H,stride,padding,act_queue[sx][sy],
                                 wgt_queue[sx][sy]);
+
+                        auto stride_wgt_size = (uint32_t)(ceil(wgt_queue[sx][sy].size()/(double)F))*F;
+                        PE_wgt_size += stride_wgt_size;
 
                         PE_cycles += pe_stats.cycles;
                         PE_dense_cycles += (uint16_t)(ceil(dense_act_counter[sx][sy]/(double)I) *
                                 ceil(dense_wgt_counter[sx][sy]/(double)F));
+                        PE_mults += pe_stats.mults;
+                        PE_idle_conflicts += pe_stats.idle_conflicts;
+                        PE_accumulator_updates += pe_stats.accumulator_updates;
+                        PE_i_loop += pe_stats.i_loop;
+                        PE_f_loop += pe_stats.f_loop;
+
+                        stats.weight_buff_reads.back()[n] += stride_wgt_size;
+                        stats.act_buff_reads.back()[n] += (uint64_t)(ceil(act_queue[sx][sy].size()/(double)I))*I;
                     }
                 }
+                wgt_size = PE_wgt_size;
                 tile_cycles.push_back(PE_cycles);
                 tile_dense_cycles.push_back(PE_dense_cycles);
+                tile_i_loop.push_back(PE_i_loop);
 
+                stats.idle_bricks.back()[n] += PE_f_loop * I * F - PE_mults;
+                stats.mults.back()[n] += PE_mults;
+                stats.idle_conflicts.back()[n] += PE_idle_conflicts;
+                stats.accumulator_updates.back()[n] += PE_accumulator_updates;
+                stats.i_loop.back()[n] += PE_i_loop;
+                stats.f_loop.back()[n] += PE_f_loop;
             }
         }
 
-        stats.cycles.back()[n] += *std::max_element(tile_cycles.begin(), tile_cycles.end());
+        auto tile_max_cycles = *std::max_element(tile_cycles.begin(), tile_cycles.end());
+        uint32_t tile_idle_pe = 0;
+        for(const auto &PE_cycles : tile_cycles)
+            tile_idle_pe += tile_max_cycles - PE_cycles;
+        auto tile_max_i_loop =  *std::max_element(tile_i_loop.begin(), tile_i_loop.end());
+
+        stats.cycles.back()[n] += tile_max_cycles;
         stats.dense_cycles.back()[n] += *std::max_element(tile_dense_cycles.begin(), tile_dense_cycles.end());
+        stats.idle_pe.back()[n] += tile_idle_pe * I * F;
+        stats.offchip_weight_reads.back()[n] += tile_max_i_loop * wgt_size;
 
     }
 
@@ -168,20 +217,21 @@ namespace core {
         auto Kc = (int)floor(out_acc_size/(double)(th*tw));
 
         // Stats
-        stats.cycles.emplace_back(std::vector<uint32_t>(N,0));
-        stats.dense_cycles.emplace_back(std::vector<uint32_t>(N,0));
-        stats.mults.emplace_back(std::vector<uint32_t>(N,0));
-        stats.idle_bricks.emplace_back(std::vector<uint32_t>(N,0));
-        stats.idle_conflicts.emplace_back(std::vector<uint32_t>(N,0));
-        stats.idle_pe.emplace_back(std::vector<uint32_t>(N,0));
-        stats.idle_halo.emplace_back(std::vector<uint32_t>(N,0));
-        stats.halo_transfers.emplace_back(std::vector<uint32_t>(N,0));
-        stats.weight_buff_reads.emplace_back(std::vector<uint32_t>(N,0));
-        stats.act_buff_reads.emplace_back(std::vector<uint32_t>(N,0));
-        stats.accumulator_updates.emplace_back(std::vector<uint32_t>(N,0));
-        stats.i_loop.emplace_back(std::vector<uint32_t>(N,0));
-        stats.f_loop.emplace_back(std::vector<uint32_t>(N,0));
-        stats.offchip_weight_reads.emplace_back(std::vector<uint32_t>(N,0));
+        stats.cycles.emplace_back(std::vector<uint64_t>(N,0));
+        stats.dense_cycles.emplace_back(std::vector<uint64_t>(N,0));
+        stats.mults.emplace_back(std::vector<uint64_t>(N,0));
+        stats.idle_bricks.emplace_back(std::vector<uint64_t>(N,0));
+        stats.idle_conflicts.emplace_back(std::vector<uint64_t>(N,0));
+        stats.idle_pe.emplace_back(std::vector<uint64_t>(N,0));
+        stats.idle_halo.emplace_back(std::vector<uint64_t>(N,0));
+        stats.total_mult_cycles.emplace_back(std::vector<uint64_t>(N,0));
+        stats.halo_transfers.emplace_back(std::vector<uint64_t>(N,0));
+        stats.weight_buff_reads.emplace_back(std::vector<uint64_t>(N,0));
+        stats.act_buff_reads.emplace_back(std::vector<uint64_t>(N,0));
+        stats.accumulator_updates.emplace_back(std::vector<uint64_t>(N,0));
+        stats.i_loop.emplace_back(std::vector<uint64_t>(N,0));
+        stats.f_loop.emplace_back(std::vector<uint64_t>(N,0));
+        stats.offchip_weight_reads.emplace_back(std::vector<uint64_t>(N,0));
 
         X = (int)(ceil(X/(double)Wt))*Wt;
         Y = (int)(ceil(Y/(double)Ht))*Ht;
@@ -203,21 +253,32 @@ namespace core {
                 // resolve halos
                 // compute the areas of the halo regions around a non edge PE
                 // that is, how many psums need to get transferred
+
                 const int DIM = 3;
                 int x_vec[] = {R - 1 - padding, tw, padding};
                 int y_vec[] = {S - 1 - padding, th, padding};
                 int max_psum = 0;
+                uint32_t halo_transfers = 0;
+
                 for(int x = 0; x < DIM; x++) {
                     for (int y = 0; y < DIM; y++) {
                         int psum = x_vec[x] * y_vec[y];
-                        if((x != 1 || y != 1) && psum > max_psum)
-                            max_psum = psum;
+                        if(x != 1 || y != 1)  {
+                            halo_transfers += psum;
+                            if(psum > max_psum)
+                                max_psum = psum;
+                        }
                     }
                 }
                 auto max_psums = max_psum * std::min(Kc, K - kc);
+
                 stats.cycles.back()[n] += max_psums;
                 stats.dense_cycles.back()[n] += max_psums;
+                stats.idle_halo.back()[n] += max_psums * Ht * Wt * I * F;
+                stats.halo_transfers.back()[n] += halo_transfers;
             }
+            stats.total_mult_cycles.back()[n] = stats.mults.back()[n] + stats.idle_bricks.back()[n] +
+                    stats.idle_conflicts.back()[n] + stats.idle_pe.back()[n] + stats.idle_halo.back()[n];
         }
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
@@ -244,7 +305,7 @@ namespace core {
                 "_I" + std::to_string(I) + "_F" + std::to_string(F) + "_acc_out" + std::to_string(out_acc_size);
 
         for(const Layer<T> &layer : network.getLayers()) {
-            if(layer.getName() == "conv1") {
+            if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
                 computeConvolution(layer, stats);
             } /*else if(layer.getType() == "InnerProduct") {
