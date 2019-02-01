@@ -188,8 +188,38 @@ namespace cnpy {
     }
 
     template <typename T>
+    void Array<T>::channel_zero_pad(int K) {
+        auto N = this->shape[0];
+        auto old_k = this->shape[1];
+        auto X = this->shape[2];
+        auto Y = this->shape[3];
+
+        auto tmp_data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(N,
+                std::vector<std::vector<std::vector<T>>>((unsigned)K,std::vector<std::vector<T>>(X,
+                std::vector<T>(Y,0))));
+
+        for(int n = 0; n < N; n++) {
+            for (int k = 0; k < old_k; k++) {
+                for (int i = 0; i < X; i++) {
+                    for(int j = 0; j < Y; j++) {
+                        tmp_data4D[n][k][i][j] = this->data4D[n][k][i][j];
+                    }
+                }
+            }
+        }
+
+        this->data4D.clear();
+        this->data4D = tmp_data4D;
+        this->shape.clear();
+        this->shape.push_back(N);
+        this->shape.push_back((unsigned)K);
+        this->shape.push_back(X);
+        this->shape.push_back(Y);
+    }
+
+
+    template <typename T>
     void Array<T>::reshape_to_4D() {
-        //if(getDimensions() == 4 || (this->shape[2] == 1 && this->shape[3] == 1)) return;
         this->data4D.clear();
         this->data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(this->shape[0],
                 std::vector<std::vector<std::vector<T>>>(this->shape[1],std::vector<std::vector<T>>(1,
@@ -199,6 +229,10 @@ namespace cnpy {
                 this->data4D[i][j][0][0] = this->data2D[i][j];
             }
         }
+        this->data2D.clear();
+        this->shape.clear();
+        this->shape.push_back(this->shape[0]);
+        this->shape.push_back(this->shape[1]);
         this->shape.push_back(1);
         this->shape.push_back(1);
         this->force4D = true;
@@ -218,9 +252,44 @@ namespace cnpy {
             }
             this->data2D.push_back(second_dim);
         }
+        this->data4D.clear();
         this->shape[1] = this->shape[1]*this->shape[2]*this->shape[3];
         this->shape.pop_back();
         this->shape.pop_back();
+    }
+
+    template <typename T>
+    void Array<T>::split_4D(int K, int X, int Y) {
+        auto N = this->shape[0];
+        auto old_k = this->shape[1];
+        auto old_X = this->shape[2];
+        auto old_Y = this->shape[3];
+
+        auto tmp_data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(N,
+                std::vector<std::vector<std::vector<T>>>((unsigned)K,std::vector<std::vector<T>>((unsigned)X,
+                std::vector<T>((unsigned)Y,0))));
+
+        for(int n = 0; n < N; n++) {
+            for (int k = 0; k < old_k; k++) {
+                for (int i = 0; i < old_X; i++) {
+                    for(int j = 0; j < old_Y; j++) {
+                        auto new_k = k / (X*Y);
+                        auto rem = k % (X*Y);
+                        auto new_i = rem / Y;
+                        auto new_j = rem % Y;
+                        tmp_data4D[n][new_k][new_i][new_j] = this->data4D[n][k][i][j];
+                    }
+                }
+            }
+        }
+
+        this->data4D.clear();
+        this->data4D = tmp_data4D;
+        this->shape.clear();
+        this->shape.push_back(N);
+        this->shape.push_back((unsigned)K);
+        this->shape.push_back((unsigned)X);
+        this->shape.push_back((unsigned)Y);
     }
 
     template <typename T>

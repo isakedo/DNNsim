@@ -50,8 +50,37 @@ namespace core {
          */
         uint16_t computeSCNNBitsPE(T act, T wgt);
 
+        /* Compute SCNN processing engine
+         * @param W         Width of the output activations
+         * @param H         Height of the output activations
+         * @param stride    Stride for the layer
+         * @param padding   Padding for the layer
+         * @param act       1D activations queue with linearized activations indexes to be processed
+         * @param wgt       1D weights queue with linearized activations indexes to be processed
+         * @return          Return stats for the given PE
+         */
         PE_stats computeSCNNPE(int W, int H, int stride, int padding, const idxMap &act, const idxMap &wgt);
 
+        /* Compute SCNN tile
+         * @param n         Number of batch
+         * @param ct        Channel to be processed within a filter
+         * @param ck        Channel offset for per group filters
+         * @param kc        First filter to be processed
+         * @param tw        Width range of the output activations to be processed
+         * @param th        Height range of the output activations to be processed
+         * @param X         Width of the activations
+         * @param Y         Height of the activations
+         * @param Kc        Max number of channels per group
+         * @param K         Max number of activations channels
+         * @param W         Width of the output activations
+         * @param H         Height of the output activations
+         * @param R         Kernel width for the weights
+         * @param S         Kernel height for the weights
+         * @param stride    Stride for the layer
+         * @param padding   Padding for the layer
+         * @param act       Activations for the layer
+         * @param wgt       Weights for the layer
+         */
         void computeSCNNTile(int n, int ct, int ck, int kc, int tw, int th, int X, int Y, int Kc, int K, int W, int H,
                 int R, int S, int stride, int padding, const cnpy::Array<T> &act, const cnpy::Array<T> &wgt,
                 sys::Statistics::Stats &stats);
@@ -60,7 +89,7 @@ namespace core {
          * @param layer     Layer for which we want to calculate the outputs
          * @param stats     Statistics to fill
          */
-        void computeConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats);
+        void computeSCNNLayer(const Layer<T> &layer, sys::Statistics::Stats &stats);
 
         /* Compute the timing for a fully-connected layer
          * @param layer     Layer for which we want to calculate the outputs

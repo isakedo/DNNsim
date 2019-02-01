@@ -78,11 +78,23 @@ namespace cnpy {
          */
         void grid_zero_pad(int X, int Y);
 
+        /* zero pad the channel
+         * @param K   New K dimension for the channels
+         */
+        void channel_zero_pad(int K);
+
         /* Transform a 2D array into 4D to allow accessing it as 4D */
         void reshape_to_4D();
 
         /* Transform a 4D array into 2D */
         void reshape_to_2D();
+
+        /* Split a 4D array in the form N,old_K,1,1 into N,K,X,Y
+         * @param K   New K dimension for the channels
+         * @param X   New X dimension for the activations
+         * @param Y   New Y dimension for the activations
+         */
+        void split_4D(int K, int X, int Y);
 
         /* Reshape the input activations to a better shape for the first layer
          * @param stride    Stride of the layer, must be bigger than 1

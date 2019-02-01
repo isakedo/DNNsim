@@ -107,8 +107,8 @@ namespace core {
 
                 std::vector<std::vector<idxMap>> wgt_queue = std::vector<std::vector<idxMap>>((unsigned)stride,
                         std::vector<idxMap>((unsigned)stride,idxMap()));
-                std::vector<std::vector<uint16_t>> dense_wgt_counter = std::vector<std::vector<uint16_t>>(
-                        (unsigned)stride, std::vector<uint16_t>((unsigned)stride,0));
+                std::vector<std::vector<uint32_t>> dense_wgt_counter = std::vector<std::vector<uint32_t>>(
+                        (unsigned)stride, std::vector<uint32_t>((unsigned)stride,0));
                 for(int r = 0; r < R; r++) {
                     int sx = (r + padding) % stride;
                     for(int s = 0; s < S; s++) {
@@ -141,7 +141,7 @@ namespace core {
                         PE_wgt_size += stride_wgt_size;
 
                         PE_cycles += pe_stats.cycles;
-                        PE_dense_cycles += (uint16_t)(ceil(dense_act_counter[sx][sy]/(double)I) *
+                        PE_dense_cycles += (uint32_t)(ceil(dense_act_counter[sx][sy]/(double)I) *
                                 ceil(dense_wgt_counter[sx][sy]/(double)F));
                         PE_mults += pe_stats.mults;
                         PE_idle_conflicts += pe_stats.idle_conflicts;
@@ -183,12 +183,27 @@ namespace core {
     /* CYCLES */
 
     template <typename T>
-    void SCNN<T>::computeConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void SCNN<T>::computeSCNNLayer(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        const cnpy::Array<T> &wgt = layer.getWeights();
+        cnpy::Array<T> wgt = layer.getWeights();
+        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+
+        if(layer.getType() == "InnerProduct") {
+            if(act.getDimensions() == 4) act.reshape_to_2D();
+            act.reshape_to_4D();
+            auto C = act.getShape()[1];
+            C = (int)(ceil(C/(double)256))*256;
+            act.channel_zero_pad(C);
+            act.split_4D(C / 256, 16, 16);
+
+            auto Ck = wgt.getShape()[1];
+            Ck = (int)(ceil(Ck/(double)256))*256;
+            wgt.channel_zero_pad(Ck);
+            wgt.split_4D(Ck / 256, 16, 16);
+        }
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
@@ -305,13 +320,10 @@ namespace core {
                 "_I" + std::to_string(I) + "_F" + std::to_string(F) + "_acc_out" + std::to_string(out_acc_size);
 
         for(const Layer<T> &layer : network.getLayers()) {
-            if(layer.getType() == "Convolution") {
+            if(layer.getType() == "Convolution" || layer.getType() == "InnerProduct") {
                 stats.layers.push_back(layer.getName());
-                computeConvolution(layer, stats);
-            } /*else if(layer.getType() == "InnerProduct") {
-                stats.layers.push_back(layer.getName());
-                computeInnerProduct(layer, stats);
-            }*/
+                computeSCNNLayer(layer, stats);
+            }
         }
 
         // Set statistics to write
