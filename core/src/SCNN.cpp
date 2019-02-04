@@ -188,11 +188,10 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        if(act.getDimensions() == 2) act.reshape_to_4D();
         cnpy::Array<T> wgt = layer.getWeights();
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
-        if(layer.getType() == "InnerProduct") {
+        if(layer.getType() == "InnerProduct" || act.getDimensions() == 2) {
             if(act.getDimensions() == 4) act.reshape_to_2D();
             act.reshape_to_4D();
             auto C = act.getShape()[1];
