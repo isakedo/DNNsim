@@ -121,27 +121,29 @@ namespace core {
         int it_per_group = num_filters / groups;
 
         // Stats
-        auto index = stats.cycles.size();
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
 
-        int current_group = 0, group_m =0, start_group = 0;
-        std::vector<int> list_x, list_y;
-        int n, x_counter, y_counter;
+        int n;
 
         // Convolution
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n,current_group,group_m,start_group,x_counter,y_counter,list_x,list_y)
+        #pragma omp parallel for private(n)
         #endif
         for(n=0; n<batch_size; n++) {
+
+            std::vector<int> list_x, list_y;
+            int current_group = 0, group_m = 0, start_group = 0;
+            int x_counter = 0, y_counter = 0;
+
             current_group = 0, group_m = 0, start_group = 0, x_counter = 0, y_counter = 0;
             for(int m=0; m<num_filters; m+=N_ROWS) {
                 while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
                             for (int k = start_group; k < wgt_channels + start_group; k+=WEIGHT_LANES) {
-                                stats.cycles[index][n] += computeLaconicTile(n,list_x, list_y, i, j, k, m, stride, act,
+                                stats.cycles.back()[n] += computeLaconicTile(n,list_x, list_y, i, j, k, m, stride, act,
                                         wgt, start_group, act_channels, num_filters);
                             }
                         }
@@ -185,7 +187,6 @@ namespace core {
         if(this->FAST_MODE) batch_size = 1;
 
         // Stats
-        auto index = stats.cycles.size();
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         int n;
@@ -201,31 +202,30 @@ namespace core {
         for (n = 0; n<batch_size; n++) {
             for (int m = 0; m<num_filters; m+=N_ROWS) {
                 for (int k = 0; k<wgt_channels; k+=WEIGHT_LANES) {
-                    stats.cycles[index][n] += computeLaconicColumn(n,0,0,0,0,k,m,0,act,wgt,0,wgt_channels,num_filters);
+                    stats.cycles.back()[n] += computeLaconicColumn(n,0,0,0,0,k,m,0,act,wgt,0,wgt_channels,num_filters);
                 }
             }
         }
 
         #else
 
-        int column_index;
-        std::vector<int> column_end;
-
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n,column_index,column_end)
+        #pragma omp parallel for private(n)
         #endif
         for (n = 0; n<batch_size; n++) {
-            column_index = 0;
-            column_end = std::vector<int>(this->N_COLUMNS, 0);
+
+            int column_index = 0;
+            std::vector<int>column_end = std::vector<int>(this->N_COLUMNS, 0);
+
             for (int m = 0; m<num_filters; m+=N_ROWS) {
                 for (int k = 0; k<wgt_channels; k+=WEIGHT_LANES) {
-                    if(stats.cycles[index][n] < column_end[column_index])
-                        stats.cycles[index][n] = column_end[column_index];
+                    if(stats.cycles.back()[n] < column_end[column_index])
+                        stats.cycles.back()[n] = column_end[column_index];
                     auto column_cycles = computeLaconicColumn(n,0,0,0,0,k,m,0,act,wgt,0,wgt_channels,num_filters);
-                    column_end[column_index] = stats.cycles[index][n] + column_cycles;
-                    stats.cycles[index][n]++;
+                    column_end[column_index] = stats.cycles.back()[n] + column_cycles;
+                    stats.cycles.back()[n]++;
                     column_index++;
                     if(column_index >= N_COLUMNS) column_index = 0;
                 }
@@ -307,19 +307,20 @@ namespace core {
         std::vector<uint64_t> bit_multiplications (batch_size,0);
         std::vector<double> work_reduction (batch_size,0);
         std::vector<double> speedup (batch_size,0);
-        uint64_t bit_counter = 0;
 
-        int current_group = 0, group_m = 0, start_group = 0;
         int n;
 
         // Convolution
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n,current_group,group_m,start_group,bit_counter)
+        #pragma omp parallel for private(n)
         #endif
         for(n=0; n<batch_size; n++) {
-            current_group = 0; group_m =0; start_group = 0; bit_counter = 0;
+
+            int current_group = 0, group_m = 0, start_group = 0;
+            uint64_t bit_counter = 0;
+
             for(int m=0; m<num_filters; m++) {
                 for(int x=0; x<out_x; x++) {
                     for(int y=0; y<out_y; y++) {
@@ -380,17 +381,16 @@ namespace core {
         std::vector<uint64_t> bit_multiplications (batch_size,0);
         std::vector<double> work_reduction (batch_size,0);
         std::vector<double> speedup (batch_size,0);
-        uint64_t bit_counter = 0;
 
         int n;
 
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n,bit_counter)
+        #pragma omp parallel for private(n)
         #endif
         for (n = 0; n<batch_size; n++) {
-            bit_counter = 0;
+            uint64_t bit_counter = 0;
             for (int m = 0; m<num_filters; m++) {
                 for (int k = 0; k<wgt_channels; k++) {
                     bit_counter += computeLaconicPE(act.get(n, k), wgt.get(m, k));

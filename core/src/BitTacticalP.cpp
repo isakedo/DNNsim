@@ -149,11 +149,9 @@ namespace core {
         long out_y = (Ny - Ky)/stride + 1;
 
         // Stats
-        auto index = stats.cycles.size();
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
 
-        std::vector<int> list_x, list_y;
-        int n, x_counter, y_counter;
+        int n;
 
         schedule dense_schedule;
         if(proto_dense_schedule.empty())
@@ -165,13 +163,16 @@ namespace core {
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n,x_counter,y_counter,list_x,list_y)
+        #pragma omp parallel for private(n)
         #endif
         for(n=0; n<batch_size; n++) {
-            x_counter = 0, y_counter = 0;
+
+            std::vector<int> list_x, list_y;
+            int x_counter = 0, y_counter = 0;
+
             while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, this->N_COLUMNS)) {
                 for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                    stats.cycles[index][n] += computeTacticalPTile(n, list_x, list_y, stride, act, dense_schedule,
+                    stats.cycles.back()[n] += computeTacticalPTile(n, list_x, list_y, stride, act, dense_schedule,
                             schedule_time);
                 }
             }
@@ -206,7 +207,6 @@ namespace core {
         if(this->FAST_MODE) batch_size = 1;
 
         // Stats
-        auto index = stats.cycles.size();
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         int n;
@@ -227,28 +227,27 @@ namespace core {
         #endif
         for (n = 0; n<batch_size; n++) {
             for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                stats.cycles[index][n] += computeTacticalPColumn(n,0,0,0,act,dense_schedule,schedule_time);
+                stats.cycles.back()[n] += computeTacticalPColumn(n,0,0,0,act,dense_schedule,schedule_time);
             }
         }
 
         #else
 
-        int column_index;
-        std::vector<int> column_end;
-
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n,column_index,column_end)
+        #pragma omp parallel for private(n)
         #endif
         for (n = 0; n<batch_size; n++) {
-            column_index = 0;
-            column_end = std::vector<int>(this->N_COLUMNS, 0);
+
+            int column_index = 0;
+            std::vector<int> column_end = std::vector<int>(this->N_COLUMNS, 0);
+
             for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                if(stats.cycles[index][n] < column_end[column_index]) stats.cycles[index][n] = column_end[column_index];
+                if(stats.cycles.back()[n] < column_end[column_index]) stats.cycles.back()[n] = column_end[column_index];
                 auto column_cycles = computeTacticalPColumn(n,0,0,0,act,dense_schedule,schedule_time);
-                column_end[column_index] = stats.cycles[index][n] + column_cycles;
-                stats.cycles[index][n]++;
+                column_end[column_index] = stats.cycles.back()[n] + column_cycles;
+                stats.cycles.back()[n]++;
                 column_index++;
                 if(column_index >= this->N_COLUMNS) column_index = 0;
             }
@@ -363,9 +362,7 @@ namespace core {
         std::vector<uint64_t> bit_multiplications (batch_size,0);
         std::vector<double> work_reduction (batch_size,0);
         std::vector<double> speedup (batch_size,0);
-        uint64_t bit_counter = 0;
 
-        int current_group = 0, group_m =0, start_group = 0;
         int n;
 
         // Get layer precision
@@ -375,10 +372,13 @@ namespace core {
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n,current_group,group_m,start_group,bit_counter)
+        #pragma omp parallel for private(n)
         #endif
         for(n=0; n<batch_size; n++) {
-            current_group = 0; group_m =0; start_group = 0; bit_counter = 0;
+
+            int current_group = 0, group_m =0, start_group = 0;
+            uint64_t bit_counter = 0;
+
             for(int m=0; m<num_filters; m++) {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
@@ -433,7 +433,6 @@ namespace core {
         std::vector<uint64_t> bit_multiplications (batch_size,0);
         std::vector<double> work_reduction (batch_size,0);
         std::vector<double> speedup (batch_size,0);
-        uint64_t bit_counter = 0;
 
         int n;
 
@@ -443,10 +442,10 @@ namespace core {
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n,bit_counter)
+        #pragma omp parallel for private(n)
         #endif
         for (n = 0; n<batch_size; n++) {
-            bit_counter = 0;
+            uint64_t bit_counter = 0;
             for (int m = 0; m<num_filters; m++) {
                 for (int k = 0; k<wgt_channels; k++) {
                     bit_counter += computeTacticalPBitsPE(wgt.get(m, k), (uint8_t)act_layer_prec);

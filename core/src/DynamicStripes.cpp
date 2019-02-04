@@ -144,31 +144,32 @@ namespace core {
         auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS/groups);
 
         // Stats
-        auto index = stats.cycles.size();
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
 
-        std::vector<int> list_x, list_y;
-        int n, x_counter, y_counter;
+        int n;
 
         // Convolution
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n,x_counter,y_counter,list_x,list_y)
+        #pragma omp parallel for private(n)
         #endif
         for(n=0; n<batch_size; n++) {
-            x_counter = 0, y_counter = 0;
+
+            std::vector<int> list_x, list_y;
+            int x_counter = 0, y_counter = 0;
+
             while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter, y_counter, N_COLUMNS)) {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
                         for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
-                            stats.cycles[index][n] += computeDynamicStripesTile(n, list_x, list_y, i, j, k, stride, act,
+                            stats.cycles.back()[n] += computeDynamicStripesTile(n, list_x, list_y, i, j, k, stride, act,
                                     act_channels, rowMap);
                         }
                     }
                 }
             }
-            stats.cycles[index][n] *= num_filters_sets;
+            stats.cycles.back()[n] *= num_filters_sets;
         }
 
         auto base_cycles = (uint64_t)(out_x * out_y * act_channels * Kx * Ky * num_filters_sets / N_ROWS);
@@ -207,7 +208,6 @@ namespace core {
         auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS);
 
         // Stats
-        auto index = stats.cycles.size();
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         int n;
@@ -222,33 +222,32 @@ namespace core {
         #endif
         for (n = 0; n<batch_size; n++) {
             for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
-                stats.cycles[index][n] += computeDynamicStripesColumn(n,0,0,0,0,k,0,act,act_channels,rowMap);
+                stats.cycles.back()[n] += computeDynamicStripesColumn(n,0,0,0,0,k,0,act,act_channels,rowMap);
             }
-            stats.cycles[index][n] *= num_filters_sets;
+            stats.cycles.back()[n] *= num_filters_sets;
         }
 
         #else
 
-        int column_index;
-        std::vector<int> column_end;
-
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n,column_index,column_end)
+        #pragma omp parallel for private(n)
         #endif
         for (n = 0; n<batch_size; n++) {
-            column_index = 0;
-            column_end = std::vector<int>(this->N_COLUMNS, 0);
+
+            int column_index = 0;
+            std::vector<int> column_end = std::vector<int>(this->N_COLUMNS, 0);
+
             for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
-                if(stats.cycles[index][n] < column_end[column_index]) stats.cycles[index][n] = column_end[column_index];
+                if(stats.cycles.back()[n] < column_end[column_index]) stats.cycles.back()[n] = column_end[column_index];
                 auto column_cycles = computeDynamicStripesColumn(n,0,0,0,0,k,0,act,act_channels,rowMap);
-                column_end[column_index] = stats.cycles[index][n] + column_cycles;
-                stats.cycles[index][n]++;
+                column_end[column_index] = stats.cycles.back()[n] + column_cycles;
+                stats.cycles.back()[n]++;
                 column_index++;
                 if(column_index >= N_COLUMNS) column_index = 0;
             }
-            stats.cycles[index][n] *= num_filters_sets;
+            stats.cycles.back()[n] *= num_filters_sets;
         }
 
         #endif
