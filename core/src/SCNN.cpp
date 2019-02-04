@@ -382,19 +382,20 @@ namespace core {
         std::vector<uint64_t> bit_multiplications (batch_size,0);
         std::vector<double> work_reduction (batch_size,0);
         std::vector<double> speedup (batch_size,0);
-        uint64_t bit_counter = 0;
 
-        int current_group = 0, group_m = 0, start_group = 0;
         int n;
 
         // Convolution
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n,current_group,group_m,start_group,bit_counter)
+        #pragma omp parallel for private(n)
         #endif
         for(n=0; n<batch_size; n++) {
-            current_group = 0; group_m =0; start_group = 0; bit_counter = 0;
+
+            int current_group = 0, group_m =0, start_group = 0;
+            uint64_t bit_counter = 0;
+
             for(int m=0; m<num_filters; m++) {
                 for(int x=0; x<out_x; x++) {
                     for(int y=0; y<out_y; y++) {
@@ -453,17 +454,16 @@ namespace core {
         std::vector<uint64_t> bit_multiplications (batch_size,0);
         std::vector<double> work_reduction (batch_size,0);
         std::vector<double> speedup (batch_size,0);
-        uint64_t bit_counter = 0;
 
         int n;
 
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n,bit_counter)
+        #pragma omp parallel for private(n)
         #endif
         for (n = 0; n<batch_size; n++) {
-            bit_counter = 0;
+            uint64_t bit_counter = 0;
             for (int m = 0; m<num_filters; m++) {
                 for (int k = 0; k<wgt_channels; k++) {
                     bit_counter += computeSCNNBitsPE(act.get(n, k), wgt.get(m, k));

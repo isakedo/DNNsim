@@ -43,22 +43,20 @@ namespace core {
         std::vector<size_t> output_shape;
         long offset = out_x*out_y*num_filters;
         std::vector<T> output_activations ((unsigned)(batch_size*offset), 0);
-        int current_group = 0, group_m =0, start_group = 0;
-        T sum;
         int n;
 
         // Convolution
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n,current_group,group_m,start_group,sum)
+        #pragma omp parallel for private(n)
         #endif
         for(n=0; n<batch_size; n++) {
-            current_group = 0; group_m = 0; start_group = 0;
+            int current_group = 0, group_m = 0, start_group = 0;
             for(int m=0; m<num_filters; m++) {
                 for(int x=0; x<out_x; x++) {
                     for(int y=0; y<out_y; y++) {
-                        sum = bias.get((unsigned)m);
+                        T sum = bias.get((unsigned)m);
                         for (int i = 0; i < Kx; i++) {
                             for (int j = 0; j < Ky; j++) {
                                 for (int k = start_group; k < wgt_channels + start_group; k++) {
@@ -106,17 +104,16 @@ namespace core {
         std::vector<size_t> output_shape;
         std::vector<T> output_activations ((unsigned)(batch_size*num_filters), 0);
 
-        T sum;
         int n;
 
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n,sum)
+        #pragma omp parallel for private(n)
         #endif
         for (n = 0; n<batch_size; n++) {
             for (int m = 0; m<num_filters; m++) {
-                sum = bias.get((unsigned)m);
+                T sum = bias.get((unsigned)m);
                 for (int k = 0; k<wgt_channels; k++) {
                     sum += act.get(n, k) * wgt.get(m, k);
                 }
