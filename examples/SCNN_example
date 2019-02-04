@@ -1,0 +1,15 @@
+simulate {
+	network: "bvlc_googlenet"
+	inputType: "Caffe"
+	inputDataType: "Float32"
+	experiment {
+        architecture: "SCNN"
+        task: "Cycles"
+        Ht: 8
+        Wt: 8
+        Kt: 64
+        I: 4
+        F: 4
+        out_acc_size: 1024
+	}
+}

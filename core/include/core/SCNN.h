@@ -91,12 +91,6 @@ namespace core {
          */
         void computeSCNNLayer(const Layer<T> &layer, sys::Statistics::Stats &stats);
 
-        /* Compute the timing for a fully-connected layer
-         * @param layer     Layer for which we want to calculate the outputs
-         * @param stats     Statistics to fill
-         */
-        void computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats);
-
         /* Compute the potentials for a convolutional layer
          * @param layer     Layer for which we want to calculate potentials
          * @param stats     Statistics to fill

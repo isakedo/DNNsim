@@ -188,6 +188,7 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
+        if(act.getDimensions() == 2) act.reshape_to_4D();
         cnpy::Array<T> wgt = layer.getWeights();
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
@@ -231,6 +232,9 @@ namespace core {
         auto th = H_round/Ht;
         auto Kc = (int)floor(out_acc_size/(double)(th*tw));
 
+        // Fix for MobileNet
+        if(Ck == 1) Kc = 1;
+
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(N,0));
         stats.dense_cycles.emplace_back(std::vector<uint64_t>(N,0));
@@ -257,9 +261,23 @@ namespace core {
 
         int n;
 
+        #ifdef OPENMP
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
+        #pragma omp parallel for private(n)
+        #endif
         for(n = 0; n < N; n++) {
             for(int kc = 0; kc < K; kc+=Kc) {
-                for(int ct = 0; ct < C; ct+=Ck) {
+
+                // Fix for MobileNet
+                int channel_start = 0;
+                int channel_max = C;
+                if(Ck == 1) {
+                    channel_start = kc;
+                    channel_max = kc + 1;
+                }
+
+                for(int ct = channel_start; ct < channel_max; ct+=Ck) {
                     for(int ck = 0; ck < Ck; ck++) {
                         computeSCNNTile(n,ct,ck,kc,tw,th,X,Y,Kc,K,W,H,R,S,stride,padding,act,wgt,stats);
                     }
@@ -300,11 +318,6 @@ namespace core {
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
         stats.time.push_back(time_span);
-
-    }
-
-    template <typename T>
-    void SCNN<T>::computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
 
     }
 

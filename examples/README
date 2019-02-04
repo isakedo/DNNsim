@@ -30,6 +30,6 @@
 		[Kt: <pos_num>] //Default 64
 		[I: <pos_num>] //Default 4
 		[F: <pos_num>] //Default 4
-		[Kc: <pos_num>] //Default 4096
+		[out_acc_size: <pos_num>] //Default 1024
 	}>
 }>

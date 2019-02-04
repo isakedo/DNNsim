@@ -182,7 +182,7 @@ namespace sys {
                                               1024 : experiment_proto.out_acc_size();
 
                 } else throw std::runtime_error("Architecture for network " + simulate.network +
-                                                " in Float32 must be <Inference|SCNN>.");
+                                                " in Float32 must be <None|SCNN>.");
 
                 value = experiment_proto.task();
                 if(value  != "Cycles" && value != "Potentials" && value != "Inference")
