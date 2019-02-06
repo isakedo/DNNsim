@@ -22,6 +22,7 @@ namespace cnpy {
         /* Vector containing the data */
         std::vector<T> data1D;
         std::vector<std::vector<T>> data2D;
+        std::vector<std::vector<std::vector<T>>> data3D;
         std::vector<std::vector<std::vector<std::vector<T>>>> data4D;
 
     public:
@@ -136,6 +137,15 @@ namespace cnpy {
          * @return      return the value given by the index
          */
         T get(int i, int j, int k, int l) const;
+
+        /*  Return the value inside the vector given the fourth dimensions
+         * @param i     Index for the first dimension
+         * @param j     Index for the second dimension
+         * @param k     Index for the third dimension
+         *
+         * @return      return the value given by the index
+         */
+        T get(int i, int j, int k) const;
 
         /*  Return the value inside the vector given the two dimensions
          * @param i     Index for the first dimension

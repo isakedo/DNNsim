@@ -225,11 +225,11 @@ namespace interface {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[512];
                 snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,0\n",
-                         stats.layers[i].c_str(), j, stats.cycles[i][j], stats.dense_cycles[i][j], stats.mults[i][j],
-                         stats.idle_bricks[i][j], stats.idle_conflicts[i][j], stats.idle_pe[i][j], stats.idle_halo[i][j],
-                         stats.total_mult_cycles[i][j], stats.halo_transfers[i][j], stats.weight_buff_reads[i][j],
-                         stats.act_buff_reads[i][j], stats.accumulator_updates[i][j], stats.i_loop[i][j],
-                         stats.f_loop[i][j], stats.offchip_weight_reads[i][j]);
+                        stats.layers[i].c_str(), j, stats.cycles[i][j], stats.dense_cycles[i][j], stats.mults[i][j],
+                        stats.idle_bricks[i][j], stats.idle_conflicts[i][j], stats.idle_pe[i][j], stats.idle_halo[i][j],
+                        stats.total_mult_cycles[i][j], stats.halo_transfers[i][j], stats.weight_buff_reads[i][j],
+                        stats.act_buff_reads[i][j], stats.accumulator_updates[i][j], stats.i_loop[i][j],
+                        stats.f_loop[i][j], stats.offchip_weight_reads[i][j]);
                 o_file << line;
             }
         }

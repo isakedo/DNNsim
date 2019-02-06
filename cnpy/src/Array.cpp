@@ -16,6 +16,16 @@ namespace cnpy {
                     this->data2D[i][j] = flat_array[this->shape[1]*i + j];
             }
 
+        } else if (this->getDimensions() == 3) {
+            unsigned long coef1 = shape[1]*shape[2];
+            this->data3D = std::vector<std::vector<std::vector<T>>>(this->shape[0],
+                    std::vector<std::vector<T>>(this->shape[1],std::vector<T>(this->shape[2])));
+            for(int i = 0; i < this->shape[0]; i++) {
+                for(int j = 0; j < this->shape[1]; j++) {
+                    for(int k = 0; k < this->shape[2]; k++)
+                            this->data3D[i][j][k] = flat_array[coef1*i + shape[2]*j + k];
+                }
+            }
         } else if (this->getDimensions() == 4) {
             unsigned long coef1 = shape[1]*shape[2]*shape[3];
             unsigned long coef2 = shape[2]*shape[3];
@@ -42,6 +52,16 @@ namespace cnpy {
             for(int i = 0; i < this->shape[0]; i++) {
                 for(int j = 0; j < this->shape[1]; j++)
                     this->data2D[i][j] = _data[this->shape[1]*i + j];
+            }
+        } else if (this->getDimensions() == 3) {
+            unsigned long coef1 = shape[1]*shape[2];
+            this->data3D = std::vector<std::vector<std::vector<T>>>(this->shape[0],
+                    std::vector<std::vector<T>>(this->shape[1],std::vector<T>(this->shape[2])));
+            for(int i = 0; i < this->shape[0]; i++) {
+                for(int j = 0; j < this->shape[1]; j++) {
+                    for(int k = 0; k < this->shape[2]; k++)
+                        this->data3D[i][j][k] = _data[coef1*i + shape[2]*j + k];
+                }
             }
         } else if (this->getDimensions() == 4) {
             auto coef1 = shape[1]*shape[2]*shape[3];
@@ -80,6 +100,17 @@ namespace cnpy {
                     this->data2D[i][j] = sign_mag;
                 }
             }
+        } else if (this->getDimensions() == 3) {
+            for(int i = 0; i < this->shape[0]; i++) {
+                for(int j = 0; j < this->shape[1]; j++) {
+                    for(int k = 0; k < this->shape[2]; k++) {
+                        auto two_comp = (int)this->data3D[i][j][k];
+                        auto abs_value = (uint16_t)abs(two_comp);
+                        auto sign_mag = abs_value | (two_comp & mask);
+                        this->data3D[i][j][k] = sign_mag;
+                    }
+                }
+            }
         } else if (this->getDimensions() == 4) {
             for(int i = 0; i < this->shape[0]; i++) {
                 for(int j = 0; j < this->shape[1]; j++) {
@@ -110,6 +141,16 @@ namespace cnpy {
                     auto two_comp = (short)this->data2D[i][j];
                     auto powers_of_two = (uint16_t)abs(two_comp);
                     this->data2D[i][j] = powers_of_two;
+                }
+            }
+        } else if (this->getDimensions() == 3) {
+            for(int i = 0; i < this->shape[0]; i++) {
+                for(int j = 0; j < this->shape[1]; j++) {
+                    for(int k = 0; k < this->shape[2]; k++) {
+                        auto two_comp = (short)this->data3D[i][j][k];
+                        auto powers_of_two = (uint16_t)abs(two_comp);
+                        this->data3D[i][j][k] = powers_of_two;
+                    }
                 }
             }
         } else if (this->getDimensions() == 4) {
@@ -420,6 +461,15 @@ namespace cnpy {
     }
 
     template <typename T>
+    T Array<T>::get (int i, int j, int k) const {
+        #ifdef DEBUG
+        if(getDimensions() != 3)
+            throw std::runtime_error("Array dimensions error");
+        #endif
+        return this->data3D[i][j][k];
+    }
+
+    template <typename T>
     T Array<T>::get (int i, int j) const {
         #ifdef DEBUG
         if(getDimensions() != 2)
@@ -438,6 +488,12 @@ namespace cnpy {
             auto k = rem / this->shape[3];
             auto l = rem % this->shape[3];
             return this->data4D[i][j][k][l];
+        } else if(this->getDimensions() == 3) {
+            auto i = index / (this->shape[1]*this->shape[2]);
+            auto rem = index % (this->shape[1]*this->shape[2]);
+            auto j = rem / this->shape[2];
+            auto k = rem % this->shape[2];
+            return this->data3D[i][j][k];
         } else if (this->getDimensions() == 2) {
             auto i = index / this->shape[1];
             auto j = index % this->shape[1];
@@ -458,6 +514,7 @@ namespace cnpy {
     template <typename T> unsigned long long Array<T>::getMax_index() const {
         if (this->getDimensions() == 1) return this->shape[0];
         else if (this->getDimensions() == 2) return this->shape[0]*this->shape[1];
+        else if (this->getDimensions() == 3) return this->shape[0]*this->shape[1]*this->shape[2];
         else if (this->getDimensions() == 4) return this->shape[0]*this->shape[1]*this->shape[2]*this->shape[3];
         else throw std::runtime_error("Array dimensions error");
     }

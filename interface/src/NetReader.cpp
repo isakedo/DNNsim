@@ -42,10 +42,9 @@ namespace interface {
             Nn = layer_caffe.inner_product_param().num_output();
             Kx = 1; Ky = 1; stride = 1; padding = 0;
 
-        } else if (layer_caffe.type() == "Pooling") {
-            Kx = layer_caffe.pooling_param().kernel_size();
-            Ky = layer_caffe.pooling_param().kernel_size();
-            stride = layer_caffe.pooling_param().stride();
+        } else if (layer_caffe.type() == "LSTM") {
+            Nn = layer_caffe.recurrent_param().num_output();
+            Kx = 1; Ky = 1; stride = 1; padding = 0;
         }
 
         std::string name = layer_caffe.name();

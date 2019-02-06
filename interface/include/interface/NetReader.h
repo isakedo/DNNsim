@@ -20,10 +20,10 @@ namespace interface {
     private:
 
         /* Layers we want to load in the model */
-        const std::set<std::string> layers_allowed = {"Convolution","InnerProduct","ReLU"};
+        const std::set<std::string> layers_allowed = {"Convolution","InnerProduct","LSTM","ReLU"};
 
         /* Layers that we want weights, activations, and output activations */
-        const std::set<std::string> layers_data = {"Convolution","InnerProduct"};
+        const std::set<std::string> layers_data = {"Convolution","InnerProduct","LSTM"};
 
         /* Name of the network */
         std::string name;
