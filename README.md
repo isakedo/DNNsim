@@ -46,35 +46,35 @@ contain global variables. Check this file before launch any simulation.
 *   Full network in a Gzip Google protobuf format
 
 ### Compilation:
-Command line compilation. First we need to configure the project (It can be Debug or Release for optimizations):
+Command line compilation. First we need to configure the project:
     
-    cmake -H. -Bcmake-build-debug -DCMAKE_BUILD_TYPE=Debug
+    cmake -H. -Bcmake-build-release -DCMAKE_BUILD_TYPE=Release
 
 Then, we can proceed to build the project
 
-    cmake --build cmake-build-debug/ --target all
+    cmake --build cmake-build-release/ --target all
     
 ### Test
 
 Print help:
 
-    ./cmake-build-debug/bin/DNNsim -h
+    ./cmake-build-release/bin/DNNsim -h
 
 ##### Transform tool example 
 Transform example inside folder examples, bvlc_alexnet from float32 caffe to fixed16 protobuf, bvlc_alexnet from caffe
 to Gzip including bias and output activations, and bvlc_googlenet from float32 caffe to fixed16 protobuf:
 
-    ./cmake-build-debug/bin/DNNsim examples/transform_example
+    ./cmake-build-release/bin/DNNsim examples/transform_example
 
 ##### Simulator tool example
 Inference example inside folder examples, inference for Gzip bvlc_alexnet, and for Caffe bvlc_googlenet:
 
-    ./cmake-build-debug/bin/DNNsim examples/inference_example
+    ./cmake-build-release/bin/DNNsim examples/inference_example
 
-Architectures simulation example inside folder examples, BitPragmatic memory accesses for bvlc_alexnet, and Laconic
+Architectures simulation example inside folder examples, BitPragmatic cycles for bvlc_alexnet, and Laconic
 potentials for bvlc_googlenet:
 
-    ./cmake-build-debug/bin/DNNsim examples/simulator_example
+    ./cmake-build-release/bin/DNNsim examples/simulator_example
 
 ### Structure:
 *   **sys**: Folder for system libraries

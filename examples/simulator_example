@@ -35,10 +35,4 @@ simulate {
         n_columns: 16
         n_rows: 256
 	}
-	experiment {
-        architecture: "BitPragmatic"
-        task: "MemAccesses"
-        n_columns: 16
-        n_rows: 16
-    }
 }
