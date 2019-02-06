@@ -23,7 +23,7 @@ contain global variables. Check this file before launch any simulation.
 | BitTacticalE | **W + Ae**: Skips zero weights and exploits bit-level sparsity of activations | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, BITS_FIRST_STAGE | BOOTH_ENCODING, ZERO_COUNT, TWO_REGISTERS_PER_SIP, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
 | SCNN | **W + A**: Skips zero weights and zero activations | Wt, Ht, Kt, I, F, out_acc_size | ZERO_COUNT | X | X | Fixed16, Float32 |
 | SCNNp | **W + A + Ap**: Skips zero weights, zero activations, and exploits precision requirements of activations | Wt, Ht, Kt, I, F, out_acc_size | ZERO_COUNT | - | X | Fixed16 |
-| SCNNe | **W + A + Ae**: Skips zero weights, zero activations, and exploits bit-level sparsity of activations | Wt, Ht, Kt, I, F, out_acc_size | ZERO_COUNT | - | X | Fixed16 |
+| SCNNe | **W + A + Ae**: Skips zero weights, zero activations, and exploits bit-level sparsity of activations | Wt, Ht, Kt, I, F, out_acc_size | BOOTH_ENCODING, ZERO_COUNT | - | X | Fixed16 |
 
 *\*Default features can be removed in their specific header file*
 
