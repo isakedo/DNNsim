@@ -58,9 +58,9 @@ namespace core {
                         const auto &act_index = act[ii];
                         const auto &wgt_index = wgt[ff];
 
-                        auto n = std::get<0>(act_index);
-                        auto x = std::get<1>(act_index);
-                        auto y = std::get<2>(act_index);
+                        auto x = std::get<0>(act_index);
+                        auto y = std::get<1>(act_index);
+                        auto act_bits = std::get<2>(act_index);
 
                         auto k = std::get<0>(wgt_index);
                         auto r = std::get<1>(wgt_index);
