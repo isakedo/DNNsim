@@ -1,48 +1,19 @@
-#ifndef DNNSIM_SCNN_H
-#define DNNSIM_SCNN_H
+#ifndef DNNSIM_SCNNP_H
+#define DNNSIM_SCNNP_H
 
-#include "Simulator.h"
-
-#define ZERO_COUNT // Count zeroes as 1 cycle
-
-typedef std::vector<std::tuple<int,int,int>> wgt_idxMap;
+#include "SCNN.h"
 
 namespace core {
 
     template <typename T>
-    class SCNN : public Simulator<T> {
-
-    protected:
-
-        /* Number of PE columns */
-        const int Wt;
-
-        /* Number of PE rows */
-        const int Ht;
-
-        /* Number of max filters per PE */
-        const int Kt;
-
-        /* Column multipliers per PE */
-        const int I;
-
-        /* Row multipliers per PE */
-        const int F;
-
-        /* Output accumulator size */
-        const int out_acc_size;
-
-        /* Calculate in which bank the output activation is mapped
-         * @param k
-         * @param x
-         * @param y
-         * @return      Accumulator bank index
-         */
-        int map_accumulator(int k, int x, int y);
+    class SCNNp : public SCNN<T> {
 
     private:
 
-        typedef std::vector<std::tuple<int,int>> act_idxMap;
+        typedef std::vector<std::tuple<int,int,T>> act_idxMap;
+
+        /* Number of activations per group: Tile, SIP */
+        std::string PRECISION_GRANULARITY;
 
         struct PE_stats {
             uint32_t cycles = 0;
@@ -58,7 +29,7 @@ namespace core {
          * @param wgt       Weight
          * @return          Number of one bit multiplications
          */
-        uint16_t computeSCNNBitsPE(T act, T wgt);
+        uint16_t computeSCNNpBitsPE(T act, T wgt, uint16_t act_layer_prec);
 
         /* Compute SCNN processing engine
          * @param W         Width of the output activations
@@ -69,7 +40,7 @@ namespace core {
          * @param wgt       1D weights queue with linearized activations indexes to be processed
          * @return          Return stats for the given PE
          */
-        PE_stats computeSCNNPE(int W, int H, int stride, int padding, const act_idxMap &act, const wgt_idxMap &wgt);
+        PE_stats computeSCNNpPE(int W, int H, int stride, int padding, const act_idxMap &act, const wgt_idxMap &wgt);
 
         /* Compute SCNN tile
          * @param n         Number of batch
@@ -91,7 +62,7 @@ namespace core {
          * @param act       Activations for the layer
          * @param wgt       Weights for the layer
          */
-        void computeSCNNTile(int n, int ct, int ck, int kc, int tw, int th, int X, int Y, int Kc, int K, int W, int H,
+        void computeSCNNpTile(int n, int ct, int ck, int kc, int tw, int th, int X, int Y, int Kc, int K, int W, int H,
                 int R, int S, int stride, int padding, const cnpy::Array<T> &act, const cnpy::Array<T> &wgt,
                 sys::Statistics::Stats &stats);
 
@@ -99,19 +70,19 @@ namespace core {
          * @param layer     Layer for which we want to calculate the outputs
          * @param stats     Statistics to fill
          */
-        void computeSCNNLayer(const Layer<T> &layer, sys::Statistics::Stats &stats);
+        void computeSCNNpLayer(const Layer<T> &layer, sys::Statistics::Stats &stats);
 
         /* Compute the potentials for a convolutional layer
          * @param layer     Layer for which we want to calculate potentials
          * @param stats     Statistics to fill
          */
-        virtual void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
+        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) override;
 
         /* Compute the potentials for a inner product layer
          * @param layer     Layer for which we want to calculate potentials
          * @param stats     Statistics to fill
          */
-        virtual void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
+        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats) override;
 
     public:
 
@@ -125,18 +96,20 @@ namespace core {
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          */
-        SCNN(int _Wt, int _Ht, int _Kt, int _I, int _F, int _out_acc_size, uint8_t _N_THREADS, bool _FAST_MODE) :
-            Simulator<T>(_N_THREADS, _FAST_MODE), Wt(_Wt), Ht(_Ht), Kt(_Kt), I(_I), F(_F), out_acc_size(_out_acc_size){}
+        SCNNp(int _Wt, int _Ht, int _Kt, int _I, int _F, int _out_acc_size, const std::string &_PRECISION_GRANULARITY,
+                uint8_t _N_THREADS, bool _FAST_MODE) : SCNN<T>(_Wt,_Ht,_Kt,_I,_F,_out_acc_size,_N_THREADS,_FAST_MODE) {
+            PRECISION_GRANULARITY = _PRECISION_GRANULARITY;
+        }
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate
          */
-        virtual void run(const Network<T> &network);
+        void run(const Network<T> &network) override;
 
         /* Calculate potentials for the given network
          * @param network   Network we want to calculate work reduction
          */
-        virtual void potentials(const Network<T> &network);
+        void potentials(const Network<T> &network) override;
 
     };
 

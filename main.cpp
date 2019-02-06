@@ -31,9 +31,11 @@ THE SOFTWARE.
 #include <core/DynamicStripes.h>
 #include <core/BitPragmatic.h>
 #include <core/Laconic.h>
-#include <core/BitTacticalE.h>
 #include <core/BitTacticalP.h>
+#include <core/BitTacticalE.h>
 #include <core/SCNN.h>
+#include <core/SCNNp.h>
+#include <core/SCNNe.h>
 
 template <typename T>
 core::Network<T> read(const std::string &input_type, const std::string &network_name, bool activate_bias_and_out_act) {
@@ -253,6 +255,20 @@ int main(int argc, char *argv[]) {
                         } else if (experiment.architecture == "SCNN") {
                             core::SCNN<uint16_t> DNNsim(experiment.Wt, experiment.Ht, experiment.Kt, experiment.I,
                                     experiment.F, experiment.out_acc_size, N_THREADS, FAST_MODE);
+                            if (experiment.task == "Cycles") DNNsim.run(network);
+                            else if (experiment.task == "Potentials") DNNsim.potentials(network);
+
+                        } else if (experiment.architecture == "SCNNp") {
+                            core::SCNNp<uint16_t> DNNsim(experiment.Wt, experiment.Ht, experiment.Kt, experiment.I,
+                                    experiment.F, experiment.out_acc_size, experiment.precision_granularity, N_THREADS,
+                                    FAST_MODE);
+                            if (experiment.task == "Cycles") DNNsim.run(network);
+                            else if (experiment.task == "Potentials") DNNsim.potentials(network);
+
+                        } else if (experiment.architecture == "SCNNe") {
+                            core::SCNNe<uint16_t> DNNsim(experiment.Wt, experiment.Ht, experiment.Kt, experiment.I,
+                                    experiment.F, experiment.out_acc_size, experiment.bits_first_stage, N_THREADS,
+                                    FAST_MODE);
                             if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                         }

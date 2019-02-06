@@ -14,7 +14,7 @@
 	inputDataType: <Float32|Fixed16>
 	[activate_bias_and_out_act: true]
 	<experiment {
-		architecture: <None|BitPragmatic|Stripes|Laconic|BitTacticalE|BitTacticalP|SCNN>
+		architecture: <None|BitPragmatic|Stripes|Laconic|BitTacticalP|BitTacticalE|SCNN|SCNNp|SCNNe>
 		task: <Inference|Cycles|Potentials|Schedule> //Schedule only for BitTactical, Inference only for None
 		[n_columns: <pos_num>] //Default 16
 		[n_rows: <pos_num>] //Default 16 (LAC 8)
@@ -24,7 +24,7 @@
 		[lookaside_h: <pos_num>] //Only for BitTactical: Default 2
 		[search_shape: <L|T>] //Only for BitTactical: Default L
 		[read_schedule_from_proto: true] //Only for BitTactical: Default false
-		//SCNN
+		//SCNN-like architectures
 		[Ht: <pos_num>] //Default 8
 		[Wt: <pos_num>] //Default 8
 		[Kt: <pos_num>] //Default 64

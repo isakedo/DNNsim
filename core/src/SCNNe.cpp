@@ -1,17 +1,12 @@
 
-#include <core/SCNN.h>
+#include <core/SCNNe.h>
 
 namespace core {
 
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    int SCNN<T>::map_accumulator(int k, int x, int y) {
-        return ((((k & 4) << 2) ^ ((x & 2) << 3) ^ ((y & 2) << 3)) + ((x & 1) << 3) + ((y & 1) << 2) + (k & 3));
-    }
-
-    template <typename T>
-    uint16_t SCNN<T>::computeSCNNBitsPE(T act, T wgt) {
+    uint16_t SCNNe<T>::computeSCNNeBitsPE(T act, T wgt) {
 
         #ifdef ZERO_COUNT
         if(wgt == 0) return 1;
@@ -20,11 +15,29 @@ namespace core {
         if(wgt == 0) return 0;
         else if(act == 0) return 0;
         #endif
-        else return 256;
+
+        uint16_t act_bits = act;
+
+        #ifdef BOOTH_ENCODING
+        act_bits = this->booth_encoding(act_bits);
+        #endif
+
+        uint8_t act_effectual_bits = 0;
+        while (act_bits) {
+            act_effectual_bits += act_bits & 1;
+            act_bits >>= 1;
+        }
+
+        uint8_t bit_multiplications = act_effectual_bits * (uint8_t)16;
+        #ifdef ZERO_COUNT
+        if(bit_multiplications == 0) bit_multiplications = 1;
+        #endif
+
+        return bit_multiplications;
     }
 
     template <typename T>
-    typename SCNN<T>::PE_stats SCNN<T>::computeSCNNPE(int W, int H, int stride, int padding, const act_idxMap &act,
+    typename SCNNe<T>::PE_stats SCNNe<T>::computeSCNNePE(int W, int H, int stride, int padding, const act_idxMap &act,
             const wgt_idxMap &wgt) {
 
         PE_stats pe_stats;
@@ -35,18 +48,19 @@ namespace core {
         pe_stats.i_loop = 0;
         pe_stats.f_loop = 0;
 
-        for(int i = 0; i < act.size(); i+=I) {
+        for(int i = 0; i < act.size(); i+=this->I) {
             pe_stats.i_loop += 1;
-            for(int f = 0; f < wgt.size(); f+=F) {
+            for(int f = 0; f < wgt.size(); f+=this->F) {
                 pe_stats.f_loop += 1;
-                std::vector<uint8_t> acc(2 * F * I, 0);
-                for(int ii = i; ii < std::min(i + I, (int)act.size()); ii++) {
-                    for(int ff = f; ff < std::min(f + F, (int)wgt.size()); ff++) {
+                std::vector<uint8_t> acc(2 * this->F * this->I, 0);
+                for(int ii = i; ii < std::min(i + this->I, (int)act.size()); ii++) {
+                    for(int ff = f; ff < std::min(f + this->F, (int)wgt.size()); ff++) {
                         const auto &act_index = act[ii];
                         const auto &wgt_index = wgt[ff];
 
-                        auto x = std::get<0>(act_index);
-                        auto y = std::get<1>(act_index);
+                        auto n = std::get<0>(act_index);
+                        auto x = std::get<1>(act_index);
+                        auto y = std::get<2>(act_index);
 
                         auto k = std::get<0>(wgt_index);
                         auto r = std::get<1>(wgt_index);
@@ -56,7 +70,7 @@ namespace core {
                         int h = (y - s + padding) / stride;
 
                         if(w >= 0 && w < W && h >= 0 && h < H) {
-                            int acc_idx = map_accumulator(k, w, h);
+                            int acc_idx = this->map_accumulator(k, w, h);
                             acc[acc_idx] += 1;
 
                             pe_stats.mults += 1;
@@ -66,7 +80,7 @@ namespace core {
                 auto max_acc = *std::max_element(acc.begin(), acc.end());
                 auto warp_time = std::max(max_acc, (uint8_t) 1);
                 pe_stats.cycles += warp_time;
-                pe_stats.idle_conflicts += (warp_time - 1) * I * F;
+                pe_stats.idle_conflicts += (warp_time - 1) * this->I * this->F;
                 pe_stats.accumulator_updates += accumulate(acc.begin(), acc.end(), 0.0);
             }
         }
@@ -75,7 +89,7 @@ namespace core {
     }
 
     template <typename T>
-    void SCNN<T>::computeSCNNTile(int n, int ct, int ck, int kc, int tw, int th, int X, int Y, int Kc, int K, int W,
+    void SCNNe<T>::computeSCNNeTile(int n, int ct, int ck, int kc, int tw, int th, int X, int Y, int Kc, int K, int W,
             int H, int R, int S, int stride, int padding, const cnpy::Array<T> &act, const cnpy::Array<T> &wgt,
             sys::Statistics::Stats &stats) {
 
@@ -84,8 +98,8 @@ namespace core {
         std::vector<uint32_t> tile_i_loop;
         uint32_t wgt_size = 0;
 
-        for(int pex = 0; pex < Wt; pex++) {
-            for(int pey = 0; pey < Ht; pey++) {
+        for(int pex = 0; pex < this->Wt; pex++) {
+            for(int pey = 0; pey < this->Ht; pey++) {
                 int x_begin = pex * tw, y_begin = pey * th, k_begin = kc;
                 int x_end = std::min(x_begin + tw, X), y_end = std::min(y_begin + th, Y), k_end = std::min(kc + Kc, K);
 
@@ -99,7 +113,7 @@ namespace core {
                         int sy = y % stride;
                         auto act_bits = act.get(n,ct+ck,x,y);
                         if(act_bits != 0)
-                            act_queue[sx][sy].emplace_back(std::make_tuple(x,y));
+                            act_queue[sx][sy].emplace_back(std::make_tuple(x,y,act_bits));
                         dense_act_counter[sx][sy] += 1;
                     }
                 }
@@ -133,15 +147,15 @@ namespace core {
                 for(int sx = 0; sx < stride; sx++) {
                     for(int sy = 0; sy < stride; sy++) {
 
-                        const PE_stats &pe_stats = computeSCNNPE(W,H,stride,padding,act_queue[sx][sy],
+                        const PE_stats &pe_stats = computeSCNNePE(W,H,stride,padding,act_queue[sx][sy],
                                 wgt_queue[sx][sy]);
 
-                        auto stride_wgt_size = (uint32_t)(ceil(wgt_queue[sx][sy].size()/(double)F))*F;
+                        auto stride_wgt_size = (uint32_t)(ceil(wgt_queue[sx][sy].size()/(double)this->F))*this->F;
                         PE_wgt_size += stride_wgt_size;
 
                         PE_cycles += pe_stats.cycles;
-                        PE_dense_cycles += (uint32_t)(ceil(dense_act_counter[sx][sy]/(double)I) *
-                                ceil(dense_wgt_counter[sx][sy]/(double)F));
+                        PE_dense_cycles += (uint32_t)(ceil(dense_act_counter[sx][sy]/(double)this->I) *
+                                ceil(dense_wgt_counter[sx][sy]/(double)this->F));
                         PE_mults += pe_stats.mults;
                         PE_idle_conflicts += pe_stats.idle_conflicts;
                         PE_accumulator_updates += pe_stats.accumulator_updates;
@@ -149,7 +163,8 @@ namespace core {
                         PE_f_loop += pe_stats.f_loop;
 
                         stats.weight_buff_reads.back()[n] += stride_wgt_size;
-                        stats.act_buff_reads.back()[n] += (uint64_t)(ceil(act_queue[sx][sy].size()/(double)I))*I;
+                        stats.act_buff_reads.back()[n] += (uint64_t)(ceil(act_queue[sx][sy].size() /
+                                (double)this->I)) *this->I;
                     }
                 }
                 wgt_size = PE_wgt_size;
@@ -157,7 +172,7 @@ namespace core {
                 tile_dense_cycles.push_back(PE_dense_cycles);
                 tile_i_loop.push_back(PE_i_loop);
 
-                stats.idle_bricks.back()[n] += PE_f_loop * I * F - PE_mults;
+                stats.idle_bricks.back()[n] += PE_f_loop * this->I * this->F - PE_mults;
                 stats.mults.back()[n] += PE_mults;
                 stats.idle_conflicts.back()[n] += PE_idle_conflicts;
                 stats.accumulator_updates.back()[n] += PE_accumulator_updates;
@@ -174,7 +189,7 @@ namespace core {
 
         stats.cycles.back()[n] += tile_max_cycles;
         stats.dense_cycles.back()[n] += *std::max_element(tile_dense_cycles.begin(), tile_dense_cycles.end());
-        stats.idle_pe.back()[n] += tile_idle_pe * I * F;
+        stats.idle_pe.back()[n] += tile_idle_pe * this->I * this->F;
         stats.offchip_weight_reads.back()[n] += tile_max_i_loop * wgt_size;
 
     }
@@ -182,7 +197,7 @@ namespace core {
     /* CYCLES */
 
     template <typename T>
-    void SCNN<T>::computeSCNNLayer(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void SCNNe<T>::computeSCNNeLayer(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
@@ -224,11 +239,11 @@ namespace core {
         int W = (X - R + 2*padding)/stride + 1;
         int H = (Y - S + 2*padding)/stride + 1;
 
-        auto W_round = (int)(ceil(W/(double)Wt))*Wt;
-        auto H_round = (int)(ceil(H/(double)Ht))*Ht;
-        auto tw = W_round/Wt;
-        auto th = H_round/Ht;
-        auto Kc = (int)floor(out_acc_size/(double)(th*tw));
+        auto W_round = (int)(ceil(W/(double)this->Wt))*this->Wt;
+        auto H_round = (int)(ceil(H/(double)this->Ht))*this->Ht;
+        auto tw = W_round/this->Wt;
+        auto th = H_round/this->Ht;
+        auto Kc = (int)floor(this->out_acc_size/(double)(th*tw));
 
         // Fix for MobileNet
         if(Ck == 1) Kc = 1;
@@ -250,10 +265,10 @@ namespace core {
         stats.f_loop.emplace_back(std::vector<uint64_t>(N,0));
         stats.offchip_weight_reads.emplace_back(std::vector<uint64_t>(N,0));
 
-        X = (int)(ceil(X/(double)Wt))*Wt;
-        Y = (int)(ceil(Y/(double)Ht))*Ht;
-        tw = X/Wt;
-        th = Y/Wt;
+        X = (int)(ceil(X/(double)this->Wt))*this->Wt;
+        Y = (int)(ceil(Y/(double)this->Ht))*this->Ht;
+        tw = X/this->Wt;
+        th = Y/this->Wt;
 
         act.grid_zero_pad(X ,Y);
 
@@ -277,7 +292,7 @@ namespace core {
 
                 for(int ct = channel_start; ct < channel_max; ct+=Ck) {
                     for(int ck = 0; ck < Ck; ck++) {
-                        computeSCNNTile(n,ct,ck,kc,tw,th,X,Y,Kc,K,W,H,R,S,stride,padding,act,wgt,stats);
+                        computeSCNNeTile(n,ct,ck,kc,tw,th,X,Y,Kc,K,W,H,R,S,stride,padding,act,wgt,stats);
                     }
                 }
 
@@ -305,7 +320,7 @@ namespace core {
 
                 stats.cycles.back()[n] += max_psums;
                 stats.dense_cycles.back()[n] += max_psums;
-                stats.idle_halo.back()[n] += max_psums * Ht * Wt * I * F;
+                stats.idle_halo.back()[n] += max_psums * this->Ht * this->Wt * this->I * this->F;
                 stats.halo_transfers.back()[n] += halo_transfers;
             }
             stats.total_mult_cycles.back()[n] = stats.mults.back()[n] + stats.idle_bricks.back()[n] +
@@ -320,20 +335,21 @@ namespace core {
     }
 
     template <typename T>
-    void SCNN<T>::run(const Network<T> &network) {
+    void SCNNe<T>::run(const Network<T> &network) {
         // Initialize statistics
         sys::Statistics::Stats stats;
         sys::Statistics::initialize(stats);
 
         stats.task_name = "cycles";
         stats.net_name = network.getName();
-        stats.arch = "SCNN_Wt" + std::to_string(Wt) + "_Ht" + std::to_string(Ht) + "_Kt" + std::to_string(Kt) +
-                "_I" + std::to_string(I) + "_F" + std::to_string(F) + "_acc_out" + std::to_string(out_acc_size);
+        stats.arch = "SCNNe_Wt" + std::to_string(this->Wt) + "_Ht" + std::to_string(this->Ht) + "_Kt" +
+                std::to_string(this->Kt) + "_I" + std::to_string(this->I) + "_F" + std::to_string(this->F) +
+                "_acc_out" + std::to_string(this->out_acc_size);
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution" || layer.getType() == "InnerProduct") {
                 stats.layers.push_back(layer.getName());
-                computeSCNNLayer(layer, stats);
+                computeSCNNeLayer(layer, stats);
             }
         }
 
@@ -344,7 +360,7 @@ namespace core {
     /* POTENTIALS */
 
     template <typename T>
-    void SCNN<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void SCNNe<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
@@ -392,7 +408,7 @@ namespace core {
         #endif
         for(n=0; n<batch_size; n++) {
 
-            int current_group = 0, group_m = 0, start_group = 0;
+            int current_group = 0, group_m =0, start_group = 0;
             uint64_t bit_counter = 0;
 
             for(int m=0; m<num_filters; m++) {
@@ -401,7 +417,7 @@ namespace core {
                         for (int i = 0; i < Kx; i++) {
                             for (int j = 0; j < Ky; j++) {
                                 for (int k = start_group; k < wgt_channels + start_group; k++) {
-                                    bit_counter += computeSCNNBitsPE(act.get(n, k, stride * x + i,stride * y + j)
+                                    bit_counter += computeSCNNeBitsPE(act.get(n, k, stride * x + i,stride * y + j)
                                             , wgt.get(m, k - start_group, i, j));
                                 }
                             }
@@ -432,7 +448,7 @@ namespace core {
     }
 
     template <typename T>
-    void SCNN<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void SCNNe<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
@@ -465,7 +481,7 @@ namespace core {
             uint64_t bit_counter = 0;
             for (int m = 0; m<num_filters; m++) {
                 for (int k = 0; k<wgt_channels; k++) {
-                    bit_counter += computeSCNNBitsPE(act.get(n, k), wgt.get(m, k));
+                    bit_counter += computeSCNNeBitsPE(act.get(n, k), wgt.get(m, k));
                 }
             }
             work_reduction[n] = 100 - ((double) bit_counter / (double) parallel_mult / 256. * 100);
@@ -486,14 +502,14 @@ namespace core {
 
 
     template <typename T>
-    void SCNN<T>::potentials(const Network<T> &network) {
+    void SCNNe<T>::potentials(const Network<T> &network) {
         // Initialize statistics
         sys::Statistics::Stats stats;
         sys::Statistics::initialize(stats);
 
         stats.task_name = "potentials";
         stats.net_name = network.getName();
-        stats.arch = "SCNN";
+        stats.arch = "SCNNe";
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
@@ -513,6 +529,6 @@ namespace core {
         sys::Statistics::addStats(stats);
     }
 
-    INITIALISE_DATA_TYPES(SCNN);
+    template class SCNNe<uint16_t>;
 
 }

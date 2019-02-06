@@ -120,7 +120,7 @@ namespace sys {
                                                  " must be lookahead of 2, and lookaside of 5.");
                     value = experiment.precision_granularity;
                     if(value != "Tile" && value != "SIP")
-                        throw std::runtime_error("Dynamic-Stripes per precision granularity specification for network "
+                        throw std::runtime_error("BitTacticalP per precision granularity specification for network "
                                                  + simulate.network + " must be <Tile|SIP>.");
 
                 } else if (experiment_proto.architecture() == "BitTacticalE") {
@@ -149,9 +149,34 @@ namespace sys {
                     experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
                             1024 : experiment_proto.out_acc_size();
 
+                } else if (experiment_proto.architecture() == "SCNNp") {
+                    experiment.Wt = experiment_proto.wt() < 1 ? 8 : experiment_proto.wt();
+                    experiment.Ht = experiment_proto.ht() < 1 ? 8 : experiment_proto.ht();
+                    experiment.Kt = experiment_proto.kt() < 1 ? 64 : experiment_proto.kt();
+                    experiment.I = experiment_proto.i() < 1 ? 4 : experiment_proto.i();
+                    experiment.F = experiment_proto.f() < 1 ? 4 : experiment_proto.f();
+                    experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
+                            1024 : experiment_proto.out_acc_size();
+                    experiment.precision_granularity = experiment_proto.precision_granularity().empty() ? "Tile" :
+                            experiment_proto.precision_granularity();
+                    value = experiment.precision_granularity;
+                    if(value != "Tile" && value != "SIP")
+                        throw std::runtime_error("SCNNp per precision granularity specification for network "
+                                                 + simulate.network + " must be <Tile|SIP>.");
+
+                } else if (experiment_proto.architecture() == "SCNNe") {
+                    experiment.Wt = experiment_proto.wt() < 1 ? 8 : experiment_proto.wt();
+                    experiment.Ht = experiment_proto.ht() < 1 ? 8 : experiment_proto.ht();
+                    experiment.Kt = experiment_proto.kt() < 1 ? 64 : experiment_proto.kt();
+                    experiment.I = experiment_proto.i() < 1 ? 4 : experiment_proto.i();
+                    experiment.F = experiment_proto.f() < 1 ? 4 : experiment_proto.f();
+                    experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
+                            1024 : experiment_proto.out_acc_size();
+                    experiment.bits_first_stage = experiment_proto.bits_first_stage();
+
                 } else throw std::runtime_error("Architecture for network " + simulate.network +
                                                 " in Fixed16 must be <BitPragmatic|Stripes|Laconic|BitTacticalP|"
-                                                "BitTacticalE|SCNN>.");
+                                                "BitTacticalE|SCNN|SCNNp|SCNNe>.");
 
                 value = experiment_proto.task();
                 if(value  != "Cycles" && value != "Potentials" && value != "Schedule")
