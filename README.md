@@ -120,23 +120,36 @@ parallelized per batch using OpenMP library
 
 ### Allowed simulations
 
+| Architecture | Description | 
+|:---:|:---:|
+| Inference | Forward propagation |
+| Stripes | **Ap**: Exploits precision requirements of activations | 
+| DynamicStripes | **Ap**: Exploits dynamic precision requirements of a group of activations | 
+| BitPragmatic | **Ae**: Exploits bit-level sparsity of activations |
+| Laconic | **We + Ae**: Exploits bit-level sparsity of both weights and activations |
+| BitTacticalP | **W + Ap**: Skips zero weights and exploits precision requirements of activations | 
+| BitTacticalE | **W + Ae**: Skips zero weights and exploits bit-level sparsity of activations | 
+| SCNN | **W + A**: Skips zero weights and zero activations |
+| SCNNp | **W + A + Ap**: Skips zero weights, zero activations, and exploits precision requirements of activations |
+| SCNNe | **W + A + Ae**: Skips zero weights, zero activations, and exploits bit-level sparsity of activations |
+
 Input parameters are the parameters that can be changed for each architecture in the prototxt batch file (Default values
 can be found inside **examples/README**)  
 Default parameters are defined in the header of each architecture, they can be changed in the specific file  
 Data type indicates the possible data types allowed: Float32 for 4bytes floating point, and Fixed16 for 2bytes integer
 
-| Architecture | Description | Input Parameters | Default Parameters\* | Cycles | Potentials | Data type |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Inference | Forward propagation | - | - | - | - | Float32 |
-| Stripes | **Ap**: Exploits precision requirements of activations | N_COLUMNS, N_ROWS | NM_WIDTH 256, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
-| DynamicStripes | **Ap**: Exploits dynamic precision requirements of a group of activations | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY | NM_WIDTH 256, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
-| BitPragmatic | **Ae**: Exploits bit-level sparsity of activations | N_COLUMNS, N_ROWS, BITS_FIRST_STAGE| BOOTH_ENCODING, ZERO_COUNT, TWO_REGISTERS_PER_SIP, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16| X | X | Fixed16 |
-| Laconic | **We + Ae**: Exploits bit-level sparsity of both weights and activations | N_COLUMNS, N_ROWS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
-| BitTacticalP | **W + Ap**: Skips zero weights and exploits precision requirements of activations | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, PRECISION_GRANULARITY | ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
-| BitTacticalE | **W + Ae**: Skips zero weights and exploits bit-level sparsity of activations | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, BITS_FIRST_STAGE | BOOTH_ENCODING, ZERO_COUNT, TWO_REGISTERS_PER_SIP, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
-| SCNN | **W + A**: Skips zero weights and zero activations | Wt, Ht, Kt, I, F, out_acc_size | ZERO_COUNT | X | X | Fixed16, Float32 |
-| SCNNp | **W + A + Ap**: Skips zero weights, zero activations, and exploits precision requirements of activations | Wt, Ht, Kt, I, F, out_acc_size, PRECISION_GRANULARITY | ZERO_COUNT | - | X | Fixed16 |
-| SCNNe | **W + A + Ae**: Skips zero weights, zero activations, and exploits bit-level sparsity of activations | Wt, Ht, Kt, I, F, out_acc_size, BITS_FIRST_STAGE | BOOTH_ENCODING, ZERO_COUNT | - | X | Fixed16 |
+| Architecture | Input Parameters | Default Parameters\* | Cycles | Potentials | Data type |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| Inference | - | - | - | - | Float32 |
+| Stripes | N_COLUMNS, N_ROWS | NM_WIDTH 256, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
+| DynamicStripes | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY | NM_WIDTH 256, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
+| BitPragmatic | N_COLUMNS, N_ROWS, BITS_FIRST_STAGE| BOOTH_ENCODING, ZERO_COUNT, TWO_REGISTERS_PER_SIP, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16| X | X | Fixed16 |
+| Laconic | N_COLUMNS, N_ROWS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
+| BitTacticalP | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, PRECISION_GRANULARITY | ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
+| BitTacticalE | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, BITS_FIRST_STAGE | BOOTH_ENCODING, ZERO_COUNT, TWO_REGISTERS_PER_SIP, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
+| SCNN | Wt, Ht, Kt, I, F, out_acc_size | ZERO_COUNT | X | X | Fixed16, Float32 |
+| SCNNp | Wt, Ht, Kt, I, F, out_acc_size, PRECISION_GRANULARITY | ZERO_COUNT | - | X | Fixed16 |
+| SCNNe | Wt, Ht, Kt, I, F, out_acc_size, BITS_FIRST_STAGE | BOOTH_ENCODING, ZERO_COUNT | - | X | Fixed16 |
 
 *\*Default features can be removed in their specific header file*
 
