@@ -157,7 +157,7 @@ namespace interface {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
         check_path("net_traces/" + this->name);
-        std::string path = "net_traces/" + this->name + '/' + outputName();
+        std::string path = "net_traces/" + this->name + '/' + outputName() + ".gz";
 
         try {
             // If Gzip is found, do not overwrite

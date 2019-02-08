@@ -192,7 +192,7 @@ namespace interface {
 
         // Read the existing network.
         check_path("net_traces/" + this->name);
-        std::string path = "net_traces/" + this->name + '/' + inputName();
+        std::string path = "net_traces/" + this->name + '/' + inputName() + ".gz";
         check_path(path);
         std::fstream input(path, std::ios::in | std::ios::binary);
 

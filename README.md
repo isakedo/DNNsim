@@ -1,16 +1,129 @@
-# DNNsim 1.1.0
+# DNNsim 1.2.0
 
-Gitignore is set up for CLion IDE, if you want to use a different IDE add their project file extensions to .gitignore. 
-It recommend to used it from the command line. The folder "models" must contain a folder for each network. 
-Inside each folder the file "train_val.protoxt" is mandatory, while "precision.txt". This file must have 5 lines
-corresponding to the final precisions and the header. It is optional (If not set the precision is generic)
-The weights and activations for each network in their corresponding network folder inside the folder "net_traces".  
+### Requeriments
+*   Cmake posterior to version 3.10
+*   GNU C++ compiler posterior to version 5.1
+*   Google Protobuf for C++. Installation link:
+    *   https://github.com/protocolbuffers/protobuf/blob/master/src/README.md
 
-The tool works with batch files that can be found in the folder "examples". All the options and parameters are described
-in the README file in that folder using BNF like notation. The file "common.h" under the folder "sys/include/sys" 
-contain global variables. Check this file before launch any simulation.
+### Allowed input files
+
+*   The architecture of the net in a train_val.prototxt file (without weights and activations)
+*   Weights, Vias, Inputs and outputs activations in a *.npy file using the following format
+*   Full network in a Google protobuf format file
+*   Full network in a Gzip Google protobuf format
+*   Tactical schedule in a protobuf format
+
+### Allowed output files
+
+*   Full network in a Google protobuf format file
+*   Full network in a Gzip Google protobuf format
+*   Tactical schedule in a protobuf format
+
+### Installation in the aenao cluster
+Must use 10.0.0.136 machine (It has protobuf and a newer version of gcc installed). First allow access to the web:
+
+    ssh -D 12345 <username>@10.0.0.254 -Nf
+    
+Then, clone the repository using proxychains:
+
+    proxychains4 git clone https://github.com/Isakon12/DNNsim
+    
+Finally, allow access to gcc-7 in CentOS (not necessary to execute):
+
+    scl enable devtoolset-7 bash
+
+### Compilation:
+Command line compilation. First we need to configure the project:
+    
+    cmake3 -H. -Bcmake-build-release -DCMAKE_BUILD_TYPE=Release
+
+Then, we can proceed to build the project
+
+    cmake3 --build cmake-build-release/ --target all
+
+### Set up directories
+
+Create folder **models** including a folder for each network. Every network must include:
+   *  train_val.prototxt
+   *  precision.txt (Optional, contain 5 lines as the example)
+        *   If this file does not exist the precisions are 14:2 for activations and 1:15 for weights
+   
+   ```
+   bvlc_alexnet 0.99 : 0.557799997926: (mags,precs,mag_w,prec_w)
+   9;9;8;9;9;8;6;4;
+   -1;-2;-3;-3;-3;-3;-1;0;
+   2;1;1;1;1;-3;-4;-1;
+   7;8;7;8;8;9;8;8;
+   ```
+    
+Create folder **net_traces** including a folder for each network. Every network must include:
+   * wgt-$NAME.npy
+   * bias-$NAME.npy (Optional, only for inference)
+   * act-$NAME-0.npy
+   * act-$NAME-0-out.npy (Optional, only for inference)
+   
+Create folder **results** including a folder for each network. The corresponding results will appear in this subfolders.
+    
+### Test
+
+Print help:
+
+    ./cmake-build-release/bin/DNNsim -h
+    
+The simulator instructions are defined in prototxt files. Examples can be found in folder **examples**.
+
+##### Transform tool example 
+Transform example inside folder examples, bvlc_alexnet from float32 caffe to fixed16 protobuf, bvlc_alexnet from caffe
+to Gzip including bias and output activations, and bvlc_googlenet from float32 caffe to fixed16 protobuf:
+
+    ./cmake-build-release/bin/DNNsim examples/transform_example
+
+The corresponding output protobufs and gzips are located inside the net_traces folder. Examples:
+
+    bvlc_alexnet-t2.proto (t2 for unsigned 2 bytes)
+    bvlc_alexnet-f4.gz (f4 for float32)
+    bvlc_googlenet-t2.proto
+    
+**Important note**: This protobuf and gzip files are only generated the first time this is executed, if want to generate
+a new file you need to delete the previous file manually. This may be the case when the precision.txt file is changed.
+    
+
+##### Simulator tool example
+Inference example inside folder examples, inference for Gzip bvlc_alexnet, and for Caffe bvlc_googlenet:
+
+    ./cmake-build-release/bin/DNNsim examples/inference_example
+
+This calculates manually the output activations for each layer and compares its output with Caffe output activations. 
+It prints for each layer of the network a line indicating the number of errors.
+
+Architectures simulation example inside folder examples. Result for bvlc_googlenet: Laconic cycles, Laconic potentials, 
+and BitPragmatic potentials. Results for bvlc_alexnet: BitPragmatics cycles using two different configurations.
+
+    ./cmake-build-release/bin/DNNsim examples/simulator_example
+
+Results can be found inside folder bvlc_alexnet and bvlc_googlenet inside results. One csv file for each simulation 
+containing one line for each layer and are grouped per batch. After that, one line for the each layer is shown with the 
+average results for all batches. Finally, the last line corresponds to the total of the network.
+
+### Additional options
+
+* Option **--threads <positive_num>** indicates the number of simultaneous threads that can be executed. The code is 
+parallelized per batch using OpenMP library
+* Option **--fast_mode** makes the simulation execute only one batch per network, the first one.
+
+### Notes about simulations
+    
+*   Missing support for LSTM layers in the accelerators
+*   Mobilenet only allowed for SCNN
+*   First layers for our group architectures are transformed using channel folding for strides greater than 1
 
 ### Allowed simulations
+
+Input parameters are the parameters that can be changed for each architecture in the prototxt batch file (Default values
+can be found inside **examples/README**)  
+Default parameters are defined in the header of each architecture, they can be changed in the specific file  
+Data type indicates the possible data types allowed: Float32 for 4bytes floating point, and Fixed16 for 2bytes integer
 
 | Architecture | Description | Input Parameters | Default Parameters\* | Cycles | Potentials | Data type |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|
@@ -26,55 +139,6 @@ contain global variables. Check this file before launch any simulation.
 | SCNNe | **W + A + Ae**: Skips zero weights, zero activations, and exploits bit-level sparsity of activations | Wt, Ht, Kt, I, F, out_acc_size, BITS_FIRST_STAGE | BOOTH_ENCODING, ZERO_COUNT | - | X | Fixed16 |
 
 *\*Default features can be removed in their specific header file*
-
-### Requeriments
-*   Cmake posterior to version 3.10
-*   Google Protobuf for C++. Installation link:
-    *   https://github.com/protocolbuffers/protobuf/blob/master/src/README.md
-
-### Allowed input files
-
-*   The architecture of the net in a train_val.prototxt file (without weights and activations)
-*   Weights, Inputs and outputs activations in a *.npy file using the following format:
-    *   wgt-$NAME.npy | act-$NAME-0{-out}.npy
-*   Full network in a Google protobuf format file
-*   Full network in a Gzip Google protobuf format
-
-### Allowed output files
-
-*   Full network in a Google protobuf format file
-*   Full network in a Gzip Google protobuf format
-
-### Compilation:
-Command line compilation. First we need to configure the project:
-    
-    cmake -H. -Bcmake-build-release -DCMAKE_BUILD_TYPE=Release
-
-Then, we can proceed to build the project
-
-    cmake --build cmake-build-release/ --target all
-    
-### Test
-
-Print help:
-
-    ./cmake-build-release/bin/DNNsim -h
-
-##### Transform tool example 
-Transform example inside folder examples, bvlc_alexnet from float32 caffe to fixed16 protobuf, bvlc_alexnet from caffe
-to Gzip including bias and output activations, and bvlc_googlenet from float32 caffe to fixed16 protobuf:
-
-    ./cmake-build-release/bin/DNNsim examples/transform_example
-
-##### Simulator tool example
-Inference example inside folder examples, inference for Gzip bvlc_alexnet, and for Caffe bvlc_googlenet:
-
-    ./cmake-build-release/bin/DNNsim examples/inference_example
-
-Architectures simulation example inside folder examples, BitPragmatic cycles for bvlc_alexnet, and Laconic
-potentials for bvlc_googlenet:
-
-    ./cmake-build-release/bin/DNNsim examples/simulator_example
 
 ### Structure:
 *   **sys**: Folder for system libraries
@@ -107,6 +171,7 @@ potentials for bvlc_googlenet:
     *   network.proto: Google protobuf definition for the network
     *   caffe.proto: Caffe protobuf definition for Caffe networks
     *   batch.proto: Google protobuf definition for the batch file
+    *   schedule.proto: Tactical schedule protobuf definition
     
 ### Fixes TODO
 *   Dispatchers?
