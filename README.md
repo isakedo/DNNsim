@@ -29,7 +29,7 @@ Then, clone the repository using proxychains:
 
     proxychains4 git clone https://github.com/Isakon12/DNNsim
     
-Finally, allow access to gcc-7 in CentOS (not necessary to execute):
+Finally, allow access to gcc-7 in CentOS (not necessary to run simulations):
 
     scl enable devtoolset-7 bash
 
