@@ -23,26 +23,27 @@ message Batch {
             // For grid accelerators
             uint32 n_columns = 3;
             uint32 n_rows = 4;
+            uint32 column_registers = 5;
 
             // For Dynamic Stripes
-            string precision_granularity = 5;
+            string precision_granularity = 6;
 
             // For pragmatic
-            uint32 bits_first_stage = 6;
+            uint32 bits_first_stage = 7;
 
             // For tactical
-            uint32 lookahead_h = 7;
-            uint32 lookaside_d = 8;
-            string search_shape = 9;
-            bool read_schedule_from_proto = 10;
+            uint32 lookahead_h = 8;
+            uint32 lookaside_d = 9;
+            string search_shape = 10;
+            bool read_schedule_from_proto = 11;
 
             // SCNN
-            uint32 Wt = 11;
-            uint32 Ht = 12;
-            uint32 Kt = 13;
-            uint32 I = 14;
-            uint32 F = 15;
-            uint32 out_acc_size = 16;
+            uint32 Wt = 12;
+            uint32 Ht = 13;
+            uint32 Kt = 14;
+            uint32 I = 15;
+            uint32 F = 16;
+            uint32 out_acc_size = 17;
         }
 
         string inputType = 1;

@@ -31,6 +31,7 @@ namespace sys {
                 std::string task = "";
                 int n_columns = 0;
                 int n_rows = 0;
+                int column_registers = 0;
                 std::string precision_granularity = "";
                 int bits_first_stage = 0;
                 int lookahead_h = 0;

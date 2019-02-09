@@ -81,6 +81,7 @@ namespace sys {
                 if(experiment_proto.architecture() == "BitPragmatic") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+                    experiment.column_registers = experiment_proto.column_registers();
                     experiment.bits_first_stage = experiment_proto.bits_first_stage();
 
                 } else if(experiment_proto.architecture() == "Stripes") {
@@ -90,6 +91,7 @@ namespace sys {
                 } else if(experiment_proto.architecture() == "DynamicStripes") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+                    experiment.column_registers = experiment_proto.column_registers();
                     experiment.precision_granularity = experiment_proto.precision_granularity().empty() ? "Tile" :
                             experiment_proto.precision_granularity();
                     value = experiment.precision_granularity;
@@ -104,6 +106,7 @@ namespace sys {
                 } else if (experiment_proto.architecture() == "BitTacticalP") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+                    experiment.column_registers = experiment_proto.column_registers();
                     experiment.precision_granularity = experiment_proto.precision_granularity().empty() ? "Tile" :
                             experiment_proto.precision_granularity();
                     experiment.lookahead_h = experiment_proto.lookahead_h() < 1 ? 2 : experiment_proto.lookahead_h();
@@ -126,6 +129,7 @@ namespace sys {
                 } else if (experiment_proto.architecture() == "BitTacticalE") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+                    experiment.column_registers = experiment_proto.column_registers();
                     experiment.bits_first_stage = experiment_proto.bits_first_stage();
                     experiment.lookahead_h = experiment_proto.lookahead_h() < 1 ? 2 : experiment_proto.lookahead_h();
                     experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();

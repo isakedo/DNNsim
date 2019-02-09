@@ -5,7 +5,6 @@
 
 #define ZERO_COUNT // Count zeroes as 1 cycle
 #define BOOTH_ENCODING // Activate booth-like encoding
-#define TWO_REGISTERS_PER_SIP // Per-col synchronization assuming two registers per SIP
 #define FC_MULTIPLEX_COLUMNS // Execute each mult-add in a different column
 #define WEIGHT_LANES 16 // Number of weight lanes
 
@@ -24,6 +23,9 @@ namespace core {
 
         /* Bits of the first stage in the two stages shifting */
         const int BITS_FIRST_STAGE;
+
+        /* Number of registers per SIP */
+        const int COLUMN_REGISTERS;
 
         /* Compute number of one bit multiplications given an activation
          * @param act       Activation
@@ -67,7 +69,7 @@ namespace core {
          */
         void computePragmaticTile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
                 int kernel_x, int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act,
-                int max_channel, std::vector<uint32_t> &cycles_per_col, uint32_t &end_previous_pallet);
+                int max_channel, std::vector<uint32_t> &cycles_per_col, std::vector<uint32_t> &end_previous_pallet);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs
@@ -99,12 +101,13 @@ namespace core {
          * @param _N_COLUMNS            Number of columns
          * @param _N_ROWS               Number of rows
          * @param _BITS_FIRST_STAGE     Bits of the first stage in the two stages shifting
+         * @param _COLUMN_REGISTERS     Number of registers per SIP
          * @param _N_THREADS            Number of parallel threads for multi-threading execution
          * @param _FAST_MODE            Enable fast mode to simulate only one image
          */
-        BitPragmatic(int _N_COLUMNS, int _N_ROWS, int _BITS_FIRST_STAGE, uint8_t _N_THREADS, bool _FAST_MODE) :
-                Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS),
-                BITS_FIRST_STAGE(_BITS_FIRST_STAGE) {}
+        BitPragmatic(int _N_COLUMNS, int _N_ROWS, int _BITS_FIRST_STAGE, int _COLUMN_REGISTERS, uint8_t _N_THREADS,
+                bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS),
+                BITS_FIRST_STAGE(_BITS_FIRST_STAGE), COLUMN_REGISTERS(_COLUMN_REGISTERS) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

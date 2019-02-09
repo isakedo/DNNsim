@@ -95,7 +95,7 @@ namespace core {
     void BitPragmatic<T>::computePragmaticTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int stride,
             const cnpy::Array<T> &padded_act, int max_channel, std::vector<uint32_t> &cycles_per_col,
-            uint32_t &end_previous_pallet) {
+            std::vector<uint32_t> &end_previous_pallet) {
 
         for(int window = 0; window < list_act_x.size(); window++) {
             uint8_t column_cycles = computePragmaticColumn(batch, list_act_x[window], list_act_y[window], kernel_x,
@@ -103,19 +103,23 @@ namespace core {
             cycles_per_col[window] += column_cycles;
         }
 
-        #ifdef TWO_REGISTERS_PER_SIP
-        // Per-col synchronization assuming two registers per SIP
-        for(auto &column_cycles : cycles_per_col) {
-            if(column_cycles <= end_previous_pallet) {
-                column_cycles = end_previous_pallet + 1;
+        // Column registers
+        if(COLUMN_REGISTERS > 0) {
+            for(auto &column_cycles : cycles_per_col) {
+                if(column_cycles <= end_previous_pallet[0]) {
+                    column_cycles = end_previous_pallet[0] + 1;
+                }
             }
+
+            //Update end_previous_pallet
+            for(int i = 0; i < COLUMN_REGISTERS - 1; i++) {
+                end_previous_pallet[i] = end_previous_pallet[i + 1];
+            }
+            end_previous_pallet[COLUMN_REGISTERS - 1] = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
+        } else {
+            auto slowest_column = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
+            cycles_per_col = std::vector<uint32_t>(N_COLUMNS,slowest_column);
         }
-        end_previous_pallet = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
-        #else
-        // Per-col synchronization assuming one register per SIP
-        auto slowest_column = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
-        cycles_per_col = std::vector<uint32_t>(N_COLUMNS,slowest_column);
-        #endif
 
     }
 
@@ -176,8 +180,8 @@ namespace core {
         for(n=0; n<batch_size; n++) {
 
             std::vector<int> list_x, list_y;
-            uint32_t end_previous_pallet = 0;
             int x_counter = 0, y_counter = 0;
+            std::vector<uint32_t> end_previous_pallet = std::vector<uint32_t>(COLUMN_REGISTERS, 0);
             std::vector<uint32_t> cycles_per_col = std::vector<uint32_t>(N_COLUMNS, 0);
 
             while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter, y_counter, N_COLUMNS)) {
@@ -288,7 +292,7 @@ namespace core {
         stats.task_name = "cycles";
         stats.net_name = network.getName();
         stats.arch = "BitPragmatic_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_B" +
-                std::to_string(BITS_FIRST_STAGE);
+                std::to_string(BITS_FIRST_STAGE) + "_CR" + std::to_string(COLUMN_REGISTERS);
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {

@@ -65,6 +65,9 @@ namespace core {
         /* Number of rows */
         const int N_ROWS;
 
+        /* Number of registers per SIP */
+        const int COLUMN_REGISTERS;
+
         /* Lookahead value of H*/
         const int LOOKAHEAD_H;
 
@@ -128,15 +131,17 @@ namespace core {
         /* Constructor
          * @param _N_COLUMNS        Number of columns
          * @param _N_ROWS           Number of rows
+         * @param _COLUMN_REGISTERS Number of registers per SIP
          * @param _LOOKAHEAD_D      Value for scheduler lookahead
          * @param _LOOKASIDE_H      Value for scheduler lookaside
          * @param _SEARCH_SHAPE     Type of search
          * @param _N_THREADS        Number of parallel threads for multi-threading execution
          * @param _FAST_MODE        Enable fast mode to simulate only one image
          */
-        BitTactical(int _N_COLUMNS, int _N_ROWS, int _LOOKAHEAD_H, int _LOOKASIDE_D, const char _SEARCH_SHAPE,
-                uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS),
-                N_ROWS(_N_ROWS), LOOKAHEAD_H(_LOOKAHEAD_H), LOOKASIDE_D(_LOOKASIDE_D), SEARCH_SHAPE(_SEARCH_SHAPE) {}
+        BitTactical(int _N_COLUMNS, int _N_ROWS, int _COLUMN_REGISTERS, int _LOOKAHEAD_H, int _LOOKASIDE_D,
+                const char _SEARCH_SHAPE, uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE),
+                N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), COLUMN_REGISTERS(_COLUMN_REGISTERS), LOOKAHEAD_H(_LOOKAHEAD_H),
+                LOOKASIDE_D(_LOOKASIDE_D), SEARCH_SHAPE(_SEARCH_SHAPE) {}
 
     public:
 
