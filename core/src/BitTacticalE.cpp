@@ -216,8 +216,7 @@ namespace core {
                             cycles_per_col, end_previous_pallet);
                 }
             }
-            auto batch_cycles = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
-            stats.cycles.back()[n] = batch_cycles;
+            stats.cycles.back()[n] = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
         }
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();

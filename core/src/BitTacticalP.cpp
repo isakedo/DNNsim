@@ -51,9 +51,7 @@ namespace core {
             }
         }
 
-        uint8_t n_bits = min_bit > max_bit ? (uint8_t)1 : max_bit - min_bit + (uint8_t)1;
-        return n_bits;
-
+        return min_bit > max_bit ? (uint8_t)1 : max_bit - min_bit + (uint8_t)1;
 
     }
 
@@ -203,6 +201,7 @@ namespace core {
                             end_previous_pallet);
                 }
             }
+            stats.cycles.back()[n] = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
         }
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
@@ -299,8 +298,9 @@ namespace core {
         stats.net_name = network.getName();
         int mux_entries = this->LOOKAHEAD_H + this->LOOKASIDE_D + 1;
         stats.arch = "BitTacticalP_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS) + "_PG_" +
-                PRECISION_GRANULARITY + "_" + this->SEARCH_SHAPE + std::to_string(mux_entries) + "(" +
-                std::to_string(this->LOOKAHEAD_H) + "-" + std::to_string(this->LOOKASIDE_D) + ")";
+                PRECISION_GRANULARITY + "_CR" + std::to_string(this->COLUMN_REGISTERS) + "_" + this->SEARCH_SHAPE + 
+                std::to_string(mux_entries) + "(" + std::to_string(this->LOOKAHEAD_H) + "-" + 
+                std::to_string(this->LOOKASIDE_D) + ")";
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
