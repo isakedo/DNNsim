@@ -10,44 +10,6 @@ namespace core {
         return layer_prec * (uint8_t)16;
     }
 
-    template <typename T>
-    uint8_t Stripes<T>::computeStripesColumn(int act_x, int act_y, int kernel_x, int kernel_y, int layer_prec,
-            int init_channel, int max_channel, const rowIdxMap &rowMap) {
-
-        uint8_t fill_cycles = 0;
-        std::list<int> row_list;
-        for (int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES, max_channel); channel++) {
-            auto nmRow = rowMap[act_x + kernel_x][act_y + kernel_y][channel];
-            auto it = std::find(row_list.begin(), row_list.end(), nmRow);
-            if (it == row_list.end()) {
-                row_list.push_back(nmRow);
-                fill_cycles++;
-            }
-        }
-
-        return std::max((uint8_t)layer_prec, fill_cycles);
-    }
-
-    template <typename T>
-    uint8_t Stripes<T>::computeStripesTile(const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
-            int kernel_x, int kernel_y, int layer_prec, int init_channel, int max_channel, const rowIdxMap &rowMap) {
-
-        uint8_t fill_cycles = 0;
-        std::list<int> row_list;
-        for(int window = 0; window < list_act_x.size(); window++) {
-            for (int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES, max_channel); channel++) {
-                auto nmRow = rowMap[list_act_x[window] + kernel_x][list_act_y[window] + kernel_y][channel];
-                auto it = std::find(row_list.begin(), row_list.end(), nmRow);
-                if (it == row_list.end()) {
-                    row_list.push_back(nmRow);
-                    fill_cycles++;
-                }
-            }
-        }
-
-        return std::max((uint8_t)layer_prec, fill_cycles);
-    }
-
     /* CYCLES */
 
     template <typename T>
@@ -85,7 +47,6 @@ namespace core {
         int Kx = wgt_shape[2];
         int Ky = wgt_shape[3];
 
-        const auto &rowMap = this->generate_rowMap(Nx, Ny, act_channels, NM_WIDTH);
         long out_x = (Nx - Kx)/stride + 1;
         long out_y = (Ny - Ky)/stride + 1;
 
@@ -115,8 +76,7 @@ namespace core {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
                         for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
-                            stats.cycles.back()[n] += computeStripesTile(list_x, list_y, i, j, layer_prec, k,
-                                    act_channels, rowMap);
+                            stats.cycles.back()[n] += layer_prec;
                         }
                     }
                 }
@@ -154,8 +114,6 @@ namespace core {
         if(this->FAST_MODE) batch_size = 1;
 
         int num_filters = wgt_shape[0];
-
-        const auto &rowMap = this->generate_rowMap(Nx, Ny, act_channels, NM_WIDTH);
 
         auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS);
 
@@ -196,7 +154,7 @@ namespace core {
 
             for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
                 if(stats.cycles.back()[n] < column_end[column_index]) stats.cycles.back()[n] = column_end[column_index];
-                auto column_cycles = computeStripesColumn(0,0,0,0,layer_prec,k,act_channels,rowMap);
+                auto column_cycles = layer_prec;
                 column_end[column_index] = stats.cycles.back()[n] + column_cycles;
                 stats.cycles.back()[n]++;
                 column_index++;

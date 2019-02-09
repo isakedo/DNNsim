@@ -28,26 +28,6 @@ namespace core {
         return false;
     }
 
-    template <typename T>
-    rowIdxMap Simulator<T>::generate_rowMap(int padded_Nx, int padded_Ny, int act_channels, int NM_WIDTH) {
-
-        uint32_t row_index = 0;
-        rowIdxMap rowMap((unsigned)padded_Nx, std::vector<std::vector<int>>((unsigned)padded_Ny,
-                std::vector<int>((unsigned)act_channels)));
-        for(int i = 0; i < act_channels; i+=16) {
-            for (int j = 0; j < padded_Nx; j++) {
-                for (int k = 0; k < padded_Ny; k++) {
-                    for (int l = i; l < std::min(i + 16, act_channels); l++) {
-                        rowMap[j][k][l] = row_index / NM_WIDTH;
-                        row_index++;
-                    }
-                }
-            }
-        }
-
-        return rowMap;
-    }
-
     /* Only encode the values when get less number of bits */
     uint16_t generateBoothEncoding(uint16_t n) {
         uint32_t padded_n = n << 2;

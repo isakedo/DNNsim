@@ -12,19 +12,11 @@ namespace core {
 
     template <typename T>
     uint8_t DynamicStripes<T>::computeDynamicStripesColumn(int batch, int act_x, int act_y, int kernel_x, int kernel_y,
-            int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, const rowIdxMap &rowMap) {
+            int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel) {
 
         std::list<int> row_list;
-        uint8_t fill_cycles = 0, max_bit = 0, min_bit = 16;
+        uint8_t max_bit = 0, min_bit = 16;
         for (int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES, max_channel); channel++) {
-
-            // Fill cycles
-            auto nmRow = rowMap[act_x + kernel_x][act_y + kernel_y][channel];
-            auto it = std::find(row_list.begin(), row_list.end(), nmRow);
-            if (it == row_list.end()) {
-                row_list.push_back(nmRow);
-                fill_cycles++;
-            }
 
             // Computation cycles
             uint16_t act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
@@ -46,29 +38,22 @@ namespace core {
 
         }
 
-        uint8_t n_bits = min_bit > max_bit ? (uint8_t)1 : max_bit - min_bit + (uint8_t)1;
-        return std::max(fill_cycles, n_bits);
+        return min_bit > max_bit ? (uint8_t)1 : max_bit - min_bit + (uint8_t)1;
+
     }
 
     template <typename T>
-    uint8_t DynamicStripes<T>::computeDynamicStripesTile(int batch, const std::vector<int> &list_act_x,
+    void DynamicStripes<T>::computeDynamicStripesTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int stride,
-            const cnpy::Array<T> &padded_act, int max_channel, const rowIdxMap &rowMap) {
+            const cnpy::Array<T> &padded_act, int max_channel, std::vector<uint32_t> &cycles_per_col,
+            std::vector<uint32_t> &end_previous_pallet) {
 
         std::list<int> row_list;
-        std::vector<uint8_t> per_SIP_n_bits (list_act_x.size(), 0);
-        uint8_t fill_cycles = 0, max_bit = 0, min_bit = 16;
+        std::vector<uint8_t> per_SIP_n_bits (N_COLUMNS, 0);
+        uint8_t max_bit = 0, min_bit = 16;
         for(int window = 0; window < list_act_x.size(); window++) {
             if(PRECISION_GRANULARITY == "SIP") max_bit = 0, min_bit = 16;
             for (int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES, max_channel); channel++) {
-
-                // Fill cycles
-                auto nmRow = rowMap[list_act_x[window] + kernel_x][list_act_y[window] + kernel_y][channel];
-                auto it = std::find(row_list.begin(), row_list.end(), nmRow);
-                if (it == row_list.end()) {
-                    row_list.push_back(nmRow);
-                    fill_cycles++;
-                }
 
                 // Computation cycles
                 uint16_t act_bits = padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
@@ -90,13 +75,37 @@ namespace core {
                 if(min_act_bit < min_bit) min_bit = min_act_bit;
 
             }
-            per_SIP_n_bits[window] = min_bit > max_bit ? 1 : max_bit - min_bit + 1;
+            per_SIP_n_bits[window] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
         }
 
-        uint8_t n_bits = PRECISION_GRANULARITY == "SIP" ?
-                *std::max_element(per_SIP_n_bits.begin(), per_SIP_n_bits.end()) :
-                min_bit > max_bit ? 1 : max_bit - min_bit + 1;
-        return std::max(fill_cycles, n_bits);
+        if(PRECISION_GRANULARITY == "Tile") {
+            uint8_t n_bits = min_bit > max_bit ? 1 : max_bit - min_bit + 1;
+            cycles_per_col = std::vector<uint32_t>(N_COLUMNS,cycles_per_col[0] + n_bits);
+        } else {
+
+            for(int window = 0; window < list_act_x.size(); window++) {
+                cycles_per_col[window] += per_SIP_n_bits[window];
+            }
+
+            if(COLUMN_REGISTERS > 0) {
+                for(auto &column_cycles : cycles_per_col) {
+                    if(column_cycles <= end_previous_pallet[0]) {
+                        column_cycles = end_previous_pallet[0] + 1;
+                    }
+                }
+
+                //Update end_previous_pallet
+                for(int i = 0; i < COLUMN_REGISTERS - 1; i++) {
+                    end_previous_pallet[i] = end_previous_pallet[i + 1];
+                }
+                end_previous_pallet[COLUMN_REGISTERS - 1] = *std::max_element(cycles_per_col.begin(),
+                        cycles_per_col.end());
+            } else {
+                auto slowest_column = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
+                cycles_per_col = std::vector<uint32_t>(N_COLUMNS, slowest_column);
+            }
+        }
+
     }
 
     /* CYCLES */
@@ -136,7 +145,6 @@ namespace core {
         int Kx = wgt_shape[2];
         int Ky = wgt_shape[3];
 
-        const auto &rowMap = this->generate_rowMap(Nx, Ny , act_channels, NM_WIDTH);
         long out_x = (Nx - Kx)/stride + 1;
         long out_y = (Ny - Ky)/stride + 1;
 
@@ -158,18 +166,21 @@ namespace core {
 
             std::vector<int> list_x, list_y;
             int x_counter = 0, y_counter = 0;
+            std::vector<uint32_t> end_previous_pallet = std::vector<uint32_t>(COLUMN_REGISTERS, 0);
+            std::vector<uint32_t> cycles_per_col = std::vector<uint32_t>(N_COLUMNS, 0);
 
             while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter, y_counter, N_COLUMNS)) {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
                         for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
-                            stats.cycles.back()[n] += computeDynamicStripesTile(n, list_x, list_y, i, j, k, stride, act,
-                                    act_channels, rowMap);
+                            computeDynamicStripesTile(n, list_x, list_y, i, j, k, stride, act, act_channels,
+                                    cycles_per_col, end_previous_pallet);
                         }
                     }
                 }
             }
-            stats.cycles.back()[n] *= num_filters_sets;
+            auto batch_cycles = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
+            stats.cycles.back()[n] = batch_cycles*num_filters_sets;
         }
 
         auto base_cycles = (uint64_t)(out_x * out_y * act_channels * Kx * Ky * num_filters_sets / N_ROWS);
@@ -202,8 +213,6 @@ namespace core {
         if(this->FAST_MODE) batch_size = 1;
 
         int num_filters = wgt_shape[0];
-
-        const auto &rowMap = this->generate_rowMap(Nx, Ny, act_channels, NM_WIDTH);
 
         auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS);
 
@@ -241,7 +250,7 @@ namespace core {
 
             for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
                 if(stats.cycles.back()[n] < column_end[column_index]) stats.cycles.back()[n] = column_end[column_index];
-                auto column_cycles = computeDynamicStripesColumn(n,0,0,0,0,k,0,act,act_channels,rowMap);
+                auto column_cycles = computeDynamicStripesColumn(n,0,0,0,0,k,0,act,act_channels);
                 column_end[column_index] = stats.cycles.back()[n] + column_cycles;
                 stats.cycles.back()[n]++;
                 column_index++;
@@ -271,7 +280,7 @@ namespace core {
         stats.task_name = "cycles";
         stats.net_name = network.getName();
         stats.arch = "DynamicStripes_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG_" +
-                PRECISION_GRANULARITY;
+                PRECISION_GRANULARITY + "_CR" + std::to_string(COLUMN_REGISTERS);
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {

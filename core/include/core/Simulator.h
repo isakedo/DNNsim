@@ -39,14 +39,6 @@ namespace core {
         bool iterateWindows(long out_x, long out_y, std::vector<int> &list_x, std::vector<int> &list_y,
                 int &x_counter, int &y_counter, int max_windows = 16);
 
-        /* Calculate the 3D mapping of each activation value in their corresponding dispatcher row
-         * @param padded_Nx     Input activations X size including padding
-         * @param padded_Ny     Input activations Y size including padding
-         * @param act_channels  Number of activations channels
-         * @param NM_WIDTH      Width of the neuron memory row in bits
-         */
-        rowIdxMap generate_rowMap(int padded_Nx, int padded_Ny, int act_channels, int NM_WIDTH = 256);
-
         /* Return the optimal encoding for the given value
          * @param value     Value we want to encode WITHOUT the sign
          * @return          Value with the optimal encoding

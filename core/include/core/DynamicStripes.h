@@ -3,7 +3,6 @@
 
 #include "Simulator.h"
 
-#define NM_WIDTH 256 // Width of the neuron memory row in bits
 #define FC_MULTIPLEX_COLUMNS // Execute each mult-add in a different column
 #define WEIGHT_LANES 16 // Number of weight lanes
 
@@ -43,30 +42,28 @@ namespace core {
          * @param stride        Stride of the current layer
          * @param padded_act    Set of padded input activations
          * @param max_channel   Maximum number of channels
-         * @param rowMap        3D mapping of each value in their corresponding row
          * @return              Number of cycles
          */
         uint8_t computeDynamicStripesColumn(int batch, int act_x, int act_y, int kernel_x, int kernel_y,
-                int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel,
-                const rowIdxMap &rowMap);
+                int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel);
 
         /* Compute cycles for dynamic stripes tile
-         * @param batch         Current number of batch
-         * @param list_act_x    X position for the set of input windows
-         * @param list_act_y    Y position for the set of input windows
-         * @param kernel_x      X position in the kernel window
-         * @param kernel_y      Y position in the kernel window
-         * @param layer_prec    Activations precision per layer
-         * @param init_channel  Starting index for the channel
-         * @param stride        Stride of the current layer
-         * @param padded_act    Set of padded input activations
-         * @param max_channel   Maximum number of channels
-         * @param rowMap        3D mapping of each value in their corresponding row
-         * @return              Number of cycles
+         * @param batch                 Current number of batch
+         * @param list_act_x            X position for the set of input windows
+         * @param list_act_y            Y position for the set of input windows
+         * @param kernel_x              X position in the kernel window
+         * @param kernel_y              Y position in the kernel window
+         * @param layer_prec            Activations precision per layer
+         * @param init_channel          Starting index for the channel
+         * @param stride                Stride of the current layer
+         * @param padded_act            Set of padded input activations
+         * @param max_channel           Maximum number of channels
+         * @param cycles_per_col        Number of cycles per column (Overwritten)
+         * @param end_previous_pallet   Cycle when the previous pallet finishes (Overwritten)
          */
-        uint8_t computeDynamicStripesTile(int batch, const std::vector<int> &list_act_x, const std::vector<int>
+        void computeDynamicStripesTile(int batch, const std::vector<int> &list_act_x, const std::vector<int>
                 &list_act_y, int kernel_x, int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act,
-                int max_channel, const rowIdxMap &rowMap);
+                int max_channel, std::vector<uint32_t> &cycles_per_col, std::vector<uint32_t> &end_previous_pallet);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs

@@ -3,7 +3,6 @@
 
 #include "Simulator.h"
 
-#define NM_WIDTH 256 // Width of the neuron memory row in bits
 #define FC_MULTIPLEX_COLUMNS // Execute each mult-add in a different column
 #define WEIGHT_LANES 16 // Number of weight lanes
 
@@ -25,34 +24,6 @@ namespace core {
          * @return              Number of one bit multiplications
          */
         static inline uint16_t computeStripesBitsPE(uint8_t layer_prec);
-
-        /* Compute cycles for stripes column
-         * @param act_x         X position in the input activations
-         * @param act_y         Y position in the input activations
-         * @param kernel_x      X position in the kernel window
-         * @param kernel_y      Y position in the kernel window
-         * @param layer_prec    Activations precision per layer
-         * @param init_channel  Starting index for the channel
-         * @param max_channel   Maximum number of channels
-         * @param rowMap        3D mapping of each value in their corresponding row
-         * @return              Number of cycles
-         */
-        uint8_t computeStripesColumn(int act_x, int act_y, int kernel_x, int kernel_y, int layer_prec, int init_channel,
-                int max_channel, const rowIdxMap &rowMap);
-
-        /* Compute cycles for stripes tile
-         * @param list_act_x    X position for the set of input windows
-         * @param list_act_y    Y position for the set of input windows
-         * @param kernel_x      X position in the kernel window
-         * @param kernel_y      Y position in the kernel window
-         * @param layer_prec    Activations precision per layer
-         * @param init_channel  Starting index for the channel
-         * @param max_channel   Maximum number of channels
-         * @param rowMap        3D mapping of each value in their corresponding row
-         * @return              Number of cycles
-         */
-        uint8_t computeStripesTile(const std::vector<int> &list_act_x, const std::vector<int> &list_act_y, int kernel_x,
-                int kernel_y, int layer_prec, int init_channel, int max_channel, const rowIdxMap &rowMap);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs

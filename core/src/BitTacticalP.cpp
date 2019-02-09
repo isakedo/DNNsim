@@ -58,9 +58,10 @@ namespace core {
     }
 
     template <typename T>
-    uint8_t BitTacticalP<T>::computeTacticalPTile(int batch, const std::vector<int> &list_act_x,
+    void BitTacticalP<T>::computeTacticalPTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int stride, const cnpy::Array<T> &padded_act,
-            const schedule &dense_schedule, int schedule_time) {
+            const schedule &dense_schedule, int schedule_time, std::vector<uint32_t> &cycles_per_col,
+            std::vector<uint32_t> &end_previous_pallet) {
 
         std::vector<uint8_t> per_SIP_n_bits (list_act_x.size(), 0);
         uint8_t max_bit = 0, min_bit = 16;
@@ -102,10 +103,34 @@ namespace core {
             per_SIP_n_bits[window] = min_bit > max_bit ? 1 : max_bit - min_bit + 1;
         }
 
-        uint8_t n_bits = PRECISION_GRANULARITY == "SIP" ?
-                         *std::max_element(per_SIP_n_bits.begin(), per_SIP_n_bits.end()) :
-                         min_bit > max_bit ? 1 : max_bit - min_bit + 1;
-        return n_bits;
+        if(PRECISION_GRANULARITY == "Tile") {
+            uint8_t n_bits = min_bit > max_bit ? 1 : max_bit - min_bit + 1;
+            cycles_per_col = std::vector<uint32_t>(this->N_COLUMNS,cycles_per_col[0] + n_bits);
+        } else {
+
+            for(int window = 0; window < list_act_x.size(); window++) {
+                cycles_per_col[window] += per_SIP_n_bits[window];
+            }
+
+            if(this->COLUMN_REGISTERS > 0) {
+                for(auto &column_cycles : cycles_per_col) {
+                    if(column_cycles <= end_previous_pallet[0]) {
+                        column_cycles = end_previous_pallet[0] + 1;
+                    }
+                }
+
+                //Update end_previous_pallet
+                for(int i = 0; i < this->COLUMN_REGISTERS - 1; i++) {
+                    end_previous_pallet[i] = end_previous_pallet[i + 1];
+                }
+                end_previous_pallet[this->COLUMN_REGISTERS - 1] = *std::max_element(cycles_per_col.begin(),
+                                                                              cycles_per_col.end());
+            } else {
+                auto slowest_column = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
+                cycles_per_col = std::vector<uint32_t>(this->N_COLUMNS, slowest_column);
+            }
+        }
+
     }
 
     /* CYCLES */
@@ -169,11 +194,13 @@ namespace core {
 
             std::vector<int> list_x, list_y;
             int x_counter = 0, y_counter = 0;
+            std::vector<uint32_t> end_previous_pallet = std::vector<uint32_t>(this->COLUMN_REGISTERS, 0);
+            std::vector<uint32_t> cycles_per_col = std::vector<uint32_t>(this->N_COLUMNS, 0);
 
             while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, this->N_COLUMNS)) {
                 for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                    stats.cycles.back()[n] += computeTacticalPTile(n, list_x, list_y, stride, act, dense_schedule,
-                            schedule_time);
+                    computeTacticalPTile(n, list_x, list_y, stride, act, dense_schedule, schedule_time, cycles_per_col,
+                            end_previous_pallet);
                 }
             }
         }
@@ -301,8 +328,9 @@ namespace core {
         stats.net_name = network.getName();
         int mux_entries = this->LOOKAHEAD_H + this->LOOKASIDE_D + 1;
         stats.arch = "BitTacticalP_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS) + "_PG_" +
-                     PRECISION_GRANULARITY + "_" + this->SEARCH_SHAPE + std::to_string(mux_entries) + "(" +
-                     std::to_string(this->LOOKAHEAD_H) + "-" + std::to_string(this->LOOKASIDE_D) + ")";
+                PRECISION_GRANULARITY + "_CR" + std::to_string(this->COLUMN_REGISTERS) + "_" + this->SEARCH_SHAPE +
+                std::to_string(mux_entries) + "(" + std::to_string(this->LOOKAHEAD_H) + "-" +
+                std::to_string(this->LOOKASIDE_D) + ")";
 
         int sch_index = 0;
         for(const Layer<T> &layer : network.getLayers()) {
