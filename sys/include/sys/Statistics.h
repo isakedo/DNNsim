@@ -35,6 +35,7 @@ namespace sys {
 
             /* Stats for cycles */
             std::vector<std::vector<uint64_t>> cycles;
+            std::vector<std::vector<uint64_t>> stall_cycles;
             std::vector<uint64_t> baseline_cycles;
 
             /* SCNN */

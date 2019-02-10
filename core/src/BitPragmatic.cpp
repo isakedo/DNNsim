@@ -95,7 +95,7 @@ namespace core {
     void BitPragmatic<T>::computePragmaticTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int stride,
             const cnpy::Array<T> &padded_act, int max_channel, std::vector<uint32_t> &cycles_per_col,
-            std::vector<uint32_t> &end_previous_pallet) {
+            std::vector<uint32_t> &end_previous_pallet, sys::Statistics::Stats &stats) {
 
         for(int window = 0; window < list_act_x.size(); window++) {
             uint8_t column_cycles = computePragmaticColumn(batch, list_act_x[window], list_act_y[window], kernel_x,
@@ -105,11 +105,14 @@ namespace core {
 
         // Column registers
         if(COLUMN_REGISTERS > 0) {
+            auto fastest_column = end_previous_pallet[0] + 1;
             for(auto &column_cycles : cycles_per_col) {
                 if(column_cycles <= end_previous_pallet[0]) {
+                    if(column_cycles < fastest_column) fastest_column = column_cycles;
                     column_cycles = end_previous_pallet[0] + 1;
                 }
             }
+            stats.stall_cycles.back()[batch] += (end_previous_pallet[0] + 1) - fastest_column;
 
             //Update end_previous_pallet
             for(int i = 0; i < COLUMN_REGISTERS - 1; i++) {
@@ -118,7 +121,9 @@ namespace core {
             end_previous_pallet[COLUMN_REGISTERS - 1] = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
         } else {
             auto slowest_column = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
+            auto fastest_column = *std::min_element(cycles_per_col.begin(), cycles_per_col.end());
             cycles_per_col = std::vector<uint32_t>(N_COLUMNS,slowest_column);
+            stats.stall_cycles.back()[batch] += slowest_column - fastest_column;
         }
 
     }
@@ -168,6 +173,7 @@ namespace core {
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         int n;
 
@@ -189,7 +195,7 @@ namespace core {
                     for (int j = 0; j < Ky; j++) {
                         for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
                             computePragmaticTile(n,list_x, list_y, i, j, k, stride, act, act_channels,
-                                    cycles_per_col, end_previous_pallet);
+                                    cycles_per_col, end_previous_pallet, stats);
                         }
                     }
                 }
@@ -230,6 +236,7 @@ namespace core {
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         int n;
 

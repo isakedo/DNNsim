@@ -63,6 +63,7 @@ namespace core {
          * @param padding   Padding for the layer
          * @param act       Activations for the layer
          * @param wgt       Weights for the layer
+         * @param stats     Statistics to fill
          */
         void computeSCNNeTile(int n, int ct, int ck, int kc, int tw, int th, int X, int Y, int Kc, int K, int W, int H,
                 int R, int S, int stride, int padding, const cnpy::Array<T> &act, const cnpy::Array<T> &wgt,
