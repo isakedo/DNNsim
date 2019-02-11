@@ -79,7 +79,7 @@ namespace core {
         }
 
         if(PRECISION_GRANULARITY == "Tile") {
-            uint8_t n_bits = min_bit > max_bit ? 1 : max_bit - min_bit + 1;
+            uint8_t n_bits = min_bit > max_bit ? (uint8_t)1 : max_bit - min_bit + (uint8_t)1;
             cycles_per_col = std::vector<uint32_t>(N_COLUMNS,cycles_per_col[0] + n_bits);
         } else {
 
@@ -214,8 +214,6 @@ namespace core {
 
         int batch_size = act_shape[0];
         int act_channels = act_shape[1];
-        int Nx = act_shape[2];
-        int Ny = act_shape[3];
         if(this->FAST_MODE) batch_size = 1;
 
         int num_filters = wgt_shape[0];

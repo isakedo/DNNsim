@@ -102,7 +102,7 @@ namespace core {
         }
 
         if(PRECISION_GRANULARITY == "Tile") {
-            uint8_t n_bits = min_bit > max_bit ? 1 : max_bit - min_bit + 1;
+            uint8_t n_bits = min_bit > max_bit ? (uint8_t)1 : max_bit - min_bit + (uint8_t)1;
             cycles_per_col = std::vector<uint32_t>(this->N_COLUMNS,cycles_per_col[0] + n_bits);
         } else {
 

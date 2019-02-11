@@ -109,8 +109,6 @@ namespace core {
 
         int batch_size = act_shape[0];
         int act_channels = act_shape[1];
-        int Nx = act_shape[2];
-        int Ny = act_shape[3];
         if(this->FAST_MODE) batch_size = 1;
 
         int num_filters = wgt_shape[0];
