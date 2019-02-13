@@ -33,20 +33,13 @@ namespace core {
                 uint16_t act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x,
                         stride * act_y + kernel_y);
 
-                uint8_t count = 0;
-                std::vector<uint8_t> act_offsets;
-                while (act_bits) {
-                    auto current_bit = act_bits & 1;
-                    if (current_bit) act_offsets.push_back(count);
-                    act_bits >>= 1;
-                    count++;
-                }
+                const auto &min_max_act_bits = this->MinMax(act_bits);
 
-                auto max_act_bit = act_offsets.empty() ? 0 : *std::max_element(act_offsets.begin(), act_offsets.end());
-                auto min_act_bit = act_offsets.empty() ? 16 : *std::min_element(act_offsets.begin(), act_offsets.end());
+                auto min_act_bit = std::get<0>(min_max_act_bits);
+                auto max_act_bit = std::get<1>(min_max_act_bits);
 
-                if (max_act_bit > max_bit) max_bit = max_act_bit;
-                if (min_act_bit < min_bit) min_bit = min_act_bit;
+                if(min_act_bit < min_bit) min_bit = min_act_bit;
+                if(max_act_bit > max_bit) max_bit = max_act_bit;
 
             }
         }
@@ -79,22 +72,13 @@ namespace core {
                     uint16_t act_bits = padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
                             stride * list_act_y[window] + kernel_y);
 
-                    uint8_t count = 0;
-                    std::vector<uint8_t> act_offsets;
-                    while (act_bits) {
-                        auto current_bit = act_bits & 1;
-                        if (current_bit) act_offsets.push_back(count);
-                        act_bits >>= 1;
-                        count++;
-                    }
+                    const auto &min_max_act_bits = this->MinMax(act_bits);
 
-                    auto max_act_bit = act_offsets.empty() ? 0 : *std::max_element(act_offsets.begin(),
-                            act_offsets.end());
-                    auto min_act_bit = act_offsets.empty() ? 16 : *std::min_element(act_offsets.begin(),
-                            act_offsets.end());
+                    auto min_act_bit = std::get<0>(min_max_act_bits);
+                    auto max_act_bit = std::get<1>(min_max_act_bits);
 
-                    if (max_act_bit > max_bit) max_bit = max_act_bit;
-                    if (min_act_bit < min_bit) min_bit = min_act_bit;
+                    if(min_act_bit < min_bit) min_bit = min_act_bit;
+                    if(max_act_bit > max_bit) max_bit = max_act_bit;
 
                 }
             }
