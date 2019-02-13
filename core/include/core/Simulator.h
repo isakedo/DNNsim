@@ -40,10 +40,16 @@ namespace core {
                 int &x_counter, int &y_counter, int max_windows = 16);
 
         /* Return the optimal encoding for the given value
-         * @param value     Value we want to encode WITHOUT the sign
+         * @param value     Value to encode WITHOUT the sign
          * @return          Value with the optimal encoding
          */
         uint16_t booth_encoding(uint16_t value);
+
+        /* Return the minimum and maximum index position for a given value
+         * @param value     Value to get the indexes
+         * @return          Minimum and maximum indexes
+         */
+        std::tuple<uint8_t,uint8_t> MinMax(uint16_t value);
 
         /* Return true if all the queues of activation bits are empty
          * @param offsets   Collection of activations with their explicit one positions in a queue

@@ -58,10 +58,10 @@ namespace core {
         return booth_encoding;
     }
 
-    std::vector<uint16_t> generateBoothTable() {
-        std::vector<uint16_t> booth_table;
-        for(long n = 0; n < 32768; n++)
-            booth_table.push_back(generateBoothEncoding((uint16_t)n));
+    std::vector<uint16_t> generateBoothTable(const long MAX_VALUES = 32768) {
+        std::vector<uint16_t> booth_table ((unsigned)MAX_VALUES, 0);
+        for(long n = 0; n < MAX_VALUES; n++)
+            booth_table[0] = generateBoothEncoding((uint16_t)n);
         return booth_table;
     }
 
@@ -69,6 +69,35 @@ namespace core {
     uint16_t Simulator<T>::booth_encoding(uint16_t value) {
         const static std::vector<uint16_t> booth_table = generateBoothTable();
         return booth_table[value];
+    }
+
+    std::vector<std::tuple<uint8_t,uint8_t>> generateMinMaxTable(const long MAX_VALUES = 32768) {
+        std::vector<std::tuple<uint8_t,uint8_t>> min_max_table ((unsigned)MAX_VALUES, std::tuple<uint8_t,uint8_t>());
+        min_max_table[0] = std::make_tuple(16,0);
+        for(long n = 1; n < MAX_VALUES; n++) {
+
+            auto tmp_n = n;
+            uint8_t count = 0;
+            std::vector<uint8_t> act_offsets;
+            while (tmp_n) {
+                auto current_bit = tmp_n & 1;
+                if(current_bit) act_offsets.push_back(count);
+                tmp_n >>= 1;
+                count++;
+            }
+
+            auto min_act_bit = act_offsets[0];
+            auto max_act_bit = act_offsets[act_offsets.size()-1];
+
+            min_max_table[n] = std::make_tuple(min_act_bit,max_act_bit);
+        }
+        return min_max_table;
+    }
+
+    template <typename T>
+    std::tuple<uint8_t,uint8_t> Simulator<T>::MinMax(uint16_t value) {
+        const static std::vector<std::tuple<uint8_t,uint8_t>> min_max_table = generateMinMaxTable();
+        return min_max_table[value];
     }
 
     template <typename T>
