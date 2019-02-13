@@ -14,11 +14,7 @@ namespace core {
         act_bits = this->booth_encoding(act_bits);
         #endif
 
-        uint8_t act_effectual_bits = 0;
-        while (act_bits) {
-            act_effectual_bits += act_bits & 1;
-            act_bits >>= 1;
-        }
+        uint8_t act_effectual_bits = this->effectualBits(act_bits);
 
         uint8_t bit_multiplications = act_effectual_bits * (uint8_t)16;
         #ifdef ZERO_COUNT

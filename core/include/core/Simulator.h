@@ -49,7 +49,13 @@ namespace core {
          * @param value     Value to get the indexes
          * @return          Minimum and maximum indexes
          */
-        std::tuple<uint8_t,uint8_t> MinMax(uint16_t value);
+        std::tuple<uint8_t,uint8_t> minMax(uint16_t value);
+
+        /* Return the number of effectual bits for a given value
+         * @param value     Value to get the effectual bits
+         * @return          Number of effectual bits
+         */
+        uint8_t effectualBits(uint16_t value);
 
         /* Return true if all the queues of activation bits are empty
          * @param offsets   Collection of activations with their explicit one positions in a queue

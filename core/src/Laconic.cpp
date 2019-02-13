@@ -16,16 +16,8 @@ namespace core {
         wgt_bits = this->booth_encoding(wgt_bits);
         #endif
 
-        uint8_t act_effectual_bits = 0;
-        while (act_bits) {
-            act_effectual_bits += act_bits & 1;
-            act_bits >>= 1;
-        }
-        uint8_t wgt_effectual_bits = 0;
-        while (wgt_bits) {
-            wgt_effectual_bits += wgt_bits & 1;
-            wgt_bits >>= 1;
-        }
+        uint8_t act_effectual_bits = this->effectualBits(act_bits);
+        uint8_t wgt_effectual_bits = this->effectualBits(wgt_bits);
 
         uint8_t bit_multiplications = act_effectual_bits * wgt_effectual_bits;
         #ifdef ZERO_COUNT

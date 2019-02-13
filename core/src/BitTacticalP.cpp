@@ -33,7 +33,7 @@ namespace core {
                 uint16_t act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x,
                         stride * act_y + kernel_y);
 
-                const auto &min_max_act_bits = this->MinMax(act_bits);
+                const auto &min_max_act_bits = this->minMax(act_bits);
 
                 auto min_act_bit = std::get<0>(min_max_act_bits);
                 auto max_act_bit = std::get<1>(min_max_act_bits);
@@ -72,7 +72,7 @@ namespace core {
                     uint16_t act_bits = padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
                             stride * list_act_y[window] + kernel_y);
 
-                    const auto &min_max_act_bits = this->MinMax(act_bits);
+                    const auto &min_max_act_bits = this->minMax(act_bits);
 
                     auto min_act_bit = std::get<0>(min_max_act_bits);
                     auto max_act_bit = std::get<1>(min_max_act_bits);

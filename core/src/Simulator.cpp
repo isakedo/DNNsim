@@ -61,7 +61,7 @@ namespace core {
     std::vector<uint16_t> generateBoothTable(const long MAX_VALUES = 32768) {
         std::vector<uint16_t> booth_table ((unsigned)MAX_VALUES, 0);
         for(long n = 0; n < MAX_VALUES; n++)
-            booth_table[0] = generateBoothEncoding((uint16_t)n);
+            booth_table[n] = generateBoothEncoding((uint16_t)n);
         return booth_table;
     }
 
@@ -71,6 +71,28 @@ namespace core {
         return booth_table[value];
     }
 
+    std::vector<uint8_t> generateEffectualBitsTable(const long MAX_VALUES = 32768) {
+        std::vector<uint8_t> effectual_bits_table ((unsigned)MAX_VALUES, 0);
+        for(long n = 0; n < MAX_VALUES; n++) {
+
+            auto tmp_n = n;
+            uint8_t effectual_bits = 0;
+            while (tmp_n) {
+                effectual_bits += tmp_n & 1;
+                tmp_n >>= 1;
+            }
+
+            effectual_bits_table[n] = effectual_bits;
+        }
+        return effectual_bits_table;
+    }
+
+    template <typename T>
+    uint8_t Simulator<T>::effectualBits(uint16_t value) {
+        const static std::vector<uint8_t> effectual_bits_table = generateEffectualBitsTable();
+        return effectual_bits_table[value];
+    }
+
     std::vector<std::tuple<uint8_t,uint8_t>> generateMinMaxTable(const long MAX_VALUES = 32768) {
         std::vector<std::tuple<uint8_t,uint8_t>> min_max_table ((unsigned)MAX_VALUES, std::tuple<uint8_t,uint8_t>());
         min_max_table[0] = std::make_tuple(16,0);
@@ -78,16 +100,16 @@ namespace core {
 
             auto tmp_n = n;
             uint8_t count = 0;
-            std::vector<uint8_t> act_offsets;
+            std::vector<uint8_t> offsets;
             while (tmp_n) {
                 auto current_bit = tmp_n & 1;
-                if(current_bit) act_offsets.push_back(count);
+                if(current_bit) offsets.push_back(count);
                 tmp_n >>= 1;
                 count++;
             }
 
-            auto min_act_bit = act_offsets[0];
-            auto max_act_bit = act_offsets[act_offsets.size()-1];
+            auto min_act_bit = offsets[0];
+            auto max_act_bit = offsets[offsets.size()-1];
 
             min_max_table[n] = std::make_tuple(min_act_bit,max_act_bit);
         }
@@ -95,7 +117,7 @@ namespace core {
     }
 
     template <typename T>
-    std::tuple<uint8_t,uint8_t> Simulator<T>::MinMax(uint16_t value) {
+    std::tuple<uint8_t,uint8_t> Simulator<T>::minMax(uint16_t value) {
         const static std::vector<std::tuple<uint8_t,uint8_t>> min_max_table = generateMinMaxTable();
         return min_max_table[value];
     }
