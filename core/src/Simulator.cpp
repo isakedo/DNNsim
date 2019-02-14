@@ -58,9 +58,9 @@ namespace core {
         return booth_encoding;
     }
 
-    std::vector<uint16_t> generateBoothTable(const long MAX_VALUES = 32768) {
+    std::vector<uint16_t> generateBoothTable(const int MAX_VALUES = 32768) {
         std::vector<uint16_t> booth_table ((unsigned)MAX_VALUES, 0);
-        for(long n = 0; n < MAX_VALUES; n++)
+        for(int n = 0; n < MAX_VALUES; n++)
             booth_table[n] = generateBoothEncoding((uint16_t)n);
         return booth_table;
     }
@@ -71,9 +71,9 @@ namespace core {
         return booth_table[value];
     }
 
-    std::vector<uint8_t> generateEffectualBitsTable(const long MAX_VALUES = 32768) {
+    std::vector<uint8_t> generateEffectualBitsTable(const int MAX_VALUES = 65535) {
         std::vector<uint8_t> effectual_bits_table ((unsigned)MAX_VALUES, 0);
-        for(long n = 0; n < MAX_VALUES; n++) {
+        for(int n = 0; n < MAX_VALUES; n++) {
 
             auto tmp_n = n;
             uint8_t effectual_bits = 0;
@@ -93,10 +93,10 @@ namespace core {
         return effectual_bits_table[value];
     }
 
-    std::vector<std::tuple<uint8_t,uint8_t>> generateMinMaxTable(const long MAX_VALUES = 32768) {
+    std::vector<std::tuple<uint8_t,uint8_t>> generateMinMaxTable(const int MAX_VALUES = 32768) {
         std::vector<std::tuple<uint8_t,uint8_t>> min_max_table ((unsigned)MAX_VALUES, std::tuple<uint8_t,uint8_t>());
         min_max_table[0] = std::make_tuple(16,0);
-        for(long n = 1; n < MAX_VALUES; n++) {
+        for(int n = 1; n < MAX_VALUES; n++) {
 
             auto tmp_n = n;
             uint8_t count = 0;
