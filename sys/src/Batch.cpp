@@ -161,12 +161,6 @@ namespace sys {
                     experiment.F = experiment_proto.f() < 1 ? 4 : experiment_proto.f();
                     experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
                             1024 : experiment_proto.out_acc_size();
-                    experiment.precision_granularity = experiment_proto.precision_granularity().empty() ? "Tile" :
-                            experiment_proto.precision_granularity();
-                    value = experiment.precision_granularity;
-                    if(value != "Tile" && value != "SIP")
-                        throw std::runtime_error("SCNNp per precision granularity specification for network "
-                                                 + simulate.network + " must be <Tile|SIP>.");
 
                 } else if (experiment_proto.architecture() == "SCNNe") {
                     experiment.Wt = experiment_proto.wt() < 1 ? 8 : experiment_proto.wt();

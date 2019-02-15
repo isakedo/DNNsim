@@ -32,14 +32,6 @@ namespace core {
         /* Output accumulator size */
         const int out_acc_size;
 
-        /* Calculate in which bank the output activation is mapped
-         * @param k
-         * @param x
-         * @param y
-         * @return      Accumulator bank index
-         */
-        int map_accumulator(int k, int x, int y);
-
     private:
 
         typedef std::vector<std::tuple<int,int>> act_idxMap;
@@ -52,6 +44,14 @@ namespace core {
             uint32_t i_loop = 0;
             uint32_t f_loop = 0;
         };
+
+        /* Calculate in which bank the output activation is mapped
+         * @param k
+         * @param x
+         * @param y
+         * @return      Accumulator bank index
+         */
+        int map_accumulator(int k, int x, int y);
 
         /* Compute number of one bit multiplications given a weight and an activation
          * @param act       Activation

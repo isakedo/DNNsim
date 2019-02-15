@@ -26,6 +26,14 @@ namespace core {
             uint32_t f_loop = 0;
         };
 
+        /* Calculate in which bank the output activation is mapped
+         * @param k
+         * @param x
+         * @param y
+         * @return      Accumulator bank index
+         */
+        int map_accumulator(int k, int x, int y);
+
         /* Compute number of one bit multiplications given a weight and an activation
          * @param act       Activation
          * @param wgt       Weight

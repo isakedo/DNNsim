@@ -12,9 +12,6 @@ namespace core {
 
         typedef std::vector<std::tuple<int,int,T>> act_idxMap;
 
-        /* Number of activations per group: Tile, SIP */
-        std::string PRECISION_GRANULARITY;
-
         struct PE_stats {
             uint32_t cycles = 0;
             uint32_t mults = 0;
@@ -23,6 +20,14 @@ namespace core {
             uint32_t i_loop = 0;
             uint32_t f_loop = 0;
         };
+
+        /* Calculate in which bank the output activation is mapped
+         * @param k
+         * @param x
+         * @param y
+         * @return      Accumulator bank index
+         */
+        int map_accumulator(int k, int x, int y);
 
         /* Compute number of one bit multiplications given a weight and an activation
          * @param act       Activation
@@ -97,10 +102,8 @@ namespace core {
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          */
-        SCNNp(int _Wt, int _Ht, int _Kt, int _I, int _F, int _out_acc_size, const std::string &_PRECISION_GRANULARITY,
-                uint8_t _N_THREADS, bool _FAST_MODE) : SCNN<T>(_Wt,_Ht,_Kt,_I,_F,_out_acc_size,_N_THREADS,_FAST_MODE) {
-            PRECISION_GRANULARITY = _PRECISION_GRANULARITY;
-        }
+        SCNNp(int _Wt, int _Ht, int _Kt, int _I, int _F, int _out_acc_size, uint8_t _N_THREADS, bool _FAST_MODE) :
+            SCNN<T>(_Wt,_Ht,_Kt,_I,_F,_out_acc_size,_N_THREADS,_FAST_MODE) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

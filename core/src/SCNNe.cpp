@@ -6,6 +6,11 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
+    int SCNNe<T>::map_accumulator(int k, int x, int y) {
+        return ((((k & 4) << 2) ^ ((x & 2) << 3) ^ ((y & 2) << 3)) + ((x & 1) << 3) + ((y & 1) << 2) + (k & 3));
+    }
+
+    template <typename T>
     uint16_t SCNNe<T>::computeSCNNeBitsPE(T act, T wgt) {
 
         #ifdef ZERO_COUNT
@@ -66,7 +71,7 @@ namespace core {
                         int h = (y - s + padding) / stride;
 
                         if(w >= 0 && w < W && h >= 0 && h < H) {
-                            int acc_idx = this->map_accumulator(k, w, h);
+                            int acc_idx = map_accumulator(k, w, h);
                             acc[acc_idx] += 1;
 
                             pe_stats.mults += 1;
