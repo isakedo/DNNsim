@@ -6,8 +6,8 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    int SCNN<T>::map_accumulator(int k, int x, int y) {
-        return ((((k & 4) << 2) ^ ((x & 2) << 3) ^ ((y & 2) << 3)) + ((x & 1) << 3) + ((y & 1) << 2) + (k & 3));
+    int SCNN<T>::map_accumulator(int k, int x, int y, int banks) {
+        return ((((k & 4) << 2) ^ ((x & 2) << 3) ^ ((y & 2) << 3)) + ((x & 1) << 3) + ((y & 1) << 2) + (k & 3)) % banks;
     }
 
     template <typename T>

@@ -6,11 +6,6 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    int SCNNe<T>::map_accumulator(int k, int x, int y) {
-        return ((((k & 4) << 2) ^ ((x & 2) << 3) ^ ((y & 2) << 3)) + ((x & 1) << 3) + ((y & 1) << 2) + (k & 3));
-    }
-
-    template <typename T>
     uint16_t SCNNe<T>::computeSCNNeBitsPE(T act, T wgt) {
 
         #ifdef ZERO_COUNT
@@ -53,15 +48,21 @@ namespace core {
             pe_stats.i_loop += 1;
             for(int f = 0; f < wgt.size(); f+=this->F) {
                 pe_stats.f_loop += 1;
-                std::vector<uint8_t> acc(2 * this->F * this->I, 0);
-                for(int ii = i; ii < std::min(i + this->I, (int)act.size()); ii++) {
-                    for(int ff = f; ff < std::min(f + this->F, (int)wgt.size()); ff++) {
-                        const auto &act_index = act[ii];
-                        const auto &wgt_index = wgt[ff];
+                uint8_t accumulator_updates = 0;
+                std::unordered_set<uint8_t> acc_cycles;
+                std::vector<std::vector<uint8_t>> acc ((unsigned)this->I,
+                        std::vector<uint8_t>(2 * this->F * this->I, 0));
 
-                        auto x = std::get<0>(act_index);
-                        auto y = std::get<1>(act_index);
-                        auto act_bits = std::get<2>(act_index);
+                for(int ii = i; ii < std::min(i + this->I, (int)act.size()); ii++) {
+
+                    const auto &act_index = act[ii];
+                    auto x = std::get<0>(act_index);
+                    auto y = std::get<1>(act_index);
+                    auto act_cycles = std::get<2>(act_index);
+                    acc_cycles.emplace(act_cycles);
+
+                    for(int ff = f; ff < std::min(f + this->F, (int)wgt.size()); ff++) {
+                        const auto &wgt_index = wgt[ff];
 
                         auto k = std::get<0>(wgt_index);
                         auto r = std::get<1>(wgt_index);
@@ -71,18 +72,25 @@ namespace core {
                         int h = (y - s + padding) / stride;
 
                         if(w >= 0 && w < W && h >= 0 && h < H) {
-                            int acc_idx = map_accumulator(k, w, h);
-                            acc[acc_idx] += 1;
-
+                            int acc_idx = this->map_accumulator(k, w, h);
+                            acc[ii % this->I][acc_idx] += 1;
+                            accumulator_updates++;
                             pe_stats.mults += 1;
                         }
                     }
                 }
-                auto max_acc = *std::max_element(acc.begin(), acc.end());
-                auto warp_time = std::max(max_acc, (uint8_t) 1);
-                pe_stats.cycles += warp_time;
-                pe_stats.idle_conflicts += (warp_time - 1) * this->I * this->F;
-                pe_stats.accumulator_updates += accumulate(acc.begin(), acc.end(), 0.0);
+                std::vector<uint8_t> acc_maxs = std::vector<uint8_t>(this->I,0);
+                for(int a = 0; a < this->I; a++) {
+                    auto acc_max = *std::max_element(acc[a].begin(), acc[a].end());
+                    acc_maxs[a] = std::max(acc_max - 1, 0);
+                }
+                auto conflicts_stalls = std::accumulate(acc_maxs.begin(), acc_maxs.end(), 0);
+                auto column_stalls = this->I - acc_cycles.size();
+                auto max_cycles = *std::max_element(acc_cycles.begin(), acc_cycles.end());
+
+                pe_stats.cycles += max_cycles + conflicts_stalls + column_stalls;
+                pe_stats.idle_conflicts += conflicts_stalls * this->I * this->F;
+                pe_stats.accumulator_updates += accumulator_updates;
             }
         }
 
@@ -113,8 +121,10 @@ namespace core {
                     for(int y = y_begin; y < y_end; y++) {
                         int sy = y % stride;
                         auto act_bits = act.get(n,ct+ck,x,y);
-                        if(act_bits != 0)
-                            act_queue[sx][sy].emplace_back(std::make_tuple(x,y,act_bits));
+                        if(act_bits != 0) {
+                            auto act_cycles = this->effectualBits(act_bits);
+                            act_queue[sx][sy].emplace_back(std::make_tuple(x, y, act_cycles));
+                        }
                         dense_act_counter[sx][sy] += 1;
                     }
                 }

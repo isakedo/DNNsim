@@ -21,14 +21,6 @@ namespace core {
             uint32_t f_loop = 0;
         };
 
-        /* Calculate in which bank the output activation is mapped
-         * @param k
-         * @param x
-         * @param y
-         * @return      Accumulator bank index
-         */
-        int map_accumulator(int k, int x, int y);
-
         /* Compute number of one bit multiplications given a weight and an activation
          * @param act       Activation
          * @param wgt       Weight
@@ -36,7 +28,7 @@ namespace core {
          */
         uint16_t computeSCNNpBitsPE(T act, T wgt, uint16_t act_layer_prec);
 
-        /* Compute SCNN processing engine
+        /* Compute SCNNp processing engine
          * @param W         Width of the output activations
          * @param H         Height of the output activations
          * @param stride    Stride for the layer
@@ -47,7 +39,7 @@ namespace core {
          */
         PE_stats computeSCNNpPE(int W, int H, int stride, int padding, const act_idxMap &act, const wgt_idxMap &wgt);
 
-        /* Compute SCNN tile
+        /* Compute SCNNp tile
          * @param n         Number of batch
          * @param ct        Channel to be processed within a filter
          * @param ck        Channel offset for per group filters
