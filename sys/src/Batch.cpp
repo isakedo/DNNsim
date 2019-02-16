@@ -152,25 +152,28 @@ namespace sys {
                     experiment.F = experiment_proto.f() < 1 ? 4 : experiment_proto.f();
                     experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
                             1024 : experiment_proto.out_acc_size();
+                    experiment.banks = experiment_proto.banks() < 1 ? 32 : experiment_proto.banks();
 
                 } else if (experiment_proto.architecture() == "SCNNp") {
-                    experiment.Wt = experiment_proto.wt() < 1 ? 8 : experiment_proto.wt();
-                    experiment.Ht = experiment_proto.ht() < 1 ? 8 : experiment_proto.ht();
+                    experiment.Wt = experiment_proto.wt() < 1 ? 32 : experiment_proto.wt();
+                    experiment.Ht = experiment_proto.ht() < 1 ? 32 : experiment_proto.ht();
                     experiment.Kt = experiment_proto.kt() < 1 ? 64 : experiment_proto.kt();
                     experiment.I = experiment_proto.i() < 1 ? 4 : experiment_proto.i();
                     experiment.F = experiment_proto.f() < 1 ? 4 : experiment_proto.f();
                     experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
                             1024 : experiment_proto.out_acc_size();
+                    experiment.banks = experiment_proto.banks() < 1 ? 32 : experiment_proto.banks();
 
                 } else if (experiment_proto.architecture() == "SCNNe") {
-                    experiment.Wt = experiment_proto.wt() < 1 ? 8 : experiment_proto.wt();
-                    experiment.Ht = experiment_proto.ht() < 1 ? 8 : experiment_proto.ht();
+                    experiment.Wt = experiment_proto.wt() < 1 ? 32 : experiment_proto.wt();
+                    experiment.Ht = experiment_proto.ht() < 1 ? 32 : experiment_proto.ht();
                     experiment.Kt = experiment_proto.kt() < 1 ? 64 : experiment_proto.kt();
                     experiment.I = experiment_proto.i() < 1 ? 4 : experiment_proto.i();
                     experiment.F = experiment_proto.f() < 1 ? 4 : experiment_proto.f();
                     experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
                             1024 : experiment_proto.out_acc_size();
                     experiment.bits_first_stage = experiment_proto.bits_first_stage();
+                    experiment.banks = experiment_proto.banks() < 1 ? 32 : experiment_proto.banks();
 
                 } else throw std::runtime_error("Architecture for network " + simulate.network +
                                                 " in Fixed16 must be <BitPragmatic|Stripes|Laconic|BitTacticalP|"
@@ -203,6 +206,7 @@ namespace sys {
                     experiment.F = experiment_proto.f() < 1 ? 4 : experiment_proto.f();
                     experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
                                               1024 : experiment_proto.out_acc_size();
+                    experiment.banks = experiment_proto.banks() < 1 ? 32 : experiment_proto.banks();
 
                 } else throw std::runtime_error("Architecture for network " + simulate.network +
                                                 " in Float32 must be <None|SCNN>.");

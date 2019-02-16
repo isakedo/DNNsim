@@ -32,14 +32,16 @@ namespace core {
         /* Output accumulator size */
         const int out_acc_size;
 
+        /* Number of banks */
+        const int BANKS;
+
         /* Calculate in which bank the output activation is mapped
          * @param k         Filter
          * @param x         X position
          * @param y         W position
-         * @param banks     Number of banks (up to 32)
          * @return          Accumulator bank index
          */
-        int map_accumulator(int k, int x, int y, int banks = 32);
+        int map_accumulator(int k, int x, int y);
 
     private:
 
@@ -124,11 +126,13 @@ namespace core {
          * @param _I            Column multipliers per PE
          * @param _F            Row multipliers per PE
          * @param _out_acc_size Output accumulator size
+         * @param _BANKS        Number of banks
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          */
-        SCNN(int _Wt, int _Ht, int _Kt, int _I, int _F, int _out_acc_size, uint8_t _N_THREADS, bool _FAST_MODE) :
-            Simulator<T>(_N_THREADS, _FAST_MODE), Wt(_Wt), Ht(_Ht), Kt(_Kt), I(_I), F(_F), out_acc_size(_out_acc_size){}
+        SCNN(int _Wt, int _Ht, int _Kt, int _I, int _F, int _out_acc_size, int _BANKS, uint8_t _N_THREADS,
+            bool _FAST_MODE) : Simulator<T>(_N_THREADS, _FAST_MODE), Wt(_Wt), Ht(_Ht), Kt(_Kt), I(_I), F(_F),
+            out_acc_size(_out_acc_size), BANKS(_BANKS) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

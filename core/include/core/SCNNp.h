@@ -91,11 +91,12 @@ namespace core {
          * @param _I            Column multipliers per PE
          * @param _F            Row multipliers per PE
          * @param _out_acc_size Output accumulator size
+         * @param _BANKS        Number of banks
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          */
-        SCNNp(int _Wt, int _Ht, int _Kt, int _I, int _F, int _out_acc_size, uint8_t _N_THREADS, bool _FAST_MODE) :
-            SCNN<T>(_Wt,_Ht,_Kt,_I,_F,_out_acc_size,_N_THREADS,_FAST_MODE) {}
+        SCNNp(int _Wt, int _Ht, int _Kt, int _I, int _F, int _out_acc_size, int _BANKS, uint8_t _N_THREADS,
+            bool _FAST_MODE) : SCNN<T>(_Wt,_Ht,_Kt,_I,_F,_out_acc_size,_BANKS,_N_THREADS,_FAST_MODE) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

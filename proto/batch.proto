@@ -44,6 +44,7 @@ message Batch {
             uint32 I = 15;
             uint32 F = 16;
             uint32 out_acc_size = 17;
+            uint32 banks = 18;
         }
 
         string inputType = 1;

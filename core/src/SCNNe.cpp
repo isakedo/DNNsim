@@ -355,7 +355,7 @@ namespace core {
         stats.net_name = network.getName();
         stats.arch = "SCNNe_Wt" + std::to_string(this->Wt) + "_Ht" + std::to_string(this->Ht) + "_Kt" +
                 std::to_string(this->Kt) + "_I" + std::to_string(this->I) + "_F" + std::to_string(this->F) +
-                "_acc_out" + std::to_string(this->out_acc_size);
+                "_acc_out" + std::to_string(this->out_acc_size) + "_B" + std::to_string(this->BANKS);
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution" || layer.getType() == "InnerProduct") {

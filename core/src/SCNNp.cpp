@@ -276,11 +276,11 @@ namespace core {
 
         int n;
 
-        /*#ifdef OPENMP
+        #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n)
-        #endif*/
+        #endif
         for(n = 0; n < N; n++) {
             for(int kc = 0; kc < K; kc+=Kc) {
 
@@ -346,7 +346,7 @@ namespace core {
         stats.net_name = network.getName();
         stats.arch = "SCNNp_Wt" + std::to_string(this->Wt) + "_Ht" + std::to_string(this->Ht) + "_Kt" +
                 std::to_string(this->Kt) + "_I" + std::to_string(this->I) + "_F" + std::to_string(this->F) +
-                "_acc_out" + std::to_string(this->out_acc_size);
+                "_acc_out" + std::to_string(this->out_acc_size) + "_B" + std::to_string(this->BANKS);
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution" || layer.getType() == "InnerProduct") {

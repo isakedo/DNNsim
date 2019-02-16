@@ -193,7 +193,7 @@ int main(int argc, char *argv[]) {
                             if(experiment.task == "Inference") DNNsim.run(network);
                         } else if (experiment.architecture == "SCNN") {
                             core::SCNN<float> DNNsim(experiment.Wt, experiment.Ht, experiment.Kt, experiment.I,
-                                    experiment.F, experiment.out_acc_size, N_THREADS, FAST_MODE);
+                                    experiment.F, experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE);
                             if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                         }
@@ -255,20 +255,20 @@ int main(int argc, char *argv[]) {
 
                         } else if (experiment.architecture == "SCNN") {
                             core::SCNN<uint16_t> DNNsim(experiment.Wt, experiment.Ht, experiment.Kt, experiment.I,
-                                    experiment.F, experiment.out_acc_size, N_THREADS, FAST_MODE);
+                                    experiment.F, experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE);
                             if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
                         } else if (experiment.architecture == "SCNNp") {
                             core::SCNNp<uint16_t> DNNsim(experiment.Wt, experiment.Ht, experiment.Kt, experiment.I,
-                                    experiment.F, experiment.out_acc_size, N_THREADS, FAST_MODE);
+                                    experiment.F, experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE);
                             if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
                         } else if (experiment.architecture == "SCNNe") {
                             core::SCNNe<uint16_t> DNNsim(experiment.Wt, experiment.Ht, experiment.Kt, experiment.I,
-                                    experiment.F, experiment.out_acc_size, experiment.bits_first_stage, N_THREADS,
-                                    FAST_MODE);
+                                    experiment.F, experiment.out_acc_size, experiment.bits_first_stage,
+                                    experiment.banks, N_THREADS, FAST_MODE);
                             if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                         }

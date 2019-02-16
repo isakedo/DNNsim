@@ -26,11 +26,12 @@
 		[search_shape: <L|T>] //Only for BitTactical: Default L
 		[read_schedule_from_proto: true] //Only for BitTactical: Default false
 		//SCNN-like architectures
-		[Ht: <pos_num>] //Default 8
-		[Wt: <pos_num>] //Default 8
+		[Ht: <pos_num>] //Default 8 | p and e: 32
+		[Wt: <pos_num>] //Default 8 | p and e: 32
 		[Kt: <pos_num>] //Default 64
 		[I: <pos_num>] //Default 4
 		[F: <pos_num>] //Default 4
 		[out_acc_size: <pos_num>] //Default 1024
+		[banks: <pos_num>] //Default 32 (Max 32)
 	}>
 }>

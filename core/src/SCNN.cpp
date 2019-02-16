@@ -6,8 +6,8 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    int SCNN<T>::map_accumulator(int k, int x, int y, int banks) {
-        return ((((k & 4) << 2) ^ ((x & 2) << 3) ^ ((y & 2) << 3)) + ((x & 1) << 3) + ((y & 1) << 2) + (k & 3)) % banks;
+    int SCNN<T>::map_accumulator(int k, int x, int y) {
+        return ((((k & 4) << 2) ^ ((x & 2) << 3) ^ ((y & 2) << 3)) + ((x & 1) << 3) + ((y & 1) << 2) + (k & 3)) % BANKS;
     }
 
     template <typename T>
@@ -328,7 +328,8 @@ namespace core {
         stats.task_name = "cycles";
         stats.net_name = network.getName();
         stats.arch = "SCNN_Wt" + std::to_string(Wt) + "_Ht" + std::to_string(Ht) + "_Kt" + std::to_string(Kt) +
-                "_I" + std::to_string(I) + "_F" + std::to_string(F) + "_acc_out" + std::to_string(out_acc_size);
+                "_I" + std::to_string(I) + "_F" + std::to_string(F) + "_acc_out" + std::to_string(out_acc_size) +
+                "_B" + std::to_string(BANKS);
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution" || layer.getType() == "InnerProduct") {

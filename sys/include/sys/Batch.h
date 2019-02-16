@@ -44,6 +44,7 @@ namespace sys {
                 int I = 0;
                 int F = 0;
                 int out_acc_size = 0;
+                int banks = 0;
             };
 
             std::string inputType = ""; // Protobuf/Gzip

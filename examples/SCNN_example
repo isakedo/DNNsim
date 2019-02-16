@@ -11,5 +11,6 @@ simulate {
         I: 4
         F: 4
         out_acc_size: 1024
+        banks: 32
 	}
 }
