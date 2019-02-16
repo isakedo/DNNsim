@@ -172,7 +172,6 @@ namespace sys {
                     experiment.F = experiment_proto.f() < 1 ? 4 : experiment_proto.f();
                     experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
                             1024 : experiment_proto.out_acc_size();
-                    experiment.bits_first_stage = experiment_proto.bits_first_stage();
                     experiment.banks = experiment_proto.banks() < 1 ? 32 : experiment_proto.banks();
 
                 } else throw std::runtime_error("Architecture for network " + simulate.network +

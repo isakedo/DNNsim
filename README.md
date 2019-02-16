@@ -149,7 +149,7 @@ Data type indicates the possible data types allowed: Float32 for 4bytes floating
 | BitTacticalE | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, BITS_FIRST_STAGE, COLUMN_REGISTERS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
 | SCNN | Wt, Ht, Kt, I, F, out_acc_size, BANKS | ZERO_COUNT | X | X | Fixed16, Float32 |
 | SCNNp | Wt, Ht, Kt, I, F, out_acc_size, BANKS | ZERO_COUNT | - | X | Fixed16 |
-| SCNNe | Wt, Ht, Kt, I, F, out_acc_size, BANKS, BITS_FIRST_STAGE | BOOTH_ENCODING, ZERO_COUNT | - | X | Fixed16 |
+| SCNNe | Wt, Ht, Kt, I, F, out_acc_size, BANKS | BOOTH_ENCODING, ZERO_COUNT | - | X | Fixed16 |
 
 *\*Default features can be removed in their specific header file*
 

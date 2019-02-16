@@ -267,8 +267,7 @@ int main(int argc, char *argv[]) {
 
                         } else if (experiment.architecture == "SCNNe") {
                             core::SCNNe<uint16_t> DNNsim(experiment.Wt, experiment.Ht, experiment.Kt, experiment.I,
-                                    experiment.F, experiment.out_acc_size, experiment.bits_first_stage,
-                                    experiment.banks, N_THREADS, FAST_MODE);
+                                    experiment.F, experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE);
                             if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                         }
