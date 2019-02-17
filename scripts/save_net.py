@@ -36,7 +36,7 @@ def load_net(net_name):
     # input preprocessing: 'data' is the name of the input blob == net.inputs[0]
     transformer = caffe.io.Transformer({'data': net.blobs['data'].data.shape})
     transformer.set_transpose('data', (2,0,1))
-    mean_file = caffe_root + 'python/caffe/imagenet/ilsvrc_2012_mean.npy'
+    mean_file = caffe_root + '../caffe_gpu/python/caffe/imagenet/ilsvrc_2012_mean.npy'
     check_file(mean_file)
     transformer.set_mean('data', np.load(mean_file).mean(1).mean(1)) # mean pixel
     transformer.set_raw_scale('data', 255)  # the reference model operates on images in [0,255] range instead of [0,1]
@@ -47,6 +47,7 @@ def load_net(net_name):
     if 'lstm' not in net_name:
         print 'ImageNet network'
         net.blobs['data'].reshape(batch_size,3,227,227)
+
 
     return net
 
@@ -60,7 +61,7 @@ def read_prototxt(model):
 
     return net_param
 
-def write_trace(net, layers, batches, dir):
+def write_activations(net, layers, batches, dir):
     ''' runs the network for a specified number of batches and saves the inputs to each layer
         Inputs:
             net -- caffe net object
@@ -105,6 +106,51 @@ def write_trace(net, layers, batches, dir):
             
             print 'saving activations', name, data.shape, '->', savefile
             np.save(savefile,data)
+
+def write_activations_out(net, layers, batches, dir):
+    ''' runs the network for a specified number of batches and saves the inputs to each layer
+        Inputs:
+            net -- caffe net object
+            layers -- vector of protobuf layers to save
+            batches  -- number of batches to run
+            dir -- directory to write trace files
+        Returns:
+            nothing           
+    '''
+
+    for b in range(batches):
+        print "%s iteration %d" %(net_name, b)
+
+        start = time.time()
+        net.forward()
+        end = time.time()
+        print 'runtime: %.2f' % (end-start)
+
+        if b < skip:
+            continue 
+
+        print 'layer, Nb, Ni, Nx, Ny'
+        for l, layer in enumerate(layers):
+            name = layer.name
+            sane_name = re.sub('/','-',name) # sanitize layer name so we can save it as a file (remove /)
+            savefile = '%s/act-%s-%d' % (dir, sane_name, b)
+
+            if os.path.isfile(savefile + "-out" + ".npy"):
+                print savefile+"-out","exists, skipping"
+                continue
+
+            if not os.path.exists(dir):
+                os.makedirs(dir)
+
+            input_blob = layer.bottom[0]
+            output_blob = layer.top[0]
+            data = net.blobs[input_blob].data
+            data_out = net.blobs[output_blob].data
+            if (len(data.shape) == 2):
+                (Nb, Ni) = data.shape
+                data = data.reshape( (Nb,Ni,1,1) )
+            
+            print 'saving output activations', name, data.shape, '->', savefile+"-out"
             np.save(savefile+'-out', data_out)
 
 def write_weights(net, layers, dir):
@@ -210,7 +256,6 @@ def write_config(net, layers, model, weights, dir):
             (Nx, Ny) = (1,1)
         else:
             (Nb, Ni, Nx, Ny) = data.shape
-            #(Kx, Ky) = (Nx, Ny)
 
         outstr = ','.join( [str(i) for i in [name, Nn, Kx, Ky, stride, pad]] ) + "\n"
         print outstr
@@ -219,19 +264,16 @@ def write_config(net, layers, model, weights, dir):
         
 ##################### MAIN ########################################################################
 
-caffe_root      = './'  # this file is expected to be in {caffe_root}/examples
+caffe_root      = './'  
 trace_dir       = caffe_root + '/net_traces' # write traces to this directory
-
-# Make sure that caffe is on the python path:
-sys.path.insert(0, caffe_root + 'python')
 
 parser = argparse.ArgumentParser(prog='save_net.py', description='Run a network in pycaffe and save a trace of the data input to each layer')
 parser.add_argument('network', metavar='network', type=str, help='network name in model directory. \'all\' to run all networks')
 parser.add_argument('batches', metavar='batches', type=int, help='batches to run')
 parser.add_argument('--skip', type=int,   default=0,          help='batches to skip')
-parser.add_argument('-o'    , type=str,   default=trace_dir,  help='output directory for trace files')
 parser.add_argument('-p'    , dest='write_params', action='store_true', help='write layer parameters for each net instead of writing trace')
 parser.add_argument('-a'    , dest='write_activations', action='store_true', help='write activations')
+parser.add_argument('-o'    , dest='write_activations_out', action='store_true', help='write output activations activations')
 parser.add_argument('-w'    , dest='write_weights', action='store_true', help='write weights')
 parser.add_argument('-b'    , dest='write_bias', action='store_true', help='write_bias')
 parser.set_defaults(write_params=False, write_weights=False)
@@ -240,7 +282,6 @@ args = parser.parse_args()
 batches = args.batches
 network = args.network
 skip    = args.skip
-trace_dir = args.o
 
 network = re.sub('models','',network)
 network = re.sub('/','',network)
@@ -249,8 +290,6 @@ netpath = caffe_root + 'models/' + network
 if not os.path.exists(netpath):
     print "Error: %s does not exist" % netpath
     sys.exit()
-
-sys.path.insert(0, '/home/patrick/python')
 
 caffe.set_mode_cpu()
 
@@ -271,11 +310,13 @@ for net_name in net_names:
     if args.write_params:
         write_config(net, layers, model, weights, out_dir)
     elif args.write_activations:
-    	write_trace(net, layers, batches, out_dir)
+    	write_activations(net, layers, batches, out_dir)
+    elif args.write_activations_out:
+    	write_activations_out(net, layers, batches, out_dir)
     elif args.write_weights:
         write_weights(net, layers, out_dir)
     elif args.write_bias:
-   		write_bias(net, layers, out_dir)
+   	write_bias(net, layers, out_dir)
     else:
     	print "Activate at least one write option"
         
