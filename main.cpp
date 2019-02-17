@@ -52,6 +52,15 @@ core::Network<T> read(const std::string &input_type, const std::string &network_
             reader.read_bias_npy(network);
             reader.read_output_activations_npy(network);
         }
+    } else if (input_type == "Trace") {
+        network = reader.read_network_trace_params();
+        reader.read_precision(network);
+        reader.read_weights_npy(network);
+        reader.read_activations_npy(network);
+        if(activate_bias_and_out_act) {
+            reader.read_bias_npy(network);
+            reader.read_output_activations_npy(network);
+        }
     } else if (input_type == "Protobuf") {
         network = reader.read_network_protobuf();
     } else {

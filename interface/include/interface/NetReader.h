@@ -60,22 +60,27 @@ namespace interface {
         NetReader(const std::string &_name, bool _activate_bias_and_out_act) :
                 activate_bias_and_out_act(_activate_bias_and_out_act) { this->name = _name; }
 
-        /* Load the trace file inside the folder path and returns the network
+        /* Load the caffe prototxt file inside the folder models and returns the network
          * @return          Network architecture
          */
         core::Network<T> read_network_caffe();
 
-        /* Read the protobuf with the network in the path and returns the network
+        /* Load the trace file inside the folder models and returns the network
+         * @return          Network architecture
+         */
+        core::Network<T> read_network_trace_params();
+
+        /* Read the protobuf with the network in the models and returns the network
          * @return          Network architecture
          */
         core::Network<T> read_network_protobuf();
 
-        /* Read the gzip with the network in the path and returns the network
+        /* Read the gzip with the network in the models and returns the network
          * @return          Network architecture
          */
         core::Network<T> read_network_gzip();
 
-        /* Read the weights schedule from the schedule in the path and the schedule
+        /* Read the weights schedule from the schedule in the models folder and the schedule
          * @return          Schedule for the network
          */
         std::vector<schedule> read_schedule_protobuf(const std::string &schedule_type);

@@ -10,7 +10,7 @@
 
 <simulate {
 	network: <Network name>
-	inputType: <Caffe|Protobuf|Gzip>
+	inputType: <Caffe|Trace|Protobuf|Gzip>
 	inputDataType: <Float32|Fixed16>
 	[activate_bias_and_out_act: true]
 	<experiment {

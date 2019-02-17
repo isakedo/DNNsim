@@ -76,6 +76,45 @@ namespace interface {
     }
 
     template <typename T>
+    core::Network<T> NetReader<T>::read_network_trace_params() {
+
+        std::vector<core::Layer<T>> layers;
+
+        check_path("models/" + this->name);
+        std::string path = "models/" + this->name + "/trace_params.csv";
+        check_path(path);
+
+        std::ifstream myfile (path);
+        if (myfile.is_open()) {
+
+            std::string line;
+            while (getline(myfile,line)) {
+
+                std::vector<std::string> words;
+                std::string word;
+                std::stringstream ss_line(line);
+                while (getline(ss_line,word,','))
+                    words.push_back(word);
+
+                std::string type;
+                if(words[3] == words[4] && words[4] == words[5] && words[5] == "1") {
+                    if (words[0].at(0) == 'l' && words[0].at(1) == 's')
+                        type = "LSTM";
+                    else
+                        type = "InnerProduct";
+                } else
+                    type = "Convolution";
+
+                layers.emplace_back(core::Layer<T>(type,words[0],words[1],std::stoi(words[2]), std::stoi(words[3]),
+                        std::stoi(words[4]), std::stoi(words[5]),std::stoi(words[6])));
+            }
+            myfile.close();
+        }
+
+        return core::Network<T>(this->name,layers);
+    }
+
+    template <typename T>
     core::Layer<T> NetReader<T>::read_layer_proto(const protobuf::Network_Layer &layer_proto) {
         core::Layer<T> layer = core::Layer<T>(layer_proto.type(),layer_proto.name(),layer_proto.input(),
         layer_proto.nn(),layer_proto.kx(),layer_proto.ky(),layer_proto.stride(),layer_proto.padding(),
