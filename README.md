@@ -1,4 +1,4 @@
-# DNNsim 1.2.0
+# DNNsim 1.3.0
 
 ### Requeriments
 *   Cmake posterior to version 3.10
@@ -187,6 +187,8 @@ Data type indicates the possible data types allowed: Float32 for 4bytes floating
     *   caffe.proto: Caffe protobuf definition for Caffe networks
     *   batch.proto: Google protobuf definition for the batch file
     *   schedule.proto: Tactical schedule protobuf definition
+*   **scripts**: Folder for supporting python scripts
+    *   save_net.py: Create traces for the networks given the models
     
 ### Fixes TODO
 *   Dispatchers?
