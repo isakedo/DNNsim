@@ -14,44 +14,15 @@ from google.protobuf import text_format
 def check_file(filename):
     assert os.path.isfile(filename), "%s is not a file" % filename
 
-def read_params(net_name):
-    ''' reads parameters of a network from a file
-        Inputs:
-            net_name    -- name of network, corresponding to directory in models dir
+def roundup_to_multiple(x, m):
+    return int(np.ceil( x / float(m))) * m
 
-        Returns:
-            conv_params -- dictionary mapping [layer name][parameter name] to the parameter value
-            layers      -- list of layer names
-    '''
+def divide_roundup(x, m):
+    return roundup_to_multiple(x,m) / m
 
-    raise DepricationWarning, "read_params is depreicated, parameters should be read from network prototxt"
-
-    #param_file = caffe_root +  net_name + '_in.csv'
-    #param_file = caffe_root +  net_name + '_trace_params.csv'
-    param_file = caffe_root + 'models/' + net_name + '/conv_params.csv'
-    check_file(param_file)
-
-    net_conv_params = open(param_file,'r')
-    lines = net_conv_params.readlines()
-    if len(lines) == 0:
-        print "WARNING: %s is emtpy" % param_file
-
-    conv_params = {} # dict of dicts of parameters, indexed by layer
-    layers = [] # store layers in order
-
-    for l in lines:
-        l = l.strip()
-        print "line =", l
-        layer, input_blob, bottom_size, kernel_size, stride, num_output, pad = l.split(',')
-        layers.append(layer)
-        conv_params[layer] = {}
-        conv_params[layer]['input_blob'] = input_blob
-        conv_params[layer]['bottom_size'] = bottom_size
-        conv_params[layer]['kernel_size'] = kernel_size
-        conv_params[layer]['stride'] = stride
-        conv_params[layer]['num_output'] = num_output
-        conv_params[layer]['pad'] = pad
-    return conv_params, layers
+def to2d(a):
+    a = np.array(a)
+    return np.reshape(a, (a.shape[0],-1))
 
 def load_net(net_name):
     ''' load the network definition from the models directory
@@ -88,16 +59,6 @@ def read_prototxt(model):
         text_format.Merge(str(f.read()), net_param)
 
     return net_param
-
-def roundup_to_multiple(x, m):
-    return int(np.ceil( x / float(m))) * m
-
-def divide_roundup(x, m):
-    return roundup_to_multiple(x,m) / m
-
-def to2d(a):
-    a = np.array(a)
-    return np.reshape(a, (a.shape[0],-1))
 
 def write_trace(net, layers, batches, dir):
     ''' runs the network for a specified number of batches and saves the inputs to each layer
@@ -251,7 +212,6 @@ def write_config(net, layers, model, weights, dir):
             (Nb, Ni, Nx, Ny) = data.shape
             #(Kx, Ky) = (Nx, Ny)
 
-        #outstr = ','.join( [str(i) for i in [name, input_blob, Nn, Kx, Ky, stride, pad]] ) + "\n"
         outstr = ','.join( [str(i) for i in [name, Nn, Kx, Ky, stride, pad]] ) + "\n"
         print outstr
         file_handle.write(outstr)
@@ -271,7 +231,9 @@ parser.add_argument('batches', metavar='batches', type=int, help='batches to run
 parser.add_argument('--skip', type=int,   default=0,          help='batches to skip')
 parser.add_argument('-o'    , type=str,   default=trace_dir,  help='output directory for trace files')
 parser.add_argument('-p'    , dest='write_params', action='store_true', help='write layer parameters for each net instead of writing trace')
+parser.add_argument('-a'    , dest='write_activations', action='store_true', help='write activations')
 parser.add_argument('-w'    , dest='write_weights', action='store_true', help='write weights')
+parser.add_argument('-b'    , dest='write_bias', action='store_true', help='write_bias')
 parser.set_defaults(write_params=False, write_weights=False)
 
 args = parser.parse_args()
@@ -280,16 +242,13 @@ network = args.network
 skip    = args.skip
 trace_dir = args.o
 
-if network == 'all':
-    net_names = ['alexnet', 'nin_imagenet', 'googlenet', 'vgg_cnn_s', 'vgg_cnn_m_2048', 'vgg_19layers']
-else:
-    network = re.sub('models','',network)
-    network = re.sub('/','',network)
-    net_names = [network]
-    netpath = caffe_root + 'models/' + network
-    if not os.path.exists(netpath):
-        print "Error: %s does not exist" % netpath
-        sys.exit()
+network = re.sub('models','',network)
+network = re.sub('/','',network)
+net_names = [network]
+netpath = caffe_root + 'models/' + network
+if not os.path.exists(netpath):
+    print "Error: %s does not exist" % netpath
+    sys.exit()
 
 sys.path.insert(0, '/home/patrick/python')
 
@@ -311,10 +270,14 @@ for net_name in net_names:
 
     if args.write_params:
         write_config(net, layers, model, weights, out_dir)
+    elif args.write_activations:
+    	write_trace(net, layers, batches, out_dir)
     elif args.write_weights:
         write_weights(net, layers, out_dir)
-        write_bias(net, layers, out_dir)
+    elif args.write_bias:
+   		write_bias(net, layers, out_dir)
     else:
-        write_trace(net, layers, batches, out_dir)
+    	print "Activate at least one write option"
+        
     
 
