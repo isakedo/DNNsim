@@ -19,9 +19,9 @@ namespace sys {
         transform.activate_bias_out_act = transform_proto.activate_bias_and_out_act();
 
         value = transform_proto.inputtype();
-        if(value  != "Caffe" && value != "Trace" && value != "Protobuf" && value != "Gzip")
+        if(value  != "Caffe" && value != "Trace" && value != "CParams" && value != "Protobuf" && value != "Gzip")
             throw std::runtime_error("Input type configuration for network " + transform.network +
-                                     " must be <Caffe|Trace|Protobuf|Gzip>.");
+                                     " must be <Caffe|Trace|CParams|Protobuf|Gzip>.");
         else
             transform.inputType = transform_proto.inputtype();
 
@@ -61,9 +61,9 @@ namespace sys {
         simulate.activate_bias_out_act = simulate_proto.activate_bias_and_out_act();
 
         value = simulate_proto.inputtype();
-        if(value  != "Caffe" && value != "Trace" && value != "Protobuf" && value != "Gzip")
+        if(value  != "Caffe" && value != "Trace" && value != "CParams" && value != "Protobuf" && value != "Gzip")
             throw std::runtime_error("Input type configuration for network " + simulate.network +
-                                     " must be <Caffe|Trace|Protobuf|Gzip>.");
+                                     " must be <Caffe|Trace|CParams|Protobuf|Gzip>.");
         else
             simulate.inputType = simulate_proto.inputtype();
 
@@ -222,8 +222,9 @@ namespace sys {
             }
         }
 
-        // Allow fixed point directly from Caffe, and Trace
-        if(simulate.inputDataType == "Fixed16" && (simulate.inputType == "Caffe" || simulate.inputType == "Trace")) {
+        // Allow fixed point directly from Caffe, Trace and CParams
+        if(simulate.inputDataType == "Fixed16" && (simulate.inputType == "Caffe" || simulate.inputType == "Trace" ||
+                simulate.inputType == "CParams")) {
             Batch::Transform transform;
             transform.network = simulate_proto.network();
             transform.inputType = simulate.inputType;

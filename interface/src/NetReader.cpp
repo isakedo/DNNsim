@@ -105,8 +105,51 @@ namespace interface {
                 } else
                     type = "Convolution";
 
-                layers.emplace_back(core::Layer<T>(type,words[0],words[1],std::stoi(words[2]), std::stoi(words[3]),
-                        std::stoi(words[4]), std::stoi(words[5]),std::stoi(words[6])));
+                layers.emplace_back(core::Layer<T>(type,words[0],words[1], stoi(words[2]), stoi(words[3]),
+                        stoi(words[4]), stoi(words[5]), stoi(words[6])));
+            }
+            myfile.close();
+        }
+
+        return core::Network<T>(this->name,layers);
+    }
+
+    template <typename T>
+    core::Network<T> NetReader<T>::read_network_conv_params() {
+
+        std::vector<core::Layer<T>> layers;
+
+        check_path("models/" + this->name);
+        std::string path = "models/" + this->name + "/conv_params.csv";
+        check_path(path);
+
+        std::ifstream myfile (path);
+        if (myfile.is_open()) {
+
+            std::string line;
+            while (getline(myfile,line)) {
+
+                std::vector<std::string> words;
+                std::string word;
+                std::stringstream ss_line(line);
+                while (getline(ss_line,word,','))
+                    words.push_back(word);
+
+                std::string type;
+                if(words[2] == "conv")
+                    type = "Convolution";
+                else if (words[2] == "fc")
+                    type = "InnerProduct";
+                else if (words[2] == "lstm")
+                    type = "LSTM";
+                else
+                    throw std::runtime_error("Failed to read conv_params.csv: type not recognised");
+
+                auto layer = core::Layer<T>(type,words[1],"",stoi(words[3]), stoi(words[5]), stoi(words[6]),
+                        stoi(words[9]), stoi(words[8]));
+                layer.setAct_precision(std::make_tuple(stoi(words[11]),stoi(words[10])));
+                layer.setWgt_precision(std::make_tuple(1 + 0, 15));
+                layers.emplace_back(layer);
             }
             myfile.close();
         }

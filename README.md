@@ -10,6 +10,7 @@
 
 *   The architecture of the net in a train_val.prototxt file (without weights and activations)
 *   The architecture of the net in a trace_params.csv file (without weights and activations)
+*   The architecture of the net in a conv_params.csv file (without weights and activations)
 *   Weights, Vias, Inputs and outputs activations in a *.npy file using the following format
 *   Full network in a Google protobuf format file
 *   Full network in a Gzip Google protobuf format
@@ -48,6 +49,7 @@ Then, we can proceed to build the project
 Create folder **models** including a folder for each network. Every network must include:
    *  train_val.prototxt
    *  trace_params.csv (Instead of the prototxt file)
+   *  conv_params.csv (Instead of the prototxt file)   
    *  precision.txt (Optional, contain 5 lines as the example)
         *   If this file does not exist the precisions are 14:2 for activations and 1:15 for weights
    

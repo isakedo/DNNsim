@@ -70,6 +70,11 @@ namespace interface {
          */
         core::Network<T> read_network_trace_params();
 
+        /* Load the conv params file inside the folder models and returns the network
+         * @return          Network architecture
+         */
+        core::Network<T> read_network_conv_params();
+
         /* Read the protobuf with the network in the models and returns the network
          * @return          Network architecture
          */
