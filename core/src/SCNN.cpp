@@ -24,7 +24,7 @@ namespace core {
     }
 
     template <typename T>
-    typename SCNN<T>::PE_stats SCNN<T>::computeSCNNPE(int W, int H, int stride, int padding, const act_idxMap &act,
+    typename SCNN<T>::PE_stats SCNN<T>::computeSCNNPE(int W, int H, int stride, const act_idxMap &act,
             const wgt_idxMap &wgt) {
 
         PE_stats pe_stats;
@@ -52,8 +52,8 @@ namespace core {
                         auto r = std::get<1>(wgt_index);
                         auto s = std::get<2>(wgt_index);
 
-                        int w = (x - r + padding) / stride;
-                        int h = (y - s + padding) / stride;
+                        int w = (x - r) / stride;
+                        int h = (y - s) / stride;
 
                         if(w >= 0 && w < W && h >= 0 && h < H) {
                             int acc_idx = map_accumulator(k, w, h);
@@ -133,8 +133,7 @@ namespace core {
                 for(int sx = 0; sx < stride; sx++) {
                     for(int sy = 0; sy < stride; sy++) {
 
-                        const PE_stats &pe_stats = computeSCNNPE(W,H,stride,padding,act_queue[sx][sy],
-                                wgt_queue[sx][sy]);
+                        const PE_stats &pe_stats = computeSCNNPE(W,H,stride,act_queue[sx][sy],wgt_queue[sx][sy]);
 
                         auto stride_wgt_size = (uint32_t)(ceil(wgt_queue[sx][sy].size()/(double)F))*F;
                         PE_wgt_size += stride_wgt_size;
@@ -204,6 +203,11 @@ namespace core {
             wgt.split_4D(Ck / 256, 16, 16);
         }
 
+        int padding = layer.getPadding();
+        int stride = layer.getStride();
+
+        act.zero_pad(padding);
+
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
@@ -218,11 +222,8 @@ namespace core {
         int R = wgt_shape[2];
         int S = wgt_shape[3];
 
-        int padding = layer.getPadding();
-        int stride = layer.getStride();
-
-        int W = (X - R + 2*padding)/stride + 1;
-        int H = (Y - S + 2*padding)/stride + 1;
+        int W = (X - R)/stride + 1;
+        int H = (Y - S)/stride + 1;
 
         auto W_round = (int)(ceil(W/(double)Wt))*Wt;
         auto H_round = (int)(ceil(H/(double)Ht))*Ht;

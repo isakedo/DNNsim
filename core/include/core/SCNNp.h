@@ -33,12 +33,11 @@ namespace core {
          * @param W         Width of the output activations
          * @param H         Height of the output activations
          * @param stride    Stride for the layer
-         * @param padding   Padding for the layer
          * @param act       1D activations queue with linearized activations indexes to be processed
          * @param wgt       1D weights queue with linearized activations indexes to be processed
          * @return          Return stats for the given PE
          */
-        PE_stats computeSCNNpPE(int W, int H, int stride, int padding, const act_idxMap &act, const wgt_idxMap &wgt);
+        PE_stats computeSCNNpPE(int W, int H, int stride, const act_idxMap &act, const wgt_idxMap &wgt);
 
         /* Compute SCNNp tile
          * @param n         Number of batch
