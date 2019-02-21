@@ -18,6 +18,7 @@ namespace core {
             uint32_t cycles = 0;
             uint32_t mults = 0;
             uint32_t idle_conflicts = 0;
+            uint32_t idle_column_cycles = 0;
             uint32_t column_stalls = 0;
             uint32_t accumulator_updates = 0;
             uint32_t i_loop = 0;

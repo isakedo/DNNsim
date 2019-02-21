@@ -47,6 +47,7 @@ namespace sys {
             std::vector<std::vector<uint64_t>> mults;
             std::vector<std::vector<uint64_t>> idle_bricks;
             std::vector<std::vector<uint64_t>> idle_conflicts;
+            std::vector<std::vector<uint64_t>> idle_column_cycles;
             std::vector<std::vector<uint64_t>> column_stalls;
             std::vector<std::vector<uint64_t>> idle_pe;
             std::vector<std::vector<uint64_t>> idle_halo;

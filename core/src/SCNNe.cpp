@@ -40,6 +40,7 @@ namespace core {
         pe_stats.cycles = 0;
         pe_stats.mults = 0;
         pe_stats.idle_conflicts = 0;
+        pe_stats.idle_column_cycles = 0;
         pe_stats.column_stalls = 0;
         pe_stats.accumulator_updates = 0;
         pe_stats.i_loop = 0;
@@ -50,7 +51,8 @@ namespace core {
             for(int f = 0; f < wgt.size(); f+=this->F) {
                 pe_stats.f_loop += 1;
                 uint8_t accumulator_updates = 0;
-                std::unordered_set<uint8_t> acc_cycles;
+                std::vector<uint8_t> acc_cycles;
+                std::unordered_set<uint8_t> uniq_acc_cycles;
                 std::vector<std::vector<uint8_t>> acc ((unsigned)this->I,
                         std::vector<uint8_t>(2 * this->F * this->I, 0));
 
@@ -60,7 +62,8 @@ namespace core {
                     auto x = std::get<0>(act_index);
                     auto y = std::get<1>(act_index);
                     auto act_cycles = std::get<2>(act_index);
-                    acc_cycles.emplace(act_cycles);
+                    uniq_acc_cycles.emplace(act_cycles);
+                    acc_cycles.push_back(act_cycles);
 
                     for(int ff = f; ff < std::min(f + this->F, (int)wgt.size()); ff++) {
                         const auto &wgt_index = wgt[ff];
@@ -86,10 +89,17 @@ namespace core {
                     acc_maxs[a] = std::max(acc_max - 1, 0);
                 }
                 auto conflicts_stalls = std::accumulate(acc_maxs.begin(), acc_maxs.end(), 0);
-                auto column_stalls = this->I - acc_cycles.size();
-                auto max_cycles = *std::max_element(acc_cycles.begin(), acc_cycles.end());
+                auto column_stalls = acc_cycles.size() - uniq_acc_cycles.size();
+                auto max_cycles = *std::max_element(uniq_acc_cycles.begin(), uniq_acc_cycles.end());
 
-                pe_stats.cycles += max_cycles + conflicts_stalls + column_stalls;
+                for(const auto &column_cycles : acc_cycles) {
+                    pe_stats.idle_column_cycles += max_cycles - column_cycles;
+                }
+
+                if(accumulator_updates != 0)
+                    pe_stats.cycles += max_cycles + conflicts_stalls + column_stalls;
+                else
+                    pe_stats.cycles += 1;
                 pe_stats.idle_conflicts += conflicts_stalls * this->I * this->F;
                 pe_stats.column_stalls += column_stalls;
                 pe_stats.accumulator_updates += accumulator_updates;
@@ -152,6 +162,7 @@ namespace core {
                 uint32_t PE_dense_cycles = 0;
                 uint32_t PE_mults = 0;
                 uint32_t PE_idle_conflicts = 0;
+                uint32_t PE_idle_column_cycles = 0;
                 uint32_t PE_column_stalls = 0;
                 uint32_t PE_accumulator_updates = 0;
                 uint32_t PE_i_loop = 0;
@@ -171,6 +182,7 @@ namespace core {
                                 ceil(dense_wgt_counter[sx][sy]/(double)this->F));
                         PE_mults += pe_stats.mults;
                         PE_idle_conflicts += pe_stats.idle_conflicts;
+                        PE_idle_column_cycles += pe_stats.idle_column_cycles;
                         PE_column_stalls += pe_stats.column_stalls;
                         PE_accumulator_updates += pe_stats.accumulator_updates;
                         PE_i_loop += pe_stats.i_loop;
@@ -189,6 +201,7 @@ namespace core {
                 stats.idle_bricks.back()[n] += PE_f_loop * this->I * this->F - PE_mults;
                 stats.mults.back()[n] += PE_mults;
                 stats.idle_conflicts.back()[n] += PE_idle_conflicts;
+                stats.idle_column_cycles.back()[n] += PE_idle_column_cycles;
                 stats.column_stalls.back()[n] += PE_column_stalls;
                 stats.accumulator_updates.back()[n] += PE_accumulator_updates;
                 stats.i_loop.back()[n] += PE_i_loop;
@@ -274,6 +287,7 @@ namespace core {
         stats.mults.emplace_back(std::vector<uint64_t>(N,0));
         stats.idle_bricks.emplace_back(std::vector<uint64_t>(N,0));
         stats.idle_conflicts.emplace_back(std::vector<uint64_t>(N,0));
+        stats.idle_column_cycles.emplace_back(std::vector<uint64_t>(N,0));
         stats.column_stalls.emplace_back(std::vector<uint64_t>(N,0));
         stats.idle_pe.emplace_back(std::vector<uint64_t>(N,0));
         stats.idle_halo.emplace_back(std::vector<uint64_t>(N,0));

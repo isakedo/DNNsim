@@ -222,19 +222,19 @@ namespace interface {
     }
 
     void dump_csv_SCNNp_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,cycles,dense_cycles,mults,idle_bricks,idle_conflicts,column_stalls,idle_pe,idle_halo,"
-                  "total_mult_cycles,halo_transfers,weight_buff_reads,act_buff_reads,accumulator_updates,i_loop,f_loop,"
-                  "offchip_weight_reads,time(s)" << std::endl;
+        o_file << "layer,n_act,cycles,dense_cycles,mults,idle_bricks,idle_conflicts,idle_column_cycles,column_stalls,"
+                  "idle_pe,idle_halo,total_mult_cycles,halo_transfers,weight_buff_reads,act_buff_reads,"
+                  "accumulator_updates,i_loop,f_loop,offchip_weight_reads,time(s)" << std::endl;
         for (int j = 0; j < stats.cycles.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[512];
-                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,0\n",
+                snprintf(line, sizeof(line),"%s,%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,0\n",
                         stats.layers[i].c_str(), j, stats.cycles[i][j], stats.dense_cycles[i][j], stats.mults[i][j],
-                        stats.idle_bricks[i][j], stats.idle_conflicts[i][j], stats.column_stalls[i][j],
-                        stats.idle_pe[i][j], stats.idle_halo[i][j], stats.total_mult_cycles[i][j],
-                        stats.halo_transfers[i][j], stats.weight_buff_reads[i][j], stats.act_buff_reads[i][j],
-                        stats.accumulator_updates[i][j], stats.i_loop[i][j], stats.f_loop[i][j], \
-                        stats.offchip_weight_reads[i][j]);
+                        stats.idle_bricks[i][j], stats.idle_conflicts[i][j], stats.idle_column_cycles[i][j],
+                        stats.column_stalls[i][j], stats.idle_pe[i][j], stats.idle_halo[i][j],
+                        stats.total_mult_cycles[i][j], stats.halo_transfers[i][j], stats.weight_buff_reads[i][j],
+                        stats.act_buff_reads[i][j], stats.accumulator_updates[i][j], stats.i_loop[i][j],
+                        stats.f_loop[i][j], stats.offchip_weight_reads[i][j]);
                 o_file << line;
             }
         }
@@ -243,24 +243,26 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[512];
-            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n",
+            snprintf(line, sizeof(line),"%s,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n",
                     stats.layers[i].c_str(), stats.get_average(stats.cycles[i]),
                     stats.get_average(stats.dense_cycles[i]), stats.get_average(stats.mults[i]),
                     stats.get_average(stats.idle_bricks[i]), stats.get_average(stats.idle_conflicts[i]),
-                    stats.get_average(stats.column_stalls[i]), stats.get_average(stats.idle_pe[i]),
-                    stats.get_average(stats.idle_halo[i]), stats.get_average(stats.total_mult_cycles[i]),
-                    stats.get_average(stats.halo_transfers[i]), stats.get_average(stats.weight_buff_reads[i]),
-                    stats.get_average(stats.act_buff_reads[i]), stats.get_average(stats.accumulator_updates[i]),
-                    stats.get_average(stats.i_loop[i]), stats.get_average(stats.f_loop[i]),
-                    stats.get_average(stats.offchip_weight_reads[i]), stats.time[i].count());
+                    stats.get_average(stats.idle_column_cycles[i]), stats.get_average(stats.column_stalls[i]),
+                    stats.get_average(stats.idle_pe[i]), stats.get_average(stats.idle_halo[i]),
+                    stats.get_average(stats.total_mult_cycles[i]), stats.get_average(stats.halo_transfers[i]),
+                    stats.get_average(stats.weight_buff_reads[i]), stats.get_average(stats.act_buff_reads[i]),
+                    stats.get_average(stats.accumulator_updates[i]), stats.get_average(stats.i_loop[i]),
+                    stats.get_average(stats.f_loop[i]), stats.get_average(stats.offchip_weight_reads[i]),
+                    stats.time[i].count());
             o_file << line;
         }
 
         char line[512];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n",
+        snprintf(line, sizeof(line),"TOTAL,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n",
                 stats.get_total(stats.cycles), stats.get_total(stats.dense_cycles), stats.get_total(stats.mults),
                 stats.get_total(stats.idle_bricks), stats.get_total(stats.idle_conflicts),
-                stats.get_total(stats.column_stalls), stats.get_total(stats.idle_pe), stats.get_total(stats.idle_halo),
+                stats.get_total(stats.idle_column_cycles), stats.get_total(stats.column_stalls),
+                stats.get_total(stats.idle_pe), stats.get_total(stats.idle_halo),
                 stats.get_total(stats.total_mult_cycles), stats.get_total(stats.halo_transfers),
                 stats.get_total(stats.weight_buff_reads), stats.get_total(stats.act_buff_reads),
                 stats.get_total(stats.accumulator_updates),stats.get_total(stats.i_loop), stats.get_total(stats.f_loop),
@@ -269,19 +271,19 @@ namespace interface {
     }
 
     void dump_csv_SCNNe_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,cycles,dense_cycles,mults,idle_bricks,idle_conflicts,column_stalls,idle_pe,idle_halo,"
-                  "total_mult_cycles,halo_transfers,weight_buff_reads,act_buff_reads,accumulator_updates,i_loop,f_loop,"
-                  "offchip_weight_reads,time(s)" << std::endl;
+        o_file << "layer,n_act,cycles,dense_cycles,mults,idle_bricks,idle_conflicts,idle_column_cycles,column_stalls,"
+                  "idle_pe,idle_halo,total_mult_cycles,halo_transfers,weight_buff_reads,act_buff_reads,"
+                  "accumulator_updates,i_loop,f_loop,offchip_weight_reads,time(s)" << std::endl;
         for (int j = 0; j < stats.cycles.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[512];
-                snprintf(line, sizeof(line),"%s,%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,0\n",
+                snprintf(line, sizeof(line),"%s,%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,0\n",
                         stats.layers[i].c_str(), j, stats.cycles[i][j], stats.dense_cycles[i][j], stats.mults[i][j],
-                        stats.idle_bricks[i][j], stats.idle_conflicts[i][j], stats.column_stalls[i][j],
-                        stats.idle_pe[i][j], stats.idle_halo[i][j], stats.total_mult_cycles[i][j],
-                        stats.halo_transfers[i][j], stats.weight_buff_reads[i][j], stats.act_buff_reads[i][j],
-                        stats.accumulator_updates[i][j], stats.i_loop[i][j], stats.f_loop[i][j], \
-                        stats.offchip_weight_reads[i][j]);
+                        stats.idle_bricks[i][j], stats.idle_conflicts[i][j], stats.idle_column_cycles[i][j],
+                        stats.column_stalls[i][j], stats.idle_pe[i][j], stats.idle_halo[i][j],
+                        stats.total_mult_cycles[i][j], stats.halo_transfers[i][j], stats.weight_buff_reads[i][j],
+                        stats.act_buff_reads[i][j], stats.accumulator_updates[i][j], stats.i_loop[i][j],
+                        stats.f_loop[i][j], stats.offchip_weight_reads[i][j]);
                 o_file << line;
             }
         }
@@ -290,24 +292,26 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[512];
-            snprintf(line, sizeof(line),"%s,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n",
+            snprintf(line, sizeof(line),"%s,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n",
                     stats.layers[i].c_str(), stats.get_average(stats.cycles[i]),
                     stats.get_average(stats.dense_cycles[i]), stats.get_average(stats.mults[i]),
                     stats.get_average(stats.idle_bricks[i]), stats.get_average(stats.idle_conflicts[i]),
-                    stats.get_average(stats.column_stalls[i]), stats.get_average(stats.idle_pe[i]),
-                    stats.get_average(stats.idle_halo[i]), stats.get_average(stats.total_mult_cycles[i]),
-                    stats.get_average(stats.halo_transfers[i]), stats.get_average(stats.weight_buff_reads[i]),
-                    stats.get_average(stats.act_buff_reads[i]), stats.get_average(stats.accumulator_updates[i]),
-                    stats.get_average(stats.i_loop[i]), stats.get_average(stats.f_loop[i]),
-                    stats.get_average(stats.offchip_weight_reads[i]), stats.time[i].count());
+                    stats.get_average(stats.idle_column_cycles[i]), stats.get_average(stats.column_stalls[i]),
+                    stats.get_average(stats.idle_pe[i]), stats.get_average(stats.idle_halo[i]),
+                    stats.get_average(stats.total_mult_cycles[i]), stats.get_average(stats.halo_transfers[i]),
+                    stats.get_average(stats.weight_buff_reads[i]), stats.get_average(stats.act_buff_reads[i]),
+                    stats.get_average(stats.accumulator_updates[i]), stats.get_average(stats.i_loop[i]),
+                    stats.get_average(stats.f_loop[i]), stats.get_average(stats.offchip_weight_reads[i]),
+                    stats.time[i].count());
             o_file << line;
         }
 
         char line[512];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n",
+        snprintf(line, sizeof(line),"TOTAL,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n",
                 stats.get_total(stats.cycles), stats.get_total(stats.dense_cycles), stats.get_total(stats.mults),
                 stats.get_total(stats.idle_bricks), stats.get_total(stats.idle_conflicts),
-                stats.get_total(stats.column_stalls), stats.get_total(stats.idle_pe), stats.get_total(stats.idle_halo),
+                stats.get_total(stats.idle_column_cycles), stats.get_total(stats.column_stalls),
+                stats.get_total(stats.idle_pe), stats.get_total(stats.idle_halo),
                 stats.get_total(stats.total_mult_cycles), stats.get_total(stats.halo_transfers),
                 stats.get_total(stats.weight_buff_reads), stats.get_total(stats.act_buff_reads),
                 stats.get_total(stats.accumulator_updates),stats.get_total(stats.i_loop), stats.get_total(stats.f_loop),
