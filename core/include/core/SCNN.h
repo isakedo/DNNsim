@@ -20,9 +20,6 @@ namespace core {
         /* Number of PE rows */
         const int Ht;
 
-        /* Number of max filters per PE */
-        const int Kt;
-
         /* Column multipliers per PE */
         const int I;
 
@@ -122,7 +119,6 @@ namespace core {
         /* Constructor
          * @param _Wt           Number of PE columns
          * @param _Ht           Number of PE rows
-         * @param _Kt           Number of max filters per PE
          * @param _I            Column multipliers per PE
          * @param _F            Row multipliers per PE
          * @param _out_acc_size Output accumulator size
@@ -130,8 +126,8 @@ namespace core {
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          */
-        SCNN(int _Wt, int _Ht, int _Kt, int _I, int _F, int _out_acc_size, int _BANKS, uint8_t _N_THREADS,
-            bool _FAST_MODE) : Simulator<T>(_N_THREADS, _FAST_MODE), Wt(_Wt), Ht(_Ht), Kt(_Kt), I(_I), F(_F),
+        SCNN(int _Wt, int _Ht, int _I, int _F, int _out_acc_size, int _BANKS, uint8_t _N_THREADS,
+            bool _FAST_MODE) : Simulator<T>(_N_THREADS, _FAST_MODE), Wt(_Wt), Ht(_Ht), I(_I), F(_F),
             out_acc_size(_out_acc_size), BANKS(_BANKS) {}
 
         /* Run the timing simulator of the architecture

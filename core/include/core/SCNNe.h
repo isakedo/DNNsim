@@ -18,6 +18,7 @@ namespace core {
             uint32_t cycles = 0;
             uint32_t mults = 0;
             uint32_t idle_conflicts = 0;
+            uint32_t column_stalls = 0;
             uint32_t accumulator_updates = 0;
             uint32_t i_loop = 0;
             uint32_t f_loop = 0;
@@ -89,7 +90,6 @@ namespace core {
         /* Constructor
          * @param _Wt                   Number of PE columns
          * @param _Ht                   Number of PE rows
-         * @param _Kt                   Number of max filters per PE
          * @param _I                    Column multipliers per PE
          * @param _F                    Row multipliers per PE
          * @param _out_acc_size         Output accumulator size
@@ -97,8 +97,8 @@ namespace core {
          * @param _N_THREADS            Number of parallel threads for multi-threading execution
          * @param _FAST_MODE            Enable fast mode to simulate only one image
          */
-        SCNNe(int _Wt, int _Ht, int _Kt, int _I, int _F, int _out_acc_size, int _BANKS, uint8_t _N_THREADS,
-                bool _FAST_MODE) : SCNN<T>(_Wt,_Ht,_Kt,_I,_F,_out_acc_size,_BANKS,_N_THREADS, _FAST_MODE) {}
+        SCNNe(int _Wt, int _Ht, int _I, int _F, int _out_acc_size, int _BANKS, uint8_t _N_THREADS,
+                bool _FAST_MODE) : SCNN<T>(_Wt,_Ht,_I,_F,_out_acc_size,_BANKS,_N_THREADS, _FAST_MODE) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

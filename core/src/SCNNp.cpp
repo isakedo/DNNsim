@@ -26,6 +26,7 @@ namespace core {
         pe_stats.cycles = 0;
         pe_stats.mults = 0;
         pe_stats.idle_conflicts = 0;
+        pe_stats.column_stalls = 0;
         pe_stats.accumulator_updates = 0;
         pe_stats.i_loop = 0;
         pe_stats.f_loop = 0;
@@ -76,6 +77,7 @@ namespace core {
 
                 pe_stats.cycles += max_cycles + conflicts_stalls + column_stalls;
                 pe_stats.idle_conflicts += conflicts_stalls * this->I * this->F;
+                pe_stats.column_stalls += column_stalls;
                 pe_stats.accumulator_updates += accumulator_updates;
             }
         }
@@ -139,6 +141,7 @@ namespace core {
                 uint32_t PE_dense_cycles = 0;
                 uint32_t PE_mults = 0;
                 uint32_t PE_idle_conflicts = 0;
+                uint32_t PE_column_stalls = 0;
                 uint32_t PE_accumulator_updates = 0;
                 uint32_t PE_i_loop = 0;
                 uint32_t PE_f_loop = 0;
@@ -158,6 +161,7 @@ namespace core {
                                 ceil(dense_wgt_counter[sx][sy]/(double)this->F));
                         PE_mults += pe_stats.mults;
                         PE_idle_conflicts += pe_stats.idle_conflicts;
+                        PE_column_stalls += pe_stats.column_stalls;
                         PE_accumulator_updates += pe_stats.accumulator_updates;
                         PE_i_loop += pe_stats.i_loop;
                         PE_f_loop += pe_stats.f_loop;
@@ -175,6 +179,7 @@ namespace core {
                 stats.idle_bricks.back()[n] += PE_f_loop * this->I * this->F - PE_mults;
                 stats.mults.back()[n] += PE_mults;
                 stats.idle_conflicts.back()[n] += PE_idle_conflicts;
+                stats.column_stalls.back()[n] += PE_column_stalls;
                 stats.accumulator_updates.back()[n] += PE_accumulator_updates;
                 stats.i_loop.back()[n] += PE_i_loop;
                 stats.f_loop.back()[n] += PE_f_loop;
@@ -256,6 +261,7 @@ namespace core {
         stats.mults.emplace_back(std::vector<uint64_t>(N,0));
         stats.idle_bricks.emplace_back(std::vector<uint64_t>(N,0));
         stats.idle_conflicts.emplace_back(std::vector<uint64_t>(N,0));
+        stats.column_stalls.emplace_back(std::vector<uint64_t>(N,0));
         stats.idle_pe.emplace_back(std::vector<uint64_t>(N,0));
         stats.idle_halo.emplace_back(std::vector<uint64_t>(N,0));
         stats.total_mult_cycles.emplace_back(std::vector<uint64_t>(N,0));
@@ -344,9 +350,9 @@ namespace core {
 
         stats.task_name = "cycles";
         stats.net_name = network.getName();
-        stats.arch = "SCNNp_Wt" + std::to_string(this->Wt) + "_Ht" + std::to_string(this->Ht) + "_Kt" +
-                std::to_string(this->Kt) + "_I" + std::to_string(this->I) + "_F" + std::to_string(this->F) +
-                "_acc_out" + std::to_string(this->out_acc_size) + "_B" + std::to_string(this->BANKS);
+        stats.arch = "SCNNp_Wt" + std::to_string(this->Wt) + "_Ht" + std::to_string(this->Ht) + "_I" +
+                std::to_string(this->I) + "_F" + std::to_string(this->F) + "_acc_out" +
+                std::to_string(this->out_acc_size) + "_B" + std::to_string(this->BANKS);
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution" || layer.getType() == "InnerProduct") {

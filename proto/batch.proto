@@ -43,11 +43,10 @@ message Batch {
             // SCNN
             uint32 Wt = 13;
             uint32 Ht = 14;
-            uint32 Kt = 15;
-            uint32 I = 16;
-            uint32 F = 17;
-            uint32 out_acc_size = 18;
-            uint32 banks = 19;
+            uint32 I = 15;
+            uint32 F = 16;
+            uint32 out_acc_size = 17;
+            uint32 banks = 18;
         }
 
         string inputType = 1;
