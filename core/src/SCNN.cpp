@@ -225,6 +225,9 @@ namespace core {
         int W = (X - R)/stride + 1;
         int H = (Y - S)/stride + 1;
 
+        int groups = C / Ck;
+        int Kg = K / groups;
+
         auto W_round = (int)(ceil(W/(double)Wt))*Wt;
         auto H_round = (int)(ceil(H/(double)Ht))*Ht;
         auto tw = W_round/Wt;
@@ -268,18 +271,15 @@ namespace core {
         for(n = 0; n < N; n++) {
             for(int kc = 0; kc < K; kc+=Kc) {
 
-                // Fix for MobileNet
-                int channel_start = 0;
-                int channel_max = C;
-                if(Ck == 1) {
-                    channel_start = kc;
-                    channel_max = kc + 1;
-                }
+                // Two towers alexnet
+                int ct = 0;
+                if(kc >= Kg) ct = Ck;
 
-                for(int ct = channel_start; ct < channel_max; ct+=Ck) {
-                    for(int ck = 0; ck < Ck; ck++) {
-                        computeSCNNTile(n,ct,ck,kc,tw,th,X,Y,Kc,K,W,H,R,S,stride,padding,act,wgt,stats);
-                    }
+                // Fix for MobileNet
+                if(Ck == 1) ct = kc;
+
+                for(int ck = 0; ck < Ck; ck++) {
+                    computeSCNNTile(n,ct,ck,kc,tw,th,X,Y,Kc,K,W,H,R,S,stride,padding,act,wgt,stats);
                 }
 
                 // resolve halos
