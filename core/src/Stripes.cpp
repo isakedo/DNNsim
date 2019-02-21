@@ -50,16 +50,27 @@ namespace core {
         long out_x = (Nx - Kx)/stride + 1;
         long out_y = (Ny - Ky)/stride + 1;
 
+        // Get layer precision
+        auto act_layer_prec = std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision());
+        auto wgt_layer_prec = std::get<0>(layer.getWgt_precision()) + std::get<1>(layer.getWgt_precision());
+        auto max_precision = std::max(act_layer_prec,wgt_layer_prec);
+
+        auto columns_per_act = (int)ceil(max_precision / (double)BITS_PE);
+        auto rows_per_wgt = (int)ceil(max_precision / (double)BITS_PE);
+        auto windows_per_tile = N_COLUMNS/columns_per_act;
+        auto filters_per_tile = N_ROWS/rows_per_wgt;
+
         int groups = act_channels / wgt_channels;
-        auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS/groups);
+        auto num_filters_sets = (uint32_t)ceil(num_filters/(double)filters_per_tile/groups);
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.idle_columns.push_back((uint64_t)(N_COLUMNS - windows_per_tile*columns_per_act));
+        stats.idle_rows.push_back((uint64_t)(N_ROWS - filters_per_tile*rows_per_wgt));
+        stats.columns_per_act.push_back((uint64_t)columns_per_act);
+        stats.rows_per_wgt.push_back((uint64_t)rows_per_wgt);
 
         int n;
-
-        // Get layer precision
-        auto layer_prec = std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision());
 
         // Convolution
         #ifdef OPENMP
@@ -72,11 +83,11 @@ namespace core {
             std::vector<int> list_x, list_y;
             int x_counter = 0, y_counter = 0;
 
-            while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter, y_counter, N_COLUMNS)) {
+            while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter, y_counter, windows_per_tile)) {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
                         for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
-                            stats.cycles.back()[n] += layer_prec;
+                            stats.cycles.back()[n] += act_layer_prec;
                         }
                     }
                 }
@@ -182,16 +193,19 @@ namespace core {
 
         stats.task_name = "cycles";
         stats.net_name = network.getName();
-        stats.arch = "Stripes_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS);
+        stats.arch = "Stripes_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_BP" +
+                std::to_string(BITS_PE);
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision()));
+                stats.wgt_prec.push_back(std::get<0>(layer.getWgt_precision()) + std::get<1>(layer.getWgt_precision()));
                 computeConvolution(layer, stats);
             } else if(layer.getType() == "InnerProduct") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision()));
+                stats.wgt_prec.push_back(std::get<0>(layer.getWgt_precision()) + std::get<1>(layer.getWgt_precision()));
                 computeInnerProduct(layer, stats);
             }
         }

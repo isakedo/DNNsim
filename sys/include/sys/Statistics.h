@@ -37,6 +37,10 @@ namespace sys {
             std::vector<std::vector<uint64_t>> cycles;
             std::vector<std::vector<uint64_t>> stall_cycles;
             std::vector<uint64_t> baseline_cycles;
+            std::vector<uint64_t> idle_columns;
+            std::vector<uint64_t> idle_rows;
+            std::vector<uint64_t> columns_per_act;
+            std::vector<uint64_t> rows_per_wgt;
 
             /* SCNN */
             std::vector<std::vector<uint64_t>> dense_cycles;

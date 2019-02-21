@@ -46,8 +46,7 @@ namespace sys {
         else {
             // Only allow conversion from float32 to fixed16
             std::string data_conversion = transform_proto.inputdatatype() == "Float32" &&
-                                          transform_proto.outputdatatype() == "Fixed16"
-                                          ? transform_proto.outputdatatype() : "Not";
+                    transform_proto.outputdatatype() == "Fixed16" ? transform_proto.outputdatatype() : "Not";
             transform.outputDataType = data_conversion;
         }
 
@@ -87,6 +86,7 @@ namespace sys {
                 } else if(experiment_proto.architecture() == "Stripes") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+                    experiment.bits_pe = experiment_proto.bits_pe() < 1 ? 16 : experiment_proto.bits_pe();
 
                 } else if(experiment_proto.architecture() == "DynamicStripes") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();

@@ -226,7 +226,8 @@ int main(int argc, char *argv[]) {
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
                         } else if(experiment.architecture == "Stripes") {
-                            core::Stripes<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,N_THREADS,FAST_MODE);
+                            core::Stripes<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,experiment.bits_pe,
+                                    N_THREADS,FAST_MODE);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 

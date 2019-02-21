@@ -31,20 +31,23 @@ message Batch {
             // For pragmatic
             uint32 bits_first_stage = 7;
 
+            // For stripes
+            uint32 bits_pe = 8;
+
             // For tactical
-            uint32 lookahead_h = 8;
-            uint32 lookaside_d = 9;
-            string search_shape = 10;
-            bool read_schedule_from_proto = 11;
+            uint32 lookahead_h = 9;
+            uint32 lookaside_d = 10;
+            string search_shape = 11;
+            bool read_schedule_from_proto = 12;
 
             // SCNN
-            uint32 Wt = 12;
-            uint32 Ht = 13;
-            uint32 Kt = 14;
-            uint32 I = 15;
-            uint32 F = 16;
-            uint32 out_acc_size = 17;
-            uint32 banks = 18;
+            uint32 Wt = 13;
+            uint32 Ht = 14;
+            uint32 Kt = 15;
+            uint32 I = 16;
+            uint32 F = 17;
+            uint32 out_acc_size = 18;
+            uint32 banks = 19;
         }
 
         string inputType = 1;
