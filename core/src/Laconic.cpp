@@ -209,7 +209,7 @@ namespace core {
         for (n = 0; n<batch_size; n++) {
 
             int column_index = 0;
-            std::vector<int>column_end = std::vector<int>(this->N_COLUMNS, 0);
+            std::vector<int>column_end = std::vector<int>(N_COLUMNS, 0);
 
             for (int m = 0; m<num_filters; m+=N_ROWS) {
                 for (int k = 0; k<wgt_channels; k+=WEIGHT_LANES) {

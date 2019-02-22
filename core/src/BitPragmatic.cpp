@@ -261,10 +261,11 @@ namespace core {
         for (n = 0; n<batch_size; n++) {
 
             int column_index = 0;
-            std::vector<int> column_end = std::vector<int>(this->N_COLUMNS, 0);
+            std::vector<int> column_end = std::vector<int>(N_COLUMNS, 0);
 
             for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
-                if(stats.cycles.back()[n] < column_end[column_index]) stats.cycles.back()[n] = column_end[column_index];
+                if(stats.cycles.back()[n] < column_end[column_index])
+                    stats.cycles.back()[n] = column_end[column_index];
                 auto column_cycles = computePragmaticColumn(n,0,0,0,0,k,0,act,act_channels);
                 column_end[column_index] = stats.cycles.back()[n] + column_cycles;
                 stats.cycles.back()[n]++;

@@ -254,7 +254,8 @@ namespace core {
             std::vector<int> column_end = std::vector<int>(this->N_COLUMNS, 0);
 
             for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                if(stats.cycles.back()[n] < column_end[column_index]) stats.cycles.back()[n] = column_end[column_index];
+                if(stats.cycles.back()[n] < column_end[column_index])
+                    stats.cycles.back()[n] = column_end[column_index];
                 auto column_cycles = computeTacticalPColumn(n,0,0,0,act,dense_schedule,schedule_time);
                 column_end[column_index] = stats.cycles.back()[n] + column_cycles;
                 stats.cycles.back()[n]++;
