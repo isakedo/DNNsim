@@ -153,7 +153,6 @@ namespace core {
         cnpy::Array<T> act = layer.getActivations();
         act.powers_of_two_representation();
         cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
         int padding = layer.getPadding();
@@ -233,7 +232,6 @@ namespace core {
         if(act.getDimensions() == 4) act.reshape_to_2D();
         act.reshape_to_4D();
         cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
         wgt.reshape_to_4D();
 
         const std::vector<size_t> &act_shape = act.getShape();

@@ -221,7 +221,6 @@ namespace core {
         cnpy::Array<T> act = layer.getActivations();
         act.powers_of_two_representation();
         cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
         if(layer.getType() == "InnerProduct" || act.getDimensions() == 2) {
