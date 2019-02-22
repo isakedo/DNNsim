@@ -11,7 +11,7 @@
 *   The architecture of the net in a train_val.prototxt file (without weights and activations)
 *   The architecture of the net in a trace_params.csv file (without weights and activations)
 *   The architecture of the net in a conv_params.csv file (without weights and activations)
-*   Weights, Vias, Inputs and outputs activations in a *.npy file using the following format
+*   Weights, Bias, Inputs and outputs activations in a *.npy file using the following format
 *   Full network in a Google protobuf format file
 *   Full network in a Gzip Google protobuf format
 *   Tactical schedule in a protobuf format
