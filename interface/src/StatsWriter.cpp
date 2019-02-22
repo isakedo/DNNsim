@@ -68,9 +68,9 @@ namespace interface {
         char line[256];
         snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,-,-,%.2f\n", stats.get_total(stats.cycles),
                 stats.get_total(stats.baseline_cycles),stats.get_total(stats.baseline_cycles)/
-                (double)stats.get_total(stats.cycles), stats.get_total(stats.columns_per_act),
-                stats.get_total(stats.rows_per_wgt), stats.get_total(stats.idle_columns),
-                stats.get_total(stats.idle_rows),total_time);
+                (double)stats.get_total(stats.cycles), stats.get_average(stats.columns_per_act),
+                stats.get_average(stats.rows_per_wgt), stats.get_average(stats.idle_columns),
+                stats.get_average(stats.idle_rows),total_time);
         o_file << line;
     }
 
