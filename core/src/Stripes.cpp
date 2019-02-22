@@ -87,7 +87,8 @@ namespace core {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
                         for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
-                            stats.cycles.back()[n] += act_layer_prec;
+                            auto precision_cycles = std::min(act_layer_prec,BITS_PE);
+                            stats.cycles.back()[n] += precision_cycles;
                         }
                     }
                 }
@@ -124,15 +125,26 @@ namespace core {
 
         int num_filters = wgt_shape[0];
 
-        auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS);
+        // Get layer precision
+        auto act_layer_prec = std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision());
+        auto wgt_layer_prec = std::get<0>(layer.getWgt_precision()) + std::get<1>(layer.getWgt_precision());
+        auto max_precision = std::max(act_layer_prec,wgt_layer_prec);
+
+        auto columns_per_act = (int)ceil(max_precision / (double)BITS_PE);
+        auto rows_per_wgt = (int)ceil(max_precision / (double)BITS_PE);
+        auto windows_per_tile = N_COLUMNS/columns_per_act;
+        auto filters_per_tile = N_ROWS/rows_per_wgt;
+
+        auto num_filters_sets = (uint32_t)ceil(num_filters/(double)filters_per_tile);
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.idle_columns.push_back((uint64_t)(N_COLUMNS - windows_per_tile*columns_per_act));
+        stats.idle_rows.push_back((uint64_t)(N_ROWS - filters_per_tile*rows_per_wgt));
+        stats.columns_per_act.push_back((uint64_t)columns_per_act);
+        stats.rows_per_wgt.push_back((uint64_t)rows_per_wgt);
 
         int n;
-
-        // Get layer precision
-        auto layer_prec = std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision());
 
         #ifndef FC_MULTIPLEX_COLUMNS
 
@@ -144,7 +156,8 @@ namespace core {
         #endif
         for (n = 0; n<batch_size; n++) {
             for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
-                stats.cycles.back()[n] += computeStripesColumn(0,0,0,0,layer_prec,k,act_channels,rowMap);
+                auto precision_cycles = std::min(act_layer_prec,BITS_PE);
+                stats.cycles.back()[n] += precision_cycles;
             }
             stats.cycles.back()[n] *= num_filters_sets;
         }
@@ -159,15 +172,17 @@ namespace core {
         for (n = 0; n<batch_size; n++) {
 
             int column_index = 0;
-            std::vector<int> column_end = std::vector<int>(this->N_COLUMNS, 0);
+            std::vector<int> column_end = std::vector<int>(windows_per_tile, 0);
 
             for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
-                if(stats.cycles.back()[n] < column_end[column_index]) stats.cycles.back()[n] = column_end[column_index];
-                auto column_cycles = layer_prec;
+                if(stats.cycles.back()[n] < column_end[column_index])
+                    stats.cycles.back()[n] = column_end[column_index];
+                auto precision_cycles = std::min(act_layer_prec,BITS_PE);
+                auto column_cycles = precision_cycles;
                 column_end[column_index] = stats.cycles.back()[n] + column_cycles;
                 stats.cycles.back()[n]++;
                 column_index++;
-                if(column_index >= N_COLUMNS) column_index = 0;
+                if(column_index >= windows_per_tile) column_index = 0;
             }
             stats.cycles.back()[n] *= num_filters_sets;
         }
