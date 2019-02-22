@@ -48,9 +48,8 @@ namespace core {
                     auto x = std::get<0>(act_index);
                     auto y = std::get<1>(act_index);
                     auto act_cycles = std::get<2>(act_index);
-                    uniq_acc_cycles.emplace(act_cycles);
-                    acc_cycles.push_back(act_cycles);
 
+                    uint8_t column_acc_updates = 0;
                     for(int ff = f; ff < std::min(f + this->F, (int)wgt.size()); ff++) {
                         const auto &wgt_index = wgt[ff];
 
@@ -64,10 +63,16 @@ namespace core {
                         if(w >= 0 && w < W && h >= 0 && h < H) {
                             int acc_idx = this->map_accumulator(k, w, h);
                             acc[ii % this->I][acc_idx] += 1;
-                            accumulator_updates++;
+                            column_acc_updates++;
                             pe_stats.mults += 1;
                         }
                     }
+
+                    if(column_acc_updates != 0) {
+                        uniq_acc_cycles.emplace(act_cycles);
+                        acc_cycles.push_back(act_cycles);
+                    }
+                    accumulator_updates += column_acc_updates;
                 }
                 std::vector<uint8_t> acc_maxs = std::vector<uint8_t>(this->I,0);
                 for(int a = 0; a < this->I; a++) {
@@ -76,15 +81,16 @@ namespace core {
                 }
                 auto conflicts_stalls = std::accumulate(acc_maxs.begin(), acc_maxs.end(), 0);
                 auto column_stalls = acc_cycles.size() - uniq_acc_cycles.size();
-                auto max_cycles = *std::max_element(uniq_acc_cycles.begin(), uniq_acc_cycles.end());
 
-                for(const auto &column_cycles : acc_cycles) {
-                    pe_stats.idle_column_cycles += max_cycles - column_cycles;
-                }
+                if(accumulator_updates != 0) {
+                    auto max_cycles = *std::max_element(uniq_acc_cycles.begin(), uniq_acc_cycles.end());
 
-                if(accumulator_updates != 0)
+                    for(const auto &column_cycles : acc_cycles) {
+                        pe_stats.idle_column_cycles += max_cycles - column_cycles;
+                    }
+
                     pe_stats.cycles += max_cycles + conflicts_stalls + column_stalls;
-                else
+                } else
                     pe_stats.cycles += 1;
                 pe_stats.idle_conflicts += conflicts_stalls * this->I * this->F;
                 pe_stats.column_stalls += column_stalls;
