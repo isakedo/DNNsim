@@ -38,11 +38,12 @@ THE SOFTWARE.
 #include <core/SCNNe.h>
 
 template <typename T>
-core::Network<T> read(const std::string &input_type, const std::string &network_name, bool activate_bias_and_out_act) {
+core::Network<T> read(const std::string &input_type, const std::string &network_name, bool activate_bias_and_out_act,
+        int batch) {
 
     // Read the network
     core::Network<T> network;
-    interface::NetReader<T> reader = interface::NetReader<T>(network_name, activate_bias_and_out_act);
+    interface::NetReader<T> reader = interface::NetReader<T>(network_name, activate_bias_and_out_act, batch);
     if (input_type == "Caffe") {
         network = reader.read_network_caffe();
         reader.read_precision(network);
@@ -97,7 +98,7 @@ template <typename T>
 std::vector<schedule> read_schedule(const std::string &network_name, const std::string &arch,
         const sys::Batch::Simulate::Experiment &experiment) {
 
-    interface::NetReader<T> reader = interface::NetReader<T>(network_name, false);
+    interface::NetReader<T> reader = interface::NetReader<T>(network_name, false, 0);
     int mux_entries = experiment.lookahead_h + experiment.lookaside_d + 1;
     std::string schedule_type = arch + "_" + experiment.search_shape + std::to_string(mux_entries) + "("
                                 + std::to_string(experiment.lookahead_h) + "-" +
@@ -182,12 +183,14 @@ int main(int argc, char *argv[]) {
             try {
                 if (transform.inputDataType == "Float32") {
                     core::Network<float> network;
-                    network = read<float>(transform.inputType, transform.network, transform.activate_bias_out_act);
+                    network = read<float>(transform.inputType, transform.network, transform.activate_bias_out_act,
+                            transform.batch);
                     write<float>(network, transform.outputType, transform.outputDataType,
                             transform.activate_bias_out_act);
                 } else if (transform.inputDataType == "Fixed16") {
                     core::Network<uint16_t> network;
-                    network = read<uint16_t>(transform.inputType, transform.network, transform.activate_bias_out_act);
+                    network = read<uint16_t>(transform.inputType, transform.network, transform.activate_bias_out_act,
+                            transform.batch);
                     write<uint16_t>(network, transform.outputType, transform.outputDataType,
                             transform.activate_bias_out_act);
                 }
@@ -203,7 +206,8 @@ int main(int argc, char *argv[]) {
             try {
                 if (simulate.inputDataType == "Float32") {
                     core::Network<float> network;
-                    network = read<float>(simulate.inputType, simulate.network, simulate.activate_bias_out_act);
+                    network = read<float>(simulate.inputType, simulate.network, simulate.activate_bias_out_act,
+                            simulate.batch);
                     for(const auto &experiment : simulate.experiments) {
                         if(experiment.architecture == "None") {
                             core::InferenceSimulator<float> DNNsim(N_THREADS,FAST_MODE);
@@ -217,7 +221,8 @@ int main(int argc, char *argv[]) {
                     }
                 } else if (simulate.inputDataType == "Fixed16") {
                     core::Network<uint16_t> network;
-                    network = read<uint16_t>(simulate.inputType, simulate.network, simulate.activate_bias_out_act);
+                    network = read<uint16_t>(simulate.inputType, simulate.network, simulate.activate_bias_out_act,
+                            simulate.batch);
                     for(const auto &experiment : simulate.experiments) {
                         if(experiment.architecture == "BitPragmatic") {
                             core::BitPragmatic<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,

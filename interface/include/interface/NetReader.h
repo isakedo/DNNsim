@@ -31,6 +31,9 @@ namespace interface {
         /* Also read bias and output activations */
         bool activate_bias_and_out_act;
 
+        /* Numpy activations batch to read from */
+        int batch;
+
         /* Check if the path exists
          * @param path  Path we want to check
          */
@@ -54,11 +57,12 @@ namespace interface {
     public:
 
         /* Constructor
-         * @param _name     The name of the network
+         * @param _name                         The name of the network
          * @param _activate_bias_and_out_act    Also write bias and output activations
+         * @param _batch                        Numpy batch of the activations
          */
-        NetReader(const std::string &_name, bool _activate_bias_and_out_act) :
-                activate_bias_and_out_act(_activate_bias_and_out_act) { this->name = _name; }
+        NetReader(const std::string &_name, bool _activate_bias_and_out_act, int _batch) :
+                activate_bias_and_out_act(_activate_bias_and_out_act), batch(_batch) { this->name = _name; }
 
         /* Load the caffe prototxt file inside the folder models and returns the network
          * @return          Network architecture

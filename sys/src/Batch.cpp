@@ -17,6 +17,7 @@ namespace sys {
         std::string value;
         transform.network = transform_proto.network();
         transform.activate_bias_out_act = transform_proto.activate_bias_and_out_act();
+        transform.batch = transform_proto.batch();
 
         value = transform_proto.inputtype();
         if(value  != "Caffe" && value != "Trace" && value != "CParams" && value != "Protobuf" && value != "Gzip")
@@ -58,6 +59,7 @@ namespace sys {
         std::string value;
         simulate.network = simulate_proto.network();
         simulate.activate_bias_out_act = simulate_proto.activate_bias_and_out_act();
+        simulate.batch = simulate_proto.batch();
 
         value = simulate_proto.inputtype();
         if(value  != "Caffe" && value != "Trace" && value != "CParams" && value != "Protobuf" && value != "Gzip")

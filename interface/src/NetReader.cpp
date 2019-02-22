@@ -359,7 +359,7 @@ namespace interface {
         check_path("net_traces/" + this->name);
         for(core::Layer<T> &layer : network.updateLayers()) {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                std::string file = "/act-" + layer.getName() + "-0.npy";
+                std::string file = "/act-" + layer.getName() + "-" + std::to_string(batch) + ".npy";
                 cnpy::Array<T> activations; activations.set_values("net_traces/" + this->name + file);
                 layer.setActivations(activations);
             }
@@ -371,7 +371,7 @@ namespace interface {
         check_path("net_traces/" + this->name);
         for(core::Layer<T> &layer : network.updateLayers()) {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                std::string file = "/act-" + layer.getName() + "-0-out.npy" ;
+                std::string file = "/act-" + layer.getName() + "-" + std::to_string(batch) + "-out.npy" ;
                 cnpy::Array<T> activations; activations.set_values("net_traces/" + this->name + file);
                 layer.setOutput_activations(activations);
             }

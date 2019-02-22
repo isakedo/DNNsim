@@ -15,6 +15,7 @@ namespace sys {
 
         /* Struct for the Transform instructions */
         struct Transform {
+            int batch = 0;
             std::string inputType = ""; // Caffe/Protobuf/Gzip
             std::string inputDataType = "";
             std::string outputType = ""; // Protobuf/Gzip
@@ -47,6 +48,7 @@ namespace sys {
                 int banks = 0;
             };
 
+            int batch = 0;
             std::string inputType = ""; // Protobuf/Gzip
             std::string inputDataType = ""; // Float32/Fixed16
             std::string network = "";

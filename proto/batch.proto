@@ -6,12 +6,13 @@ package protobuf;
 message Batch {
 
     message Transform {
-        string inputType = 1; // Caffe/Protobuf/Gzip
-        string inputDataType = 2;
-        string outputType = 3; // Protobuf/Gzip
-        string outputDataType = 4;
-        string network = 5;
-        bool activate_bias_and_out_act = 6;
+        uint32 batch = 1;
+        string inputType = 2; // Caffe/Protobuf/Gzip
+        string inputDataType = 3;
+        string outputType = 4; // Protobuf/Gzip
+        string outputDataType = 5;
+        string network = 6;
+        bool activate_bias_and_out_act = 7;
     }
 
     message Simulate {
@@ -49,11 +50,12 @@ message Batch {
             uint32 banks = 18;
         }
 
-        string inputType = 1;
-        string inputDataType = 2;
-        string network = 3;
-        bool activate_bias_and_out_act = 4;
-        repeated Experiment experiment = 5;
+        uint32 batch = 1;
+        string inputType = 2;
+        string inputDataType = 3;
+        string network = 4;
+        bool activate_bias_and_out_act = 5;
+        repeated Experiment experiment = 6;
     }
 
     repeated Transform transform = 1;

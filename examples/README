@@ -1,5 +1,6 @@
 
 <transform {
+    batch: <pos_num> //Numpy traces batch. Default 0
 	network: <Network name>
 	inputType: <Caffe|Protobuf|Gzip>
 	inputDataType: <Float32|Fixed16>
@@ -9,6 +10,7 @@
 }>
 
 <simulate {
+    batch: <pos_num> //Numpy traces batch. Default 0
 	network: <Network name>
 	inputType: <Caffe|Trace|CParams|Protobuf|Gzip>
 	inputDataType: <Float32|Fixed16>
