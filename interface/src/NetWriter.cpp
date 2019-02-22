@@ -22,9 +22,9 @@ namespace interface {
 
     /* Return value in two complement */
     static inline
-    uint16_t limitPrec(float num, int mag, int prec) {
-        double scale = pow(2.,(double)prec);
-        double intmax = (1 << (mag + prec - 1)) - 1;
+    uint16_t limitPrec(float num, int mag, int frac) {
+        double scale = pow(2.,(double)frac);
+        double intmax = (1 << (mag + frac)) - 1;
         double intmin = -1 * intmax;
         double ds = num * scale;
         if (ds > intmax) ds = intmax;
@@ -43,11 +43,12 @@ namespace interface {
         layer_proto->set_ky(layer.getKy());
         layer_proto->set_stride(layer.getStride());
         layer_proto->set_padding(layer.getPadding());
-        layer_proto->set_act_mag(std::get<0>(layer.getAct_precision()));
-        layer_proto->set_act_prec(std::get<1>(layer.getAct_precision()));
-        layer_proto->set_wgt_mag(std::get<0>(layer.getWgt_precision()));
-        layer_proto->set_wgt_prec(std::get<1>(layer.getWgt_precision()));
-
+        layer_proto->set_act_prec(layer.getAct_precision());
+        layer_proto->set_act_mag(layer.getAct_magnitude());
+        layer_proto->set_act_frac(layer.getAct_fraction());
+        layer_proto->set_wgt_prec(layer.getWgt_precision());
+        layer_proto->set_wgt_mag(layer.getWgt_magnitude());
+        layer_proto->set_wgt_frac(layer.getWgt_fraction());
 
         std::string type = typeid(T).name() + std::to_string(sizeof(T));// Get template type in run-time
 
@@ -84,19 +85,17 @@ namespace interface {
             } else if (type == "f4" && this->data_conversion == "Fixed16") {
                 for (unsigned long long i = 0; i < layer.getWeights().getMax_index(); i++)
                     layer_proto->add_wgt_data_fxd(limitPrec(layer.getWeights().get(i),
-                         std::get<0>(layer.getWgt_precision()),std::get<1>(layer.getWgt_precision())));
+                         layer.getWgt_magnitude(),layer.getWgt_fraction()));
 
                 for (unsigned long long i = 0; i < layer.getActivations().getMax_index(); i++)
                     layer_proto->add_act_data_fxd(limitPrec(layer.getActivations().get(i),
-                        std::get<0>(layer.getAct_precision()),std::get<1>(layer.getAct_precision())));
+                        layer.getAct_magnitude(),layer.getAct_fraction()));
 
                 if (this->activate_bias_and_out_act) {
                     for (unsigned long long i = 0; i < layer.getBias().getMax_index(); i++)
-                        layer_proto->add_bias_data_fxd(limitPrec(layer.getBias().get(i),
-                                std::get<0>(layer.getAct_precision()),std::get<1>(layer.getAct_precision())));
+                        layer_proto->add_bias_data_fxd(limitPrec(layer.getBias().get(i),1 + 0,15));
                     for (unsigned long long i = 0; i < layer.getOutput_activations().getMax_index(); i++)
-                        layer_proto->add_out_act_data_fxd(limitPrec(layer.getOutput_activations().get(i),
-                                std::get<0>(layer.getAct_precision()),std::get<1>(layer.getAct_precision())));
+                        layer_proto->add_out_act_data_fxd(limitPrec(layer.getOutput_activations().get(i),1 + 13,2));
                 }
 
             } else if (type == "t2") {

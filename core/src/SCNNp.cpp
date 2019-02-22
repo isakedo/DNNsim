@@ -421,7 +421,7 @@ namespace core {
         int it_per_group = num_filters / groups;
 
         // Get layer precision
-        auto act_layer_prec = std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision());
+        auto act_layer_prec = layer.getAct_precision();
 
         // Operations
         const auto parallel_mult = (uint64_t)(num_filters * out_x * out_y * Kx * Ky * wgt_channels);
@@ -496,7 +496,7 @@ namespace core {
         if(this->FAST_MODE) batch_size = 1;
 
         // Get layer precision
-        auto act_layer_prec = std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision());
+        auto act_layer_prec = layer.getAct_precision();
 
         // Operations
         const auto parallel_mult = (uint64_t)num_filters * wgt_channels;
@@ -548,13 +548,13 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision()));
-                stats.wgt_prec.push_back(std::get<0>(layer.getWgt_precision()) + std::get<1>(layer.getWgt_precision()));
+                stats.act_prec.push_back(layer.getAct_precision());
+                stats.wgt_prec.push_back(0);
                 computePotentialsConvolution(layer,stats);
             } else if (layer.getType() == "InnerProduct") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision()));
-                stats.wgt_prec.push_back(std::get<0>(layer.getWgt_precision()) + std::get<1>(layer.getWgt_precision()));
+                stats.act_prec.push_back(layer.getAct_precision());
+                stats.wgt_prec.push_back(0);
                 computePotentialsInnerProduct(layer,stats);
             }
         }

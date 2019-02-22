@@ -288,11 +288,11 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision()));
+                stats.act_prec.push_back(layer.getAct_precision());
                 computeConvolution(layer, stats, schedule());
             } else if(layer.getType() == "InnerProduct") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision()));
+                stats.act_prec.push_back(layer.getAct_precision());
                 computeInnerProduct(layer, stats, schedule());
             }
         }
@@ -377,7 +377,7 @@ namespace core {
         int n;
 
         // Get layer precision
-        auto act_layer_prec = std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision());
+        auto act_layer_prec = layer.getAct_precision();
 
         // Convolution
         #ifdef OPENMP
@@ -448,7 +448,7 @@ namespace core {
         int n;
 
         // Get layer precision
-        auto act_layer_prec = std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision());
+        auto act_layer_prec = layer.getAct_precision();
 
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
@@ -491,12 +491,12 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision()));
+                stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);
                 computePotentialsConvolution(layer,stats);
             } else if (layer.getType() == "InnerProduct") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision()));
+                stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);
                 computePotentialsInnerProduct(layer,stats);
             }

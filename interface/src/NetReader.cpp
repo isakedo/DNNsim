@@ -143,12 +143,12 @@ namespace interface {
                 else if (words[2] == "lstm")
                     type = "LSTM";
                 else
-                    throw std::runtime_error("Failed to read conv_params.csv: type not recognised");
+                    throw std::runtime_error("Failed to read conv_params.csv");
 
                 auto layer = core::Layer<T>(type,words[1],"",stoi(words[3]), stoi(words[5]), stoi(words[6]),
                         stoi(words[9]), stoi(words[8]));
-                layer.setAct_precision(std::make_tuple(stoi(words[11]),stoi(words[10])));
-                layer.setWgt_precision(std::make_tuple(1 + 0, 15));
+                layer.setAct_precision(stoi(words[10]),stoi(words[11]),(stoi(words[10])-1)-stoi(words[11]));
+                layer.setWgt_precision(16,0,15);
                 layers.emplace_back(layer);
             }
             myfile.close();
@@ -160,9 +160,9 @@ namespace interface {
     template <typename T>
     core::Layer<T> NetReader<T>::read_layer_proto(const protobuf::Network_Layer &layer_proto) {
         core::Layer<T> layer = core::Layer<T>(layer_proto.type(),layer_proto.name(),layer_proto.input(),
-        layer_proto.nn(),layer_proto.kx(),layer_proto.ky(),layer_proto.stride(),layer_proto.padding(),
-        std::make_tuple<int,int>(layer_proto.act_mag(),layer_proto.act_prec()),
-        std::make_tuple<int,int>(layer_proto.wgt_mag(),layer_proto.wgt_prec()));
+        layer_proto.nn(),layer_proto.kx(),layer_proto.ky(),layer_proto.stride(),layer_proto.padding());
+        layer.setAct_precision(layer_proto.act_prec(),layer_proto.act_mag(),layer_proto.act_frac());
+        layer.setWgt_precision(layer_proto.wgt_prec(),layer_proto.wgt_mag(),layer_proto.wgt_frac());
 
         // Read weights, activations, and output activations only to the desired layers
         if(this->layers_data.find(layer_proto.type()) != this->layers_data.end()) {
@@ -384,9 +384,9 @@ namespace interface {
         std::string line;
         std::stringstream ss_line;
         std::vector<int> act_mag;
-        std::vector<int> act_prec;
+        std::vector<int> act_frac;
         std::vector<int> wgt_mag;
-        std::vector<int> wgt_prec;
+        std::vector<int> wgt_frac;
 
         std::ifstream myfile ("models/" + this->name + "/precision.txt");
         if (myfile.is_open()) {
@@ -402,7 +402,7 @@ namespace interface {
             getline(myfile,line);
             ss_line = std::stringstream(line);
             while (getline(ss_line,word,';'))
-                act_prec.push_back(stoi(word));
+                act_frac.push_back(stoi(word));
 
             getline(myfile,line);
             ss_line = std::stringstream(line);
@@ -412,19 +412,19 @@ namespace interface {
             getline(myfile,line);
             ss_line = std::stringstream(line);
             while (getline(ss_line,word,';'))
-                wgt_prec.push_back(stoi(word));
+                wgt_frac.push_back(stoi(word));
 
             myfile.close();
 
             int i = 0;
             for(core::Layer<T> &layer : network.updateLayers()) {
                 if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                    layer.setAct_precision(std::make_tuple(act_mag[i], act_prec[i]));
-                    layer.setWgt_precision(std::make_tuple(wgt_mag[i], wgt_prec[i]));
+                    layer.setAct_precision(act_mag[i] + act_frac[i],act_mag[i] - 1,act_frac[i]);
+                    layer.setWgt_precision(wgt_mag[i] + wgt_frac[i],wgt_mag[i] - 1,wgt_frac[i]);
                     i++;
                 } else {
-                    layer.setAct_precision(std::make_tuple(0,0));
-                    layer.setWgt_precision(std::make_tuple(0,0));
+                    layer.setAct_precision(-1,-1,-1);
+                    layer.setWgt_precision(-1,-1,-1);
                 }
             }
 
@@ -433,12 +433,12 @@ namespace interface {
             int i = 0;
             for(core::Layer<T> &layer : network.updateLayers()) {
                 if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                    layer.setAct_precision(std::make_tuple(1 + 13, 2));
-                    layer.setWgt_precision(std::make_tuple(1 + 0, 15));
+                    layer.setAct_precision(16,13,2);
+                    layer.setWgt_precision(16,0,15);
                     i++;
                 } else {
-                    layer.setAct_precision(std::make_tuple(0,0));
-                    layer.setWgt_precision(std::make_tuple(0,0));
+                    layer.setAct_precision(-1,-1,-1);
+                    layer.setWgt_precision(-1,-1,-1);
                 }
             }
         }

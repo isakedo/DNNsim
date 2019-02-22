@@ -499,13 +499,13 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision()));
-                stats.wgt_prec.push_back(std::get<0>(layer.getWgt_precision()) + std::get<1>(layer.getWgt_precision()));
+                stats.act_prec.push_back(0);
+                stats.wgt_prec.push_back(0);
                 computePotentialsConvolution(layer,stats);
             } else if (layer.getType() == "InnerProduct") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(std::get<0>(layer.getAct_precision()) + std::get<1>(layer.getAct_precision()));
-                stats.wgt_prec.push_back(std::get<0>(layer.getWgt_precision()) + std::get<1>(layer.getWgt_precision()));
+                stats.act_prec.push_back(0);
+                stats.wgt_prec.push_back(0);
                 computePotentialsInnerProduct(layer,stats);
             }
         }
