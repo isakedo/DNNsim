@@ -1,4 +1,4 @@
-# DNNsim 1.3.0
+# DNNsim 
 
 ### Requeriments
 *   Cmake posterior to version 3.10
@@ -50,11 +50,11 @@ Create folder **models** including a folder for each network. Every network must
    *  train_val.prototxt
    *  trace_params.csv (Instead of the prototxt file)
    *  conv_params.csv (Instead of the prototxt file)   
-   *  precision.txt (Optional, contain 5 lines as the example)
-        *   If this file does not exist the precisions are 14:2 for activations and 1:15 for weights
+   *  precision.txt (Optional, contain 5 lines as the example, first line is skipped)
+        *   If this file does not exist the precisions are 13:2 for activations and 0:15 for weights
    
    ```
-   bvlc_alexnet 0.99 : 0.557799997926: (mags,precs,mag_w,prec_w)
+   magnitude (+1 of the sign), fraction, wgt_magnitude, wgt_fraction
    9;9;8;9;9;8;6;4;
    -1;-2;-3;-3;-3;-3;-1;0;
    2;1;1;1;1;-3;-4;-1;
