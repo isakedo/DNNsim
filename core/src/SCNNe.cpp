@@ -141,6 +141,7 @@ namespace core {
                         auto act_bits = act.get(n,ct+ck,x,y);
                         if(act_bits != 0) {
                             auto act_cycles = this->effectualBits(act_bits);
+                            act_cycles = (uint8_t)ceil(act_cycles/2.);
                             act_queue[sx][sy].emplace_back(std::make_tuple(x, y, act_cycles));
                         }
                         dense_act_counter[sx][sy] += 1;
@@ -236,6 +237,7 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
+        act.powers_of_two_representation();
         cnpy::Array<T> wgt = layer.getWeights();
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
