@@ -130,6 +130,7 @@ namespace core {
                             auto min_act_bit = std::get<0>(min_max_act_bits);
                             auto max_act_bit = std::get<1>(min_max_act_bits);
                             auto act_cycles = max_act_bit - min_act_bit + 1;
+                            act_cycles = (uint8_t)ceil(act_cycles/2.);
                             act_queue[sx][sy].emplace_back(std::make_tuple(x, y, act_cycles));
                         }
                         dense_act_counter[sx][sy] += 1;
@@ -146,7 +147,7 @@ namespace core {
                         int sy = (s + padding) % stride;
                         for(int k = k_begin; k < k_end; k++) {
                             auto wgt_bits = wgt.get(k,ck,r,s);
-                            if(wgt_bits != 0)
+                            if(wgt_bits != 0) 
                                 wgt_queue[sx][sy].emplace_back(std::make_tuple(k,r,s));
                             dense_wgt_counter[sx][sy] += 1;
                         }

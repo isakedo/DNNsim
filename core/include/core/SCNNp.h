@@ -10,7 +10,7 @@ namespace core {
 
     private:
 
-        typedef std::vector<std::tuple<int,int,T>> act_idxMap;
+        typedef std::vector<std::tuple<int,int,uint8_t>> act_idxMap;
 
         struct PE_stats {
             uint32_t cycles = 0;
