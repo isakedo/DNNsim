@@ -142,18 +142,18 @@ can be found inside **examples/README**)
 Default parameters are defined in the header of each architecture, they can be changed in the specific file  
 Data type indicates the possible data types allowed: Float32 for 4bytes floating point, and Fixed16 for 2bytes integer
 
-| Architecture | Input Parameters | Default Parameters\* | Cycles | Potentials | Data type |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| Inference | - | - | - | - | Float32 |
-| Stripes | N_COLUMNS, N_ROWS, BITS_PE | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
-| DynamicStripes | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY, COLUMN_REGISTERS | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
-| BitPragmatic | N_COLUMNS, N_ROWS, BITS_FIRST_STAGE, COLUMN_REGISTERS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16| X | X | Fixed16 |
-| Laconic | N_COLUMNS, N_ROWS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
-| BitTacticalP | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, PRECISION_GRANULARITY, COLUMN_REGISTERS | ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
-| BitTacticalE | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, BITS_FIRST_STAGE, COLUMN_REGISTERS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | X | X | Fixed16 |
-| SCNN | Wt, Ht, I, F, out_acc_size, BANKS | ZERO_COUNT | X | X | Fixed16, Float32 |
-| SCNNp | Wt, Ht, I, F, out_acc_size, BANKS | ZERO_COUNT | - | X | Fixed16 |
-| SCNNe | Wt, Ht, I, F, out_acc_size, BANKS | BOOTH_ENCODING, ZERO_COUNT | - | X | Fixed16 |
+| Architecture | Input Parameters | Default Parameters\* | Data type |
+|:---:|:---:|:---:|:---:|
+| Inference | - | - | Float32 |
+| Stripes | N_COLUMNS, N_ROWS, BITS_PE | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
+| DynamicStripes | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY, COLUMN_REGISTERS | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
+| BitPragmatic | N_COLUMNS, N_ROWS, BITS_FIRST_STAGE, COLUMN_REGISTERS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16| Fixed16 |
+| Laconic | N_COLUMNS, N_ROWS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
+| BitTacticalP | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, PRECISION_GRANULARITY, COLUMN_REGISTERS | ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
+| BitTacticalE | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, BITS_FIRST_STAGE, COLUMN_REGISTERS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
+| SCNN | Wt, Ht, I, F, out_acc_size, BANKS | ZERO_COUNT | Fixed16, Float32 |
+| SCNNp | Wt, Ht, I, F, out_acc_size, BANKS | ZERO_COUNT | Fixed16 |
+| SCNNe | Wt, Ht, I, F, out_acc_size, BANKS | BOOTH_ENCODING, ZERO_COUNT | Fixed16 |
 
 *\*Default features can be removed in their specific header file*
 

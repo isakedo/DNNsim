@@ -52,15 +52,20 @@ namespace core {
         // Get layer precision
         auto act_layer_prec = layer.getAct_precision();
         auto wgt_layer_prec = layer.getWgt_precision();
-        auto max_precision = std::max(act_layer_prec,wgt_layer_prec);
 
-        auto columns_per_act = (int)ceil(max_precision / (double)BITS_PE);
-        auto rows_per_wgt = (int)ceil(max_precision / (double)BITS_PE);
+        auto columns_per_act = (int)ceil(act_layer_prec / (double)BITS_PE);
+        auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
+        if(columns_per_act > rows_per_wgt){
+            auto tmp = rows_per_wgt;
+            rows_per_wgt = columns_per_act;
+            columns_per_act = tmp;
+        }
         auto windows_per_tile = N_COLUMNS/columns_per_act;
         auto filters_per_tile = N_ROWS/rows_per_wgt;
 
         int groups = act_channels / wgt_channels;
         auto num_filters_sets = (uint32_t)ceil(num_filters/(double)filters_per_tile/groups);
+        auto baseline_filters_sets = (uint32_t)ceil(num_filters/(double)16./groups);
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
@@ -95,7 +100,7 @@ namespace core {
             stats.cycles.back()[n] *= num_filters_sets;
         }
 
-        auto base_cycles = (uint64_t)(out_x * out_y * act_channels * Kx * Ky * num_filters_sets / N_ROWS);
+        auto base_cycles = (uint64_t)(out_x * out_y * act_channels * Kx * Ky * baseline_filters_sets / 16);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
@@ -126,14 +131,19 @@ namespace core {
         // Get layer precision
         auto act_layer_prec = layer.getAct_precision();
         auto wgt_layer_prec = layer.getWgt_precision();
-        auto max_precision = std::max(act_layer_prec,wgt_layer_prec);
 
-        auto columns_per_act = (int)ceil(max_precision / (double)BITS_PE);
-        auto rows_per_wgt = (int)ceil(max_precision / (double)BITS_PE);
+        auto columns_per_act = (int)ceil(act_layer_prec / (double)BITS_PE);
+        auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
+        if(columns_per_act > rows_per_wgt){
+            auto tmp = rows_per_wgt;
+            rows_per_wgt = columns_per_act;
+            columns_per_act = tmp;
+        }
         auto windows_per_tile = N_COLUMNS/columns_per_act;
         auto filters_per_tile = N_ROWS/rows_per_wgt;
 
         auto num_filters_sets = (uint32_t)ceil(num_filters/(double)filters_per_tile);
+        auto baseline_filters_sets = (uint32_t)ceil(num_filters/16.);
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
@@ -188,7 +198,7 @@ namespace core {
 
         #endif
 
-        auto base_cycles = (uint64_t)(act_channels * num_filters_sets / N_ROWS);
+        auto base_cycles = (uint64_t)(act_channels * baseline_filters_sets / 16);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
@@ -235,10 +245,8 @@ namespace core {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
-        cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation();
+        const cnpy::Array<T> &act = layer.getActivations();
         cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
         const std::vector<size_t> &act_shape = act.getShape();
@@ -301,10 +309,8 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation();
         if(act.getDimensions() == 4) act.reshape_to_2D();
-        cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
+        const cnpy::Array<T> &wgt = layer.getWeights();
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();

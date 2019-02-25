@@ -166,6 +166,7 @@ namespace core {
 
         int groups = act_channels / wgt_channels;
         auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS/groups);
+        auto baseline_filters_sets = (uint32_t)ceil(num_filters/(double)16./groups);
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
@@ -200,7 +201,7 @@ namespace core {
             stats.cycles.back()[n] = batch_cycles*num_filters_sets;
         }
 
-        auto base_cycles = (uint64_t)(out_x * out_y * act_channels * Kx * Ky * num_filters_sets / N_ROWS);
+        auto base_cycles = (uint64_t)(out_x * out_y * act_channels * Kx * Ky * baseline_filters_sets / 16);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
@@ -229,6 +230,7 @@ namespace core {
         if(this->FAST_MODE) batch_size = 1;
 
         auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS);
+        auto baseline_filters_sets = (uint32_t)ceil(num_filters/16.);
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
@@ -277,7 +279,7 @@ namespace core {
 
         #endif
 
-        auto base_cycles = (uint64_t)(act_channels * num_filters_sets / N_ROWS);
+        auto base_cycles = (uint64_t)(act_channels * baseline_filters_sets / 16);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
@@ -323,7 +325,6 @@ namespace core {
         cnpy::Array<T> act = layer.getActivations();
         act.powers_of_two_representation();
         cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
         const std::vector<size_t> &act_shape = act.getShape();
@@ -401,8 +402,7 @@ namespace core {
         cnpy::Array<T> act = layer.getActivations();
         act.powers_of_two_representation();
         if(act.getDimensions() == 4) act.reshape_to_2D();
-        cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
+        const cnpy::Array<T> &wgt = layer.getWeights();
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
