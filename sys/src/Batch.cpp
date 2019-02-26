@@ -182,9 +182,12 @@ namespace sys {
                         throw std::runtime_error("Banks for SCNN in network " + simulate.network +
                                                  " must be from 1 to 32");
 
-                } else throw std::runtime_error("Architecture for network " + simulate.network +
-                                                " in Fixed16 must be <BitPragmatic|Stripes|Laconic|BitTacticalP|"
-                                                "BitTacticalE|SCNN|SCNNp|SCNNe>.");
+                } else if(experiment_proto.architecture() == "BitFusion") {
+                    experiment.num_pe = experiment_proto.num_pe() < 1 ? 512 : experiment_proto.num_pe();
+
+                }else throw std::runtime_error("Architecture for network " + simulate.network +
+                                                " in Fixed16 must be <BitPragmatic|Stripes|DynamicStripes|Laconic|"
+                                                "BitTacticalP|BitTacticalE|SCNN|SCNNp|SCNNe|BitFusion>.");
 
                 value = experiment_proto.task();
                 if(value  != "Cycles" && value != "Potentials" && value != "Schedule")

@@ -136,6 +136,7 @@ parallelized per batch using OpenMP library
 | SCNN | **W + A**: Skips zero weights and zero activations |
 | SCNNp | **W + A + Ap**: Skips zero weights, zero activations, and exploits precision requirements of activations |
 | SCNNe | **W + A + Ae**: Skips zero weights, zero activations, and exploits bit-level sparsity of activations |
+| BitFusion | **Ap + Wp**: Exploits precision requirements of activations and weights for powers of two |
 
 Input parameters are the parameters that can be changed for each architecture in the prototxt batch file (Default values
 can be found inside **examples/README**)  
@@ -154,6 +155,7 @@ Data type indicates the possible data types allowed: Float32 for 4bytes floating
 | SCNN | Wt, Ht, I, F, out_acc_size, BANKS | ZERO_COUNT | Fixed16, Float32 |
 | SCNNp | Wt, Ht, I, F, out_acc_size, BANKS | ZERO_COUNT | Fixed16 |
 | SCNNe | Wt, Ht, I, F, out_acc_size, BANKS | BOOTH_ENCODING, ZERO_COUNT | Fixed16 |
+| BitFusion | NUM_PE | - | Fixed16 |
 
 *\*Default features can be removed in their specific header file*
 
@@ -180,6 +182,7 @@ Data type indicates the possible data types allowed: Float32 for 4bytes floating
     *   SCNN: class for the SCNN accelerator and common behaviour for SCNN-like architectures
     *   SCNNp: class for the SCNNe accelerator
     *   SCNNe: class for the SCNNp accelerator
+    *   BitFusion: class for the BitFusion accelerator
 *   **interface**: Folder to interface with input/output operations
     *   NetReader: class to read and load a network using different formats
     *   NetWriter: class to write and dump a network using different formats
@@ -192,8 +195,3 @@ Data type indicates the possible data types allowed: Float32 for 4bytes floating
 *   **scripts**: Folder for supporting python scripts
     *   save_net.py: Create traces for the networks given the models
     
-### Fixes TODO
-*   Dispatchers?
-*   Add LSTM layers
-*   Add documentacion
-

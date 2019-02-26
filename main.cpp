@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include <core/SCNN.h>
 #include <core/SCNNp.h>
 #include <core/SCNNe.h>
+#include <core/BitFusion.h>
 
 template <typename T>
 core::Network<T> read(const std::string &input_type, const std::string &network_name, bool activate_bias_and_out_act,
@@ -291,6 +292,10 @@ int main(int argc, char *argv[]) {
                         } else if (experiment.architecture == "SCNNe") {
                             core::SCNNe<uint16_t> DNNsim(experiment.Wt, experiment.Ht, experiment.I, experiment.F,
                                     experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE);
+                            if (experiment.task == "Cycles") DNNsim.run(network);
+                            else if (experiment.task == "Potentials") DNNsim.potentials(network);
+                        } else if (experiment.architecture == "BitFusion") {
+                            core::BitFusion<uint16_t> DNNsim(experiment.num_pe, N_THREADS, FAST_MODE);
                             if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                         }

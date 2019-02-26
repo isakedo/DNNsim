@@ -21,6 +21,7 @@ add_library(
         include/core/SCNN.h
         include/core/SCNNp.h
         include/core/SCNNe.h
+        include/core/BitFusion.h
         src/Simulator.cpp
         src/InferenceSimulator.cpp
         src/Laconic.cpp
@@ -33,6 +34,7 @@ add_library(
         src/SCNN.cpp
         src/SCNNp.cpp
         src/SCNNe.cpp
+        src/BitFusion.cpp
 )
 
 target_include_directories(
