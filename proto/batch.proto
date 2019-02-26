@@ -48,12 +48,13 @@ message Batch {
             uint32 F = 16;
             uint32 out_acc_size = 17;
             uint32 banks = 18;
+            uint32 pe_serial_bits = 19;
 
             // BitFusion
-            uint32 M = 19;
-            uint32 N = 20;
-            uint32 PMAX = 21;
-            uint32 PMIN = 22;
+            uint32 M = 20;
+            uint32 N = 21;
+            uint32 PMAX = 22;
+            uint32 PMIN = 23;
         }
 
         uint32 batch = 1;

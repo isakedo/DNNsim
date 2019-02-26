@@ -153,9 +153,9 @@ Data type indicates the possible data types allowed: Float32 for 4bytes floating
 | BitTacticalP | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, PRECISION_GRANULARITY, COLUMN_REGISTERS | ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
 | BitTacticalE | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, BITS_FIRST_STAGE, COLUMN_REGISTERS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
 | SCNN | Wt, Ht, I, F, out_acc_size, BANKS | ZERO_COUNT | Fixed16, Float32 |
-| SCNNp | Wt, Ht, I, F, out_acc_size, BANKS | ZERO_COUNT | Fixed16 |
-| SCNNe | Wt, Ht, I, F, out_acc_size, BANKS | BOOTH_ENCODING, ZERO_COUNT | Fixed16 |
-| BitFusion | M, N | - | Fixed16 |
+| SCNNp | Wt, Ht, I, F, out_acc_size, BANKS, PE_SERIAL_BITS | ZERO_COUNT | Fixed16 |
+| SCNNe | Wt, Ht, I, F, out_acc_size, BANKS, PE_SERIAL_BITS | BOOTH_ENCODING, ZERO_COUNT | Fixed16 |
+| BitFusion | M, N, PMAX, PMIN | - | Fixed16 |
 
 *\*Default features can be removed in their specific header file*
 

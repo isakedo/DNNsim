@@ -46,6 +46,7 @@ namespace sys {
                 int F = 0;
                 int out_acc_size = 0;
                 int banks = 0;
+                int pe_serial_bits = 0;
                 int M = 0;
                 int N = 0;
                 int pmax = 0;

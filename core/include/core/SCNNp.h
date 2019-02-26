@@ -12,6 +12,9 @@ namespace core {
 
         typedef std::vector<std::tuple<int,int,uint8_t>> act_idxMap;
 
+        /* Number of bits in series that the PE process */
+        const int PE_SERIAL_BITS;
+
         struct PE_stats {
             uint32_t cycles = 0;
             uint32_t mults = 0;
@@ -86,17 +89,19 @@ namespace core {
     public:
 
         /* Constructor
-         * @param _Wt           Number of PE columns
-         * @param _Ht           Number of PE rows
-         * @param _I            Column multipliers per PE
-         * @param _F            Row multipliers per PE
-         * @param _out_acc_size Output accumulator size
-         * @param _BANKS        Number of banks
-         * @param _N_THREADS    Number of parallel threads for multi-threading execution
-         * @param _FAST_MODE    Enable fast mode to simulate only one image
+         * @param _Wt               Number of PE columns
+         * @param _Ht               Number of PE rows
+         * @param _I                Column multipliers per PE
+         * @param _F                Row multipliers per PE
+         * @param _out_acc_size     Output accumulator size
+         * @param _BANKS            Number of banks
+         * @param _PE_SERIAL_BITS   Number of bits in series that the PE process
+         * @param _N_THREADS        Number of parallel threads for multi-threading execution
+         * @param _FAST_MODE        Enable fast mode to simulate only one image
          */
-        SCNNp(int _Wt, int _Ht, int _I, int _F, int _out_acc_size, int _BANKS, uint8_t _N_THREADS,
-            bool _FAST_MODE) : SCNN<T>(_Wt,_Ht,_I,_F,_out_acc_size,_BANKS,_N_THREADS,_FAST_MODE) {}
+        SCNNp(int _Wt, int _Ht, int _I, int _F, int _out_acc_size, int _BANKS, int _PE_SERIAL_BITS, uint8_t _N_THREADS,
+              bool _FAST_MODE) : SCNN<T>(_Wt,_Ht,_I,_F,_out_acc_size,_BANKS,_N_THREADS, _FAST_MODE),
+              PE_SERIAL_BITS(_PE_SERIAL_BITS) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

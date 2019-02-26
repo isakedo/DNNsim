@@ -130,7 +130,7 @@ namespace core {
                             auto min_act_bit = std::get<0>(min_max_act_bits);
                             auto max_act_bit = std::get<1>(min_max_act_bits);
                             auto act_cycles = max_act_bit - min_act_bit + 1;
-                            act_cycles = (uint8_t)ceil(act_cycles/2.);
+                            act_cycles = (uint8_t)ceil(act_cycles/(double)PE_SERIAL_BITS);
                             act_queue[sx][sy].emplace_back(std::make_tuple(x, y, act_cycles));
                         }
                         dense_act_counter[sx][sy] += 1;
@@ -373,7 +373,8 @@ namespace core {
         stats.net_name = network.getName();
         stats.arch = "SCNNp_Wt" + std::to_string(this->Wt) + "_Ht" + std::to_string(this->Ht) + "_I" +
                 std::to_string(this->I) + "_F" + std::to_string(this->F) + "_acc_out" +
-                std::to_string(this->out_acc_size) + "_B" + std::to_string(this->BANKS);
+                std::to_string(this->out_acc_size) + "_B" + std::to_string(this->BANKS) + "_PSB" +
+                std::to_string(PE_SERIAL_BITS);
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution" || layer.getType() == "InnerProduct") {

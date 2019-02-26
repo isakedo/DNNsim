@@ -285,13 +285,15 @@ int main(int argc, char *argv[]) {
 
                         } else if (experiment.architecture == "SCNNp") {
                             core::SCNNp<uint16_t> DNNsim(experiment.Wt, experiment.Ht, experiment.I, experiment.F,
-                                    experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE);
+                                    experiment.out_acc_size, experiment.banks, experiment.pe_serial_bits, N_THREADS,
+                                    FAST_MODE);
                             if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
                         } else if (experiment.architecture == "SCNNe") {
                             core::SCNNe<uint16_t> DNNsim(experiment.Wt, experiment.Ht, experiment.I, experiment.F,
-                                    experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE);
+                                    experiment.out_acc_size, experiment.banks, experiment.pe_serial_bits, N_THREADS,
+                                    FAST_MODE);
                             if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                         } else if (experiment.architecture == "BitFusion") {

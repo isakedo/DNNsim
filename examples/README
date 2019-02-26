@@ -36,6 +36,7 @@
 		[F: <pos_num>] //Default 4
 		[out_acc_size: <pos_num>] //Default 1024
 		[banks: <pos_num>] //Default 32 (Max 32)
+		[pe_serial_bits: <pos_num>] //Default 1, Only for SCNNe and SCNNp
 		//BitFusion
 		[m: <pos_num>] //Default 16
 		[n: <pos_num>] //Default 32

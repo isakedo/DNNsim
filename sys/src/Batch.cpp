@@ -166,6 +166,8 @@ namespace sys {
                     experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
                             1024 : experiment_proto.out_acc_size();
                     experiment.banks = experiment_proto.banks() < 1 ? 32 : experiment_proto.banks();
+                    experiment.pe_serial_bits = experiment_proto.pe_serial_bits() < 1 ? 1 :
+                            experiment_proto.pe_serial_bits();
                     if(experiment.banks > 32)
                         throw std::runtime_error("Banks for SCNN in network " + simulate.network +
                                                  " must be from 1 to 32");
@@ -178,6 +180,8 @@ namespace sys {
                     experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
                             1024 : experiment_proto.out_acc_size();
                     experiment.banks = experiment_proto.banks() < 1 ? 32 : experiment_proto.banks();
+                    experiment.pe_serial_bits = experiment_proto.pe_serial_bits() < 1 ? 1 :
+                            experiment_proto.pe_serial_bits();
                     if(experiment.banks > 32)
                         throw std::runtime_error("Banks for SCNN in network " + simulate.network +
                                                  " must be from 1 to 32");
