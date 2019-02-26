@@ -10,7 +10,7 @@ add_library(
         ${PROJECT_NAME}
         include/core/Layer.h
         include/core/Network.h
-        include/core/InferenceSimulator.h
+        include/core/Inference.h
         include/core/Laconic.h
         include/core/BitPragmatic.h
         include/core/Stripes.h
@@ -23,7 +23,7 @@ add_library(
         include/core/SCNNe.h
         include/core/BitFusion.h
         src/Simulator.cpp
-        src/InferenceSimulator.cpp
+        src/Inference.cpp
         src/Laconic.cpp
         src/BitPragmatic.cpp
         src/Stripes.cpp

@@ -1,5 +1,5 @@
 
-#include <core/InferenceSimulator.h>
+#include <core/Inference.h>
 
 namespace core {
 
@@ -8,7 +8,7 @@ namespace core {
     }
 
     template <typename T>
-    void InferenceSimulator<T>::computeConvolution(const core::Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
+    void Inference<T>::computeConvolution(const core::Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
 
         cnpy::Array<T> act = layer.getActivations();
         cnpy::Array<T> wgt = layer.getWeights();
@@ -86,7 +86,7 @@ namespace core {
     }
 
     template <typename T>
-    void InferenceSimulator<T>::computeInnerProduct(const Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
+    void Inference<T>::computeInnerProduct(const Layer<T> &layer, cnpy::Array<T> &result, bool has_ReLu) {
 
         cnpy::Array<T> act = layer.getActivations();
         if(act.getDimensions() == 4) act.reshape_to_2D();
@@ -129,7 +129,7 @@ namespace core {
     }
 
     template <typename T>
-    void InferenceSimulator<T>::check_values(const Layer<T> &layer, const cnpy::Array<T> &test,
+    void Inference<T>::check_values(const Layer<T> &layer, const cnpy::Array<T> &test,
             const cnpy::Array<T> &result, float min_error) {
 
         std::cout << "Checking values for layer: " << layer.getName() << " of type: "<< layer.getType() << "... ";
@@ -148,7 +148,7 @@ namespace core {
     }
 
     template <typename T>
-    void InferenceSimulator<T>::run(const Network<T> &network) {
+    void Inference<T>::run(const Network<T> &network) {
         int index = 0;
         unsigned long num_layers = network.getLayers().size();
         while(index < num_layers) {
@@ -171,6 +171,6 @@ namespace core {
 
     }
 
-    template class InferenceSimulator<float>;
+    template class Inference<float>;
 
 }

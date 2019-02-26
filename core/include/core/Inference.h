@@ -1,12 +1,12 @@
-#ifndef DNNSIM_INFERENCESIMULATOR_H
-#define DNNSIM_INFERENCESIMULATOR_H
+#ifndef DNNSIM_INFERENCE_H
+#define DNNSIM_INFERENCE_H
 
 #include "Simulator.h"
 
 namespace core {
 
     template <typename T>
-    class InferenceSimulator : public Simulator<T> {
+    class Inference : public Simulator<T> {
 
     private:
 
@@ -39,7 +39,7 @@ namespace core {
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          */
-        InferenceSimulator(uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE) {}
+        Inference(uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE) {}
 
         /* Compute the output activations fot all the layers in the network, and check their correctness
          * @param network   Initialised network for the computation
@@ -49,4 +49,4 @@ namespace core {
     };
 }
 
-#endif //DNNSIM_INFERENCESIMULATOR_H
+#endif //DNNSIM_INFERENCE_H

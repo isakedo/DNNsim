@@ -26,7 +26,7 @@ THE SOFTWARE.
 #include <interface/StatsWriter.h>
 
 #include <core/Network.h>
-#include <core/InferenceSimulator.h>
+#include <core/Inference.h>
 #include <core/Stripes.h>
 #include <core/DynamicStripes.h>
 #include <core/BitPragmatic.h>
@@ -211,7 +211,7 @@ int main(int argc, char *argv[]) {
                             simulate.batch);
                     for(const auto &experiment : simulate.experiments) {
                         if(experiment.architecture == "None") {
-                            core::InferenceSimulator<float> DNNsim(N_THREADS,FAST_MODE);
+                            core::Inference<float> DNNsim(N_THREADS,FAST_MODE);
                             if(experiment.task == "Inference") DNNsim.run(network);
                         } else if (experiment.architecture == "SCNN") {
                             core::SCNN<float> DNNsim(experiment.Wt, experiment.Ht, experiment.I, experiment.F,
