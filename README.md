@@ -49,7 +49,7 @@ Then, we can proceed to build the project
 Create folder **models** including a folder for each network. Every network must include:
    *  train_val.prototxt
    *  trace_params.csv (Instead of the prototxt file)
-   *  conv_params.csv (Instead of the prototxt file)   
+   *  conv_params.csv (Instead of the prototxt file and the precision.txt)   
    *  precision.txt (Optional, contain 5 lines as the example, first line is skipped)
         *   If this file does not exist the precisions are 13:2 for activations and 0:15 for weights
    
