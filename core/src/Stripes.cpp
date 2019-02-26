@@ -35,11 +35,10 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size = act_shape[0];
+        int batch_size = 1;
         int act_channels = act_shape[1];
         int Nx = act_shape[2];
         int Ny = act_shape[3];
-        if(this->FAST_MODE) batch_size = 1;
 
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
@@ -74,15 +73,8 @@ namespace core {
         stats.columns_per_act.push_back((uint64_t)columns_per_act);
         stats.rows_per_wgt.push_back((uint64_t)rows_per_wgt);
 
-        int n;
-
         // Convolution
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for(n=0; n<batch_size; n++) {
+        for(int n=0; n<batch_size; n++) {
 
             std::vector<int> list_x, list_y;
             int x_counter = 0, y_counter = 0;
@@ -122,10 +114,8 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = layer.getWeights().getShape();
 
-        int batch_size = act_shape[0];
+        int batch_size = 1;
         int act_channels = act_shape[1];
-        if(this->FAST_MODE) batch_size = 1;
-
         int num_filters = wgt_shape[0];
 
         // Get layer precision
@@ -152,17 +142,10 @@ namespace core {
         stats.columns_per_act.push_back((uint64_t)columns_per_act);
         stats.rows_per_wgt.push_back((uint64_t)rows_per_wgt);
 
-        int n;
-
         #ifndef FC_MULTIPLEX_COLUMNS
 
         // All FC in one column
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for (n = 0; n<batch_size; n++) {
+        for (int n = 0; n<batch_size; n++) {
             for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
                 auto precision_cycles = std::min(act_layer_prec,BITS_PE);
                 stats.cycles.back()[n] += precision_cycles;
@@ -172,12 +155,7 @@ namespace core {
 
         #else
 
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for (n = 0; n<batch_size; n++) {
+        for (int n = 0; n<batch_size; n++) {
 
             int column_index = 0;
             std::vector<int> column_end = std::vector<int>(windows_per_tile, 0);
@@ -252,11 +230,10 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size = act_shape[0];
+        int batch_size = 1;
         int act_channels = act_shape[1];
         int Nx = act_shape[2];
         int Ny = act_shape[3];
-        if(this->FAST_MODE) batch_size = 1;
 
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
@@ -279,13 +256,11 @@ namespace core {
         std::vector<double> speedup (batch_size,0);
         uint64_t bit_counter = 0;
 
-        int n;
-
         // Get layer precision
         auto layer_prec = layer.getAct_precision();
 
         // Convolution
-        for(n=0; n<batch_size; n++) {
+        for(int n=0; n<batch_size; n++) {
             bit_counter = (uint64_t)computeStripesBitsPE((uint8_t)layer_prec) * out_x * out_y * Kx * Ky * act_channels;
             work_reduction[n] = 100 - ((double)(bit_counter * num_filters_sets) / (double)parallel_mult / 256. * 100);
             speedup[n] = (double)parallel_mult * 256. / (double)(bit_counter * num_filters);
@@ -315,10 +290,9 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size = act_shape[0];
+        int batch_size = 1;
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
-        if(this->FAST_MODE) batch_size = 1;
 
         // Operations
         const auto parallel_mult = (uint64_t)num_filters * wgt_channels;
@@ -327,12 +301,10 @@ namespace core {
         std::vector<double> speedup (batch_size,0);
         uint64_t bit_counter = 0;
 
-        int n;
-
         // Get layer precision
         auto layer_prec = layer.getAct_precision();
 
-        for (n = 0; n<batch_size; n++) {
+        for (int n = 0; n<batch_size; n++) {
             bit_counter = computeStripesBitsPE((uint8_t)layer_prec)*(uint16_t)wgt_channels;
             work_reduction[n] = 100 - ((double)(bit_counter * num_filters) / (double) parallel_mult / 256. * 100);
             speedup[n] = (double)parallel_mult * 256. / (double)(bit_counter * num_filters);

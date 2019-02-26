@@ -95,11 +95,10 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size = act_shape[0];
+        int batch_size = 1;
         int act_channels = act_shape[1];
         int Nx = act_shape[2];
         int Ny = act_shape[3];
-        if(this->FAST_MODE) batch_size = 1;
 
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
@@ -122,8 +121,6 @@ namespace core {
         std::vector<double> speedup (batch_size,0);
         uint64_t bit_counter = 0;
 
-        int n;
-
         // Get layer precision
         auto act_layer_prec = layer.getAct_precision();
         auto act_rounded_log2 = ceil(log(act_layer_prec)/log(2));
@@ -135,7 +132,7 @@ namespace core {
 
 
         // Convolution
-        for(n=0; n<batch_size; n++) {
+        for(int n=0; n<batch_size; n++) {
             bit_counter = (uint64_t)computeBitFusionBitsPE(act_rounded_precision,wgt_rounded_precision) * out_x * out_y
                     * Kx * Ky * act_channels;
             work_reduction[n] = 100 - ((double)(bit_counter * num_filters_sets) / (double)parallel_mult / 256. * 100);
@@ -166,10 +163,9 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size = act_shape[0];
+        int batch_size = 1;
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
-        if(this->FAST_MODE) batch_size = 1;
 
         // Operations
         const auto parallel_mult = (uint64_t)num_filters * wgt_channels;
@@ -177,8 +173,6 @@ namespace core {
         std::vector<double> work_reduction (batch_size,0);
         std::vector<double> speedup (batch_size,0);
         uint64_t bit_counter = 0;
-
-        int n;
 
         // Get layer precision
         auto act_layer_prec = layer.getAct_precision();
@@ -189,7 +183,7 @@ namespace core {
         auto wgt_rounded_log2 = ceil(log(wgt_layer_prec)/log(2));
         auto wgt_rounded_precision = (uint8_t)pow(2,wgt_rounded_log2);
 
-        for (n = 0; n<batch_size; n++) {
+        for (int n = 0; n<batch_size; n++) {
             bit_counter = computeBitFusionBitsPE(act_rounded_precision,wgt_rounded_precision)*(uint16_t)wgt_channels;
             work_reduction[n] = 100 - ((double)(bit_counter * num_filters) / (double) parallel_mult / 256. * 100);
             speedup[n] = (double)parallel_mult * 256. / (double)(bit_counter * num_filters);
