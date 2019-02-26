@@ -321,6 +321,31 @@ namespace interface {
         o_file << line;
     }
 
+    void dump_csv_BitFusion_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
+        o_file << "layer,n_act,cycles,act_precision,wgt_precision,time(s)" << std::endl;
+        for (int j = 0; j < stats.cycles.front().size(); j++) {
+            for (int i = 0; i < stats.layers.size(); i++) {
+                char line[256];
+                snprintf(line, sizeof(line), "%s,%d,%lu,%d,%d,0\n", stats.layers[i].c_str(), j, stats.cycles[i][j],
+                        stats.act_prec[i], stats.wgt_prec[i]);
+                o_file << line;
+            }
+        }
+
+        double total_time = 0.;
+        for (int i = 0; i < stats.layers.size(); i++) {
+            total_time += stats.time[i].count();
+            char line[256];
+            snprintf(line, sizeof(line), "%s,AVG,%lu,%d,%d,%.2f\n", stats.layers[i].c_str(),
+                    stats.get_average(stats.cycles[i]), stats.act_prec[i], stats.wgt_prec[i], stats.time[i].count());
+            o_file << line;
+        }
+
+        char line[256];
+        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,-,-,%.2f\n", stats.get_total(stats.cycles),total_time);
+        o_file << line;
+    }
+
     void dump_csv_potentials(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
         o_file << "layer,n_act,work_reduction,speedup,parallel_mult,bit_mult,act_precision,wgt_precision,time(s)"
                << std::endl;
@@ -372,6 +397,7 @@ namespace interface {
             else if(!stats.cycles.empty() && arch == "SCNN") dump_csv_SCNN_cycles(o_file,stats);
             else if(!stats.cycles.empty() && arch == "SCNNp") dump_csv_SCNNp_cycles(o_file,stats);
             else if(!stats.cycles.empty() && arch == "SCNNe") dump_csv_SCNNe_cycles(o_file,stats);
+            else if(!stats.cycles.empty() && arch == "BitFusion") dump_csv_BitFusion_cycles(o_file,stats);
             else if(!stats.work_reduction.empty()) dump_csv_potentials(o_file,stats);
 
             o_file.close();

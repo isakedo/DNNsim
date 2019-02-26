@@ -295,7 +295,8 @@ int main(int argc, char *argv[]) {
                             if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                         } else if (experiment.architecture == "BitFusion") {
-                            core::BitFusion<uint16_t> DNNsim(experiment.num_pe, N_THREADS, FAST_MODE);
+                            core::BitFusion<uint16_t> DNNsim(experiment.M, experiment.N, experiment.pmax,
+                                    experiment.pmin, N_THREADS, FAST_MODE);
                             if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                         }

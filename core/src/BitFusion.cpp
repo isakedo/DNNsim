@@ -24,16 +24,19 @@ namespace core {
         int padding = layer.getPadding();
         int stride = layer.getStride();
 
+        if(layer.getType() == "InnerProduct") {
+            if(act.getDimensions() == 4) act.reshape_to_2D();
+            act.reshape_to_4D();
+        }
+
         act.zero_pad(padding);
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size = act_shape[0];
-        int act_channels = act_shape[1];
+        int batch_size = 1;
         int Nx = act_shape[2];
         int Ny = act_shape[3];
-        if(this->FAST_MODE) batch_size = 1;
 
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
@@ -50,6 +53,28 @@ namespace core {
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
 
+        for (int n = 0; n < batch_size; n++) {
+            uint8_t time_multiplex = 1;
+            if(act_layer_prec > 8) {
+                act_layer_prec = 8;
+                time_multiplex *= 2;
+            }
+            if(wgt_layer_prec > 8) {
+                wgt_layer_prec = 8;
+                time_multiplex *= 2;
+            }
+
+            act_layer_prec = std::max(act_layer_prec, PMIN);
+            wgt_layer_prec = std::max(wgt_layer_prec, PMIN);
+            auto perf_factor = (PMAX/act_layer_prec) * (PMAX/wgt_layer_prec);
+
+            auto filter_sets = (int)ceil(num_filters / (double)M);
+            auto activation_sets = (int)ceil(wgt_channels / (double)(N * perf_factor));
+
+            auto compute_cycles = filter_sets * out_x * out_y * Kx * Ky * activation_sets;
+            stats.cycles.back()[n] = compute_cycles * time_multiplex;
+        }
+
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
@@ -65,7 +90,8 @@ namespace core {
 
         stats.task_name = "cycles";
         stats.net_name = network.getName();
-        stats.arch = "BitFusion_PE" + std::to_string(NUM_PE);
+        stats.arch = "BitFusion_N" + std::to_string(N) + "_M" + std::to_string(M) + "_PMAX" + std::to_string(PMAX) +
+                "_PMIN" + std::to_string(PMIN);
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution" || layer.getType() == "InnerProduct") {
@@ -96,7 +122,6 @@ namespace core {
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = 1;
-        int act_channels = act_shape[1];
         int Nx = act_shape[2];
         int Ny = act_shape[3];
 
@@ -110,9 +135,6 @@ namespace core {
 
         long out_x = (Nx - Kx + 2*padding)/stride + 1;
         long out_y = (Ny - Ky + 2*padding)/stride + 1;
-
-        int groups = act_channels / wgt_channels;
-        auto num_filters_sets = (uint32_t)ceil((double)num_filters/groups);
 
         // Operations
         const auto parallel_mult = (uint64_t)(num_filters * out_x * out_y * Kx * Ky * wgt_channels);
@@ -130,14 +152,13 @@ namespace core {
         auto wgt_rounded_log2 = ceil(log(wgt_layer_prec)/log(2));
         auto wgt_rounded_precision = (uint8_t)pow(2,wgt_rounded_log2);
 
-
         // Convolution
         for(int n=0; n<batch_size; n++) {
             bit_counter = (uint64_t)computeBitFusionBitsPE(act_rounded_precision,wgt_rounded_precision) * out_x * out_y
-                    * Kx * Ky * act_channels;
-            work_reduction[n] = 100 - ((double)(bit_counter * num_filters_sets) / (double)parallel_mult / 256. * 100);
-            speedup[n] = (double)parallel_mult * 256. / (double)(bit_counter * num_filters);
-            bit_multiplications[n] = bit_counter * num_filters_sets;
+                    * Kx * Ky * wgt_channels * num_filters;
+            work_reduction[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
+            speedup[n] = (double)parallel_mult * 256. / (double)(bit_counter);
+            bit_multiplications[n] = bit_counter;
         }
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
@@ -184,10 +205,11 @@ namespace core {
         auto wgt_rounded_precision = (uint8_t)pow(2,wgt_rounded_log2);
 
         for (int n = 0; n<batch_size; n++) {
-            bit_counter = computeBitFusionBitsPE(act_rounded_precision,wgt_rounded_precision)*(uint16_t)wgt_channels;
-            work_reduction[n] = 100 - ((double)(bit_counter * num_filters) / (double) parallel_mult / 256. * 100);
-            speedup[n] = (double)parallel_mult * 256. / (double)(bit_counter * num_filters);
-            bit_multiplications[n] = bit_counter * num_filters;
+            bit_counter = (uint64_t)computeBitFusionBitsPE(act_rounded_precision,wgt_rounded_precision) *
+                    wgt_channels * num_filters;
+            work_reduction[n] = 100 - ((double)(bit_counter) / (double) parallel_mult / 256. * 100);
+            speedup[n] = (double)parallel_mult * 256. / (double)(bit_counter);
+            bit_multiplications[n] = bit_counter;
         }
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();

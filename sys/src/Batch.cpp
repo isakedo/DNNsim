@@ -183,9 +183,15 @@ namespace sys {
                                                  " must be from 1 to 32");
 
                 } else if(experiment_proto.architecture() == "BitFusion") {
-                    experiment.num_pe = experiment_proto.num_pe() < 1 ? 512 : experiment_proto.num_pe();
+                    experiment.M = experiment_proto.m() < 1 ? 32 : experiment_proto.m();
+                    experiment.N = experiment_proto.n() < 1 ? 16 : experiment_proto.n();
+                    experiment.pmax = experiment_proto.pmax() < 1 ? 8 : experiment_proto.pmax();
+                    experiment.pmin = experiment_proto.pmin() < 1 ? 2 : experiment_proto.pmin();
+                    if(experiment.pmin > experiment.pmax)
+                        throw std::runtime_error("pmin parameter for BitFusion in network " + simulate.network +
+                                                 " must be bigger or equal to pmax.");
 
-                }else throw std::runtime_error("Architecture for network " + simulate.network +
+                } else throw std::runtime_error("Architecture for network " + simulate.network +
                                                 " in Fixed16 must be <BitPragmatic|Stripes|DynamicStripes|Laconic|"
                                                 "BitTacticalP|BitTacticalE|SCNN|SCNNp|SCNNe|BitFusion>.");
 

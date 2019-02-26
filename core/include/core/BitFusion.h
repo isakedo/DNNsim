@@ -10,8 +10,17 @@ namespace core {
 
     private:
 
-        /* Number of PEs */
-        const int NUM_PE;
+        /* Matrix width */
+        const int M;
+
+        /* Matrix height */
+        const int N;
+
+        /* Maximum precision */
+        const int PMAX;
+
+        /* Maximum precision */
+        const int PMIN;
 
         /* Compute number of one bit multiplications
          * @param act_rounded_precision Rounded precision for the activations to the next power of two
@@ -41,12 +50,15 @@ namespace core {
     public:
 
         /* Constructor
-         * @param _NUM_PE       Number of PEs
+         * @param _M            Matrix width
+         * @param _N            Matrix height
+         * @param _PMAX         Maximum precision
+         * @param _PMIN         Minimum precision
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          */
-        BitFusion(int _NUM_PE, uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE),
-                NUM_PE(_NUM_PE) {}
+        BitFusion(int _M, int _N, int _PMAX, int _PMIN, uint8_t _N_THREADS, bool _FAST_MODE) :
+            Simulator<T>(_N_THREADS,_FAST_MODE), M(_M), N(_N), PMAX(_PMAX), PMIN(_PMIN) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

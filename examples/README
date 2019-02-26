@@ -37,6 +37,9 @@
 		[out_acc_size: <pos_num>] //Default 1024
 		[banks: <pos_num>] //Default 32 (Max 32)
 		//BitFusion
-		[num_pe: <pos_num>] //Default 512
+		[m: <pos_num>] //Default 16
+		[n: <pos_num>] //Default 32
+		[pmax: <pos_num>] //Default 8
+		[pmin: <pos_num>] //Default 2
 	}>
 }>

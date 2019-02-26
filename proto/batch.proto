@@ -50,7 +50,10 @@ message Batch {
             uint32 banks = 18;
 
             // BitFusion
-            uint32 num_pe = 19;
+            uint32 M = 19;
+            uint32 N = 20;
+            uint32 PMAX = 21;
+            uint32 PMIN = 22;
         }
 
         uint32 batch = 1;

@@ -155,7 +155,7 @@ Data type indicates the possible data types allowed: Float32 for 4bytes floating
 | SCNN | Wt, Ht, I, F, out_acc_size, BANKS | ZERO_COUNT | Fixed16, Float32 |
 | SCNNp | Wt, Ht, I, F, out_acc_size, BANKS | ZERO_COUNT | Fixed16 |
 | SCNNe | Wt, Ht, I, F, out_acc_size, BANKS | BOOTH_ENCODING, ZERO_COUNT | Fixed16 |
-| BitFusion | NUM_PE | - | Fixed16 |
+| BitFusion | M, N | - | Fixed16 |
 
 *\*Default features can be removed in their specific header file*
 
