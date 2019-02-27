@@ -78,12 +78,12 @@ namespace core {
 
             std::vector<int> list_x, list_y;
             int x_counter = 0, y_counter = 0;
+            auto precision_cycles = (columns_per_act == 1 && rows_per_wgt == 1) ? act_layer_prec : BITS_PE;
 
             while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter, y_counter, windows_per_tile)) {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
                         for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
-                            auto precision_cycles = std::min(act_layer_prec,BITS_PE);
                             stats.cycles.back()[n] += precision_cycles;
                         }
                     }
@@ -146,8 +146,8 @@ namespace core {
 
         // All FC in one column
         for (int n = 0; n<batch_size; n++) {
+            auto precision_cycles = (columns_per_act == 1 && rows_per_wgt == 1) ? act_layer_prec : BITS_PE;
             for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
-                auto precision_cycles = std::min(act_layer_prec,BITS_PE);
                 stats.cycles.back()[n] += precision_cycles;
             }
             stats.cycles.back()[n] *= num_filters_sets;
@@ -159,11 +159,11 @@ namespace core {
 
             int column_index = 0;
             std::vector<int> column_end = std::vector<int>(windows_per_tile, 0);
+            auto precision_cycles = (columns_per_act == 1 && rows_per_wgt == 1) ? act_layer_prec : BITS_PE;
 
             for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
                 if(stats.cycles.back()[n] < column_end[column_index])
                     stats.cycles.back()[n] = column_end[column_index];
-                auto precision_cycles = std::min(act_layer_prec,BITS_PE);
                 auto column_cycles = precision_cycles;
                 column_end[column_index] = stats.cycles.back()[n] + column_cycles;
                 stats.cycles.back()[n]++;
