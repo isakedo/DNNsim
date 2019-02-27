@@ -97,16 +97,22 @@ namespace interface {
                     words.push_back(word);
 
                 std::string type;
-                if(words[3] == words[4] && words[4] == words[5] && words[5] == "1") {
-                    if (words[0].at(0) == 'l' && words[0].at(1) == 's')
-                        type = "LSTM";
-                    else
-                        type = "InnerProduct";
-                } else
+                if (words[0].find("fc") != std::string::npos)
+                    type = "InnerProduct";
+                else if (words[0].find("lstm") != std::string::npos)
+                    type = "LSTM";
+                else
                     type = "Convolution";
 
-                layers.emplace_back(core::Layer<T>(type,words[0],words[1], stoi(words[2]), stoi(words[3]),
+                if(words.size() == 7)
+                    layers.emplace_back(core::Layer<T>(type,words[0],words[1], stoi(words[2]), stoi(words[3]),
                         stoi(words[4]), stoi(words[5]), stoi(words[6])));
+                else if(words.size() == 6)
+                    layers.emplace_back(core::Layer<T>(type,words[0],"", stoi(words[1]), stoi(words[2]),
+                            stoi(words[3]), stoi(words[4]), stoi(words[5])));
+                else
+                    throw std::runtime_error("Failed to read trace_params.csv");
+
             }
             myfile.close();
         }

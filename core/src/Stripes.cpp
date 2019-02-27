@@ -92,7 +92,7 @@ namespace core {
             stats.cycles.back()[n] *= num_filters_sets;
         }
 
-        auto base_cycles = (uint64_t)(out_x * out_y * act_channels * Kx * Ky * baseline_filters_sets / 16);
+        auto base_cycles = (uint64_t)(out_x * out_y * ceil(act_channels/16.) * Kx * Ky * baseline_filters_sets);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
@@ -176,7 +176,7 @@ namespace core {
 
         #endif
 
-        auto base_cycles = (uint64_t)(act_channels * baseline_filters_sets / 16);
+        auto base_cycles = (uint64_t)(ceil(act_channels/16.) * baseline_filters_sets);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
