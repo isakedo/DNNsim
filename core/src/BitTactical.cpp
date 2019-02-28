@@ -204,8 +204,10 @@ namespace core {
         schedule sparse_schedule = schedule((unsigned)total_time, time_schedule((unsigned)N_ROWS*WEIGHT_LANES,
                 schedule_tuple(-1,-1,-1,0)));
 
-        int current_group = 0, group_m = 0, start_group = 0;
         for(int m=0; m<num_filters; m++) {
+            int start_group = 0;
+            if(m >= it_per_group)
+                start_group = wgt_channels;
             int time = max_time.empty() ? 0 : *std::max_element(max_time.begin(),max_time.end());
             int index = 0;
             for (int i = 0; i < Kx; i++) {
@@ -234,13 +236,6 @@ namespace core {
                     time++;
                     index = 0;
                 }
-            }
-
-            group_m++;
-            if(group_m >= it_per_group) {
-                group_m = 0;
-                current_group++;
-                start_group = wgt_channels*current_group;
             }
 
             if((m % N_ROWS) == (N_ROWS - 1) || m == (num_filters - 1))

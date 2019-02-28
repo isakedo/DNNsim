@@ -205,12 +205,12 @@ namespace interface {
 
         check_path("net_traces/" + this->name);
         std::string path = "net_traces/" + this->name + '/' + outputName() + "_" + schedule_type + "_schedule.proto";
-        /*
+
         try {
             // If Protobuf is found, do not overwrite
             check_path(path);
             return;
-        } catch (std::exception &exception) {}*/
+        } catch (std::exception &exception) {}
 
         protobuf::Schedule network_schedule_proto;
 

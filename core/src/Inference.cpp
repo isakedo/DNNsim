@@ -52,8 +52,10 @@ namespace core {
         #pragma omp parallel for private(n)
         #endif
         for(n=0; n<batch_size; n++) {
-            int current_group = 0, group_m = 0, start_group = 0;
             for(int m=0; m<num_filters; m++) {
+                int start_group = 0;
+                if(m >= it_per_group)
+                    start_group = wgt_channels;
                 for(int x=0; x<out_x; x++) {
                     for(int y=0; y<out_y; y++) {
                         T sum = bias.get((unsigned)m);
@@ -69,12 +71,6 @@ namespace core {
                         auto pos = m*out_x*out_y + x*out_y + y;
                         output_activations[offset*n+pos] = sum;
                     }
-                }
-                group_m++;
-                if(group_m >= it_per_group) {
-                    group_m = 0;
-                    current_group++;
-                    start_group = wgt_channels*current_group;
                 }
             }
         }

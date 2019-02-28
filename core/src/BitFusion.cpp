@@ -138,9 +138,9 @@ namespace core {
 
         // Operations
         const auto parallel_mult = (uint64_t)(num_filters * out_x * out_y * Kx * Ky * wgt_channels);
-        std::vector<uint64_t> bit_multiplications (batch_size,0);
-        std::vector<double> work_reduction (batch_size,0);
-        std::vector<double> speedup (batch_size,0);
+        stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
+        stats.speedup.emplace_back(std::vector<double>(batch_size,0));
         uint64_t bit_counter = 0;
 
         // Get layer precision
@@ -156,19 +156,16 @@ namespace core {
         for(int n=0; n<batch_size; n++) {
             bit_counter = (uint64_t)computeBitFusionBitsPE(act_rounded_precision,wgt_rounded_precision) * out_x * out_y
                     * Kx * Ky * wgt_channels * num_filters;
-            work_reduction[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
-            speedup[n] = (double)parallel_mult * 256. / (double)(bit_counter);
-            bit_multiplications[n] = bit_counter;
+            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
+            stats.speedup.back()[n] = (double)parallel_mult * 256. / (double)bit_counter;
+            stats.bit_multiplications.back()[n] = bit_counter;
         }
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
         stats.time.push_back(time_span);
-        stats.work_reduction.push_back(work_reduction);
-        stats.speedup.push_back(speedup);
         stats.parallel_multiplications.push_back(parallel_mult);
-        stats.bit_multiplications.push_back(bit_multiplications);
 
     }
 
@@ -190,9 +187,9 @@ namespace core {
 
         // Operations
         const auto parallel_mult = (uint64_t)num_filters * wgt_channels;
-        std::vector<uint64_t> bit_multiplications (batch_size,0);
-        std::vector<double> work_reduction (batch_size,0);
-        std::vector<double> speedup (batch_size,0);
+        stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
+        stats.speedup.emplace_back(std::vector<double>(batch_size,0));
         uint64_t bit_counter = 0;
 
         // Get layer precision
@@ -207,19 +204,16 @@ namespace core {
         for (int n = 0; n<batch_size; n++) {
             bit_counter = (uint64_t)computeBitFusionBitsPE(act_rounded_precision,wgt_rounded_precision) *
                     wgt_channels * num_filters;
-            work_reduction[n] = 100 - ((double)(bit_counter) / (double) parallel_mult / 256. * 100);
-            speedup[n] = (double)parallel_mult * 256. / (double)(bit_counter);
-            bit_multiplications[n] = bit_counter;
+            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
+            stats.speedup.back()[n] = (double)parallel_mult * 256. / (double)bit_counter;
+            stats.bit_multiplications.back()[n] = bit_counter;
         }
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
         stats.time.push_back(time_span);
-        stats.work_reduction.push_back(work_reduction);
-        stats.speedup.push_back(speedup);
         stats.parallel_multiplications.push_back(parallel_mult);
-        stats.bit_multiplications.push_back(bit_multiplications);
 
     }
 
@@ -237,12 +231,12 @@ namespace core {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
-                stats.wgt_prec.push_back(0);
+                stats.wgt_prec.push_back(layer.getWgt_precision());
                 computePotentialsConvolution(layer,stats);
             } else if (layer.getType() == "InnerProduct") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
-                stats.wgt_prec.push_back(0);
+                stats.wgt_prec.push_back(layer.getWgt_precision());
                 computePotentialsInnerProduct(layer,stats);
             }
         }

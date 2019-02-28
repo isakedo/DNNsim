@@ -126,11 +126,12 @@ namespace core {
         for(n=0; n<batch_size; n++) {
 
             std::vector<int> list_x, list_y;
-            int current_group = 0, group_m = 0, start_group = 0;
             int x_counter = 0, y_counter = 0;
 
-            current_group = 0, group_m = 0, start_group = 0, x_counter = 0, y_counter = 0;
             for(int m=0; m<num_filters; m+=N_ROWS) {
+                int start_group = 0;
+                if(m >= it_per_group)
+                    start_group = wgt_channels;
                 while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
@@ -140,12 +141,6 @@ namespace core {
                             }
                         }
                     }
-                }
-                group_m += N_ROWS;
-                if(group_m >= it_per_group) {
-                    group_m = 0;
-                    current_group++;
-                    start_group = wgt_channels*current_group;
                 }
             }
         }
@@ -296,9 +291,9 @@ namespace core {
 
         // Operations
         const auto parallel_mult = (uint64_t)(num_filters * out_x * out_y * Kx * Ky * wgt_channels);
-        std::vector<uint64_t> bit_multiplications (batch_size,0);
-        std::vector<double> work_reduction (batch_size,0);
-        std::vector<double> speedup (batch_size,0);
+        stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
+        stats.speedup.emplace_back(std::vector<double>(batch_size,0));
 
         int n;
 
@@ -309,11 +304,11 @@ namespace core {
         #pragma omp parallel for private(n)
         #endif
         for(n=0; n<batch_size; n++) {
-
-            int current_group = 0, group_m = 0, start_group = 0;
             uint64_t bit_counter = 0;
-
             for(int m=0; m<num_filters; m++) {
+                int start_group = 0;
+                if(m >= it_per_group)
+                    start_group = wgt_channels;
                 for(int x=0; x<out_x; x++) {
                     for(int y=0; y<out_y; y++) {
                         for (int i = 0; i < Kx; i++) {
@@ -326,26 +321,17 @@ namespace core {
                         }
                     }
                 }
-                group_m++;
-                if(group_m >= it_per_group) {
-                    group_m = 0;
-                    current_group++;
-                    start_group = wgt_channels*current_group;
-                }
             }
-            work_reduction[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
-            speedup[n] = (double)parallel_mult * 256. / (double)bit_counter;
-            bit_multiplications[n] = bit_counter;
+            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
+            stats.speedup.back()[n] = (double)parallel_mult * 256. / (double)bit_counter;
+            stats.bit_multiplications.back()[n] = bit_counter;
         }
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
         stats.time.push_back(time_span);
-        stats.work_reduction.push_back(work_reduction);
-        stats.speedup.push_back(speedup);
         stats.parallel_multiplications.push_back(parallel_mult);
-        stats.bit_multiplications.push_back(bit_multiplications);
 
     }
 
@@ -370,9 +356,9 @@ namespace core {
 
         // Operations
         const auto parallel_mult = (uint64_t)num_filters * wgt_channels;
-        std::vector<uint64_t> bit_multiplications (batch_size,0);
-        std::vector<double> work_reduction (batch_size,0);
-        std::vector<double> speedup (batch_size,0);
+        stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
+        stats.speedup.emplace_back(std::vector<double>(batch_size,0));
 
         int n;
 
@@ -388,19 +374,16 @@ namespace core {
                     bit_counter += computeLaconicPE(act.get(n, k), wgt.get(m, k));
                 }
             }
-            work_reduction[n] = 100 - ((double) bit_counter / (double) parallel_mult / 256. * 100);
-            speedup[n] = (double)parallel_mult * 256. / (double)bit_counter;
-            bit_multiplications[n] = bit_counter;
+            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
+            stats.speedup.back()[n] = (double)parallel_mult * 256. / (double)bit_counter;
+            stats.bit_multiplications.back()[n] = bit_counter;
         }
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
         stats.time.push_back(time_span);
-        stats.work_reduction.push_back(work_reduction);
-        stats.speedup.push_back(speedup);
         stats.parallel_multiplications.push_back(parallel_mult);
-        stats.bit_multiplications.push_back(bit_multiplications);
 
     }
 
