@@ -17,7 +17,7 @@ namespace interface {
     private:
 
         /* Layers that we want weights, activations, and output activations */
-        const std::set<std::string> layers_data = {"Convolution","InnerProduct"};
+        const std::set<std::string> layers_data = {"Convolution","InnerProduct","LSTM"};
 
         /* Name of the network */
         std::string name;

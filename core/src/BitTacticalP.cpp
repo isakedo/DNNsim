@@ -365,9 +365,6 @@ namespace core {
         long out_x = (Nx - Kx + 2*padding)/stride + 1;
         long out_y = (Ny - Ky + 2*padding)/stride + 1;
 
-        int groups = act_channels / wgt_channels;
-        int it_per_group = num_filters / groups;
-
         // Operations
         const auto parallel_mult = (uint64_t)(num_filters * out_x * out_y * Kx * Ky * wgt_channels);
         stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
@@ -388,14 +385,10 @@ namespace core {
         for(n=0; n<batch_size; n++) {
             uint64_t bit_counter = 0;
             for(int m=0; m<num_filters; m++) {
-                int start_group = 0;
-                if(m >= it_per_group)
-                    start_group = wgt_channels;
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
-                        for (int k = start_group; k < wgt_channels + start_group; k++) {
-                            bit_counter += computeTacticalPBitsPE(wgt.get(m, k - start_group, i, j),
-                                    (uint8_t)act_layer_prec);
+                        for (int k = 0; k < wgt_channels; k++) {
+                            bit_counter += computeTacticalPBitsPE(wgt.get(m, k, i, j), (uint8_t)act_layer_prec);
                         }
                     }
                 }

@@ -449,9 +449,9 @@ namespace core {
                     for(int y=0; y<out_y; y++) {
                         for (int i = 0; i < Kx; i++) {
                             for (int j = 0; j < Ky; j++) {
-                                for (int k = start_group; k < wgt_channels + start_group; k++) {
-                                    bit_counter += computeSCNNpBitsPE(act.get(n, k, stride * x + i,stride * y + j),
-                                            wgt.get(m, k - start_group, i, j), (uint16_t)act_layer_prec);
+                                for (int k = 0; k < wgt_channels; k++) {
+                                    bit_counter += computeSCNNpBitsPE(act.get(n, start_group + k, stride * x + i,
+                                            stride * y + j), wgt.get(m, k, i, j), (uint16_t)act_layer_prec);
                                 }
                             }
                         }

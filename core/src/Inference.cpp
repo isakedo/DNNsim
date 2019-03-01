@@ -41,8 +41,7 @@ namespace core {
 
         // Initialize variables
         std::vector<size_t> output_shape;
-        long offset = out_x*out_y*num_filters;
-        std::vector<T> output_activations ((unsigned)(batch_size*offset), 0);
+        std::vector<T> output_activations ((unsigned)(batch_size*out_x*out_y*num_filters), 0);
         int n;
 
         // Convolution
@@ -61,15 +60,15 @@ namespace core {
                         T sum = bias.get((unsigned)m);
                         for (int i = 0; i < Kx; i++) {
                             for (int j = 0; j < Ky; j++) {
-                                for (int k = start_group; k < wgt_channels + start_group; k++) {
-                                    sum += act.get(n, k, stride * x + i, stride * y + j) *
-                                            wgt.get(m, k - start_group, i, j);
+                                for (int k = 0; k < wgt_channels; k++) {
+                                    sum += act.get(n, start_group + k, stride * x + i, stride * y + j) *
+                                            wgt.get(m, k, i, j);
                                 }
                             }
                         }
                         if (has_ReLu) sum = ReLU(sum);
-                        auto pos = m*out_x*out_y + x*out_y + y;
-                        output_activations[offset*n+pos] = sum;
+                        auto pos = n*out_x*out_y*num_filters + m*out_x*out_y + x*out_y + y;
+                        output_activations[pos] = sum;
                     }
                 }
             }

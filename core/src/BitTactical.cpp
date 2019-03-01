@@ -212,11 +212,11 @@ namespace core {
             int index = 0;
             for (int i = 0; i < Kx; i++) {
                 for (int j = 0; j < Ky; j++) {
-                    for (int k = start_group; k < wgt_channels + start_group; k+=WEIGHT_LANES) {
-                        for(int channel = k; channel < std::min(k + WEIGHT_LANES,act_channels); channel++) {
-                            auto wgt_bits = wgt.get(m,channel - start_group, i, j);
+                    for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
+                        for(int channel = k; channel < std::min(k + WEIGHT_LANES,wgt_channels); channel++) {
+                            auto wgt_bits = wgt.get(m,channel,i,j);
                             int pos = (m % N_ROWS) * WEIGHT_LANES + index;
-                            sparse_schedule[time][pos] = std::make_tuple(channel,i,j,wgt_bits);
+                            sparse_schedule[time][pos] = std::make_tuple(start_group + channel,i,j,wgt_bits);
                             index++;
                             if(index == WEIGHT_LANES) {
                                 time++;

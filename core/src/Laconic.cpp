@@ -37,9 +37,9 @@ namespace core {
         for (int filter = init_filter; filter < std::min(init_filter + N_ROWS, max_filter); filter++) {
             for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_channel); channel++) {
 
-                auto act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x,
+                auto act_bits = padded_act.get(batch, start_group + channel, stride * act_x + kernel_x,
                         stride * act_y + kernel_y);
-                auto wgt_bits = wgt.get(filter, channel - start_group, kernel_x, kernel_y);
+                auto wgt_bits = wgt.get(filter, channel, kernel_x, kernel_y);
 
                 uint8_t PE_cycles = computeLaconicPE(act_bits, wgt_bits);
                 cycles.push_back(PE_cycles);
@@ -135,9 +135,9 @@ namespace core {
                 while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
-                            for (int k = start_group; k < wgt_channels + start_group; k+=WEIGHT_LANES) {
+                            for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
                                 stats.cycles.back()[n] += computeLaconicTile(n,list_x, list_y, i, j, k, m, stride, act,
-                                        wgt, start_group, act_channels, num_filters);
+                                        wgt, start_group, wgt_channels, num_filters);
                             }
                         }
                     }
@@ -313,9 +313,9 @@ namespace core {
                     for(int y=0; y<out_y; y++) {
                         for (int i = 0; i < Kx; i++) {
                             for (int j = 0; j < Ky; j++) {
-                                for (int k = start_group; k < wgt_channels + start_group; k++) {
-                                    bit_counter += computeLaconicPE(act.get(n, k, stride * x + i,stride * y + j),
-                                            wgt.get(m, k - start_group, i, j));
+                                for (int k = 0; k < wgt_channels; k++) {
+                                    bit_counter += computeLaconicPE(act.get(n, start_group + k, stride * x + i,
+                                            stride * y + j), wgt.get(m, k, i, j));
                                 }
                             }
                         }

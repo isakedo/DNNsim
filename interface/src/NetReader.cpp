@@ -67,7 +67,9 @@ namespace interface {
         }
 
         for(const auto &layer : network.layer()) {
-            if(this->layers_allowed.find(layer.type()) != this->layers_allowed.end()) {
+            if(activate_bias_and_out_act && this->layers_allowed.find(layer.type()) != this->layers_allowed.end()) {
+                layers.emplace_back(read_layer_caffe(layer));
+            } else if(this->layers_data.find(layer.type()) != this->layers_data.end()) {
                 layers.emplace_back(read_layer_caffe(layer));
             }
         }
