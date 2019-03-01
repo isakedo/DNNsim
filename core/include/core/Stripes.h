@@ -34,6 +34,12 @@ namespace core {
          */
         void computeConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats);
 
+        /* Compute the timing for a 2D convolutional layer
+         * @param layer     Layer for which we want to calculate the outputs
+         * @param stats     Statistics to fill
+         */
+        void computeConvolution2D(const Layer<T> &layer, sys::Statistics::Stats &stats);
+
         /* Compute the timing for a fully-connected layer
          * @param layer     Layer for which we want to calculate the outputs
          * @param stats     Statistics to fill

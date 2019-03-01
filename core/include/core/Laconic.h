@@ -58,6 +58,7 @@ namespace core {
          * @param stride        Stride of the current layer
          * @param padded_act    Set of padded input activations
          * @param wgt           Set of weights
+         * @param start_group   Starting channel of the group
          * @param max_channel   Maximum number of channels
          * @param max_filter    Maximum number of filters
          * @return              Number of cycles

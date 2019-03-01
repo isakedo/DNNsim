@@ -103,6 +103,96 @@ namespace core {
     }
 
     template <typename T>
+    void Stripes<T>::computeConvolution2D(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+
+        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+
+        cnpy::Array<T> act = layer.getActivations();
+        act.powers_of_two_representation();
+        cnpy::Array<T> wgt = layer.getWeights();
+        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+
+        int padding = layer.getPadding();
+        int stride = layer.getStride();
+
+        act.zero_pad(padding);
+
+        const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+        int batch_size = act_shape[0];
+        int Nx = act_shape[2];
+        int Ny = act_shape[3];
+        if(this->FAST_MODE) batch_size = 1;
+
+        int num_filters = wgt_shape[0];
+        int wgt_channels = wgt_shape[1];
+        int Kx = wgt_shape[2];
+        int Ky = wgt_shape[3];
+
+        long out_x = (Nx - Kx)/stride + 1;
+        long out_y = (Ny - Ky)/stride + 1;
+
+        // Get layer precision
+        auto act_layer_prec = layer.getAct_precision();
+        auto wgt_layer_prec = layer.getWgt_precision();
+
+        auto columns_per_act = (int)ceil(act_layer_prec / (double)BITS_PE);
+        auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
+        if(columns_per_act > rows_per_wgt){
+            auto tmp = rows_per_wgt;
+            rows_per_wgt = columns_per_act;
+            columns_per_act = tmp;
+        }
+        auto windows_per_tile = N_COLUMNS/columns_per_act;
+        auto filters_per_tile = N_ROWS/rows_per_wgt;
+
+        // Stats
+        stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.idle_columns.push_back((uint64_t)(N_COLUMNS - windows_per_tile*columns_per_act));
+        stats.idle_rows.push_back((uint64_t)(N_ROWS - filters_per_tile*rows_per_wgt));
+        stats.columns_per_act.push_back((uint64_t)columns_per_act);
+        stats.rows_per_wgt.push_back((uint64_t)rows_per_wgt);
+
+        int n;
+
+        // Convolution
+        #ifdef OPENMP
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
+        #pragma omp parallel for private(n)
+        #endif
+        for(n=0; n<batch_size; n++) {
+
+            std::vector<int> list_x, list_y;
+            int x_counter = 0, y_counter = 0;
+            auto precision_cycles = (columns_per_act == 1 && rows_per_wgt == 1) ? act_layer_prec : BITS_PE;
+
+            for(int m=0; m<num_filters; m+=filters_per_tile) {
+                while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,windows_per_tile)) {
+                    for (int i = 0; i < Kx; i++) {
+                        for (int j = 0; j < Ky; j++) {
+                            for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
+                                stats.cycles.back()[n] += precision_cycles;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        auto base_cycles = (uint64_t)(out_x * out_y * ceil(wgt_channels/16.) * Kx * Ky * ceil(num_filters/16.));
+
+        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+
+        stats.time.push_back(time_span);
+        stats.baseline_cycles.push_back(base_cycles);
+
+    }
+
+
+    template <typename T>
     void Stripes<T>::computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
@@ -202,7 +292,10 @@ namespace core {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(layer.getWgt_precision());
-                computeConvolution(layer, stats);
+                if(layer.getWeights().getShape()[1] == 1)
+                    computeConvolution2D(layer, stats);
+                else
+                    computeConvolution(layer, stats);
             } else if(layer.getType() == "InnerProduct") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());

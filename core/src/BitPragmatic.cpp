@@ -124,6 +124,68 @@ namespace core {
 
     }
 
+    template <typename T>
+    void BitPragmatic<T>::computePragmatic2DTile(int batch, const std::vector<int> &list_act_x,
+            const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int init_filter,
+            int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_filter,
+            std::vector<uint32_t> &cycles_per_col, std::vector<uint32_t> &end_previous_pallet,
+            sys::Statistics::Stats &stats) {
+
+        //Get the slowest column
+        for(int window = 0; window < list_act_x.size(); window++) {
+            std::vector<uint8_t> cycles;
+            for (int filter = init_filter; filter < std::min(init_filter + N_ROWS, max_filter); filter++) {
+
+                std::vector<std::queue<uint8_t>> offsets;
+                auto act_bits = padded_act.get(batch, filter + init_channel, stride * list_act_x[window] + kernel_x,
+	            	    stride * list_act_y[window] + kernel_y);
+
+                #ifdef BOOTH_ENCODING
+                act_bits = this->booth_encoding(act_bits);
+                #endif
+
+                uint8_t count = 0;
+                std::queue<uint8_t> act_offsets;
+                while (act_bits) {
+                    auto current_bit = act_bits & 1;
+                    if(current_bit) act_offsets.push(count);
+                    act_bits >>= 1;
+                    count++;
+                }
+
+                offsets.push_back(act_offsets);
+
+	            cycles.push_back(computePragmaticPE(offsets));
+	       
+	        }
+	        cycles_per_col[window] += *std::max_element(cycles.begin(), cycles.end());
+        }
+
+        // Column registers
+        if(COLUMN_REGISTERS > 0) {
+            auto fastest_column = end_previous_pallet[0] + 1;
+            for(auto &column_cycles : cycles_per_col) {
+                if(column_cycles <= end_previous_pallet[0]) {
+                    if(column_cycles < fastest_column) fastest_column = column_cycles;
+                    column_cycles = end_previous_pallet[0] + 1;
+                }
+            }
+            stats.stall_cycles.back()[batch] += (end_previous_pallet[0] + 1) - fastest_column;
+
+            //Update end_previous_pallet
+            for(int i = 0; i < COLUMN_REGISTERS - 1; i++) {
+                end_previous_pallet[i] = end_previous_pallet[i + 1];
+            }
+            end_previous_pallet[COLUMN_REGISTERS - 1] = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
+        } else {
+            auto slowest_column = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
+            auto fastest_column = *std::min_element(cycles_per_col.begin(), cycles_per_col.end());
+            cycles_per_col = std::vector<uint32_t>(N_COLUMNS,slowest_column);
+            stats.stall_cycles.back()[batch] += slowest_column - fastest_column;
+        }
+
+    }
+
     /* CYCLES */
 
     template <typename T>
@@ -202,6 +264,81 @@ namespace core {
         }
 
         auto base_cycles = (uint64_t)(out_x * out_y * ceil(act_channels/16.) * Kx * Ky * baseline_filters_sets);
+
+        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+
+        stats.time.push_back(time_span);
+        stats.baseline_cycles.push_back(base_cycles);
+
+    }
+
+	template <typename T>
+    void BitPragmatic<T>::computeConvolution2D(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+
+        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+
+        cnpy::Array<T> act = layer.getActivations();
+        act.powers_of_two_representation();
+        cnpy::Array<T> wgt = layer.getWeights();
+        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+
+        int padding = layer.getPadding();
+        int stride = layer.getStride();
+
+        act.zero_pad(padding);
+
+        const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+        int batch_size = act_shape[0];
+        int Nx = act_shape[2];
+        int Ny = act_shape[3];
+        if(this->FAST_MODE) batch_size = 1;
+
+        int num_filters = wgt_shape[0];
+        int wgt_channels = wgt_shape[1];
+        int Kx = wgt_shape[2];
+        int Ky = wgt_shape[3];
+
+        long out_x = (Nx - Kx)/stride + 1;
+        long out_y = (Ny - Ky)/stride + 1;
+
+        // Stats
+        stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
+
+        int n;
+
+        // Convolution
+        #ifdef OPENMP
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
+        #pragma omp parallel for private(n)
+        #endif
+        for(n=0; n<batch_size; n++) {
+
+            std::vector<int> list_x, list_y;
+            int x_counter = 0, y_counter = 0;
+            std::vector<uint32_t> end_previous_pallet = std::vector<uint32_t>(COLUMN_REGISTERS, 0);
+            std::vector<uint32_t> cycles_per_col = std::vector<uint32_t>(N_COLUMNS, 0);
+
+            for(int m=0; m<num_filters; m+=N_ROWS) {
+                while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
+                    for (int i = 0; i < Kx; i++) {
+                        for (int j = 0; j < Ky; j++) {
+                            for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
+                                computePragmatic2DTile(n,list_x, list_y, i, j, k, m, stride, act, wgt, num_filters,
+                                        cycles_per_col, end_previous_pallet, stats);
+                            }
+                        }
+                    }
+                }
+            }
+            stats.cycles.back()[n] = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
+        }
+
+        auto base_cycles = (uint64_t)(out_x * out_y * ceil(wgt_channels/16.) * Kx * Ky * ceil(num_filters/16.));
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
@@ -303,7 +440,10 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                computeConvolution(layer, stats);
+                if(layer.getWeights().getShape()[1] == 1)
+                    computeConvolution2D(layer, stats);
+                else
+                    computeConvolution(layer, stats);
             } else if (layer.getType() == "InnerProduct") {
                 stats.layers.push_back(layer.getName());
                 computeInnerProduct(layer,stats);

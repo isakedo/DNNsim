@@ -67,11 +67,39 @@ namespace core {
                 int max_channel, std::vector<uint32_t> &cycles_per_col, std::vector<uint32_t> &end_previous_pallet,
                 sys::Statistics::Stats &stats);
 
+
+        /* Compute cycles for laconic tile
+         * @param batch                 Current number of batch
+         * @param list_act_x            X position for the set of input windows
+         * @param list_act_y            Y position for the set of input windows
+         * @param kernel_x              X position in the kernel window
+         * @param kernel_y              Y position in the kernel window
+         * @param init_channel          Starting index for the channel
+         * @param init_filter           Starting index for the filter
+         * @param stride                Stride of the current layer
+         * @param padded_act            Set of padded input activations
+         * @param wgt                   Set of weights
+         * @param cycles_per_col        Number of cycles per column (Overwritten)
+         * @param end_previous_pallet   Cycle when the previous pallet finishes (Overwritten)
+         * @param stats                 Statistics to fill
+         */
+        void computeDynamicStripes2DTile(int batch, const std::vector<int> &list_act_x,
+                const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int init_filter,
+                int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_filter,
+                std::vector<uint32_t> &cycles_per_col, std::vector<uint32_t> &end_previous_pallet,
+                sys::Statistics::Stats &stats);
+
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs
          * @param stats     Statistics to fill
          */
         void computeConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats);
+
+        /* Compute the timing for a 2D convolutional layer
+         * @param layer     Layer for which we want to calculate the outputs
+         * @param stats     Statistics to fill
+         */
+        void computeConvolution2D(const Layer<T> &layer, sys::Statistics::Stats &stats);
 
         /* Compute the timing for a fully-connected layer
          * @param layer     Layer for which we want to calculate the outputs
