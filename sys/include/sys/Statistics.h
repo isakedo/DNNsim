@@ -60,6 +60,10 @@ namespace sys {
             std::vector<std::vector<uint64_t>> f_loop;
             std::vector<std::vector<uint64_t>> offchip_weight_reads;
 
+            /* Bit Fusion */
+            std::vector<uint64_t> perf_factor;
+            std::vector<uint64_t> time_multiplex;
+
             /* Stats for potentials */
             std::vector<std::vector<double>> work_reduction;
             std::vector<std::vector<double>> speedup;

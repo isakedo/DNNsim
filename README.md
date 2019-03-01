@@ -119,8 +119,6 @@ parallelized per batch using OpenMP library
 ### Notes about simulations
     
 *   Missing support for LSTM layers in the accelerators
-*   Mobilenet only allowed for SCNN
-*   First layers for our group architectures are transformed using channel folding for strides greater than 1
 
 ### Allowed simulations
 

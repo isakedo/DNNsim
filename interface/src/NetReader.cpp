@@ -49,7 +49,8 @@ namespace interface {
 
         std::string name = layer_caffe.name();
         std::replace( name.begin(), name.end(), '/', '-'); // Sanitize name
-        return core::Layer<T>(layer_caffe.type(),name,layer_caffe.bottom(0), Nn, Kx, Ky, stride, padding);
+        std::string type = (name.find("fc") != std::string::npos) ? "InnerProduct" : layer_caffe.type();
+        return core::Layer<T>(type,name,layer_caffe.bottom(0), Nn, Kx, Ky, stride, padding);
     }
 
     template <typename T>

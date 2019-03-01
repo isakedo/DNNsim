@@ -50,28 +50,28 @@ namespace core {
         auto act_layer_prec = layer.getAct_precision();
         auto wgt_layer_prec = layer.getWgt_precision();
 
+        uint8_t time_multiplex = 1;
+        if(act_layer_prec > 8) {
+            act_layer_prec = 8;
+            time_multiplex *= 2;
+        }
+        if(wgt_layer_prec > 8) {
+            wgt_layer_prec = 8;
+            time_multiplex *= 2;
+        }
+
+        act_layer_prec = std::max(act_layer_prec, PMIN);
+        wgt_layer_prec = std::max(wgt_layer_prec, PMIN);
+        auto perf_factor = (PMAX/act_layer_prec) * (PMAX/wgt_layer_prec);
+
+        auto filter_sets = (int)ceil(num_filters / (double)M);
+        auto activation_sets = (int)ceil(wgt_channels / (double)(N * perf_factor));
+        auto compute_cycles = filter_sets * out_x * out_y * Kx * Ky * activation_sets;
+
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         for (int n = 0; n < batch_size; n++) {
-            uint8_t time_multiplex = 1;
-            if(act_layer_prec > 8) {
-                act_layer_prec = 8;
-                time_multiplex *= 2;
-            }
-            if(wgt_layer_prec > 8) {
-                wgt_layer_prec = 8;
-                time_multiplex *= 2;
-            }
-
-            act_layer_prec = std::max(act_layer_prec, PMIN);
-            wgt_layer_prec = std::max(wgt_layer_prec, PMIN);
-            auto perf_factor = (PMAX/act_layer_prec) * (PMAX/wgt_layer_prec);
-
-            auto filter_sets = (int)ceil(num_filters / (double)M);
-            auto activation_sets = (int)ceil(wgt_channels / (double)(N * perf_factor));
-
-            auto compute_cycles = filter_sets * out_x * out_y * Kx * Ky * activation_sets;
             stats.cycles.back()[n] = compute_cycles * time_multiplex;
         }
 
@@ -79,6 +79,8 @@ namespace core {
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 
         stats.time.push_back(time_span);
+        stats.perf_factor.push_back((unsigned)perf_factor);
+        stats.time_multiplex.push_back((unsigned)time_multiplex);
 
     }
 

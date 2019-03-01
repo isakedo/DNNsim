@@ -308,7 +308,6 @@ namespace core {
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = 1;
-        int act_channels = act_shape[1];
         int Nx = act_shape[2];
         int Ny = act_shape[3];
 
@@ -323,9 +322,6 @@ namespace core {
         long out_x = (Nx - Kx + 2*padding)/stride + 1;
         long out_y = (Ny - Ky + 2*padding)/stride + 1;
 
-        int groups = act_channels / wgt_channels;
-        auto num_filters_sets = (uint32_t)ceil((double)num_filters/groups);
-
         // Operations
         const auto parallel_mult = (uint64_t)(num_filters * out_x * out_y * Kx * Ky * wgt_channels);
         stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
@@ -339,7 +335,7 @@ namespace core {
         // Convolution
         for(int n=0; n<batch_size; n++) {
             bit_counter = (uint64_t)computeDynamicStripesBitsPE((uint8_t)layer_prec) * out_x * out_y * Kx * Ky *
-                    act_channels * num_filters_sets;
+                    wgt_channels * num_filters;
             stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
             stats.speedup.back()[n] = (double)parallel_mult * 256. / (double)bit_counter;
             stats.bit_multiplications.back()[n] = bit_counter;

@@ -197,22 +197,31 @@ namespace core {
 
         int groups = act_channels / wgt_channels;
         int it_per_group = num_filters / groups;
+        int round_wgt_channels = (int)ceil(wgt_channels/(double)WEIGHT_LANES)*WEIGHT_LANES;
+
         int num_filter_sets = (int)ceil(num_filters/(double)N_ROWS);
-        int time_per_filter = (int)ceil(wgt_channels*Kx*Ky/(double)WEIGHT_LANES);
+        int time_per_filter = (int)ceil(round_wgt_channels*Kx*Ky/(double)WEIGHT_LANES);
         int total_time = num_filter_sets * time_per_filter;
 
         schedule sparse_schedule = schedule((unsigned)total_time, time_schedule((unsigned)N_ROWS*WEIGHT_LANES,
                 schedule_tuple(-1,-1,-1,0)));
 
         for(int m=0; m<num_filters; m++) {
+
+            // Two towers alexnet
             int start_group = 0;
             if(m >= it_per_group)
                 start_group = wgt_channels;
+
+            // Fix for MobileNet
+            if(wgt_channels == 1)
+                start_group = m;
+
             int time = max_time.empty() ? 0 : *std::max_element(max_time.begin(),max_time.end());
-            int index = 0;
             for (int i = 0; i < Kx; i++) {
                 for (int j = 0; j < Ky; j++) {
                     for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
+                        int index = 0;
                         for(int channel = k; channel < std::min(k + WEIGHT_LANES,wgt_channels); channel++) {
                             auto wgt_bits = wgt.get(m,channel,i,j);
                             int pos = (m % N_ROWS) * WEIGHT_LANES + index;
@@ -223,18 +232,9 @@ namespace core {
                                 index = 0;
                             }
                         }
+                        if(index != 0)
+                            time++;
                     }
-                }
-            }
-
-            // Ensure all the queue are equal in length
-            while (index != 0) {
-                int pos = (m % N_ROWS) * WEIGHT_LANES + index;
-                sparse_schedule[time][pos] = std::make_tuple(-1,-1,-1,0);
-                index++;
-                if(index == WEIGHT_LANES) {
-                    time++;
-                    index = 0;
                 }
             }
 

@@ -322,12 +322,12 @@ namespace interface {
     }
 
     void dump_csv_BitFusion_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,cycles,act_precision,wgt_precision,time(s)" << std::endl;
+        o_file << "layer,n_act,cycles,perf_factor,time_multiplex,act_precision,wgt_precision,time(s)" << std::endl;
         for (int j = 0; j < stats.cycles.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%lu,%d,%d,0\n", stats.layers[i].c_str(), j, stats.cycles[i][j],
-                        stats.act_prec[i], stats.wgt_prec[i]);
+                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%lu,%d,%d,0\n", stats.layers[i].c_str(), j, stats.cycles[i][j],
+                        stats.perf_factor[i], stats.time_multiplex[i], stats.act_prec[i], stats.wgt_prec[i]);
                 o_file << line;
             }
         }
@@ -336,13 +336,15 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%lu,%d,%d,%.2f\n", stats.layers[i].c_str(),
-                    stats.get_average(stats.cycles[i]), stats.act_prec[i], stats.wgt_prec[i], stats.time[i].count());
+            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%lu,%d,%d,%.2f\n", stats.layers[i].c_str(),
+                    stats.get_average(stats.cycles[i]), stats.perf_factor[i], stats.time_multiplex[i],
+                    stats.act_prec[i], stats.wgt_prec[i], stats.time[i].count());
             o_file << line;
         }
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,-,-,%.2f\n", stats.get_total(stats.cycles),total_time);
+        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%lu,-,-,%.2f\n", stats.get_total(stats.cycles),
+                stats.get_average(stats.perf_factor), stats.get_average(stats.time_multiplex), total_time);
         o_file << line;
     }
 

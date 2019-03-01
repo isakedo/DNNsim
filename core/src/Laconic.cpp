@@ -37,6 +37,10 @@ namespace core {
         for (int filter = init_filter; filter < std::min(init_filter + N_ROWS, max_filter); filter++) {
             for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_channel); channel++) {
 
+                // Fix for MobileNet
+                if(max_channel == 1)
+                    start_group = filter;
+
                 auto act_bits = padded_act.get(batch, start_group + channel, stride * act_x + kernel_x,
                         stride * act_y + kernel_y);
                 auto wgt_bits = wgt.get(filter, channel, kernel_x, kernel_y);
@@ -306,9 +310,16 @@ namespace core {
         for(n=0; n<batch_size; n++) {
             uint64_t bit_counter = 0;
             for(int m=0; m<num_filters; m++) {
+
+                // Two towers alexnet
                 int start_group = 0;
                 if(m >= it_per_group)
                     start_group = wgt_channels;
+
+                // Fix for MobileNet
+                if(wgt_channels == 1)
+                    start_group = m;
+
                 for(int x=0; x<out_x; x++) {
                     for(int y=0; y<out_y; y++) {
                         for (int i = 0; i < Kx; i++) {

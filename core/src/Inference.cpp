@@ -52,9 +52,16 @@ namespace core {
         #endif
         for(n=0; n<batch_size; n++) {
             for(int m=0; m<num_filters; m++) {
+
+                // Two towers alexnet
                 int start_group = 0;
                 if(m >= it_per_group)
                     start_group = wgt_channels;
+
+                // Fix for MobileNet
+                if(wgt_channels == 1)
+                    start_group = m;
+
                 for(int x=0; x<out_x; x++) {
                     for(int y=0; y<out_y; y++) {
                         T sum = bias.get((unsigned)m);
