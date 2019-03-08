@@ -320,11 +320,13 @@ namespace core {
             if(layer.getType() == "Convolution") {
                 const schedule &proto_dense_schedule = schedules[sch_index];
                 stats.layers.push_back(layer.getName());
+                stats.act_prec.push_back(layer.getAct_precision());
                 computeConvolution(layer, stats, proto_dense_schedule);
                 sch_index++;
             } else if(layer.getType() == "InnerProduct") {
                 const schedule &proto_dense_schedule = schedules[sch_index];
                 stats.layers.push_back(layer.getName());
+                stats.act_prec.push_back(layer.getAct_precision());
                 computeInnerProduct(layer, stats, proto_dense_schedule);
                 sch_index++;
             }

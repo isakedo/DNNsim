@@ -261,16 +261,23 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
 
+                cnpy::Array<T> act = layer.getActivations();
                 cnpy::Array<T> wgt = layer.getWeights();
-                wgt.powers_of_two_representation();
                 if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
-                const auto &dense_schedule = scheduler(wgt, layer.getActivations().getShape()[1]);
+
+                auto stride = layer.getStride();
+
+                if(wgt.getShape()[1] == 3 && stride > 1) {
+                    act.reshape_first_layer_act((uint16_t) stride);
+                    wgt.reshape_first_layer_wgt((uint16_t) stride);
+                }
+
+                const auto &dense_schedule = scheduler(wgt, act.getShape()[1]);
                 network_schedule.push_back(dense_schedule);
 
             } else if(layer.getType() == "InnerProduct") {
 
                 cnpy::Array<T> wgt = layer.getWeights();
-                wgt.powers_of_two_representation();
                 wgt.reshape_to_4D();
                 const auto &dense_schedule = scheduler(wgt, layer.getWeights().getShape()[1]);
                 network_schedule.push_back(dense_schedule);
