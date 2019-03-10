@@ -49,7 +49,12 @@ Then, we can proceed to build the project
 Create folder **models** including a folder for each network. Every network must include:
    *  train_val.prototxt
    *  trace_params.csv (Instead of the prototxt file)
-   *  conv_params.csv (Instead of the prototxt file and the precision.txt)   
+      *  _Header_: \<Layer\>:\<Input layer\*\>:\<Output channels\>:\<Kernel X\>:\<Kernel Y\>:\<Padding\>:\<Stride\>
+      *  \* Input layer is optional
+   *  conv_params.csv (Instead of the prototxt file and the precision.txt) 
+      *  _Header_: \<Network\>:\<Layer\>:\<Type(conv|fc|lstm)\>:\<Output channels\>:\<Weight channels\>:\<Kernel X\>: \\  
+                   \<Kernel Y\>:\<Kernel size\>:\<Padding\>:\<Stride\>:\<Precision\>:\<Magnitude (without sign)\>
+      *  Weights are generic precision 0:15                
    *  precision.txt (Optional, contain 5 lines as the example, first line is skipped)
         *   If this file does not exist the precisions are 13:2 for activations and 0:15 for weights
    
@@ -122,9 +127,20 @@ parallelized per batch using OpenMP library
 
 ### Allowed simulations
 
+*  Allowed tasks for each architecture:
+
+| Task | Description | 
+|:---:|:---:|
+| Inference | Forward propagation (Only for None architecture) |
+| Cycles | Simulate number of cycles and memory accesses | 
+| Potentials | Calculate ideal speedup and work reduction | 
+| Schedule | Schedule weights statically (Only for BitTactical archtecture) |
+
+*  Allowed architectures:
+
 | Architecture | Description | 
 |:---:|:---:|
-| Inference | Forward propagation |
+| None | Generic architecture for inference |
 | Stripes | **Ap**: Exploits precision requirements of activations | 
 | DynamicStripes | **Ap**: Exploits dynamic precision requirements of a group of activations | 
 | BitPragmatic | **Ae**: Exploits bit-level sparsity of activations |
