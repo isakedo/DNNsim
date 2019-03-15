@@ -120,12 +120,23 @@ average results for all batches. Finally, the last line corresponds to the total
 * Option **--threads <positive_num>** indicates the number of simultaneous threads that can be executed. The code is 
 parallelized per batch using OpenMP library
 * Option **--fast_mode** makes the simulation execute only one batch per network, the first one.
-
+* Option **--overwrite** forces the simulator to overwrite the intermediate files: Protobuf, Gzip, and Schedule. 
+This is necessary after changing the precisions, etc.
 ### Notes about simulations
     
 *   Missing support for LSTM layers in the accelerators
 
 ### Allowed simulations
+
+*  Allowed input types for the simulations:
+
+| inputType | Description | 
+|:---:|:---:|
+| Caffe | Load network model from *train_val.prototxt*, precisions from *precision.txt*, and traces from numpy arrays |
+| Trace | Load network model from *trace_params.csv*, precisions from *precision.txt*, and traces from numpy arrays | 
+| CParams | Load network model and precisions from *conv_params.csv*, and traces from numpy arrays | 
+| Protobuf | Load network model, precisions, and traces from a protobuf file |
+| Gzip | Load network model, precisions, and traces from a gzip file |
 
 *  Allowed tasks for each architecture:
 

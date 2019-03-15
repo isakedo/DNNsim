@@ -125,11 +125,13 @@ namespace interface {
         check_path("net_traces/" + this->name);
         std::string path = "net_traces/" + this->name + '/' + outputName() + ".proto";
 
-        try {
-            // If Protobuf is found, do not overwrite
-            check_path(path);
-            return;
-        } catch (std::exception &exception) {}
+        if(!OVERWRITE) {
+            try {
+                // If Protobuf is found, do not overwrite
+                check_path(path);
+                return;
+            } catch (std::exception &exception) {}
+        }
 
         protobuf::Network network_proto;
         network_proto.set_name(network.getName());
@@ -158,11 +160,13 @@ namespace interface {
         check_path("net_traces/" + this->name);
         std::string path = "net_traces/" + this->name + '/' + outputName() + ".gz";
 
-        try {
-            // If Gzip is found, do not overwrite
-            check_path(path);
-            return;
-        } catch (std::exception &exception) {}
+        if(!OVERWRITE) {
+            try {
+                // If Gzip is found, do not overwrite
+                check_path(path);
+                return;
+            } catch (std::exception &exception) {}
+        }
 
         protobuf::Network network_proto;
         network_proto.set_name(network.getName());
@@ -206,11 +210,13 @@ namespace interface {
         check_path("net_traces/" + this->name);
         std::string path = "net_traces/" + this->name + '/' + outputName() + "_" + schedule_type + "_schedule.proto";
 
-        try {
-            // If Protobuf is found, do not overwrite
-            check_path(path);
-            return;
-        } catch (std::exception &exception) {}
+        if(!OVERWRITE) {
+            try {
+                // If Protobuf is found, do not overwrite
+                check_path(path);
+                return;
+            } catch (std::exception &exception) {}
+        }
 
         protobuf::Schedule network_schedule_proto;
 

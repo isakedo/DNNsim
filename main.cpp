@@ -83,11 +83,11 @@ core::Network<T> read(const std::string &input_type, const std::string &network_
 
 template <typename T>
 void write(const core::Network<T> &network, const std::string &output_type, const std::string &data_conversion,
-        bool activate_bias_and_out_act) {
+        bool activate_bias_and_out_act, bool OVERWRITE) {
 
     // Write network
     interface::NetWriter<T> writer = interface::NetWriter<T>(network.getName(),data_conversion,
-            activate_bias_and_out_act);
+            activate_bias_and_out_act,OVERWRITE);
     if (output_type == "Protobuf") {
         writer.write_network_protobuf(network);
     } else {
@@ -109,10 +109,10 @@ std::vector<schedule> read_schedule(const std::string &network_name, const std::
 
 template <typename T>
 void write_schedule(const core::Network<T> &network, core::BitTactical<T> &DNNsim, const std::string &arch,
-        const sys::Batch::Simulate::Experiment &experiment) {
+        const sys::Batch::Simulate::Experiment &experiment, bool OVERWRITE) {
     const auto &network_schedule = DNNsim.network_scheduler(network);
     interface::NetWriter<uint16_t> writer = interface::NetWriter<uint16_t>(network.getName()
-            ,"Not", false);
+            ,"Not", false, OVERWRITE);
     int mux_entries = experiment.lookahead_h + experiment.lookaside_d + 1;
     std::string schedule_type = arch + "_" + experiment.search_shape + std::to_string(mux_entries) + "("
                                 + std::to_string(experiment.lookahead_h) + "-" +
@@ -148,11 +148,10 @@ cxxopts::Options parse_options(int argc, char *argv[]) {
     ("batch", "Specify a batch file with instructions. Examples in folder \"examples\"",cxxopts::value<std::string>(),
             "<Prototxt file>");
 
-    options.add_options("openmp")
-    ("t,threads", "Specify the number of threads",cxxopts::value<uint16_t>(),"<Positive number>");
-
     options.add_options("simulation")
-    ("fast_mode", "Enable fast mode: simulate only one image",cxxopts::value<bool>(),"<Boolean>");
+    ("t,threads", "Specify the number of threads",cxxopts::value<uint16_t>(),"<Positive number>")
+    ("fast_mode", "Enable fast mode: simulate only one image",cxxopts::value<bool>(),"<Boolean>")
+    ("overwrite", "Overwrite the intermediate files (Protobuf,Gzip,Schedule)",cxxopts::value<bool>(),"<Boolean>");
 
     options.parse_positional("batch");
 
@@ -167,7 +166,7 @@ int main(int argc, char *argv[]) {
 
         // Help
         if (options.count("h") == 1) {
-            std::cout << options.help({"help", "batch", "openmp", "simulation"}) << std::endl;
+            std::cout << options.help({"help", "batch", "simulation"}) << std::endl;
             return 0;
         }
 
@@ -175,6 +174,7 @@ int main(int argc, char *argv[]) {
 
         uint8_t N_THREADS = options.count("threads") == 0 ? (uint8_t)1 : (uint8_t)options["threads"].as<uint16_t>();
         bool FAST_MODE = options.count("fast_mode") == 0 ? false : options["fast_mode"].as<bool>();
+        bool OVERWRITE = options.count("overwrite") == 0 ? false : options["overwrite"].as<bool>();
         std::string batch_path = options["batch"].as<std::string>();
         sys::Batch batch = sys::Batch(batch_path);
         batch.read_batch();
@@ -187,13 +187,13 @@ int main(int argc, char *argv[]) {
                     network = read<float>(transform.inputType, transform.network, transform.activate_bias_out_act,
                             transform.batch);
                     write<float>(network, transform.outputType, transform.outputDataType,
-                            transform.activate_bias_out_act);
+                            transform.activate_bias_out_act, OVERWRITE);
                 } else if (transform.inputDataType == "Fixed16") {
                     core::Network<uint16_t> network;
                     network = read<uint16_t>(transform.inputType, transform.network, transform.activate_bias_out_act,
                             transform.batch);
                     write<uint16_t>(network, transform.outputType, transform.outputDataType,
-                            transform.activate_bias_out_act);
+                            transform.activate_bias_out_act, OVERWRITE);
                 }
             } catch (std::exception &exception) {
                 std::cerr << "Transformation error: " << exception.what() << std::endl;
@@ -259,7 +259,7 @@ int main(int argc, char *argv[]) {
                                 DNNsim.run(network, dense_schedule);
                             }
                             else if (experiment.task == "Schedule")
-                                write_schedule<uint16_t>(network,DNNsim,"BitTactical",experiment);
+                                write_schedule<uint16_t>(network,DNNsim,"BitTactical",experiment,OVERWRITE);
                             else if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
@@ -273,7 +273,7 @@ int main(int argc, char *argv[]) {
                                 DNNsim.run(network, dense_schedule);
                             }
                             else if (experiment.task == "Schedule")
-                                write_schedule<uint16_t>(network,DNNsim,"BitTactical",experiment);
+                                write_schedule<uint16_t>(network,DNNsim,"BitTactical",experiment,OVERWRITE);
                             else if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
