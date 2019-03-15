@@ -388,7 +388,10 @@ namespace core {
                 column_index++;
                 if(column_index >= N_COLUMNS) column_index = 0;
             }
+            uint64_t last_column_end = *std::max_element(column_end.begin(), column_end.end());
+            uint64_t last_column_rem_cycles = last_column_end - stats.cycles.back()[n];
             stats.cycles.back()[n] *= num_filters_sets;
+            stats.cycles.back()[n] += last_column_rem_cycles;
         }
 
         #endif

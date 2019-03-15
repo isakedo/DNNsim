@@ -221,6 +221,8 @@ namespace core {
                     if(column_index >= N_COLUMNS) column_index = 0;
                 }
             }
+            uint64_t last_column_end = *std::max_element(column_end.begin(), column_end.end());
+            stats.cycles.back()[n] = std::max(stats.cycles.back()[n], last_column_end);
         }
 
         #endif
