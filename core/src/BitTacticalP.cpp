@@ -124,7 +124,7 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation();
+        act.sign_magnitude_representation(layer.getAct_precision());
         cnpy::Array<T> wgt = layer.getWeights();
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
@@ -201,7 +201,7 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation();
+        act.sign_magnitude_representation(layer.getAct_precision());
         if(act.getDimensions() == 4) act.reshape_to_2D();
         act.reshape_to_4D();
         cnpy::Array<T> wgt = layer.getWeights();

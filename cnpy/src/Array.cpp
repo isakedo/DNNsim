@@ -81,12 +81,12 @@ namespace cnpy {
     }
 
     template <typename T>
-    void Array<T>::sign_magnitude_representation(int mag, int prec) {
-        double intmax = (1 << (mag + prec - 1)) - 1;
+    void Array<T>::sign_magnitude_representation(int prec) {
+        double intmax = (1 << (prec - 1)) - 1;
         auto mask = (uint16_t)intmax + 1;
         if (this->getDimensions() == 1) {
             for(int i = 0; i < this->shape[0]; i++) {
-                auto two_comp = (int)this->data1D[i];
+                auto two_comp = (short)this->data1D[i];
                 auto abs_value = (uint16_t)abs(two_comp);
                 auto sign_mag = abs_value | (two_comp & mask);
                 this->data1D[i] = sign_mag;
@@ -94,7 +94,7 @@ namespace cnpy {
         } else if(this->getDimensions() == 2){
             for(int i = 0; i < this->shape[0]; i++) {
                 for(int j = 0; j < this->shape[1]; j++) {
-                    auto two_comp = (int)this->data2D[i][j];
+                    auto two_comp = (short)this->data2D[i][j];
                     auto abs_value = (uint16_t)abs(two_comp);
                     auto sign_mag = abs_value | (two_comp & mask);
                     this->data2D[i][j] = sign_mag;
@@ -104,7 +104,7 @@ namespace cnpy {
             for(int i = 0; i < this->shape[0]; i++) {
                 for(int j = 0; j < this->shape[1]; j++) {
                     for(int k = 0; k < this->shape[2]; k++) {
-                        auto two_comp = (int)this->data3D[i][j][k];
+                        auto two_comp = (short)this->data3D[i][j][k];
                         auto abs_value = (uint16_t)abs(two_comp);
                         auto sign_mag = abs_value | (two_comp & mask);
                         this->data3D[i][j][k] = sign_mag;
@@ -116,7 +116,7 @@ namespace cnpy {
                 for(int j = 0; j < this->shape[1]; j++) {
                     for(int k = 0; k < this->shape[2]; k++) {
                         for(int l = 0; l < this->shape[3]; l++) {
-                            auto two_comp = (int)this->data4D[i][j][k][l];
+                            auto two_comp = (short)this->data4D[i][j][k][l];
                             auto abs_value = (uint16_t)abs(two_comp);
                             auto sign_mag = abs_value | (two_comp & mask);
                             this->data4D[i][j][k][l] = sign_mag;

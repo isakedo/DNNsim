@@ -60,10 +60,9 @@ namespace cnpy {
         void set_values(const std::vector<T> &_data, const std::vector<size_t> &_shape);
 
         /* Change fixed point representation to sign-magnitude
-         * @param mag   Magnitude: position before the comma
-         * @param prec  Precision: positions after the comma
+         * @param prec   Precision: sign + magnitude + fraction
          */
-        void sign_magnitude_representation(int mag, int prec);
+        void sign_magnitude_representation(int prec);
 
         /* Change fixed point representation to powers of two */
         void powers_of_two_representation();
