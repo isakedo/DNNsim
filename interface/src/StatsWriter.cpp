@@ -381,7 +381,7 @@ namespace interface {
     }
 
     void dump_csv_sparsity(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,act_sparsity,zero_act,total_act,wgt_sparsity,zero_wgt,total_wgt" << std::endl;
+        o_file << "layer,act_sparsity,zeros,total,wgt_sparsity,zeros,total" << std::endl;
 
         for (int i = 0; i < stats.layers.size(); i++) {
             char line[256];

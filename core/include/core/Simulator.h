@@ -74,6 +74,11 @@ namespace core {
          */
         void sparsity(const Network<T> &network);
 
+        /* Calculate the bit-sparsity in the network. Assumes two-complement
+         * @param network   Network we want to check
+         */
+        void bit_sparsity(const Network<T> &network);
+
     };
 
 }

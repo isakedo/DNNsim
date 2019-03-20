@@ -233,6 +233,7 @@ int main(int argc, char *argv[]) {
                         if(experiment.architecture == "None") {
                             core::Simulator<uint16_t> DNNsim(N_THREADS,FAST_MODE);
                             if(experiment.task == "Sparsity") DNNsim.sparsity(network);
+                            else if(experiment.task == "BitSparsity") DNNsim.bit_sparsity(network);
 
                         } else if(experiment.architecture == "BitPragmatic") {
                             core::BitPragmatic<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
