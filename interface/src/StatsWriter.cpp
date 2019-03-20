@@ -380,6 +380,25 @@ namespace interface {
         o_file << line;
     }
 
+    void dump_csv_sparsity(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
+        o_file << "layer,act_sparsity,zero_act,total_act,wgt_sparsity,zero_wgt,total_wgt" << std::endl;
+
+        for (int i = 0; i < stats.layers.size(); i++) {
+            char line[256];
+            snprintf(line, sizeof(line), "%s,%.2f,%lu,%lu,%.2f,%lu,%lu\n", stats.layers[i].c_str(),
+                    stats.act_sparsity[i], stats.zero_act[i], stats.total_act[i], stats.wgt_sparsity[i],
+                    stats.zero_wgt[i], stats.total_wgt[i]);
+            o_file << line;
+        }
+
+        char line[256];
+        snprintf(line, sizeof(line), "TOTAL,%.2f,%lu,%lu,%.2f,%lu,%lu\n", stats.get_average(stats.act_sparsity),
+                stats.get_total(stats.zero_act), stats.get_total(stats.total_act),
+                stats.get_average(stats.wgt_sparsity), stats.get_total(stats.zero_wgt),
+                stats.get_total(stats.total_wgt));
+        o_file << line;
+    }
+
     void StatsWriter::dump_csv() {
 
         for(const sys::Statistics::Stats &stats : sys::Statistics::getAll_stats()) {
@@ -401,6 +420,7 @@ namespace interface {
             else if(!stats.cycles.empty() && arch == "SCNNe") dump_csv_SCNNe_cycles(o_file,stats);
             else if(!stats.cycles.empty() && arch == "BitFusion") dump_csv_BitFusion_cycles(o_file,stats);
             else if(!stats.work_reduction.empty()) dump_csv_potentials(o_file,stats);
+            else if(!stats.act_sparsity.empty()) dump_csv_sparsity(o_file,stats);
 
             o_file.close();
         }

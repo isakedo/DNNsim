@@ -11,8 +11,6 @@
 #include <omp.h>
 #endif
 
-typedef std::vector<std::vector<std::vector<int>>> rowIdxMap;
-
 namespace core {
 
     template <typename T>
@@ -63,14 +61,18 @@ namespace core {
          */
         bool check_act_bits(const std::vector<std::queue<uint8_t>> &offsets);
 
+    public:
+
         /* Constructor
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          */
         Simulator(uint8_t _N_THREADS, bool _FAST_MODE) : N_THREADS(_N_THREADS), FAST_MODE(_FAST_MODE) {}
 
-        /* Virtual destructor, force class to be abstract */
-        virtual ~Simulator() = default;
+        /* Calculate the sparsity in the network
+         * @param network   Network we want to check
+         */
+        void sparsity(const Network<T> &network);
 
     };
 
