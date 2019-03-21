@@ -123,11 +123,14 @@ namespace core {
 
         // Column registers
         if(this->COLUMN_REGISTERS > 0) {
+            auto fastest_column = end_previous_pallet[0] + 1;
             for(auto &column_cycles : cycles_per_col) {
                 if(column_cycles <= end_previous_pallet[0]) {
+                    if(column_cycles < fastest_column) fastest_column = column_cycles;
                     column_cycles = end_previous_pallet[0] + 1;
                 }
             }
+            stats.stall_cycles.back()[batch] += (end_previous_pallet[0] + 1) - fastest_column;;
 
             //Update end_previous_pallet
             for(int i = 0; i < this->COLUMN_REGISTERS - 1; i++) {
@@ -136,8 +139,10 @@ namespace core {
             end_previous_pallet[this->COLUMN_REGISTERS - 1] = *std::max_element(cycles_per_col.begin(),
                     cycles_per_col.end());
         } else {
-            auto slowest_column = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
-            cycles_per_col = std::vector<uint32_t>(this->N_COLUMNS,slowest_column);
+            auto slowest_col = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
+            auto fastest_col = *std::min_element(cycles_per_col.begin(), cycles_per_col.end());
+            cycles_per_col = std::vector<uint32_t>(this->N_COLUMNS, slowest_col);
+            stats.stall_cycles.back()[batch] += slowest_col - fastest_col;
         }
 
     }
