@@ -101,12 +101,12 @@ namespace sys {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.column_registers = experiment_proto.column_registers();
-                    experiment.precision_granularity = experiment_proto.precision_granularity().empty() ? "Tile" :
+                    experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 0 :
                             experiment_proto.precision_granularity();
-                    value = experiment.precision_granularity;
-                    if(value != "Tile" && value != "SIP")
-                        throw std::runtime_error("Dynamic-Stripes per precision granularity specification for network "
-                                                + simulate.network + " must be <Tile|SIP>.");
+                    if(experiment.precision_granularity % 16 != 0 ||
+                            ((experiment.precision_granularity/16) % experiment.n_columns != 0))
+                        throw std::runtime_error("DynamicStripes precision granularity for network " + simulate.network
+                                               + " must be multiple of 16 and divisible by the columns.");
 
                 } else if (experiment_proto.architecture() == "Laconic") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
@@ -116,7 +116,7 @@ namespace sys {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.column_registers = experiment_proto.column_registers();
-                    experiment.precision_granularity = experiment_proto.precision_granularity().empty() ? "Tile" :
+                    experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 0 :
                             experiment_proto.precision_granularity();
                     experiment.lookahead_h = experiment_proto.lookahead_h() < 1 ? 2 : experiment_proto.lookahead_h();
                     experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();
@@ -130,10 +130,10 @@ namespace sys {
                     if(value == "T" && (experiment.lookahead_h != 2 || experiment.lookaside_d != 5))
                         throw std::runtime_error("BitTactical search T-shape for network " + simulate.network +
                                                  " must be lookahead of 2, and lookaside of 5.");
-                    value = experiment.precision_granularity;
-                    if(value != "Tile" && value != "SIP")
-                        throw std::runtime_error("BitTacticalP per precision granularity specification for network "
-                                                 + simulate.network + " must be <Tile|SIP>.");
+                    if(experiment.precision_granularity % 16 != 0 ||
+                            ((experiment.precision_granularity/16) % experiment.n_columns != 0))
+                        throw std::runtime_error("DynamicStripes precision granularity for network " + simulate.network
+                                               + " must be multiple of 16 and divisible by the columns.");
 
                 } else if (experiment_proto.architecture() == "BitTacticalE") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();

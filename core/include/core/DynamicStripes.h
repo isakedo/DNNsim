@@ -19,8 +19,8 @@ namespace core {
         /* Number of rows */
         const int N_ROWS;
 
-        /* Number of activations per group: Tile, SIP */
-        std::string PRECISION_GRANULARITY;
+        /* Number of activations per group */
+        const int PRECISION_GRANULARITY;
 
         /* Number of registers per SIP */
         const int COLUMN_REGISTERS;
@@ -129,11 +129,9 @@ namespace core {
          * @param _N_THREADS                Number of parallel threads for multi-threading execution
          * @param _FAST_MODE                Enable fast mode to simulate only one image
          */
-        DynamicStripes(int _N_COLUMNS, int _N_ROWS, const std::string &_PRECISION_GRANULARITY, int _COLUMN_REGISTERS,
+        DynamicStripes(int _N_COLUMNS, int _N_ROWS, const int &_PRECISION_GRANULARITY, int _COLUMN_REGISTERS,
                 uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS),
-                N_ROWS(_N_ROWS), COLUMN_REGISTERS(_COLUMN_REGISTERS) {
-           PRECISION_GRANULARITY = _PRECISION_GRANULARITY;
-        }
+                N_ROWS(_N_ROWS),  PRECISION_GRANULARITY(_PRECISION_GRANULARITY), COLUMN_REGISTERS(_COLUMN_REGISTERS) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

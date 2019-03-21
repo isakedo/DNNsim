@@ -40,7 +40,7 @@ namespace core {
             const cnpy::Array<T> &padded_act, int max_channel, std::vector<uint32_t> &cycles_per_col,
             std::vector<uint32_t> &end_previous_pallet, sys::Statistics::Stats &stats) {
 
-        std::vector<uint8_t> per_SIP_n_bits (N_COLUMNS, 0);
+        std::vector<uint8_t> per_SIP_n_bits (N_COLUMNS * 256 / PRECISION_GRANULARITY, 0);
         uint8_t max_bit = 0, min_bit = 16;
         for(int window = 0; window < list_act_x.size(); window++) {
             if(PRECISION_GRANULARITY == "SIP") max_bit = 0, min_bit = 16;
