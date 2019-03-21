@@ -138,20 +138,11 @@ This is necessary after changing the precisions, etc.
 | Protobuf | Load network model, precisions, and traces from a protobuf file |
 | Gzip | Load network model, precisions, and traces from a gzip file |
 
-*  Allowed tasks for each architecture:
-
-| Task | Description | 
-|:---:|:---:|
-| Inference | Forward propagation (Only for None architecture) |
-| Cycles | Simulate number of cycles and memory accesses | 
-| Potentials | Calculate ideal speedup and work reduction | 
-| Schedule | Schedule weights statically (Only for BitTactical archtecture) |
-
 *  Allowed architectures:
 
 | Architecture | Description | 
 |:---:|:---:|
-| None | Generic architecture for inference |
+| None | Special generic architecture |
 | Stripes | **Ap**: Exploits precision requirements of activations | 
 | DynamicStripes | **Ap**: Exploits dynamic precision requirements of a group of activations | 
 | BitPragmatic | **Ae**: Exploits bit-level sparsity of activations |
@@ -166,11 +157,10 @@ This is necessary after changing the precisions, etc.
 Input parameters are the parameters that can be changed for each architecture in the prototxt batch file (Default values
 can be found inside **examples/README**)  
 Default parameters are defined in the header of each architecture, they can be changed in the specific file  
-Data type indicates the possible data types allowed: Float32 for 4bytes floating point, and Fixed16 for 2bytes integer
+Data type indicates the possible data types allowed: Float32 for 4bytes floating point, and Fixed16 for 2bytes integer   
 
 | Architecture | Input Parameters | Default Parameters\* | Data type |
 |:---:|:---:|:---:|:---:|
-| Inference | - | - | Float32 |
 | Stripes | N_COLUMNS, N_ROWS, BITS_PE | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
 | DynamicStripes | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY, COLUMN_REGISTERS | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
 | BitPragmatic | N_COLUMNS, N_ROWS, BITS_FIRST_STAGE, COLUMN_REGISTERS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16| Fixed16 |
@@ -183,6 +173,22 @@ Data type indicates the possible data types allowed: Float32 for 4bytes floating
 | BitFusion | M, N, PMAX, PMIN | - | Fixed16 |
 
 *\*Default features can be removed in their specific header file*
+
+*  Allowed tasks for these architectures:
+
+| Task | Description | 
+|:---:|:---:|
+| Cycles | Simulate number of cycles and memory accesses | 
+| Potentials | Calculate ideal speedup and work reduction | 
+| Schedule | Schedule weights statically (Only for BitTactical archtecture) |
+
+* Allowed task for the special architecture "None":
+
+| Task | Description | Data type |
+|:---:|:---:|:---:|
+| Inference | Calculate output activations for the forward pass | Float32 |
+| Sparsity | Calculate sparsity for actiations and weights, number of zero values | Fixed16, Float32 |
+| BitSparsity | Calculate bit sparsity for activations and weights, number of zero bits | Fixed16 |
 
 ### Structure:
 *   **sys**: Folder for system libraries
