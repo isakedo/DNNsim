@@ -58,13 +58,13 @@ namespace core {
          * @param stride                Stride of the current layer
          * @param padded_act            Set of padded input activations
          * @param max_channel           Maximum number of channels
-         * @param cycles_per_col        Number of cycles per column (Overwritten)
+         * @param cycles_per_group      Number of cycles per column (Overwritten)
          * @param end_previous_pallet   Cycle when the previous pallet finishes (Overwritten)
          * @param stats                 Statistics to fill
          */
         void computeDynamicStripesTile(int batch, const std::vector<int> &list_act_x, const std::vector<int>
                 &list_act_y, int kernel_x, int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act,
-                int max_channel, std::vector<uint32_t> &cycles_per_col, std::vector<uint32_t> &end_previous_pallet,
+                int max_channel, std::vector<uint32_t> &cycles_per_group, std::vector<uint32_t> &end_previous_pallet,
                 sys::Statistics::Stats &stats);
 
 
@@ -79,14 +79,14 @@ namespace core {
          * @param stride                Stride of the current layer
          * @param padded_act            Set of padded input activations
          * @param wgt                   Set of weights
-         * @param cycles_per_col        Number of cycles per column (Overwritten)
+         * @param cycles_per_group      Number of cycles per column (Overwritten)
          * @param end_previous_pallet   Cycle when the previous pallet finishes (Overwritten)
          * @param stats                 Statistics to fill
          */
         void computeDynamicStripes2DTile(int batch, const std::vector<int> &list_act_x,
                 const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int init_filter,
                 int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_filter,
-                std::vector<uint32_t> &cycles_per_col, std::vector<uint32_t> &end_previous_pallet,
+                std::vector<uint32_t> &cycles_per_group, std::vector<uint32_t> &end_previous_pallet,
                 sys::Statistics::Stats &stats);
 
         /* Compute the timing for a convolutional layer

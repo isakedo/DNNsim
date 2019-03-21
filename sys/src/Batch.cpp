@@ -101,7 +101,7 @@ namespace sys {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.column_registers = experiment_proto.column_registers();
-                    experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 0 :
+                    experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 256 :
                             experiment_proto.precision_granularity();
                     if(experiment.precision_granularity % 16 != 0 ||
                             ((experiment.precision_granularity/16) % experiment.n_columns != 0))
@@ -116,7 +116,7 @@ namespace sys {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.column_registers = experiment_proto.column_registers();
-                    experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 0 :
+                    experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 256 :
                             experiment_proto.precision_granularity();
                     experiment.lookahead_h = experiment_proto.lookahead_h() < 1 ? 2 : experiment_proto.lookahead_h();
                     experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();
