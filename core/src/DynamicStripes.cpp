@@ -41,6 +41,7 @@ namespace core {
             std::vector<uint32_t> &end_previous_pallet, sys::Statistics::Stats &stats) {
 
         int N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
+        int WINDOWS_PER_GROUP = N_COLUMNS / N_GROUPS;
 
         std::vector<uint8_t> per_group_cycles (N_GROUPS, 0);
         uint16_t group_counter = 0;
@@ -48,7 +49,7 @@ namespace core {
         uint8_t max_bit = 0, min_bit = 16;
         for(int window = 0; window < list_act_x.size(); window++) {
 
-            if(group_counter == N_GROUPS)  {
+            if(group_counter == WINDOWS_PER_GROUP)  {
                 max_bit = 0, min_bit = 16;
                 group_counter = 0;
                 group_index++;
@@ -71,10 +72,14 @@ namespace core {
             }
 
             group_counter++;
-            if(group_counter == N_GROUPS) {
+            if(group_counter == WINDOWS_PER_GROUP)
                 per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
-            }
+
         }
+
+        if(group_counter < WINDOWS_PER_GROUP)
+            per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+
 
         for(int group = 0; group < N_GROUPS; group++) {
             cycles_per_group[group] += per_group_cycles[group];
@@ -97,10 +102,10 @@ namespace core {
             end_previous_pallet[COLUMN_REGISTERS - 1] = *std::max_element(cycles_per_group.begin(),
                     cycles_per_group.end());
         } else {
-            auto slowest_column = *std::max_element(cycles_per_group.begin(), cycles_per_group.end());
-            auto fastest_column = *std::min_element(cycles_per_group.begin(), cycles_per_group.end());
-            cycles_per_group = std::vector<uint32_t>(N_GROUPS, slowest_column);
-            stats.stall_cycles.back()[batch] += slowest_column - fastest_column;
+            auto slowest_group = *std::max_element(cycles_per_group.begin(), cycles_per_group.end());
+            auto fastest_group = *std::min_element(cycles_per_group.begin(), cycles_per_group.end());
+            cycles_per_group = std::vector<uint32_t>(N_GROUPS, slowest_group);
+            stats.stall_cycles.back()[batch] += slowest_group - fastest_group;
         }
 
     }
@@ -114,6 +119,7 @@ namespace core {
 
         //Get the slowest column
         int N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
+        int WINDOWS_PER_GROUP = N_COLUMNS / N_GROUPS;
 
         std::vector<uint8_t> per_group_cycles (N_GROUPS, 0);
         uint16_t group_counter = 0;
@@ -121,7 +127,7 @@ namespace core {
         uint8_t max_bit = 0, min_bit = 16;
         for(int window = 0; window < list_act_x.size(); window++) {
 
-            if(group_counter == N_GROUPS)  {
+            if(group_counter == WINDOWS_PER_GROUP)  {
                 max_bit = 0, min_bit = 16;
                 group_counter = 0;
                 group_index++;
@@ -144,10 +150,13 @@ namespace core {
             }
 
             group_counter++;
-            if(group_counter == N_GROUPS) {
+            if(group_counter == WINDOWS_PER_GROUP)
                 per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
-            }
+
         }
+
+        if(group_counter < WINDOWS_PER_GROUP)
+            per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
 
         for(int group = 0; group < N_GROUPS; group++) {
             cycles_per_group[group] += per_group_cycles[group];
@@ -170,10 +179,10 @@ namespace core {
             end_previous_pallet[COLUMN_REGISTERS - 1] = *std::max_element(cycles_per_group.begin(),
                                                                           cycles_per_group.end());
         } else {
-            auto slowest_column = *std::max_element(cycles_per_group.begin(), cycles_per_group.end());
-            auto fastest_column = *std::min_element(cycles_per_group.begin(), cycles_per_group.end());
-            cycles_per_group = std::vector<uint32_t>(N_GROUPS, slowest_column);
-            stats.stall_cycles.back()[batch] += slowest_column - fastest_column;
+            auto slowest_group = *std::max_element(cycles_per_group.begin(), cycles_per_group.end());
+            auto fastest_group = *std::min_element(cycles_per_group.begin(), cycles_per_group.end());
+            cycles_per_group = std::vector<uint32_t>(N_GROUPS, slowest_group);
+            stats.stall_cycles.back()[batch] += slowest_group - fastest_group;
         }
 
     }
@@ -229,11 +238,11 @@ namespace core {
         int n;
 
         // Convolution
-        /*#ifdef OPENMP
+        #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n)
-        #endif*/
+        #endif
         for(n=0; n<batch_size; n++) {
 
             std::vector<int> list_x, list_y;

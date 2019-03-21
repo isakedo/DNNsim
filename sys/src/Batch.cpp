@@ -104,7 +104,7 @@ namespace sys {
                     experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 256 :
                             experiment_proto.precision_granularity();
                     if(experiment.precision_granularity % 16 != 0 ||
-                            ((experiment.precision_granularity/16) % experiment.n_columns != 0))
+                            (((experiment.n_columns * 16) % experiment.precision_granularity) != 0))
                         throw std::runtime_error("DynamicStripes precision granularity for network " + simulate.network
                                                + " must be multiple of 16 and divisible by the columns.");
 
@@ -131,7 +131,7 @@ namespace sys {
                         throw std::runtime_error("BitTactical search T-shape for network " + simulate.network +
                                                  " must be lookahead of 2, and lookaside of 5.");
                     if(experiment.precision_granularity % 16 != 0 ||
-                            ((experiment.precision_granularity/16) % experiment.n_columns != 0))
+                            (((experiment.n_columns * 16) % experiment.precision_granularity) != 0))
                         throw std::runtime_error("DynamicStripes precision granularity for network " + simulate.network
                                                + " must be multiple of 16 and divisible by the columns.");
 
