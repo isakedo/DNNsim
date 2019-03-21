@@ -79,7 +79,14 @@ namespace sys {
             for(const auto &experiment_proto : simulate_proto.experiment()) {
 
                 Batch::Simulate::Experiment experiment;
-                if(experiment_proto.architecture() == "BitPragmatic") {
+                if(experiment_proto.architecture() == "None") {
+
+                    value = experiment_proto.task();
+                    if(value != "Sparsity" && value != "BitSparsity")
+                        throw std::runtime_error("Task for network " + simulate.network + " in Fixed16 for architecture"
+                                                 " None must be <Sparsity|BitSparsity>.");
+
+                } else if(experiment_proto.architecture() == "BitPragmatic") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.column_registers = experiment_proto.column_registers();
@@ -94,12 +101,12 @@ namespace sys {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.column_registers = experiment_proto.column_registers();
-                    experiment.precision_granularity = experiment_proto.precision_granularity().empty() ? "Tile" :
+                    experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 256 :
                             experiment_proto.precision_granularity();
-                    value = experiment.precision_granularity;
-                    if(value != "Tile" && value != "SIP")
-                        throw std::runtime_error("Dynamic-Stripes per precision granularity specification for network "
-                                                + simulate.network + " must be <Tile|SIP>.");
+                    if(experiment.precision_granularity % 16 != 0 ||
+                            (((experiment.n_columns * 16) % experiment.precision_granularity) != 0))
+                        throw std::runtime_error("DynamicStripes precision granularity for network " + simulate.network
+                                               + " must be multiple of 16 and divisible by the columns.");
 
                 } else if (experiment_proto.architecture() == "Laconic") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
@@ -109,7 +116,7 @@ namespace sys {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.column_registers = experiment_proto.column_registers();
-                    experiment.precision_granularity = experiment_proto.precision_granularity().empty() ? "Tile" :
+                    experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 256 :
                             experiment_proto.precision_granularity();
                     experiment.lookahead_h = experiment_proto.lookahead_h() < 1 ? 2 : experiment_proto.lookahead_h();
                     experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();
@@ -123,10 +130,10 @@ namespace sys {
                     if(value == "T" && (experiment.lookahead_h != 2 || experiment.lookaside_d != 5))
                         throw std::runtime_error("BitTactical search T-shape for network " + simulate.network +
                                                  " must be lookahead of 2, and lookaside of 5.");
-                    value = experiment.precision_granularity;
-                    if(value != "Tile" && value != "SIP")
-                        throw std::runtime_error("BitTacticalP per precision granularity specification for network "
-                                                 + simulate.network + " must be <Tile|SIP>.");
+                    if(experiment.precision_granularity % 16 != 0 ||
+                            (((experiment.n_columns * 16) % experiment.precision_granularity) != 0))
+                        throw std::runtime_error("DynamicStripes precision granularity for network " + simulate.network
+                                               + " must be multiple of 16 and divisible by the columns.");
 
                 } else if (experiment_proto.architecture() == "BitTacticalE") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
@@ -200,7 +207,8 @@ namespace sys {
                                                 "BitTacticalP|BitTacticalE|SCNN|SCNNp|SCNNe|BitFusion>.");
 
                 value = experiment_proto.task();
-                if(value  != "Cycles" && value != "Potentials" && value != "Schedule")
+                if(experiment_proto.architecture() != "None" && value  != "Cycles" && value != "Potentials" &&
+                        value != "Schedule")
                     throw std::runtime_error("Task for network " + simulate.network +
                                              " in Fixed16 must be <Cycles|Potentials|Schedule>.");
 
@@ -214,9 +222,14 @@ namespace sys {
 
                 Batch::Simulate::Experiment experiment;
                 if(experiment_proto.architecture() == "None") {
-                    if(!simulate_proto.activate_bias_and_out_act() || experiment_proto.task() != "Inference")
-                        throw std::runtime_error("Float32 None only allows \"Inference\" task, with the flag "
-                                                 "\"activate_bias_and_out_act\" activated");
+
+                    value = experiment_proto.task();
+                    if(value  != "Inference" && value != "Sparsity" )
+                        throw std::runtime_error("Task for network " + simulate.network + " in Float32 for architecture"
+                                                 " None must be <Inference|Sparsity>.");
+
+                    if(experiment_proto.task() == "Inference" && !simulate_proto.activate_bias_and_out_act())
+                        throw std::runtime_error("Inference task requires flag \"activate_bias_and_out_act\"");
 
                 } else if (experiment_proto.architecture() == "SCNN") {
                     experiment.Wt = experiment_proto.wt() < 1 ? 8 : experiment_proto.wt();
@@ -234,9 +247,9 @@ namespace sys {
                                                 " in Float32 must be <None|SCNN>.");
 
                 value = experiment_proto.task();
-                if(value  != "Cycles" && value != "Potentials" && value != "Inference")
+                if(experiment_proto.architecture() != "None" && value  != "Cycles" && value != "Potentials")
                     throw std::runtime_error("Task for network " + simulate.network +
-                                             " in Float32 must be <Inference|Cycles|Potentials>.");
+                                             " in Float32 must be <Cycles|Potentials>.");
 
                 experiment.architecture = experiment_proto.architecture();
                 experiment.task = experiment_proto.task();

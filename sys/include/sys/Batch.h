@@ -34,7 +34,7 @@ namespace sys {
                 int n_rows = 0;
                 int bits_pe = 0;
                 int column_registers = 0;
-                std::string precision_granularity = "";
+                int precision_granularity = 0;
                 int bits_first_stage = 0;
                 int lookahead_h = 0;
                 int lookaside_d = 0;

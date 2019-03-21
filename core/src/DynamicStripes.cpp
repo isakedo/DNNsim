@@ -37,13 +37,24 @@ namespace core {
     template <typename T>
     void DynamicStripes<T>::computeDynamicStripesTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int stride,
-            const cnpy::Array<T> &padded_act, int max_channel, std::vector<uint32_t> &cycles_per_col,
+            const cnpy::Array<T> &padded_act, int max_channel, std::vector<uint32_t> &cycles_per_group,
             std::vector<uint32_t> &end_previous_pallet, sys::Statistics::Stats &stats) {
 
-        std::vector<uint8_t> per_SIP_n_bits (N_COLUMNS, 0);
+        int N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
+        int WINDOWS_PER_GROUP = N_COLUMNS / N_GROUPS;
+
+        std::vector<uint8_t> per_group_cycles (N_GROUPS, 0);
+        uint16_t group_counter = 0;
+        uint16_t group_index = 0;
         uint8_t max_bit = 0, min_bit = 16;
         for(int window = 0; window < list_act_x.size(); window++) {
-            if(PRECISION_GRANULARITY == "SIP") max_bit = 0, min_bit = 16;
+
+            if(group_counter == WINDOWS_PER_GROUP)  {
+                max_bit = 0, min_bit = 16;
+                group_counter = 0;
+                group_index++;
+            }
+
             for (int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES, max_channel); channel++) {
 
                 // Computation cycles
@@ -59,40 +70,42 @@ namespace core {
                 if(max_act_bit > max_bit) max_bit = max_act_bit;
 
             }
-            per_SIP_n_bits[window] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+
+            group_counter++;
+            if(group_counter == WINDOWS_PER_GROUP)
+                per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+
         }
 
-        if(PRECISION_GRANULARITY == "Tile") {
-            uint8_t n_bits = min_bit > max_bit ? (uint8_t)1 : max_bit - min_bit + (uint8_t)1;
-            cycles_per_col = std::vector<uint32_t>(N_COLUMNS,cycles_per_col[0] + n_bits);
+        if(group_counter < WINDOWS_PER_GROUP)
+            per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+
+
+        for(int group = 0; group < N_GROUPS; group++) {
+            cycles_per_group[group] += per_group_cycles[group];
+        }
+
+        if(COLUMN_REGISTERS > 0) {
+            auto fastest_column = end_previous_pallet[0] + 1;
+            for(auto &column_cycles : cycles_per_group) {
+                if(column_cycles <= end_previous_pallet[0]) {
+                    if(column_cycles < fastest_column) fastest_column = column_cycles;
+                    column_cycles = end_previous_pallet[0] + 1;
+                }
+            }
+            stats.stall_cycles.back()[batch] += (end_previous_pallet[0] + 1) - fastest_column;
+
+            //Update end_previous_pallet
+            for(int i = 0; i < COLUMN_REGISTERS - 1; i++) {
+                end_previous_pallet[i] = end_previous_pallet[i + 1];
+            }
+            end_previous_pallet[COLUMN_REGISTERS - 1] = *std::max_element(cycles_per_group.begin(),
+                    cycles_per_group.end());
         } else {
-
-            for(int window = 0; window < list_act_x.size(); window++) {
-                cycles_per_col[window] += per_SIP_n_bits[window];
-            }
-
-            if(COLUMN_REGISTERS > 0) {
-                auto fastest_column = end_previous_pallet[0] + 1;
-                for(auto &column_cycles : cycles_per_col) {
-                    if(column_cycles <= end_previous_pallet[0]) {
-                        if(column_cycles < fastest_column) fastest_column = column_cycles;
-                        column_cycles = end_previous_pallet[0] + 1;
-                    }
-                }
-                stats.stall_cycles.back()[batch] += (end_previous_pallet[0] + 1) - fastest_column;
-
-                //Update end_previous_pallet
-                for(int i = 0; i < COLUMN_REGISTERS - 1; i++) {
-                    end_previous_pallet[i] = end_previous_pallet[i + 1];
-                }
-                end_previous_pallet[COLUMN_REGISTERS - 1] = *std::max_element(cycles_per_col.begin(),
-                        cycles_per_col.end());
-            } else {
-                auto slowest_column = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
-                auto fastest_column = *std::min_element(cycles_per_col.begin(), cycles_per_col.end());
-                cycles_per_col = std::vector<uint32_t>(N_COLUMNS, slowest_column);
-                stats.stall_cycles.back()[batch] += slowest_column - fastest_column;
-            }
+            auto slowest_group = *std::max_element(cycles_per_group.begin(), cycles_per_group.end());
+            auto fastest_group = *std::min_element(cycles_per_group.begin(), cycles_per_group.end());
+            cycles_per_group = std::vector<uint32_t>(N_GROUPS, slowest_group);
+            stats.stall_cycles.back()[batch] += slowest_group - fastest_group;
         }
 
     }
@@ -101,14 +114,25 @@ namespace core {
     void DynamicStripes<T>::computeDynamicStripes2DTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int init_filter,
             int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_filter,
-            std::vector<uint32_t> &cycles_per_col, std::vector<uint32_t> &end_previous_pallet,
+            std::vector<uint32_t> &cycles_per_group, std::vector<uint32_t> &end_previous_pallet,
             sys::Statistics::Stats &stats) {
 
         //Get the slowest column
-        std::vector<uint8_t> per_SIP_n_bits (N_COLUMNS, 0);
+        int N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
+        int WINDOWS_PER_GROUP = N_COLUMNS / N_GROUPS;
+
+        std::vector<uint8_t> per_group_cycles (N_GROUPS, 0);
+        uint16_t group_counter = 0;
+        uint16_t group_index = 0;
         uint8_t max_bit = 0, min_bit = 16;
         for(int window = 0; window < list_act_x.size(); window++) {
-            if(PRECISION_GRANULARITY == "SIP") max_bit = 0, min_bit = 16;
+
+            if(group_counter == WINDOWS_PER_GROUP)  {
+                max_bit = 0, min_bit = 16;
+                group_counter = 0;
+                group_index++;
+            }
+
             for (int filter = init_filter; filter < std::min(init_filter + N_ROWS, max_filter); filter++) {
 
                 std::vector<std::queue<uint8_t>> offsets;
@@ -124,40 +148,41 @@ namespace core {
                 if(max_act_bit > max_bit) max_bit = max_act_bit;
 
             }
-            per_SIP_n_bits[window] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+
+            group_counter++;
+            if(group_counter == WINDOWS_PER_GROUP)
+                per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+
         }
 
-        if(PRECISION_GRANULARITY == "Tile") {
-            uint8_t n_bits = min_bit > max_bit ? (uint8_t)1 : max_bit - min_bit + (uint8_t)1;
-            cycles_per_col = std::vector<uint32_t>(N_COLUMNS,cycles_per_col[0] + n_bits);
+        if(group_counter < WINDOWS_PER_GROUP)
+            per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+
+        for(int group = 0; group < N_GROUPS; group++) {
+            cycles_per_group[group] += per_group_cycles[group];
+        }
+
+        if(COLUMN_REGISTERS > 0) {
+            auto fastest_column = end_previous_pallet[0] + 1;
+            for(auto &column_cycles : cycles_per_group) {
+                if(column_cycles <= end_previous_pallet[0]) {
+                    if(column_cycles < fastest_column) fastest_column = column_cycles;
+                    column_cycles = end_previous_pallet[0] + 1;
+                }
+            }
+            stats.stall_cycles.back()[batch] += (end_previous_pallet[0] + 1) - fastest_column;
+
+            //Update end_previous_pallet
+            for(int i = 0; i < COLUMN_REGISTERS - 1; i++) {
+                end_previous_pallet[i] = end_previous_pallet[i + 1];
+            }
+            end_previous_pallet[COLUMN_REGISTERS - 1] = *std::max_element(cycles_per_group.begin(),
+                                                                          cycles_per_group.end());
         } else {
-
-            for(int window = 0; window < list_act_x.size(); window++) {
-                cycles_per_col[window] += per_SIP_n_bits[window];
-            }
-
-            if(COLUMN_REGISTERS > 0) {
-                auto fastest_column = end_previous_pallet[0] + 1;
-                for(auto &column_cycles : cycles_per_col) {
-                    if(column_cycles <= end_previous_pallet[0]) {
-                        if(column_cycles < fastest_column) fastest_column = column_cycles;
-                        column_cycles = end_previous_pallet[0] + 1;
-                    }
-                }
-                stats.stall_cycles.back()[batch] += (end_previous_pallet[0] + 1) - fastest_column;
-
-                //Update end_previous_pallet
-                for(int i = 0; i < COLUMN_REGISTERS - 1; i++) {
-                    end_previous_pallet[i] = end_previous_pallet[i + 1];
-                }
-                end_previous_pallet[COLUMN_REGISTERS - 1] = *std::max_element(cycles_per_col.begin(),
-                                                                              cycles_per_col.end());
-            } else {
-                auto slowest_column = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
-                auto fastest_column = *std::min_element(cycles_per_col.begin(), cycles_per_col.end());
-                cycles_per_col = std::vector<uint32_t>(N_COLUMNS, slowest_column);
-                stats.stall_cycles.back()[batch] += slowest_column - fastest_column;
-            }
+            auto slowest_group = *std::max_element(cycles_per_group.begin(), cycles_per_group.end());
+            auto fastest_group = *std::min_element(cycles_per_group.begin(), cycles_per_group.end());
+            cycles_per_group = std::vector<uint32_t>(N_GROUPS, slowest_group);
+            stats.stall_cycles.back()[batch] += slowest_group - fastest_group;
         }
 
     }
@@ -223,20 +248,21 @@ namespace core {
             std::vector<int> list_x, list_y;
             int x_counter = 0, y_counter = 0;
             std::vector<uint32_t> end_previous_pallet = std::vector<uint32_t>(COLUMN_REGISTERS, 0);
-            std::vector<uint32_t> cycles_per_col = std::vector<uint32_t>(N_COLUMNS, 0);
+            std::vector<uint32_t> cycles_per_group = std::vector<uint32_t>(N_COLUMNS * 16 / PRECISION_GRANULARITY, 0);
 
             while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter, y_counter, N_COLUMNS)) {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
                         for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
                             computeDynamicStripesTile(n, list_x, list_y, i, j, k, stride, act, act_channels,
-                                    cycles_per_col, end_previous_pallet, stats);
+                                    cycles_per_group, end_previous_pallet, stats);
                         }
                     }
                 }
             }
-            auto batch_cycles = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
+            auto batch_cycles = *std::max_element(cycles_per_group.begin(), cycles_per_group.end());
             stats.cycles.back()[n] = batch_cycles*num_filters_sets;
+            stats.stall_cycles.back()[n] *= num_filters_sets;
         }
 
         auto base_cycles = (uint64_t)(out_x * out_y * ceil(act_channels/16.) * Kx * Ky * baseline_filters_sets);
@@ -392,6 +418,7 @@ namespace core {
             uint64_t last_column_rem_cycles = last_column_end - stats.cycles.back()[n];
             stats.cycles.back()[n] *= num_filters_sets;
             stats.cycles.back()[n] += last_column_rem_cycles;
+            stats.stall_cycles.back()[n] *= num_filters_sets;
         }
 
         #endif
@@ -414,8 +441,8 @@ namespace core {
 
         stats.task_name = "cycles";
         stats.net_name = network.getName();
-        stats.arch = "DynamicStripes_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG_" +
-                PRECISION_GRANULARITY + "_CR" + std::to_string(COLUMN_REGISTERS);
+        stats.arch = "DynamicStripes_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG" +
+                std::to_string(PRECISION_GRANULARITY) + "_CR" + std::to_string(COLUMN_REGISTERS);
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {

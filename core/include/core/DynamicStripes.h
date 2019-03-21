@@ -19,8 +19,8 @@ namespace core {
         /* Number of rows */
         const int N_ROWS;
 
-        /* Number of activations per group: Tile, SIP */
-        std::string PRECISION_GRANULARITY;
+        /* Number of activations per group */
+        const int PRECISION_GRANULARITY;
 
         /* Number of registers per SIP */
         const int COLUMN_REGISTERS;
@@ -58,13 +58,13 @@ namespace core {
          * @param stride                Stride of the current layer
          * @param padded_act            Set of padded input activations
          * @param max_channel           Maximum number of channels
-         * @param cycles_per_col        Number of cycles per column (Overwritten)
+         * @param cycles_per_group      Number of cycles per column (Overwritten)
          * @param end_previous_pallet   Cycle when the previous pallet finishes (Overwritten)
          * @param stats                 Statistics to fill
          */
         void computeDynamicStripesTile(int batch, const std::vector<int> &list_act_x, const std::vector<int>
                 &list_act_y, int kernel_x, int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act,
-                int max_channel, std::vector<uint32_t> &cycles_per_col, std::vector<uint32_t> &end_previous_pallet,
+                int max_channel, std::vector<uint32_t> &cycles_per_group, std::vector<uint32_t> &end_previous_pallet,
                 sys::Statistics::Stats &stats);
 
 
@@ -79,14 +79,14 @@ namespace core {
          * @param stride                Stride of the current layer
          * @param padded_act            Set of padded input activations
          * @param wgt                   Set of weights
-         * @param cycles_per_col        Number of cycles per column (Overwritten)
+         * @param cycles_per_group      Number of cycles per column (Overwritten)
          * @param end_previous_pallet   Cycle when the previous pallet finishes (Overwritten)
          * @param stats                 Statistics to fill
          */
         void computeDynamicStripes2DTile(int batch, const std::vector<int> &list_act_x,
                 const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int init_filter,
                 int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_filter,
-                std::vector<uint32_t> &cycles_per_col, std::vector<uint32_t> &end_previous_pallet,
+                std::vector<uint32_t> &cycles_per_group, std::vector<uint32_t> &end_previous_pallet,
                 sys::Statistics::Stats &stats);
 
         /* Compute the timing for a convolutional layer
@@ -129,11 +129,9 @@ namespace core {
          * @param _N_THREADS                Number of parallel threads for multi-threading execution
          * @param _FAST_MODE                Enable fast mode to simulate only one image
          */
-        DynamicStripes(int _N_COLUMNS, int _N_ROWS, const std::string &_PRECISION_GRANULARITY, int _COLUMN_REGISTERS,
+        DynamicStripes(int _N_COLUMNS, int _N_ROWS, const int &_PRECISION_GRANULARITY, int _COLUMN_REGISTERS,
                 uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS),
-                N_ROWS(_N_ROWS), COLUMN_REGISTERS(_COLUMN_REGISTERS) {
-           PRECISION_GRANULARITY = _PRECISION_GRANULARITY;
-        }
+                N_ROWS(_N_ROWS),  PRECISION_GRANULARITY(_PRECISION_GRANULARITY), COLUMN_REGISTERS(_COLUMN_REGISTERS) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

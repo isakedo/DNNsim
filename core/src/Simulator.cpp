@@ -3,6 +3,8 @@
 
 namespace core {
 
+    /* COMMON FUNCTIONS */
+
     template <typename T>
     bool Simulator<T>::iterateWindows(long out_x, long out_y, std::vector<int> &list_x, std::vector<int> &list_y,
             int &x_counter, int &y_counter, int max_windows) {
@@ -128,6 +130,90 @@ namespace core {
             if (!act_bits.empty()) return true;
         }
         return false;
+    }
+
+    /* DATA CALCULATIONS */
+
+    template <typename T>
+    void Simulator<T>::sparsity(const Network<T> &network) {
+        // Initialize statistics
+        sys::Statistics::Stats stats;
+        sys::Statistics::initialize(stats);
+
+        stats.task_name = "sparsity";
+        stats.net_name = network.getName();
+        stats.arch = "None";
+
+        for(const Layer<T> &layer : network.getLayers()) {
+            stats.layers.push_back(layer.getName());
+
+            uint64_t zero_act = 0;
+            const auto &act = layer.getActivations();
+            for(uint64_t i = 0; i < act.getMax_index(); i++) {
+                const auto data = act.get(i);
+                if(data == 0) zero_act++;
+            }
+
+            uint64_t zero_wgt = 0;
+            const auto &wgt = layer.getWeights();
+            for(uint64_t i = 0; i < wgt.getMax_index(); i++) {
+                const auto data = wgt.get(i);
+                if(data == 0) zero_wgt++;
+            }
+
+            stats.act_sparsity.push_back(zero_act/(double)act.getMax_index());
+            stats.zero_act.push_back(zero_act);
+            stats.total_act.push_back(act.getMax_index());
+            stats.wgt_sparsity.push_back(zero_wgt/(double)wgt.getMax_index());
+            stats.zero_wgt.push_back(zero_wgt);
+            stats.total_wgt.push_back(wgt.getMax_index());
+
+        }
+
+        // Set statistics to write
+        sys::Statistics::addStats(stats);
+    }
+
+    template <typename uint16_t>
+    void Simulator<uint16_t>::bit_sparsity(const Network<uint16_t> &network) {
+        // Initialize statistics
+        sys::Statistics::Stats stats;
+        sys::Statistics::initialize(stats);
+
+        stats.task_name = "bit_sparsity";
+        stats.net_name = network.getName();
+        stats.arch = "None";
+
+        for(const Layer<uint16_t> &layer : network.getLayers()) {
+            stats.layers.push_back(layer.getName());
+
+            uint64_t zero_act_bits = 0;
+            const auto &act = layer.getActivations();
+            for(uint64_t i = 0; i < act.getMax_index(); i++) {
+                const auto bits = act.get(i);
+                uint8_t ones = effectualBits(bits);
+                zero_act_bits += (16 - ones);
+            }
+
+            uint64_t zero_wgt_bits = 0;
+            const auto &wgt = layer.getWeights();
+            for(uint64_t i = 0; i < wgt.getMax_index(); i++) {
+                const auto bits = wgt.get(i);
+                uint8_t ones = effectualBits(bits);
+                zero_wgt_bits += (16 - ones);
+            }
+
+            stats.act_sparsity.push_back(zero_act_bits/(act.getMax_index() * 16.));
+            stats.zero_act.push_back(zero_act_bits);
+            stats.total_act.push_back(act.getMax_index() * 16);
+            stats.wgt_sparsity.push_back(zero_wgt_bits/(wgt.getMax_index() * 16.));
+            stats.zero_wgt.push_back(zero_wgt_bits);
+            stats.total_wgt.push_back(wgt.getMax_index() * 16);
+
+        }
+
+        // Set statistics to write
+        sys::Statistics::addStats(stats);
     }
 
     INITIALISE_DATA_TYPES(Simulator);

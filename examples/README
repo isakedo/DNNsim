@@ -18,17 +18,20 @@
 	<experiment {
 		architecture: <None|BitPragmatic|Stripes|DynamicStripes|Laconic|BitTacticalP|BitTacticalE|SCNN|SCNNp|SCNNe|
 		                BitFusion>
-		task: <Inference|Cycles|Potentials|Schedule> //Schedule only for BitTactical, Inference only for None
+		task: <Cycles|Potentials|Schedule> //Schedule only for BitTactical
+		task: <Inference|Sparsity> //Tasks for None architecture
+
 		[n_columns: <pos_num>] //Default 16
 		[n_rows: <pos_num>] //Default 16 (LAC 8)
 		[column_registers: <pos_num>] //Default 0
-		[precision_granularity: <Tile|SIP>] //Only for Dynamic Stripes and BitTacticalP: Default Tile
+		[precision_granularity: <pos_num>] //Only for Dynamic Stripes and BitTacticalP: Default 256 (Tile)
 		[bits_first_stage: <pos_num>] //Only for BitPragmatic and BitTacticalE: Default 0
 		[bits_pe: <pos_num>] //Only for Stripes
 		[lookahead_d: <pos_num>] //Only for BitTactical: Default 5
 		[lookaside_h: <pos_num>] //Only for BitTactical: Default 2
 		[search_shape: <L|T>] //Only for BitTactical: Default L
 		[read_schedule_from_proto: true] //Only for BitTactical: Default false
+
 		//SCNN-like architectures
 		[Ht: <pos_num>] //Default 8 | p and e: 32
 		[Wt: <pos_num>] //Default 8 | p and e: 32
@@ -37,6 +40,7 @@
 		[out_acc_size: <pos_num>] //Default 1024
 		[banks: <pos_num>] //Default 32 (Max 32)
 		[pe_serial_bits: <pos_num>] //Default 1, Only for SCNNe and SCNNp
+
 		//BitFusion
 		[m: <pos_num>] //Default 16
 		[n: <pos_num>] //Default 32

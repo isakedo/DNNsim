@@ -70,6 +70,14 @@ namespace sys {
             std::vector<std::vector<uint64_t>> bit_multiplications;
             std::vector<uint64_t> parallel_multiplications;
 
+            /* Stats for sparsity */
+            std::vector<double> act_sparsity;
+            std::vector<uint64_t> zero_act;
+            std::vector<uint64_t> total_act;
+            std::vector<double> wgt_sparsity;
+            std::vector<uint64_t> zero_wgt;
+            std::vector<uint64_t> total_wgt;
+
             template <typename T>
             T get_average(const std::vector<T> &vector_stat) const {
                 return accumulate(vector_stat.begin(), vector_stat.end(), 0.0) / vector_stat.size();

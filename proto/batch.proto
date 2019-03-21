@@ -27,7 +27,7 @@ message Batch {
             uint32 column_registers = 5;
 
             // For Dynamic Stripes
-            string precision_granularity = 6;
+            uint32 precision_granularity = 6;
 
             // For pragmatic
             uint32 bits_first_stage = 7;

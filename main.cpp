@@ -211,8 +211,13 @@ int main(int argc, char *argv[]) {
                             simulate.batch);
                     for(const auto &experiment : simulate.experiments) {
                         if(experiment.architecture == "None") {
-                            core::Inference<float> DNNsim(N_THREADS,FAST_MODE);
-                            if(experiment.task == "Inference") DNNsim.run(network);
+                            if(experiment.task == "Inference") {
+                                core::Inference<float> DNNsim(N_THREADS,FAST_MODE);
+                                DNNsim.run(network);
+                            } else {
+                                core::Simulator<float> DNNsim(N_THREADS,FAST_MODE);
+                                if (experiment.task == "Sparsity") DNNsim.sparsity(network);
+                            }
                         } else if (experiment.architecture == "SCNN") {
                             core::SCNN<float> DNNsim(experiment.Wt, experiment.Ht, experiment.I, experiment.F,
                                     experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE);
@@ -225,7 +230,12 @@ int main(int argc, char *argv[]) {
                     network = read<uint16_t>(simulate.inputType, simulate.network, simulate.activate_bias_out_act,
                             simulate.batch);
                     for(const auto &experiment : simulate.experiments) {
-                        if(experiment.architecture == "BitPragmatic") {
+                        if(experiment.architecture == "None") {
+                            core::Simulator<uint16_t> DNNsim(N_THREADS,FAST_MODE);
+                            if(experiment.task == "Sparsity") DNNsim.sparsity(network);
+                            else if(experiment.task == "BitSparsity") DNNsim.bit_sparsity(network);
+
+                        } else if(experiment.architecture == "BitPragmatic") {
                             core::BitPragmatic<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
                                     experiment.bits_first_stage,experiment.column_registers, N_THREADS,FAST_MODE);
                             if(experiment.task == "Cycles") DNNsim.run(network);
