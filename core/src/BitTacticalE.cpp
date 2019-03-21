@@ -112,7 +112,7 @@ namespace core {
     void BitTacticalE<T>::computeTacticalETile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int stride, const cnpy::Array<T> &padded_act,
             const schedule &dense_schedule, int schedule_time, std::vector<uint32_t> &cycles_per_col,
-            std::vector<uint32_t> &end_previous_pallet) {
+            std::vector<uint32_t> &end_previous_pallet, sys::Statistics::Stats &stats) {
 
         //Get the slowest column
         for(int window = 0; window < list_act_x.size(); window++) {
@@ -183,6 +183,7 @@ namespace core {
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         int n;
 
@@ -208,7 +209,7 @@ namespace core {
             while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, this->N_COLUMNS)) {
                 for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
                     computeTacticalETile(n, list_x, list_y, stride, act, dense_schedule, schedule_time,
-                            cycles_per_col, end_previous_pallet);
+                            cycles_per_col, end_previous_pallet, stats);
                 }
             }
             stats.cycles.back()[n] = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
@@ -243,6 +244,7 @@ namespace core {
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         int n;
 

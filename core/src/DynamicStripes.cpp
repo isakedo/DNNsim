@@ -262,6 +262,7 @@ namespace core {
             }
             auto batch_cycles = *std::max_element(cycles_per_group.begin(), cycles_per_group.end());
             stats.cycles.back()[n] = batch_cycles*num_filters_sets;
+            stats.stall_cycles.back()[n] *= num_filters_sets;
         }
 
         auto base_cycles = (uint64_t)(out_x * out_y * ceil(act_channels/16.) * Kx * Ky * baseline_filters_sets);
@@ -417,6 +418,7 @@ namespace core {
             uint64_t last_column_rem_cycles = last_column_end - stats.cycles.back()[n];
             stats.cycles.back()[n] *= num_filters_sets;
             stats.cycles.back()[n] += last_column_rem_cycles;
+            stats.stall_cycles.back()[n] *= num_filters_sets;
         }
 
         #endif

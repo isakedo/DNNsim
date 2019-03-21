@@ -51,13 +51,24 @@ namespace core {
     template <typename T>
     void BitTacticalP<T>::computeTacticalPTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int stride, const cnpy::Array<T> &padded_act,
-            const schedule &dense_schedule, int schedule_time, std::vector<uint32_t> &cycles_per_col,
-            std::vector<uint32_t> &end_previous_pallet) {
+            const schedule &dense_schedule, int schedule_time, std::vector<uint32_t> &cycles_per_group,
+            std::vector<uint32_t> &end_previous_pallet, sys::Statistics::Stats &stats) {
 
-        std::vector<uint8_t> per_SIP_n_bits (list_act_x.size(), 0);
+        int N_GROUPS = this->N_COLUMNS * 16 / PRECISION_GRANULARITY;
+        int WINDOWS_PER_GROUP = this->N_COLUMNS / N_GROUPS;
+
+        std::vector<uint8_t> per_group_cycles (N_GROUPS, 0);
+        uint16_t group_counter = 0;
+        uint16_t group_index = 0;
         uint8_t max_bit = 0, min_bit = 16;
         for(int window = 0; window < list_act_x.size(); window++) {
-            if(PRECISION_GRANULARITY == "SIP") max_bit = 0, min_bit = 16;
+
+            if(group_counter == WINDOWS_PER_GROUP)  {
+                max_bit = 0, min_bit = 16;
+                group_counter = 0;
+                group_index++;
+            }
+
             for (int row = 0; row < this->N_ROWS; row++) {
                 for (int wgt_idx = 0; wgt_idx < WEIGHT_LANES; wgt_idx++) {
 
@@ -82,35 +93,42 @@ namespace core {
 
                 }
             }
-            per_SIP_n_bits[window] = min_bit > max_bit ? 1 : max_bit - min_bit + 1;
+
+            group_counter++;
+            if(group_counter == WINDOWS_PER_GROUP)
+                per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+
         }
 
-        if(PRECISION_GRANULARITY == "Tile") {
-            uint8_t n_bits = min_bit > max_bit ? (uint8_t)1 : max_bit - min_bit + (uint8_t)1;
-            cycles_per_col = std::vector<uint32_t>(this->N_COLUMNS,cycles_per_col[0] + n_bits);
+        if(group_counter < WINDOWS_PER_GROUP)
+            per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+
+
+        for(int group = 0; group < N_GROUPS; group++) {
+            cycles_per_group[group] += per_group_cycles[group];
+        }
+
+        if(this->COLUMN_REGISTERS > 0) {
+            auto fastest_column = end_previous_pallet[0] + 1;
+            for(auto &column_cycles : cycles_per_group) {
+                if(column_cycles <= end_previous_pallet[0]) {
+                    if(column_cycles < fastest_column) fastest_column = column_cycles;
+                    column_cycles = end_previous_pallet[0] + 1;
+                }
+            }
+            stats.stall_cycles.back()[batch] += (end_previous_pallet[0] + 1) - fastest_column;
+
+            //Update end_previous_pallet
+            for(int i = 0; i < this->COLUMN_REGISTERS - 1; i++) {
+                end_previous_pallet[i] = end_previous_pallet[i + 1];
+            }
+            end_previous_pallet[this->COLUMN_REGISTERS - 1] = *std::max_element(cycles_per_group.begin(),
+                    cycles_per_group.end());
         } else {
-
-            for(int window = 0; window < list_act_x.size(); window++) {
-                cycles_per_col[window] += per_SIP_n_bits[window];
-            }
-
-            if(this->COLUMN_REGISTERS > 0) {
-                for(auto &column_cycles : cycles_per_col) {
-                    if(column_cycles <= end_previous_pallet[0]) {
-                        column_cycles = end_previous_pallet[0] + 1;
-                    }
-                }
-
-                //Update end_previous_pallet
-                for(int i = 0; i < this->COLUMN_REGISTERS - 1; i++) {
-                    end_previous_pallet[i] = end_previous_pallet[i + 1];
-                }
-                end_previous_pallet[this->COLUMN_REGISTERS - 1] = *std::max_element(cycles_per_col.begin(),
-                                                                              cycles_per_col.end());
-            } else {
-                auto slowest_column = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
-                cycles_per_col = std::vector<uint32_t>(this->N_COLUMNS, slowest_column);
-            }
+            auto slowest_group = *std::max_element(cycles_per_group.begin(), cycles_per_group.end());
+            auto fastest_group = *std::min_element(cycles_per_group.begin(), cycles_per_group.end());
+            cycles_per_group = std::vector<uint32_t>(N_GROUPS, slowest_group);
+            stats.stall_cycles.back()[batch] += slowest_group - fastest_group;
         }
 
     }
@@ -156,6 +174,7 @@ namespace core {
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         int n;
 
@@ -176,15 +195,15 @@ namespace core {
             std::vector<int> list_x, list_y;
             int x_counter = 0, y_counter = 0;
             std::vector<uint32_t> end_previous_pallet = std::vector<uint32_t>(this->COLUMN_REGISTERS, 0);
-            std::vector<uint32_t> cycles_per_col = std::vector<uint32_t>(this->N_COLUMNS, 0);
+            std::vector<uint32_t> cycles_per_group = std::vector<uint32_t>(this->N_COLUMNS, 0);
 
             while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, this->N_COLUMNS)) {
                 for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                    computeTacticalPTile(n, list_x, list_y, stride, act, dense_schedule, schedule_time, cycles_per_col,
-                            end_previous_pallet);
+                    computeTacticalPTile(n, list_x, list_y, stride, act, dense_schedule, schedule_time,
+                            cycles_per_group, end_previous_pallet, stats);
                 }
             }
-            stats.cycles.back()[n] = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
+            stats.cycles.back()[n] = *std::max_element(cycles_per_group.begin(), cycles_per_group.end());
         }
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
@@ -216,6 +235,7 @@ namespace core {
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         int n;
 
@@ -283,8 +303,8 @@ namespace core {
         stats.net_name = network.getName();
         int mux_entries = this->LOOKAHEAD_H + this->LOOKASIDE_D + 1;
         stats.arch = "BitTacticalP_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS) + "_PG_" +
-                PRECISION_GRANULARITY + "_CR" + std::to_string(this->COLUMN_REGISTERS) + "_" + this->SEARCH_SHAPE + 
-                std::to_string(mux_entries) + "(" + std::to_string(this->LOOKAHEAD_H) + "-" + 
+                std::to_string(PRECISION_GRANULARITY) + "_CR" + std::to_string(this->COLUMN_REGISTERS) + "_" +
+                this->SEARCH_SHAPE + std::to_string(mux_entries) + "(" + std::to_string(this->LOOKAHEAD_H) + "-" +
                 std::to_string(this->LOOKASIDE_D) + ")";
 
         for(const Layer<T> &layer : network.getLayers()) {
@@ -313,8 +333,8 @@ namespace core {
         stats.net_name = network.getName();
         int mux_entries = this->LOOKAHEAD_H + this->LOOKASIDE_D + 1;
         stats.arch = "BitTacticalP_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS) + "_PG_" +
-                PRECISION_GRANULARITY + "_CR" + std::to_string(this->COLUMN_REGISTERS) + "_" + this->SEARCH_SHAPE +
-                std::to_string(mux_entries) + "(" + std::to_string(this->LOOKAHEAD_H) + "-" +
+                std::to_string(PRECISION_GRANULARITY) + "_CR" + std::to_string(this->COLUMN_REGISTERS) + "_" +
+                this->SEARCH_SHAPE + std::to_string(mux_entries) + "(" + std::to_string(this->LOOKAHEAD_H) + "-" +
                 std::to_string(this->LOOKASIDE_D) + ")";
 
         int sch_index = 0;
