@@ -133,9 +133,11 @@ namespace core {
             int x_counter = 0, y_counter = 0;
 
             for(int m=0; m<num_filters; m+=N_ROWS) {
+
                 int start_group = 0;
                 if(m >= it_per_group)
                     start_group = wgt_channels;
+
                 while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {

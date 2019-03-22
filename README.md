@@ -180,7 +180,8 @@ Data type indicates the possible data types allowed: Float32 for 4bytes floating
 |:---:|:---:|
 | Cycles | Simulate number of cycles and memory accesses | 
 | Potentials | Calculate ideal speedup and work reduction | 
-| Schedule | Schedule weights statically (Only for BitTactical archtecture) |
+| Schedule | Schedule weights statically (Only for BitTactical architecture) |
+| AvgWidth | Calculate average effective width for the activations and weights per group (Only for DynamicStripes architecture) |
 
 * Allowed task for the special architecture "None":
 

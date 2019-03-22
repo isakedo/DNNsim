@@ -25,6 +25,11 @@ namespace core {
         /* Number of registers per SIP */
         const int COLUMN_REGISTERS;
 
+        struct AvgWidth_stats {
+            std::vector<double> act_width;
+            std::vector<double> wgt_width;
+        };
+
         /* Compute number of one bit multiplications
          * @param layer_prec    Layer precision
          * @return              Number of one bit multiplications
@@ -119,6 +124,33 @@ namespace core {
          */
         void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
 
+        /* Compute cycles for laconic tile
+         * @param batch         Current number of batch
+         * @param list_act_x    X position for the set of input windows
+         * @param list_act_y    Y position for the set of input windows
+         * @param kernel_x      X position in the kernel window
+         * @param kernel_y      Y position in the kernel window
+         * @param init_channel  Starting index for the channel
+         * @param init_filter   Starting index for the filter
+         * @param stride        Stride of the current layer
+         * @param padded_act    Set of padded input activations
+         * @param wgt           Set of weights
+         * @param start_group   Starting channel of the group
+         * @param max_channel   Maximum number of channels
+         * @param max_filter    Maximum number of filters
+         * @return              Stats for the current tile
+         */
+        AvgWidth_stats computeAvgWidthDynamicStripesTile(int batch, const std::vector<int> &list_act_x,
+                const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int init_filter,
+                int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group,
+                int max_channel, int max_filter);
+
+        /* Compute the average width for a convolutional layer
+         * @param layer     Layer for which we want to calculate the outputs
+         * @param stats     Statistics to fill
+         */
+        void computeAvgWidthConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats);
+
     public:
 
         /* Constructor
@@ -142,6 +174,11 @@ namespace core {
          * @param network   Network we want to calculate work reduction
          */
         void potentials(const Network<T> &network);
+
+        /* Calculate the average width in the network transformed to sign-magnitude
+         * @param network   Network we want to check
+         */
+        void average_width(const Network<T> &network);
 
     };
 

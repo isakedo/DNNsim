@@ -418,7 +418,6 @@ namespace core {
             uint64_t last_column_rem_cycles = last_column_end - stats.cycles.back()[n];
             stats.cycles.back()[n] *= num_filters_sets;
             stats.cycles.back()[n] += last_column_rem_cycles;
-            stats.stall_cycles.back()[n] *= num_filters_sets;
         }
 
         #endif
@@ -582,6 +581,220 @@ namespace core {
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);
                 computePotentialsInnerProduct(layer,stats);
+            }
+        }
+
+        // Set statistics to write
+        sys::Statistics::addStats(stats);
+    }
+
+    /* AVGERAGE WIDTH */
+
+    template <typename T>
+    typename DynamicStripes<T>::AvgWidth_stats DynamicStripes<T>::computeAvgWidthDynamicStripesTile(int batch,
+            const std::vector<int> &list_act_x, const std::vector<int> &list_act_y, int kernel_x, int kernel_y,
+            int init_channel, int init_filter, int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt,
+            int start_group, int max_channel, int max_filter) {
+
+        AvgWidth_stats stats;
+
+        int N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
+        int WINDOWS_PER_GROUP = N_COLUMNS / N_GROUPS;
+
+        // Activations
+        stats.act_width = std::vector<double>(N_GROUPS, 0);
+        uint16_t group_counter = 0;
+        uint16_t group_index = 0;
+        uint8_t max_bit = 0, min_bit = 16;
+        for(int window = 0; window < list_act_x.size(); window++) {
+            auto act_x = list_act_x[window];
+            auto act_y = list_act_y[window];
+
+            if(group_counter == WINDOWS_PER_GROUP)  {
+                max_bit = 0, min_bit = 16;
+                group_counter = 0;
+                group_index++;
+            }
+
+            for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_channel); channel++) {
+
+                auto act_bits = padded_act.get(batch, start_group + channel, stride * act_x + kernel_x,
+                        stride * act_y + kernel_y);
+
+                const auto &min_max_act_bits = this->minMax(act_bits);
+
+                auto min_act_bit = std::get<0>(min_max_act_bits);
+                auto max_act_bit = std::get<1>(min_max_act_bits);
+
+                if(min_act_bit < min_bit) min_bit = min_act_bit;
+                if(max_act_bit > max_bit) max_bit = max_act_bit;
+
+            }
+
+            group_counter++;
+            if(group_counter == WINDOWS_PER_GROUP)
+                stats.act_width[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+
+        }
+
+        if(group_counter < WINDOWS_PER_GROUP)
+            stats.act_width[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+
+        // Weights
+        stats.wgt_width = std::vector<double>(N_GROUPS, 0);
+        group_counter = 0;
+        group_index = 0;
+        max_bit = 0, min_bit = 16;
+        for (int filter = init_filter; filter < std::min(init_filter + N_ROWS, max_filter); filter++) {
+
+            if(group_counter == WINDOWS_PER_GROUP)  {
+                max_bit = 0, min_bit = 16;
+                group_counter = 0;
+                group_index++;
+            }
+
+            for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_channel); channel++) {
+
+                auto wgt_bits = wgt.get(filter, channel, kernel_x, kernel_y);
+
+                const auto &min_max_wgt_bits = this->minMax(wgt_bits);
+
+                auto min_wgt_bit = std::get<0>(min_max_wgt_bits);
+                auto max_wgt_bit = std::get<1>(min_max_wgt_bits);
+
+                if(min_wgt_bit < min_bit) min_bit = min_wgt_bit;
+                if(max_wgt_bit > max_bit) max_bit = max_wgt_bit;
+
+            }
+
+            group_counter++;
+            if(group_counter == WINDOWS_PER_GROUP)
+                stats.wgt_width[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+
+        }
+
+        if(group_counter < WINDOWS_PER_GROUP)
+            stats.wgt_width[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+
+        return stats;
+
+    }
+
+    template <typename T>
+    void DynamicStripes<T>::computeAvgWidthConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+
+        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+
+        cnpy::Array<T> act = layer.getActivations();
+        act.powers_of_two_representation();
+        cnpy::Array<T> wgt = layer.getWeights();
+        wgt.powers_of_two_representation();
+        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+
+        int padding = layer.getPadding();
+        int stride = layer.getStride();
+
+        act.zero_pad(padding);
+
+        if(act.getShape()[1] == 3 && stride > 1) {
+            act.reshape_first_layer_act((uint16_t)stride);
+            wgt.reshape_first_layer_wgt((uint16_t)stride);
+            stride = 1;
+        }
+
+        const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+        int batch_size = act_shape[0];
+        int act_channels = act_shape[1];
+        int Nx = act_shape[2];
+        int Ny = act_shape[3];
+        if(this->FAST_MODE) batch_size = 1;
+
+        int num_filters = wgt_shape[0];
+        int wgt_channels = wgt_shape[1];
+        int Kx = wgt_shape[2];
+        int Ky = wgt_shape[3];
+
+        long out_x = (Nx - Kx)/stride + 1;
+        long out_y = (Ny - Ky)/stride + 1;
+
+        int groups = act_channels / wgt_channels;
+        int it_per_group = num_filters / groups;
+
+        auto act_prec = layer.getAct_precision();
+        auto wgt_prec = layer.getWgt_precision();
+
+        // Stats
+        std::vector<double> act_width;
+        std::vector<double> wgt_width;
+
+        int n;
+
+        // Convolution
+        #ifdef OPENMP
+        auto max_threads = omp_get_max_threads();
+        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
+        #pragma omp parallel for private(n)
+        #endif
+        for(n=0; n<batch_size; n++) {
+
+            std::vector<int> list_x, list_y;
+            int x_counter = 0, y_counter = 0;
+
+            for(int m=0; m<num_filters; m+=N_ROWS) {
+
+                int start_group = 0;
+                if(m >= it_per_group)
+                    start_group = wgt_channels;
+
+                while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
+                    for (int i = 0; i < Kx; i++) {
+                        for (int j = 0; j < Ky; j++) {
+                            for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
+                                auto avg_width = computeAvgWidthDynamicStripesTile(n,list_x, list_y, i, j, k, m,
+                                        stride, act, wgt, start_group, wgt_channels, num_filters);
+                                act_width.insert(act_width.end(),avg_width.act_width.begin(),avg_width.act_width.end());
+                                wgt_width.insert(wgt_width.end(),avg_width.wgt_width.begin(),avg_width.wgt_width.end());
+                            }
+                        }
+                    }
+                }
+
+            }
+        }
+
+        double act_avg_width = stats.get_average(act_width);
+        double wgt_avg_width = stats.get_average(wgt_width);
+
+        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+
+        stats.time.push_back(time_span);
+        stats.act_avg_width.push_back(act_avg_width);
+        stats.act_width_reduction.push_back((act_prec - act_avg_width)*100. / act_prec);
+        stats.wgt_avg_width.push_back(wgt_avg_width);
+        stats.wgt_width_reduction.push_back((wgt_prec - wgt_avg_width)*100. / wgt_prec);
+
+    }
+
+    template <typename T>
+    void DynamicStripes<T>::average_width(const Network<T> &network) {
+        // Initialize statistics
+        sys::Statistics::Stats stats;
+        sys::Statistics::initialize(stats);
+
+        stats.task_name = "average_width";
+        stats.net_name = network.getName();
+        stats.arch = "DynamicStripes_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG" +
+                std::to_string(PRECISION_GRANULARITY) + "_CR" + std::to_string(COLUMN_REGISTERS);
+
+        for(const Layer<T> &layer : network.getLayers()) {
+            if(layer.getType() == "Convolution") {
+                stats.layers.push_back(layer.getName());
+                stats.act_prec.push_back(layer.getAct_precision());
+                stats.wgt_prec.push_back(layer.getWgt_precision());
+                computeAvgWidthConvolution(layer, stats);
             }
         }
 

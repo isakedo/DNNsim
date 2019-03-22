@@ -161,10 +161,10 @@ namespace core {
                 if(data == 0) zero_wgt++;
             }
 
-            stats.act_sparsity.push_back(zero_act/(double)act.getMax_index());
+            stats.act_sparsity.push_back(zero_act / (double)act.getMax_index() * 100.);
             stats.zero_act.push_back(zero_act);
             stats.total_act.push_back(act.getMax_index());
-            stats.wgt_sparsity.push_back(zero_wgt/(double)wgt.getMax_index());
+            stats.wgt_sparsity.push_back(zero_wgt / (double)wgt.getMax_index() * 100.);
             stats.zero_wgt.push_back(zero_wgt);
             stats.total_wgt.push_back(wgt.getMax_index());
 
@@ -203,10 +203,10 @@ namespace core {
                 zero_wgt_bits += (16 - ones);
             }
 
-            stats.act_sparsity.push_back(zero_act_bits/(act.getMax_index() * 16.));
+            stats.act_sparsity.push_back(zero_act_bits / (act.getMax_index() * 16.) * 100.);
             stats.zero_act.push_back(zero_act_bits);
             stats.total_act.push_back(act.getMax_index() * 16);
-            stats.wgt_sparsity.push_back(zero_wgt_bits/(wgt.getMax_index() * 16.));
+            stats.wgt_sparsity.push_back(zero_wgt_bits / (wgt.getMax_index() * 16.) * 100.);
             stats.zero_wgt.push_back(zero_wgt_bits);
             stats.total_wgt.push_back(wgt.getMax_index() * 16);
 

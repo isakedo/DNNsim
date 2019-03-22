@@ -403,6 +403,25 @@ namespace interface {
         o_file << line;
     }
 
+    void dump_csv_average_width(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
+        o_file << "layer,act_avg_width,act_reduction,act_precision,wgt_avg_width,wgt_reduction,wgt_precision"
+               << std::endl;
+
+        for (int i = 0; i < stats.layers.size(); i++) {
+            char line[256];
+            snprintf(line, sizeof(line), "%s,%.2f,%.2f,%d,%.2f,%.2f,%d\n", stats.layers[i].c_str(),
+                     stats.act_avg_width[i], stats.act_width_reduction[i], stats.act_prec[i], stats.wgt_avg_width[i],
+                     stats.wgt_width_reduction[i], stats.wgt_prec[i]);
+            o_file << line;
+        }
+
+        char line[256];
+        snprintf(line, sizeof(line), "TOTAL,%.2f,%.2f,-,%.2f,%.2f,-\n", stats.get_average(stats.act_avg_width),
+                 stats.get_average(stats.act_width_reduction), stats.get_average(stats.wgt_avg_width),
+                 stats.get_average(stats.wgt_width_reduction));
+        o_file << line;
+    }
+
     void StatsWriter::dump_csv() {
 
         for(const sys::Statistics::Stats &stats : sys::Statistics::getAll_stats()) {
@@ -425,6 +444,7 @@ namespace interface {
             else if(!stats.cycles.empty() && arch == "BitFusion") dump_csv_BitFusion_cycles(o_file,stats);
             else if(!stats.work_reduction.empty()) dump_csv_potentials(o_file,stats);
             else if(!stats.act_sparsity.empty()) dump_csv_sparsity(o_file,stats);
+            else if(!stats.act_avg_width.empty()) dump_csv_average_width(o_file,stats);
 
             o_file.close();
         }
