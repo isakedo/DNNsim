@@ -756,11 +756,11 @@ namespace core {
         int n;
 
         // Convolution
-        #ifdef OPENMP
+        /*#ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n)
-        #endif
+        #endif*/
         for(n=0; n<batch_size; n++) {
 
             std::vector<int> list_x, list_y;
@@ -791,6 +791,24 @@ namespace core {
 
             double act_avg_width = stats.get_average(act_width);
             double wgt_avg_width = stats.get_average(wgt_width);
+
+            // Calculate bits needed
+            std::vector<uint64_t> act_width_need (16, 0);
+            std::vector<double> act_width_need_per (16 ,0);
+            for(auto act_group : act_width) {
+                if(act_group == 0)
+                    act_group++;
+                act_width_need[(uint8_t) act_group]++;
+            }
+            for(auto act_width_need_count : act_width_need)
+                act_width_need_per.push_back(act_width_need_count / (double)act_width.size() * 100.);
+
+            std::vector<uint64_t> wgt_width_need (16, 0);
+            std::vector<double> wgt_width_need_per (16, 0);
+            for(auto wgt_group : wgt_width)
+                wgt_width_need[(uint8_t)wgt_group]++;
+            for(auto wgt_width_need_count : wgt_width_need)
+                wgt_width_need_per.push_back(wgt_width_need_count / (double)wgt_width.size() * 100.);
 
             stats.act_avg_width.back()[n] = act_avg_width;
             stats.act_width_reduction.back()[n] = (act_prec - act_avg_width) * 100. / act_prec;
