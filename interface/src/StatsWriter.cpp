@@ -432,6 +432,45 @@ namespace interface {
                  stats.get_average(stats.act_width_reduction), stats.get_average(stats.wgt_avg_width),
                  stats.get_average(stats.wgt_width_reduction), total_time);
         o_file << line;
+
+        o_file << std::endl;
+        o_file << "Activations" << std::endl;
+        o_file << "layer,n_act,0 bits,1 bits,2 bits,3 bits,4 bits,5 bits,6 bits,7 bits,8 bits,9 bits,10 bits,11 bits,"
+                  "12 bits,13 bits,14 bits,15 bits,16 bits" << std::endl;
+        for (int j = 0; j < stats.act_avg_width.front().size(); j++) {
+            for (int i = 0; i < stats.layers.size(); i++) {
+                char line2[512];
+                snprintf(line2, sizeof(line2), "%s,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,"
+                        "%.2f,%.2f,%.2f,%.2f\n", stats.layers[i].c_str(), j, stats.act_width_need[0][i][j],
+                        stats.act_width_need[1][i][j], stats.act_width_need[2][i][j], stats.act_width_need[3][i][j],
+                        stats.act_width_need[4][i][j], stats.act_width_need[5][i][j], stats.act_width_need[6][i][j],
+                        stats.act_width_need[7][i][j], stats.act_width_need[8][i][j], stats.act_width_need[9][i][j],
+                        stats.act_width_need[10][i][j], stats.act_width_need[11][i][j], stats.act_width_need[12][i][j],
+                        stats.act_width_need[13][i][j], stats.act_width_need[14][i][j], stats.act_width_need[15][i][j],
+                        stats.act_width_need[16][i][j]);
+                o_file << line2;
+            }
+        }
+
+        o_file << std::endl;
+        o_file << "Weights" << std::endl;
+        o_file << "layer,n_act,0 bits,1 bits,2 bits,3 bits,4 bits,5 bits,6 bits,7 bits,8 bits,9 bits,10 bits,11 bits,"
+                  "12 bits,13 bits,14 bits,15 bits,16 bits" << std::endl;
+        for (int j = 0; j < stats.act_avg_width.front().size(); j++) {
+            for (int i = 0; i < stats.layers.size(); i++) {
+                char line2[512];
+                snprintf(line2, sizeof(line2), "%s,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,"
+                        "%.2f,%.2f,%.2f,%.2f\n", stats.layers[i].c_str(), j, stats.wgt_width_need[0][i][j],
+                        stats.wgt_width_need[1][i][j], stats.wgt_width_need[2][i][j], stats.wgt_width_need[3][i][j],
+                        stats.wgt_width_need[4][i][j], stats.wgt_width_need[5][i][j], stats.wgt_width_need[6][i][j],
+                        stats.wgt_width_need[7][i][j], stats.wgt_width_need[8][i][j], stats.wgt_width_need[9][i][j],
+                        stats.wgt_width_need[10][i][j], stats.wgt_width_need[11][i][j], stats.wgt_width_need[12][i][j],
+                        stats.wgt_width_need[13][i][j], stats.wgt_width_need[14][i][j], stats.wgt_width_need[15][i][j],
+                        stats.wgt_width_need[16][i][j]);
+                o_file << line2;
+            }
+        }
+
     }
 
     void StatsWriter::dump_csv() {

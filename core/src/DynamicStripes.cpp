@@ -602,7 +602,7 @@ namespace core {
         int WINDOWS_PER_GROUP = N_COLUMNS / N_GROUPS;
 
         // Activations
-        stats.act_width = std::vector<double>(N_GROUPS, 0);
+        stats.act_width = std::vector<double>(std::min(N_GROUPS,(int)list_act_x.size()), 0);
         uint16_t group_counter = 0;
         uint16_t group_index = 0;
         uint8_t max_bit = 0, min_bit = 16;
@@ -649,7 +649,7 @@ namespace core {
             stats.act_width[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
 
         // Weights
-        stats.wgt_width = std::vector<double>(N_GROUPS, 0);
+        stats.wgt_width = std::vector<double>(std::min(N_GROUPS,max_filter-init_filter+1), 0);
         group_counter = 0;
         group_index = 0;
         max_bit = 0, min_bit = 16;
@@ -753,14 +753,19 @@ namespace core {
         stats.wgt_avg_width.emplace_back(std::vector<double>(batch_size,0));
         stats.wgt_width_reduction.emplace_back(std::vector<double>(batch_size,0));
 
+        for(int i = 0; i <= sizeof(T)*8; i++) {
+            stats.act_width_need[i].emplace_back(std::vector<double>(batch_size, 0));
+            stats.wgt_width_need[i].emplace_back(std::vector<double>(batch_size, 0));
+        }
+
         int n;
 
         // Convolution
-        /*#ifdef OPENMP
+        #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n)
-        #endif*/
+        #endif
         for(n=0; n<batch_size; n++) {
 
             std::vector<int> list_x, list_y;
@@ -793,27 +798,31 @@ namespace core {
             double wgt_avg_width = stats.get_average(wgt_width);
 
             // Calculate bits needed
-            std::vector<uint64_t> act_width_need (16, 0);
-            std::vector<double> act_width_need_per (16 ,0);
-            for(auto act_group : act_width) {
-                if(act_group == 0)
-                    act_group++;
-                act_width_need[(uint8_t) act_group]++;
-            }
-            for(auto act_width_need_count : act_width_need)
-                act_width_need_per.push_back(act_width_need_count / (double)act_width.size() * 100.);
+            std::vector<uint64_t> act_width_need (sizeof(T)*8 + 1, 0);
+            std::vector<double> act_width_need_per (sizeof(T)*8 + 1 ,0);
+            for(auto act_group : act_width)
+                for(int a = (int)act_group; a <= sizeof(T)*8; a++)
+                    act_width_need[a]++;
+            for(int a = 0; a < act_width_need.size(); a++)
+                act_width_need_per[a] = act_width_need[a] / (double)act_width.size() * 100.;
 
-            std::vector<uint64_t> wgt_width_need (16, 0);
-            std::vector<double> wgt_width_need_per (16, 0);
+            std::vector<uint64_t> wgt_width_need (sizeof(T)*8 + 1, 0);
+            std::vector<double> wgt_width_need_per (sizeof(T)*8 + 1, 0);
             for(auto wgt_group : wgt_width)
-                wgt_width_need[(uint8_t)wgt_group]++;
-            for(auto wgt_width_need_count : wgt_width_need)
-                wgt_width_need_per.push_back(wgt_width_need_count / (double)wgt_width.size() * 100.);
+                for(int w = (int)wgt_group; w <= sizeof(T)*8; w++)
+                    wgt_width_need[w]++;
+            for(int w = 0; w < wgt_width_need.size(); w++)
+                wgt_width_need_per[w] = wgt_width_need[w] / (double)wgt_width.size() * 100.;
 
             stats.act_avg_width.back()[n] = act_avg_width;
             stats.act_width_reduction.back()[n] = (act_prec - act_avg_width) * 100. / act_prec;
             stats.wgt_avg_width.back()[n] = wgt_avg_width;
             stats.wgt_width_reduction.back()[n] = (wgt_prec - wgt_avg_width) * 100. / wgt_prec;
+
+            for(int i = 0; i < sizeof(T)*8; i++) {
+                stats.act_width_need[i].back()[n] = act_width_need_per[i];
+                stats.wgt_width_need[i].back()[n] = wgt_width_need_per[i];
+            }
         }
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
@@ -833,6 +842,9 @@ namespace core {
         stats.net_name = network.getName();
         stats.arch = "DynamicStripes_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG" +
                 std::to_string(PRECISION_GRANULARITY) + "_CR" + std::to_string(COLUMN_REGISTERS);
+
+        stats.act_width_need = std::vector<std::vector<std::vector<double>>>(sizeof(T)*8 + 1);
+        stats.wgt_width_need = std::vector<std::vector<std::vector<double>>>(sizeof(T)*8 + 1);
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {

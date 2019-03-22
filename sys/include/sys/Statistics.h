@@ -85,8 +85,10 @@ namespace sys {
             /* Stats for average width */
             std::vector<std::vector<double>> act_avg_width;
             std::vector<std::vector<double>> act_width_reduction;
+            std::vector<std::vector<std::vector<double>>> act_width_need;
             std::vector<std::vector<double>> wgt_avg_width;
             std::vector<std::vector<double>> wgt_width_reduction;
+            std::vector<std::vector<std::vector<double>>> wgt_width_need;
 
             template <typename T>
             T get_average(const std::vector<T> &vector_stat) const {
