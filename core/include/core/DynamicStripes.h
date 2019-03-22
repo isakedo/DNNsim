@@ -138,12 +138,14 @@ namespace core {
          * @param start_group   Starting channel of the group
          * @param max_channel   Maximum number of channels
          * @param max_filter    Maximum number of filters
+         * @param act_mask      Position of the activations sign bit
+         * @param wgt_mask      Position of the weights sign bit
          * @return              Stats for the current tile
          */
         AvgWidth_stats computeAvgWidthDynamicStripesTile(int batch, const std::vector<int> &list_act_x,
                 const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int init_filter,
                 int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group,
-                int max_channel, int max_filter);
+                int max_channel, int max_filter, int act_mask, int wgt_mask);
 
         /* Compute the average width for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs

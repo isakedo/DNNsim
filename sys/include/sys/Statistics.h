@@ -83,10 +83,10 @@ namespace sys {
             std::vector<uint64_t> total_wgt;
 
             /* Stats for average width */
-            std::vector<double> act_avg_width;
-            std::vector<double> act_width_reduction;
-            std::vector<double> wgt_avg_width;
-            std::vector<double> wgt_width_reduction;
+            std::vector<std::vector<double>> act_avg_width;
+            std::vector<std::vector<double>> act_width_reduction;
+            std::vector<std::vector<double>> wgt_avg_width;
+            std::vector<std::vector<double>> wgt_width_reduction;
 
             template <typename T>
             T get_average(const std::vector<T> &vector_stat) const {

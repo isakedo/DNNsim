@@ -404,21 +404,33 @@ namespace interface {
     }
 
     void dump_csv_average_width(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,act_avg_width,act_reduction,act_precision,wgt_avg_width,wgt_reduction,wgt_precision"
+        o_file << "layer,n_act,act_avg_width,act_reduction,act_precision,wgt_avg_width,wgt_reduction,wgt_precision,time(s)"
                << std::endl;
+        for (int j = 0; j < stats.act_avg_width.front().size(); j++) {
+            for (int i = 0; i < stats.layers.size(); i++) {
+                char line[256];
+                snprintf(line, sizeof(line), "%s,%d,%.2f,%.2f,%d,%.2f,%.2f,%d,0\n", stats.layers[i].c_str(), j,
+                         stats.act_avg_width[i][j], stats.act_width_reduction[i][j], stats.act_prec[i],
+                         stats.wgt_avg_width[i][j], stats.wgt_width_reduction[i][j], stats.wgt_prec[i]);
+                o_file << line;
+            }
+        }
 
+        double total_time = 0.;
         for (int i = 0; i < stats.layers.size(); i++) {
+            total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,%.2f,%.2f,%d,%.2f,%.2f,%d\n", stats.layers[i].c_str(),
-                     stats.act_avg_width[i], stats.act_width_reduction[i], stats.act_prec[i], stats.wgt_avg_width[i],
-                     stats.wgt_width_reduction[i], stats.wgt_prec[i]);
+            snprintf(line, sizeof(line), "%s,AVG,%.2f,%.2f,%d,%.2f,%.2f,%d,%.2f\n", stats.layers[i].c_str(),
+                     stats.get_average(stats.act_avg_width[i]), stats.get_average(stats.act_width_reduction[i]),
+                     stats.act_prec[i], stats.get_average(stats.wgt_avg_width[i]),
+                     stats.get_average(stats.wgt_width_reduction[i]), stats.wgt_prec[i], stats.time[i].count());
             o_file << line;
         }
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,%.2f,%.2f,-,%.2f,%.2f,-\n", stats.get_average(stats.act_avg_width),
+        snprintf(line, sizeof(line), "TOTAL,AVG,%.2f,%.2f,-,%.2f,%.2f,-,%.2f\n", stats.get_average(stats.act_avg_width),
                  stats.get_average(stats.act_width_reduction), stats.get_average(stats.wgt_avg_width),
-                 stats.get_average(stats.wgt_width_reduction));
+                 stats.get_average(stats.wgt_width_reduction), total_time);
         o_file << line;
     }
 
