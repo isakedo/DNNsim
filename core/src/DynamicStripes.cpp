@@ -897,7 +897,7 @@ namespace core {
         stats.task_name = "average_width";
         stats.net_name = network.getName();
         stats.arch = "DynamicStripes_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG" +
-                std::to_string(PRECISION_GRANULARITY) + "_CR" + std::to_string(COLUMN_REGISTERS);
+                std::to_string(PRECISION_GRANULARITY);
 
         stats.act_width_need = std::vector<std::vector<std::vector<double>>>(sizeof(T)*8 + 1);
         stats.wgt_width_need = std::vector<std::vector<std::vector<double>>>(sizeof(T)*8 + 1);
