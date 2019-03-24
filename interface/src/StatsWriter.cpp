@@ -75,13 +75,15 @@ namespace interface {
     }
 
     void dump_csv_DynamicStripes_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,cycles,baseline_cycles,speedup,stall_cycles,act_precision,time(s)" << std::endl;
+        o_file << "layer,n_act,cycles,baseline_cycles,speedup,stall_cycles,rows_per_wgt,idle_rows,act_precision,"
+                  "wgt_precision,time(s)" << std::endl;
         for (int j = 0; j < stats.cycles.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%.2f,%lu,%d,0\n", stats.layers[i].c_str(), j,
+                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%.2f,%lu,%lu,%lu,%d,%d,0\n", stats.layers[i].c_str(), j,
                         stats.cycles[i][j], stats.baseline_cycles[i], (double)stats.baseline_cycles[i]/
-                        stats.cycles[i][j], stats.stall_cycles[i][j], stats.act_prec[i]);
+                        stats.cycles[i][j], stats.stall_cycles[i][j], stats.rows_per_wgt[i], stats.idle_rows[i],
+                        stats.act_prec[i], stats.wgt_prec[i]);
                 o_file << line;
             }
         }
@@ -90,17 +92,18 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%.2f,%lu,%d,%.2f\n", stats.layers[i].c_str(),
+            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%.2f,%lu,%lu,%lu,%d,%d,%.2f\n", stats.layers[i].c_str(),
                     stats.get_average(stats.cycles[i]), stats.baseline_cycles[i], (double)stats.baseline_cycles[i]/
-                    stats.get_average(stats.cycles[i]), stats.get_average(stats.stall_cycles[i]), stats.act_prec[i], 
-                    stats.time[i].count());
+                    stats.get_average(stats.cycles[i]), stats.get_average(stats.stall_cycles[i]), stats.rows_per_wgt[i],
+                    stats.idle_rows[i], stats.act_prec[i], stats.wgt_prec[i], stats.time[i].count());
             o_file << line;
         }
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%.2f,%lu,-,%.2f\n", stats.get_total(stats.cycles),
+        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%.2f,%lu,%lu,%lu,-,-,%.2f\n", stats.get_total(stats.cycles),
                 stats.get_total(stats.baseline_cycles),stats.get_total(stats.baseline_cycles)/
-                (double)stats.get_total(stats.cycles), stats.get_total(stats.stall_cycles), total_time);
+                (double)stats.get_total(stats.cycles), stats.get_total(stats.stall_cycles),
+                stats.get_average(stats.rows_per_wgt), stats.get_average(stats.idle_rows), total_time);
         o_file << line;
     }
 

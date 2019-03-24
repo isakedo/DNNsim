@@ -103,6 +103,7 @@ namespace sys {
                     experiment.column_registers = experiment_proto.column_registers();
                     experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 256 :
                             experiment_proto.precision_granularity();
+                    experiment.bits_pe = experiment_proto.bits_pe() < 1 ? 16 : experiment_proto.bits_pe();
                     if(experiment.precision_granularity % 16 != 0 ||
                             (((experiment.n_columns * 16) % experiment.precision_granularity) != 0))
                         throw std::runtime_error("DynamicStripes precision granularity for network " + simulate.network
