@@ -875,7 +875,7 @@ namespace core {
             stats.wgt_avg_width.back()[n] = wgt_avg_width;
             stats.wgt_width_reduction.back()[n] = (wgt_prec - wgt_avg_width) * 100. / wgt_prec;
 
-            for(int i = 0; i < sizeof(T)*8; i++) {
+            for(int i = 0; i <= sizeof(T)*8; i++) {
                 stats.act_width_need[i].back()[n] = act_width_need_per[i];
                 stats.wgt_width_need[i].back()[n] = wgt_width_need_per[i];
             }
