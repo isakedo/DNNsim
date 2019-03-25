@@ -4,6 +4,8 @@
 #include <sys/common.h>
 #include <sys/Statistics.h>
 
+//#define PER_IMAGE_RESULTS
+
 namespace interface {
 
         class StatsWriter {

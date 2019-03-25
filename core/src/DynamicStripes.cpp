@@ -24,7 +24,7 @@ namespace core {
 
             bool neg = false;
             if((act_bits & act_mask) != 0) {
-                act_bits = act_bits & ~act_mask;
+                act_bits = act_bits & ~(uint16_t)act_mask;
                 neg = true;
             }
 
@@ -71,7 +71,7 @@ namespace core {
 
                 bool neg = false;
                 if((act_bits & act_mask) != 0) {
-                    act_bits = act_bits & ~act_mask;
+                    act_bits = act_bits & ~(uint16_t)act_mask;
                     neg = true;
                 }
 
@@ -156,7 +156,7 @@ namespace core {
 
                 bool neg = false;
                 if((act_bits & act_mask) != 0) {
-                    act_bits = act_bits & ~act_mask;
+                    act_bits = act_bits & ~(uint16_t)act_mask;
                     neg = true;
                 }
 
