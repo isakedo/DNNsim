@@ -646,19 +646,17 @@ namespace core {
 
     /* AVERAGE WIDTH */
 
-    template <typename T>
-    typename DynamicStripes<T>::AvgWidth_stats DynamicStripes<T>::computeAvgWidthDynamicStripesTile(int batch,
-            const std::vector<int> &list_act_x, const std::vector<int> &list_act_y, int kernel_x, int kernel_y,
-            int init_channel, int init_filter, int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt,
-            int start_group, int max_channel, int max_filter, int act_mask, int wgt_mask) {
 
-        AvgWidth_stats stats;
+    template <typename T>
+    std::vector<double> DynamicStripes<T>::computeAvgWidthDynamicStripesActTile(int batch,
+            const std::vector<int> &list_act_x, const std::vector<int> &list_act_y, int kernel_x, int kernel_y,
+            int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, int act_mask) {
 
         int N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
         int WINDOWS_PER_GROUP = N_COLUMNS / N_GROUPS;
 
         // Activations
-        stats.act_width = std::vector<double>(std::min(N_GROUPS,(int)list_act_x.size()), 0);
+        std::vector<double> act_width = std::vector<double>(std::min(N_GROUPS,(int)list_act_x.size()), 0);
         uint16_t group_counter = 0;
         uint16_t group_index = 0;
         uint8_t max_bit = 0, min_bit = 16;
@@ -674,8 +672,7 @@ namespace core {
 
             for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_channel); channel++) {
 
-                auto act_bits = padded_act.get(batch, start_group + channel, stride * act_x + kernel_x,
-                        stride * act_y + kernel_y);
+                auto act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
 
                 bool neg = false;
                 if((act_bits & act_mask) != 0) {
@@ -697,18 +694,30 @@ namespace core {
 
             group_counter++;
             if(group_counter == WINDOWS_PER_GROUP)
-                stats.act_width[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+                act_width[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
 
         }
 
         if(group_counter < WINDOWS_PER_GROUP)
-            stats.act_width[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+            act_width[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+
+        return act_width;
+
+    }
+
+    template <typename T>
+    std::vector<double> DynamicStripes<T>::computeAvgWidthDynamicStripesWgtTile(int kernel_x, int kernel_y,
+            int init_channel, int init_filter, const cnpy::Array<T> &wgt, int max_channel, int max_filter,
+            int wgt_mask) {
+
+        int N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
+        int WINDOWS_PER_GROUP = N_COLUMNS / N_GROUPS;
 
         // Weights
-        stats.wgt_width = std::vector<double>(std::min(N_GROUPS,max_filter-init_filter+1), 0);
-        group_counter = 0;
-        group_index = 0;
-        max_bit = 0, min_bit = 16;
+        std::vector<double> wgt_width = std::vector<double>(std::min(N_GROUPS,max_filter-init_filter+1), 0);
+        uint16_t group_counter = 0;
+        uint16_t group_index = 0;
+        uint8_t max_bit = 0, min_bit = 16;
         for (int filter = init_filter; filter < std::min(init_filter + N_ROWS, max_filter); filter++) {
 
             if(group_counter == WINDOWS_PER_GROUP)  {
@@ -720,7 +729,6 @@ namespace core {
             for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_channel); channel++) {
 
                 auto wgt_bits = wgt.get(filter, channel, kernel_x, kernel_y);
-
 
                 bool neg = false;
                 if((wgt_bits & wgt_mask) != 0) {
@@ -742,14 +750,14 @@ namespace core {
 
             group_counter++;
             if(group_counter == WINDOWS_PER_GROUP)
-                stats.wgt_width[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+                wgt_width[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
 
         }
 
         if(group_counter < WINDOWS_PER_GROUP)
-            stats.wgt_width[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+            wgt_width[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
 
-        return stats;
+        return wgt_width;
 
     }
 
@@ -792,9 +800,6 @@ namespace core {
         long out_x = (Nx - Kx)/stride + 1;
         long out_y = (Ny - Ky)/stride + 1;
 
-        int groups = act_channels / wgt_channels;
-        int it_per_group = num_filters / groups;
-
         auto act_prec = layer.getAct_precision();
         double act_intmax = (1 << (act_prec - 1)) - 1;
         auto act_mask = (uint16_t)act_intmax + 1;
@@ -806,52 +811,40 @@ namespace core {
         // Stats
         stats.act_avg_width.emplace_back(std::vector<double>(batch_size,0));
         stats.act_width_reduction.emplace_back(std::vector<double>(batch_size,0));
+        stats.act_bytes_baseline.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_bytes_profiled.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_bytes_datawidth.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.wgt_avg_width.emplace_back(std::vector<double>(batch_size,0));
         stats.wgt_width_reduction.emplace_back(std::vector<double>(batch_size,0));
+        stats.wgt_bytes_baseline.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.wgt_bytes_profiled.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.wgt_bytes_datawidth.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         for(int i = 0; i <= sizeof(T)*8; i++) {
             stats.act_width_need[i].emplace_back(std::vector<double>(batch_size, 0));
             stats.wgt_width_need[i].emplace_back(std::vector<double>(batch_size, 0));
         }
 
-        int n;
-
-        // Convolution
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for(n=0; n<batch_size; n++) {
+        // Activations
+        for(int n=0; n<batch_size; n++) {
 
             std::vector<int> list_x, list_y;
             int x_counter = 0, y_counter = 0;
             std::vector<double> act_width;
-            std::vector<double> wgt_width;
 
-            for(int m=0; m<num_filters; m+=N_ROWS) {
-
-                int start_group = 0;
-                if(m >= it_per_group)
-                    start_group = wgt_channels;
-
-                while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
-                    for (int i = 0; i < Kx; i++) {
-                        for (int j = 0; j < Ky; j++) {
-                            for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
-                                auto avg_width = computeAvgWidthDynamicStripesTile(n,list_x, list_y, i, j, k, m,
-                                        stride, act, wgt, start_group, wgt_channels, num_filters, act_mask, wgt_mask);
-                                act_width.insert(act_width.end(),avg_width.act_width.begin(),avg_width.act_width.end());
-                                wgt_width.insert(wgt_width.end(),avg_width.wgt_width.begin(),avg_width.wgt_width.end());
-                            }
+            while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
+                for (int i = 0; i < Kx; i++) {
+                    for (int j = 0; j < Ky; j++) {
+                        for (int k = 0; k < act_channels; k+=WEIGHT_LANES) {
+                            auto tile_act_width = computeAvgWidthDynamicStripesActTile(n,list_x,list_y,i,j,k,stride,
+                                act,act_channels,act_mask);
+                            act_width.insert(act_width.end(),tile_act_width.begin(),tile_act_width.end());
                         }
                     }
                 }
-
             }
 
             double act_avg_width = stats.get_average(act_width);
-            double wgt_avg_width = stats.get_average(wgt_width);
 
             // Calculate bits needed
             std::vector<uint64_t> act_width_need (sizeof(T)*8 + 1, 0);
@@ -862,21 +855,62 @@ namespace core {
             for(int a = 0; a < act_width_need.size(); a++)
                 act_width_need_per[a] = act_width_need[a] / (double)act_width.size() * 100.;
 
-            std::vector<uint64_t> wgt_width_need (sizeof(T)*8 + 1, 0);
-            std::vector<double> wgt_width_need_per (sizeof(T)*8 + 1, 0);
-            for(auto wgt_group : wgt_width)
-                for(int w = (int)wgt_group; w <= sizeof(T)*8; w++)
-                    wgt_width_need[w]++;
-            for(int w = 0; w < wgt_width_need.size(); w++)
-                wgt_width_need_per[w] = wgt_width_need[w] / (double)wgt_width.size() * 100.;
+            // Calculate data from off-chip
+            auto num_act = Nx * Ny * act_channels;
+            stats.act_bytes_baseline.back()[n] = num_act * sizeof(T);
+            stats.act_bytes_profiled.back()[n] = (uint64_t)ceil((4 + num_act * act_prec) / 8.);
+            auto act_bits_datawidth = 16 * num_act * act_avg_width / (sizeof(T)*8);
+            stats.act_bytes_datawidth.back()[n] = (uint64_t)ceil((4*act_width.size() + act_bits_datawidth) / 8.);
 
             stats.act_avg_width.back()[n] = act_avg_width;
             stats.act_width_reduction.back()[n] = (act_prec - act_avg_width) * 100. / act_prec;
+
+            for(int i = 0; i <= sizeof(T)*8; i++)
+                stats.act_width_need[i].back()[n] = act_width_need_per[i];
+
+        }
+
+        // Weights
+        std::vector<double> wgt_width;
+        for(int m=0; m<num_filters; m+=N_ROWS) {
+
+            for (int i = 0; i < Kx; i++) {
+                for (int j = 0; j < Ky; j++) {
+                    for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
+                        auto tile_wgt_width = computeAvgWidthDynamicStripesWgtTile(i,j,k,m,wgt,wgt_channels,num_filters,
+                            wgt_mask);
+                        wgt_width.insert(wgt_width.end(),tile_wgt_width.begin(),tile_wgt_width.end());
+
+                    }
+                }
+
+            }
+        }
+
+        double wgt_avg_width = stats.get_average(wgt_width);
+
+        // Calculate bits needed
+        std::vector<uint64_t> wgt_width_need (sizeof(T)*8 + 1, 0);
+        std::vector<double> wgt_width_need_per (sizeof(T)*8 + 1, 0);
+        for(auto wgt_group : wgt_width)
+            for(int w = (int)wgt_group; w <= sizeof(T)*8; w++)
+                wgt_width_need[w]++;
+        for(int w = 0; w < wgt_width_need.size(); w++)
+            wgt_width_need_per[w] = wgt_width_need[w] / (double)wgt_width.size() * 100.;
+
+        for(int n=0; n<batch_size; n++) {
+
+            // Calculate data from off-chip
+            auto num_wgt = wgt.getMax_index();
+            stats.wgt_bytes_baseline.back()[n] = num_wgt * sizeof(T);
+            stats.wgt_bytes_profiled.back()[n] = (uint64_t) ceil((4 + num_wgt * wgt_prec) / 8.);
+            auto wgt_bits_datawidth = 16 * num_wgt * wgt_avg_width / (sizeof(T)*8);
+            stats.wgt_bytes_datawidth.back()[n] = (uint64_t) ceil((4*wgt_width.size() + wgt_bits_datawidth) / 8.);
+
             stats.wgt_avg_width.back()[n] = wgt_avg_width;
             stats.wgt_width_reduction.back()[n] = (wgt_prec - wgt_avg_width) * 100. / wgt_prec;
 
-            for(int i = 0; i <= sizeof(T)*8; i++) {
-                stats.act_width_need[i].back()[n] = act_width_need_per[i];
+            for (int i = 0; i <= sizeof(T) * 8; i++) {
                 stats.wgt_width_need[i].back()[n] = wgt_width_need_per[i];
             }
         }
