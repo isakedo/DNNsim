@@ -860,7 +860,8 @@ namespace core {
             stats.act_bytes_baseline.back()[n] = num_act * sizeof(T);
             stats.act_bytes_profiled.back()[n] = (uint64_t)ceil((4 + num_act * act_prec) / 8.);
             auto act_bits_datawidth = 16 * num_act * act_avg_width / (sizeof(T)*8);
-            stats.act_bytes_datawidth.back()[n] = (uint64_t)ceil((4*act_width.size() + act_bits_datawidth) / 8.);
+            auto overhead = 4 * ceil(num_act / (double)PRECISION_GRANULARITY);
+            stats.act_bytes_datawidth.back()[n] = (uint64_t)ceil((overhead + act_bits_datawidth) / 8.);
 
             stats.act_avg_width.back()[n] = act_avg_width;
             stats.act_width_reduction.back()[n] = (act_prec - act_avg_width) * 100. / act_prec;
@@ -905,7 +906,8 @@ namespace core {
             stats.wgt_bytes_baseline.back()[n] = num_wgt * sizeof(T);
             stats.wgt_bytes_profiled.back()[n] = (uint64_t) ceil((4 + num_wgt * wgt_prec) / 8.);
             auto wgt_bits_datawidth = 16 * num_wgt * wgt_avg_width / (sizeof(T)*8);
-            stats.wgt_bytes_datawidth.back()[n] = (uint64_t) ceil((4*wgt_width.size() + wgt_bits_datawidth) / 8.);
+            auto overhead = 4 * ceil(num_wgt / (double)PRECISION_GRANULARITY);
+            stats.wgt_bytes_datawidth.back()[n] = (uint64_t) ceil((overhead + wgt_bits_datawidth) / 8.);
 
             stats.wgt_avg_width.back()[n] = wgt_avg_width;
             stats.wgt_width_reduction.back()[n] = (wgt_prec - wgt_avg_width) * 100. / wgt_prec;
