@@ -775,6 +775,11 @@ namespace core {
         int padding = layer.getPadding();
         int stride = layer.getStride();
 
+        if(layer.getType() == "InnerProduct") {
+            if(act.getDimensions() == 4) act.reshape_to_2D();
+            act.reshape_to_4D();
+        }
+
         act.zero_pad(padding);
 
         if(act.getShape()[1] == 3 && stride > 1) {
@@ -939,7 +944,7 @@ namespace core {
         stats.wgt_width_need = std::vector<std::vector<std::vector<double>>>(sizeof(T)*8 + 1);
 
         for(const Layer<T> &layer : network.getLayers()) {
-            if(layer.getType() == "Convolution") {
+            if(layer.getType() == "Convolution" || layer.getType() == "InnerProduct") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(layer.getWgt_precision());

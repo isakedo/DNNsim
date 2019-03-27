@@ -277,6 +277,7 @@ namespace sys {
             transform.inputDataType = "Float32";
             transform.outputType = "Protobuf";
             transform.outputDataType = "Fixed16";
+            transform.batch = simulate.batch;
             this->transformations.emplace_back(transform);
             simulate.inputType = "Protobuf";
         }
