@@ -35,8 +35,12 @@ namespace sys {
 
             /* Stats for cycles */
             std::vector<std::vector<uint64_t>> cycles;
-            std::vector<std::vector<uint64_t>> stall_cycles;
             std::vector<uint64_t> baseline_cycles;
+
+            /* Stats for column stalls */
+            std::vector<std::vector<uint64_t>> stall_cycles;
+
+            /* Stats for 8bits PEs */
             std::vector<uint64_t> idle_columns;
             std::vector<uint64_t> idle_rows;
             std::vector<uint64_t> columns_per_act;
@@ -77,6 +81,20 @@ namespace sys {
             std::vector<double> wgt_sparsity;
             std::vector<uint64_t> zero_wgt;
             std::vector<uint64_t> total_wgt;
+
+            /* Stats for average width */
+            std::vector<std::vector<double>> act_avg_width;
+            std::vector<std::vector<double>> act_width_reduction;
+            std::vector<std::vector<std::vector<double>>> act_width_need;
+            std::vector<std::vector<uint64_t>> act_bytes_baseline;
+            std::vector<std::vector<uint64_t>> act_bytes_profiled;
+            std::vector<std::vector<uint64_t>> act_bytes_datawidth;
+            std::vector<std::vector<double>> wgt_avg_width;
+            std::vector<std::vector<double>> wgt_width_reduction;
+            std::vector<std::vector<std::vector<double>>> wgt_width_need;
+            std::vector<std::vector<uint64_t>> wgt_bytes_baseline;
+            std::vector<std::vector<uint64_t>> wgt_bytes_profiled;
+            std::vector<std::vector<uint64_t>> wgt_bytes_datawidth;
 
             template <typename T>
             T get_average(const std::vector<T> &vector_stat) const {

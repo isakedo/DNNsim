@@ -18,8 +18,8 @@
 	<experiment {
 		architecture: <None|BitPragmatic|Stripes|DynamicStripes|Laconic|BitTacticalP|BitTacticalE|SCNN|SCNNp|SCNNe|
 		                BitFusion>
-		task: <Cycles|Potentials|Schedule> //Schedule only for BitTactical
-		task: <Inference|Sparsity> //Tasks for None architecture
+		task: <Cycles|Potentials|Schedule|AvgWidth> //Schedule only for BitTactical, AvgWidth only for DynamicStripes
+		task: <Inference|Sparsity|BitSparsity> //Tasks for None architecture
 
 		[n_columns: <pos_num>] //Default 16
 		[n_rows: <pos_num>] //Default 16 (LAC 8)

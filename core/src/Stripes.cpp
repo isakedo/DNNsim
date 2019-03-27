@@ -54,11 +54,6 @@ namespace core {
 
         auto columns_per_act = (int)ceil(act_layer_prec / (double)BITS_PE);
         auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
-        if(columns_per_act > rows_per_wgt){
-            auto tmp = rows_per_wgt;
-            rows_per_wgt = columns_per_act;
-            columns_per_act = tmp;
-        }
         auto windows_per_tile = N_COLUMNS/columns_per_act;
         auto filters_per_tile = N_ROWS/rows_per_wgt;
 

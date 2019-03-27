@@ -103,6 +103,7 @@ namespace sys {
                     experiment.column_registers = experiment_proto.column_registers();
                     experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 256 :
                             experiment_proto.precision_granularity();
+                    experiment.bits_pe = experiment_proto.bits_pe() < 1 ? 16 : experiment_proto.bits_pe();
                     if(experiment.precision_granularity % 16 != 0 ||
                             (((experiment.n_columns * 16) % experiment.precision_granularity) != 0))
                         throw std::runtime_error("DynamicStripes precision granularity for network " + simulate.network
@@ -208,9 +209,18 @@ namespace sys {
 
                 value = experiment_proto.task();
                 if(experiment_proto.architecture() != "None" && value  != "Cycles" && value != "Potentials" &&
-                        value != "Schedule")
+                        value != "Schedule" && value != "AvgWidth")
                     throw std::runtime_error("Task for network " + simulate.network +
-                                             " in Fixed16 must be <Cycles|Potentials|Schedule>.");
+                                             " in Fixed16 must be <Cycles|Potentials|Schedule|AvgWidth>.");
+
+                if(experiment_proto.architecture() != "BitTacticalE" && experiment_proto.architecture()
+                        != "BitTacticalP" && experiment_proto.task() == "Schedule")
+                    throw std::runtime_error("Task \"Schedule\" for network " + simulate.network +
+                                             " in Fixed16 is only allowed for BitTactialP and BitTacticalE.");
+
+                if(experiment_proto.architecture() != "DynamicStripes" && experiment_proto.task() == "AvgWidth")
+                    throw std::runtime_error("Task \"AvgWidth\" for network " + simulate.network +
+                                             " in Fixed16 is only allowed for DynamicStripes.");
 
                 experiment.architecture = experiment_proto.architecture();
                 experiment.task = experiment_proto.task();
@@ -267,6 +277,7 @@ namespace sys {
             transform.inputDataType = "Float32";
             transform.outputType = "Protobuf";
             transform.outputDataType = "Fixed16";
+            transform.batch = simulate.batch;
             this->transformations.emplace_back(transform);
             simulate.inputType = "Protobuf";
         }

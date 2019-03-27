@@ -249,9 +249,11 @@ int main(int argc, char *argv[]) {
 
                         } else if(experiment.architecture == "DynamicStripes") {
                             core::DynamicStripes<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
-                                    experiment.precision_granularity, experiment.column_registers, N_THREADS,FAST_MODE);
+                                    experiment.precision_granularity, experiment.column_registers, experiment.bits_pe,
+                                    N_THREADS,FAST_MODE);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
+                            else if (experiment.task == "AvgWidth") DNNsim.average_width(network);
 
                         } else if (experiment.architecture == "Laconic") {
                             core::Laconic<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,N_THREADS,FAST_MODE);
