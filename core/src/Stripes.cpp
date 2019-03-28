@@ -59,7 +59,7 @@ namespace core {
 
         int groups = act_channels / wgt_channels;
         auto num_filters_sets = (uint32_t)ceil(num_filters/(double)filters_per_tile/groups);
-        auto baseline_filters_sets = (uint32_t)ceil(num_filters/(double)16./groups);
+        auto baseline_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS/groups);
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
@@ -176,7 +176,7 @@ namespace core {
             }
         }
 
-        auto base_cycles = (uint64_t)(out_x * out_y * ceil(wgt_channels/16.) * Kx * Ky * ceil(num_filters/16.));
+        auto base_cycles = (uint64_t)(out_x * out_y * ceil(wgt_channels/16.) * Kx * Ky * ceil(num_filters/(double)N_ROWS));
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
@@ -218,7 +218,7 @@ namespace core {
         auto filters_per_tile = N_ROWS/rows_per_wgt;
 
         auto num_filters_sets = (uint32_t)ceil(num_filters/(double)filters_per_tile);
-        auto baseline_filters_sets = (uint32_t)ceil(num_filters/16.);
+        auto baseline_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS);
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
