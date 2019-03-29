@@ -816,14 +816,16 @@ namespace core {
         // Stats
         stats.act_avg_width.emplace_back(std::vector<double>(batch_size,0));
         stats.act_width_reduction.emplace_back(std::vector<double>(batch_size,0));
-        stats.act_bytes_baseline.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_bytes_profiled.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_bytes_datawidth.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_bits_baseline.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_bits_profiled.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_bits_datawidth.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_bits_scnn.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.wgt_avg_width.emplace_back(std::vector<double>(batch_size,0));
         stats.wgt_width_reduction.emplace_back(std::vector<double>(batch_size,0));
-        stats.wgt_bytes_baseline.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.wgt_bytes_profiled.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.wgt_bytes_datawidth.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.wgt_bits_baseline.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.wgt_bits_profiled.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.wgt_bits_datawidth.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.wgt_bits_scnn.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         for(int i = 0; i <= sizeof(T)*8; i++) {
             stats.act_width_need[i].emplace_back(std::vector<double>(batch_size, 0));
@@ -862,11 +864,11 @@ namespace core {
 
             // Calculate data from off-chip
             auto num_act = Nx * Ny * act_channels;
-            stats.act_bytes_baseline.back()[n] = num_act * sizeof(T);
-            stats.act_bytes_profiled.back()[n] = (uint64_t)ceil((4 + num_act * act_prec) / 8.);
-            auto act_bits_datawidth = 16 * num_act * act_avg_width / (sizeof(T)*8);
-            auto overhead = 4 * ceil(num_act / (double)PRECISION_GRANULARITY);
-            stats.act_bytes_datawidth.back()[n] = (uint64_t)ceil((overhead + act_bits_datawidth) / 8.);
+            stats.act_bits_baseline.back()[n] = num_act * sizeof(T)*8;
+            stats.act_bits_profiled.back()[n] = 4 + num_act * act_prec;
+            auto act_bits_datawidth = (uint64_t)ceil(16. * num_act * act_avg_width / (sizeof(T)*8.));
+            auto overhead = (uint64_t)(4 * ceil(num_act / (double)PRECISION_GRANULARITY));
+            stats.act_bits_datawidth.back()[n] = overhead + act_bits_datawidth;
 
             stats.act_avg_width.back()[n] = act_avg_width;
             stats.act_width_reduction.back()[n] = (act_prec - act_avg_width) * 100. / act_prec;
@@ -908,11 +910,11 @@ namespace core {
 
             // Calculate data from off-chip
             auto num_wgt = wgt.getMax_index();
-            stats.wgt_bytes_baseline.back()[n] = num_wgt * sizeof(T);
-            stats.wgt_bytes_profiled.back()[n] = (uint64_t) ceil((4 + num_wgt * wgt_prec) / 8.);
-            auto wgt_bits_datawidth = 16 * num_wgt * wgt_avg_width / (sizeof(T)*8);
-            auto overhead = 4 * ceil(num_wgt / (double)PRECISION_GRANULARITY);
-            stats.wgt_bytes_datawidth.back()[n] = (uint64_t) ceil((overhead + wgt_bits_datawidth) / 8.);
+            stats.wgt_bits_baseline.back()[n] = num_wgt * sizeof(T)*8;
+            stats.wgt_bits_profiled.back()[n] = 4 + num_wgt * wgt_prec;
+            auto wgt_bits_datawidth = (uint64_t)ceil(16. * num_wgt * wgt_avg_width / (sizeof(T)*8.));
+            auto overhead = (uint64_t)(4 * ceil(num_wgt / (double)PRECISION_GRANULARITY));
+            stats.wgt_bits_datawidth.back()[n] = overhead + wgt_bits_datawidth;
 
             stats.wgt_avg_width.back()[n] = wgt_avg_width;
             stats.wgt_width_reduction.back()[n] = (wgt_prec - wgt_avg_width) * 100. / wgt_prec;
@@ -921,6 +923,58 @@ namespace core {
                 stats.wgt_width_need[i].back()[n] = wgt_width_need_per[i];
             }
         }
+
+        // SCNN
+        for(int n=0; n < batch_size; n++) {
+
+            int skips = 0;
+            uint64_t act_bits_scnn = 0;
+            for (int k = 0; k < act_channels; k++) {
+                for (int x = 0; x < Nx; x++) {
+                    for (int y = 0; y < Ny; y++) {
+                        auto act_bits = act.get(n, k, x, y);
+                        if(act_bits != 0) {
+                            act_bits_scnn += sizeof(T)*8 + 4;
+                            skips = 0;
+                        } else {
+                            skips++;
+                            if(skips == 16) {
+                                act_bits_scnn += sizeof(T)*8 + 4;
+                                skips = 0;
+                            }
+                        }
+                    }
+                }
+            }
+
+            stats.act_bits_scnn.back()[n] = act_bits_scnn;
+        }
+
+        int skips = 0;
+        uint64_t wgt_bits_scnn = 0;
+        for(int m=0; m < num_filters; m++) {
+
+            for (int k = 0; k < wgt_channels; k++) {
+                for (int x = 0; x < Kx; x++) {
+                    for (int y = 0; y < Ky; y++) {
+                        auto act_bits = wgt.get(m, k, x, y);
+                        if(act_bits != 0) {
+                            wgt_bits_scnn += sizeof(T)*8 + 4;
+                            skips = 0;
+                        } else {
+                            skips++;
+                            if(skips == 16) {
+                                wgt_bits_scnn += sizeof(T)*8 + 4;
+                                skips = 0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for(int n = 0; n < batch_size; n++)
+            stats.wgt_bits_scnn.back()[n] = wgt_bits_scnn;
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);

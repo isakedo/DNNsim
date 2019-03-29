@@ -440,20 +440,20 @@ namespace interface {
     }
 
     void dump_csv_average_width(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,act_avg_width,act_reduction,act_bytes_baseline,act_bytes_profiled,act_bytes_datawidth,"
-                  "act_precision,wgt_avg_width,wgt_reduction,wgt_bytes_baseline,wgt_bytes_profiled,wgt_bytes_datawidth,"
-                  "wgt_precision,time(s)" << std::endl;
+        o_file << "layer,n_act,act_avg_width,act_reduction,act_bits_baseline,act_bits_profiled,act_bits_datawidth,"
+                  "act_bits_scnn,act_precision,wgt_avg_width,wgt_reduction,wgt_bits_baseline,wgt_bits_profiled,"
+                  "wgt_bits_datawidth,wgt_bits_scnn,wgt_precision,time(s)" << std::endl;
 
         #ifdef PER_IMAGE_RESULTS
         for (int j = 0; j < stats.act_avg_width.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%.2f,%.2f,%lu,%lu,%lu,%d,%.2f,%.2f,%lu,%lu,%lu,%d,0\n",
+                snprintf(line, sizeof(line), "%s,%d,%.2f,%.2f,%lu,%lu,%lu,%lu,%d,%.2f,%.2f,%lu,%lu,%lu,%lu,%d,0\n",
                         stats.layers[i].c_str(), j, stats.act_avg_width[i][j], stats.act_width_reduction[i][j],
-                        stats.act_bytes_baseline[i][j], stats.act_bytes_profiled[i][j], stats.act_bytes_datawidth[i][j],
-                        stats.act_prec[i], stats.wgt_avg_width[i][j], stats.wgt_width_reduction[i][j],
-                        stats.wgt_bytes_baseline[i][j], stats.wgt_bytes_profiled[i][j], stats.wgt_bytes_datawidth[i][j],
-                        stats.wgt_prec[i]);
+                        stats.act_bits_baseline[i][j], stats.act_bits_profiled[i][j], stats.act_bits_datawidth[i][j],
+                        stats.act_bits_scnn[i][j], stats.act_prec[i], stats.wgt_avg_width[i][j],
+                        stats.wgt_width_reduction[i][j], stats.wgt_bits_baseline[i][j], stats.wgt_bits_profiled[i][j],
+                        stats.wgt_bits_scnn[i][j], stats.wgt_bits_datawidth[i][j], stats.wgt_prec[i]);
                 o_file << line;
             }
         }
@@ -463,24 +463,26 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%.2f,%.2f,%lu,%lu,%lu,%d,%.2f,%.2f,%lu,%lu,%lu,%d,%.2f\n",
+            snprintf(line, sizeof(line), "%s,AVG,%.2f,%.2f,%lu,%lu,%lu,%lu,%d,%.2f,%.2f,%lu,%lu,%lu,%lu,%d,%.2f\n",
                     stats.layers[i].c_str(), stats.get_average(stats.act_avg_width[i]),
-                    stats.get_average(stats.act_width_reduction[i]), stats.get_average(stats.act_bytes_baseline[i]),
-                    stats.get_average(stats.act_bytes_profiled[i]), stats.get_average(stats.act_bytes_datawidth[i]),
-                    stats.act_prec[i], stats.get_average(stats.wgt_avg_width[i]),
-                    stats.get_average(stats.wgt_width_reduction[i]), stats.get_average(stats.wgt_bytes_baseline[i]),
-                    stats.get_average(stats.wgt_bytes_profiled[i]), stats.get_average(stats.wgt_bytes_datawidth[i]),
+                    stats.get_average(stats.act_width_reduction[i]), stats.get_average(stats.act_bits_baseline[i]),
+                    stats.get_average(stats.act_bits_profiled[i]), stats.get_average(stats.act_bits_datawidth[i]),
+                    stats.get_average(stats.act_bits_scnn[i]), stats.act_prec[i],
+                    stats.get_average(stats.wgt_avg_width[i]), stats.get_average(stats.wgt_width_reduction[i]),
+                    stats.get_average(stats.wgt_bits_baseline[i]), stats.get_average(stats.wgt_bits_profiled[i]),
+                    stats.get_average(stats.wgt_bits_datawidth[i]), stats.get_average(stats.wgt_bits_scnn[i]),
                     stats.wgt_prec[i], stats.time[i].count());
             o_file << line;
         }
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%.2f,%.2f,%lu,%lu,%lu,-,%.2f,%.2f,%lu,%lu,%lu,-,%.2f\n",
+        snprintf(line, sizeof(line), "TOTAL,AVG,%.2f,%.2f,%lu,%lu,%lu,%lu,-,%.2f,%.2f,%lu,%lu,%lu,%lu,-,%.2f\n",
                 stats.get_average(stats.act_avg_width), stats.get_average(stats.act_width_reduction),
-                stats.get_total(stats.act_bytes_baseline), stats.get_total(stats.act_bytes_profiled),
-                stats.get_total(stats.act_bytes_datawidth), stats.get_average(stats.wgt_avg_width),
-                stats.get_average(stats.wgt_width_reduction), stats.get_total(stats.wgt_bytes_baseline),
-                stats.get_total(stats.wgt_bytes_profiled), stats.get_total(stats.wgt_bytes_datawidth), total_time);
+                stats.get_total(stats.act_bits_baseline), stats.get_total(stats.act_bits_profiled),
+                stats.get_total(stats.act_bits_datawidth), stats.get_total(stats.act_bits_scnn),
+                stats.get_average(stats.wgt_avg_width), stats.get_average(stats.wgt_width_reduction),
+                stats.get_total(stats.wgt_bits_baseline), stats.get_total(stats.wgt_bits_profiled),
+                stats.get_total(stats.wgt_bits_datawidth), stats.get_total(stats.wgt_bits_scnn), total_time);
         o_file << line;
 
         o_file << std::endl;
