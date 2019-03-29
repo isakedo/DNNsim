@@ -39,6 +39,7 @@ namespace core {
 
         /* Compute cycles for dynamic stripes column
          * @param batch         Current number of batch
+         * @param recursion     Current recursion for LSTM
          * @param act_x         X position in the input activations
          * @param act_y         Y position in the input activations
          * @param kernel_x      X position in the kernel window
@@ -49,10 +50,12 @@ namespace core {
          * @param padded_act    Set of padded input activations
          * @param act_mask      Position of the activations sign bit
          * @param max_channel   Maximum number of channels
+         * @param lstm          True if it is LSTM layer
          * @return              Number of cycles
          */
-        uint8_t computeDynamicStripesColumn(int batch, int act_x, int act_y, int kernel_x, int kernel_y,
-                int init_channel, int stride, const cnpy::Array<T> &padded_act, int act_mask, int max_channel);
+        uint8_t computeDynamicStripesColumn(int batch, int recursion, int act_x, int act_y, int kernel_x, int kernel_y,
+                int init_channel, int stride, const cnpy::Array<T> &padded_act, int act_mask, int max_channel,
+                bool lstm);
 
         /* Compute cycles for dynamic stripes tile
          * @param batch                 Current number of batch
@@ -141,7 +144,7 @@ namespace core {
          * @param start_group   Starting channel of the group
          * @param max_channel   Maximum number of channels
          * @param act_mask      Position of the activations sign bit
-         * @param lstm          True if it is lstm layer
+         * @param lstm          True if it is LSTM layer
          * @return              Average width per group
          */
         std::vector<double> computeAvgWidthDynamicStripesActTile(int batch, int recursion,

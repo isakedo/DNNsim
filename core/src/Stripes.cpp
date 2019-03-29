@@ -87,7 +87,8 @@ namespace core {
             stats.cycles.back()[n] *= num_filters_sets;
         }
 
-        auto base_cycles = (uint64_t)(out_x * out_y * ceil(act_channels/16.) * Kx * Ky * baseline_filters_sets);
+        auto base_cycles = (uint64_t)(out_x * out_y * ceil(act_channels/(double)WEIGHT_LANES) * Kx * Ky *
+                baseline_filters_sets);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
@@ -176,7 +177,8 @@ namespace core {
             }
         }
 
-        auto base_cycles = (uint64_t)(out_x * out_y * ceil(wgt_channels/16.) * Kx * Ky * ceil(num_filters/(double)N_ROWS));
+        auto base_cycles = (uint64_t)(out_x * out_y * ceil(wgt_channels/(double)WEIGHT_LANES) * Kx * Ky *
+                ceil(num_filters/(double)N_ROWS));
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
@@ -193,14 +195,24 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        if(act.getDimensions() == 4) act.reshape_to_2D();
-        act.reshape_to_4D();
+
+        if(layer.getType() == "InnerProduct") {
+            if (act.getDimensions() == 4) act.reshape_to_2D();
+            act.reshape_to_4D();
+        }
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = layer.getWeights().getShape();
 
         int batch_size = 1;
-        int act_channels = act_shape[1];
+        int act_channels, R;
+        if(layer.getType() == "LSTM") {
+            R = act_shape[0];
+            act_channels = act_shape[2];
+        } else {
+            R = 1;
+            act_channels = act_shape[1];
+        }
         int num_filters = wgt_shape[0];
 
         // Get layer precision
@@ -232,8 +244,10 @@ namespace core {
         // All FC in one column
         for (int n = 0; n<batch_size; n++) {
             auto precision_cycles = (columns_per_act == 1 && rows_per_wgt == 1) ? act_layer_prec : BITS_PE;
-            for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
-                stats.cycles.back()[n] += precision_cycles;
+            for (int r = 0; r < R; r++) {
+                for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
+                    stats.cycles.back()[n] += precision_cycles;
+                }
             }
             stats.cycles.back()[n] *= num_filters_sets;
         }
@@ -246,14 +260,16 @@ namespace core {
             std::vector<int> column_end = std::vector<int>(windows_per_tile, 0);
             auto precision_cycles = (columns_per_act == 1 && rows_per_wgt == 1) ? act_layer_prec : BITS_PE;
 
-            for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
-                if(stats.cycles.back()[n] < column_end[column_index])
-                    stats.cycles.back()[n] = column_end[column_index];
-                auto column_cycles = precision_cycles;
-                column_end[column_index] = stats.cycles.back()[n] + column_cycles;
-                stats.cycles.back()[n]++;
-                column_index++;
-                if(column_index >= windows_per_tile) column_index = 0;
+            for (int r = 0; r < R; r++) {
+                for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
+                    if (stats.cycles.back()[n] < column_end[column_index])
+                        stats.cycles.back()[n] = column_end[column_index];
+                    auto column_cycles = precision_cycles;
+                    column_end[column_index] = stats.cycles.back()[n] + column_cycles;
+                    stats.cycles.back()[n]++;
+                    column_index++;
+                    if (column_index >= windows_per_tile) column_index = 0;
+                }
             }
             uint64_t last_column_end = *std::max_element(column_end.begin(), column_end.end());
             uint64_t last_column_rem_cycles = last_column_end - stats.cycles.back()[n];
@@ -261,10 +277,9 @@ namespace core {
             stats.cycles.back()[n] += last_column_rem_cycles;
         }
 
-
         #endif
 
-        auto base_cycles = (uint64_t)(ceil(act_channels/16.) * baseline_filters_sets);
+        auto base_cycles = (uint64_t)(ceil(act_channels/(double)WEIGHT_LANES) * baseline_filters_sets * R);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
@@ -294,7 +309,7 @@ namespace core {
                     computeConvolution2D(layer, stats);
                 else
                     computeConvolution(layer, stats);
-            } else if(layer.getType() == "InnerProduct") {
+            } else if(layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(layer.getWgt_precision());
