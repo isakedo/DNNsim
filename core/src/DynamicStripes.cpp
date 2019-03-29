@@ -930,8 +930,8 @@ namespace core {
             int skips = 0;
             uint64_t act_bits_scnn = 0;
             for (int k = 0; k < act_channels; k++) {
-                for (int x = 0; x < Nx; x++) {
-                    for (int y = 0; y < Ny; y++) {
+                for (int y = 0; y < Ny; y++) {
+                    for (int x = 0; x < Nx; x++) {
                         auto act_bits = act.get(n, k, x, y);
                         if(act_bits != 0) {
                             act_bits_scnn += sizeof(T)*8 + 4;
@@ -955,8 +955,8 @@ namespace core {
         for(int m=0; m < num_filters; m++) {
 
             for (int k = 0; k < wgt_channels; k++) {
-                for (int x = 0; x < Kx; x++) {
-                    for (int y = 0; y < Ky; y++) {
+                for (int y = 0; y < Ky; y++) {
+                    for (int x = 0; x < Kx; x++) {
                         auto act_bits = wgt.get(m, k, x, y);
                         if(act_bits != 0) {
                             wgt_bits_scnn += sizeof(T)*8 + 4;
