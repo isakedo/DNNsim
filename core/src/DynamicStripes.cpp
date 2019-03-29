@@ -7,7 +7,7 @@ namespace core {
 
     template <typename T>
     uint16_t DynamicStripes<T>::computeDynamicStripesBitsPE(uint8_t layer_prec) {
-        return layer_prec * (uint8_t)16;
+        return layer_prec * (uint8_t)NETWORK_BITS;
     }
 
     template <typename T>
@@ -648,9 +648,9 @@ namespace core {
 
 
     template <typename T>
-    std::vector<double> DynamicStripes<T>::computeAvgWidthDynamicStripesActTile(int batch,
+    std::vector<double> DynamicStripes<T>::computeAvgWidthDynamicStripesActTile(int batch, int recursion,
             const std::vector<int> &list_act_x, const std::vector<int> &list_act_y, int kernel_x, int kernel_y,
-            int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, int act_mask) {
+            int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, int act_mask, bool lstm) {
 
         int N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
         int WINDOWS_PER_GROUP = N_COLUMNS / N_GROUPS;
@@ -672,7 +672,12 @@ namespace core {
 
             for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_channel); channel++) {
 
-                auto act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
+                T act_bits;
+                if(lstm)
+                    act_bits = padded_act.get(recursion, batch, channel);
+                else
+                    act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
+
 
                 bool neg = false;
                 if((act_bits & act_mask) != 0) {
@@ -780,7 +785,8 @@ namespace core {
             act.reshape_to_4D();
         }
 
-        act.zero_pad(padding);
+        if(layer.getType() == "Convolution")
+            act.zero_pad(padding);
 
         if(act.getShape()[1] == 3 && stride > 1) {
             act.reshape_first_layer_act((uint16_t)stride);
@@ -791,10 +797,20 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size = act_shape[0];
-        int act_channels = act_shape[1];
-        int Nx = act_shape[2];
-        int Ny = act_shape[3];
+        int batch_size, act_channels, Nx, Ny, R;
+        if(layer.getType() == "LSTM") {
+            R = act_shape[0];
+            batch_size = act_shape[1];
+            act_channels = act_shape[2];
+            Nx = 1;
+            Ny = 1;
+        } else {
+            R = 1;
+            batch_size = act_shape[0];
+            act_channels = act_shape[1];
+            Nx = act_shape[2];
+            Ny = act_shape[3];
+        }
         if(this->FAST_MODE) batch_size = 1;
 
         int num_filters = wgt_shape[0];
@@ -827,10 +843,12 @@ namespace core {
         stats.wgt_bits_datawidth.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.wgt_bits_scnn.emplace_back(std::vector<uint64_t>(batch_size,0));
 
-        for(int i = 0; i <= sizeof(T)*8; i++) {
+        for(int i = 0; i <= 16; i++) {
             stats.act_width_need[i].emplace_back(std::vector<double>(batch_size, 0));
             stats.wgt_width_need[i].emplace_back(std::vector<double>(batch_size, 0));
         }
+
+        bool lstm = layer.getType() == "LSTM";
 
         // Activations
         for(int n=0; n<batch_size; n++) {
@@ -839,13 +857,15 @@ namespace core {
             int x_counter = 0, y_counter = 0;
             std::vector<double> act_width;
 
-            while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
-                for (int i = 0; i < Kx; i++) {
-                    for (int j = 0; j < Ky; j++) {
-                        for (int k = 0; k < act_channels; k+=WEIGHT_LANES) {
-                            auto tile_act_width = computeAvgWidthDynamicStripesActTile(n,list_x,list_y,i,j,k,stride,
-                                act,act_channels,act_mask);
-                            act_width.insert(act_width.end(),tile_act_width.begin(),tile_act_width.end());
+            for(int r = 0; r < R; r++) {
+                while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, N_COLUMNS)) {
+                    for (int i = 0; i < Kx; i++) {
+                        for (int j = 0; j < Ky; j++) {
+                            for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
+                                auto tile_act_width = computeAvgWidthDynamicStripesActTile(n, r, list_x, list_y, i, j,
+                                        k, stride, act, act_channels, act_mask, lstm);
+                                act_width.insert(act_width.end(), tile_act_width.begin(), tile_act_width.end());
+                            }
                         }
                     }
                 }
@@ -854,26 +874,26 @@ namespace core {
             double act_avg_width = stats.get_average(act_width);
 
             // Calculate bits needed
-            std::vector<uint64_t> act_width_need (sizeof(T)*8 + 1, 0);
-            std::vector<double> act_width_need_per (sizeof(T)*8 + 1 ,0);
+            std::vector<uint64_t> act_width_need (NETWORK_BITS + 1, 0);
+            std::vector<double> act_width_need_per (NETWORK_BITS + 1 ,0);
             for(auto act_group : act_width)
-                for(int a = (int)act_group; a <= sizeof(T)*8; a++)
+                for(int a = (int)act_group; a <= NETWORK_BITS; a++)
                     act_width_need[a]++;
             for(int a = 0; a < act_width_need.size(); a++)
                 act_width_need_per[a] = act_width_need[a] / (double)act_width.size() * 100.;
 
             // Calculate data from off-chip
-            auto num_act = Nx * Ny * act_channels;
-            stats.act_bits_baseline.back()[n] = num_act * sizeof(T)*8;
+            auto num_act = R * Nx * Ny * act_channels;
+            stats.act_bits_baseline.back()[n] = num_act * NETWORK_BITS;
             stats.act_bits_profiled.back()[n] = 4 + num_act * act_prec;
-            auto act_bits_datawidth = (uint64_t)ceil(16. * num_act * act_avg_width / (sizeof(T)*8.));
+            auto act_bits_datawidth = (uint64_t)ceil(NETWORK_BITS * num_act * act_avg_width / (double)NETWORK_BITS);
             auto overhead = (uint64_t)(4 * ceil(num_act / (double)PRECISION_GRANULARITY));
             stats.act_bits_datawidth.back()[n] = overhead + act_bits_datawidth;
 
             stats.act_avg_width.back()[n] = act_avg_width;
             stats.act_width_reduction.back()[n] = (act_prec - act_avg_width) * 100. / act_prec;
 
-            for(int i = 0; i <= sizeof(T)*8; i++)
+            for(int i = 0; i <= NETWORK_BITS; i++)
                 stats.act_width_need[i].back()[n] = act_width_need_per[i];
 
         }
@@ -898,10 +918,10 @@ namespace core {
         double wgt_avg_width = stats.get_average(wgt_width);
 
         // Calculate bits needed
-        std::vector<uint64_t> wgt_width_need (sizeof(T)*8 + 1, 0);
-        std::vector<double> wgt_width_need_per (sizeof(T)*8 + 1, 0);
+        std::vector<uint64_t> wgt_width_need (NETWORK_BITS + 1, 0);
+        std::vector<double> wgt_width_need_per (NETWORK_BITS + 1, 0);
         for(auto wgt_group : wgt_width)
-            for(int w = (int)wgt_group; w <= sizeof(T)*8; w++)
+            for(int w = (int)wgt_group; w <= NETWORK_BITS; w++)
                 wgt_width_need[w]++;
         for(int w = 0; w < wgt_width_need.size(); w++)
             wgt_width_need_per[w] = wgt_width_need[w] / (double)wgt_width.size() * 100.;
@@ -910,16 +930,16 @@ namespace core {
 
             // Calculate data from off-chip
             auto num_wgt = wgt.getMax_index();
-            stats.wgt_bits_baseline.back()[n] = num_wgt * sizeof(T)*8;
+            stats.wgt_bits_baseline.back()[n] = num_wgt * NETWORK_BITS;
             stats.wgt_bits_profiled.back()[n] = 4 + num_wgt * wgt_prec;
-            auto wgt_bits_datawidth = (uint64_t)ceil(16. * num_wgt * wgt_avg_width / (sizeof(T)*8.));
+            auto wgt_bits_datawidth = (uint64_t)ceil(NETWORK_BITS * num_wgt * wgt_avg_width / (double)NETWORK_BITS);
             auto overhead = (uint64_t)(4 * ceil(num_wgt / (double)PRECISION_GRANULARITY));
             stats.wgt_bits_datawidth.back()[n] = overhead + wgt_bits_datawidth;
 
             stats.wgt_avg_width.back()[n] = wgt_avg_width;
             stats.wgt_width_reduction.back()[n] = (wgt_prec - wgt_avg_width) * 100. / wgt_prec;
 
-            for (int i = 0; i <= sizeof(T) * 8; i++) {
+            for (int i = 0; i <= NETWORK_BITS; i++) {
                 stats.wgt_width_need[i].back()[n] = wgt_width_need_per[i];
             }
         }
@@ -929,18 +949,22 @@ namespace core {
 
             int skips = 0;
             uint64_t act_bits_scnn = 0;
-            for (int k = 0; k < act_channels; k++) {
-                for (int y = 0; y < Ny; y++) {
-                    for (int x = 0; x < Nx; x++) {
-                        auto act_bits = act.get(n, k, x, y);
-                        if(act_bits != 0) {
-                            act_bits_scnn += sizeof(T)*8 + 4;
-                            skips = 0;
-                        } else {
-                            skips++;
-                            if(skips == 16) {
-                                act_bits_scnn += sizeof(T)*8 + 4;
+            for(int r = 0; r < R; r++) {
+                for (int k = 0; k < act_channels; k++) {
+                    for (int y = 0; y < Ny; y++) {
+                        for (int x = 0; x < Nx; x++) {
+                            T act_bits;
+                            if(lstm) act_bits = act.get(r, n, k);
+                            else act_bits = act.get(n, k, x, y);
+                            if (act_bits != 0) {
+                                act_bits_scnn += NETWORK_BITS + 4;
                                 skips = 0;
+                            } else {
+                                skips++;
+                                if (skips == 16) {
+                                    act_bits_scnn += NETWORK_BITS + 4;
+                                    skips = 0;
+                                }
                             }
                         }
                     }
@@ -959,12 +983,12 @@ namespace core {
                     for (int x = 0; x < Kx; x++) {
                         auto act_bits = wgt.get(m, k, x, y);
                         if(act_bits != 0) {
-                            wgt_bits_scnn += sizeof(T)*8 + 4;
+                            wgt_bits_scnn += NETWORK_BITS + 4;
                             skips = 0;
                         } else {
                             skips++;
                             if(skips == 16) {
-                                wgt_bits_scnn += sizeof(T)*8 + 4;
+                                wgt_bits_scnn += NETWORK_BITS + 4;
                                 skips = 0;
                             }
                         }
@@ -994,11 +1018,11 @@ namespace core {
         stats.arch = "DynamicStripes_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG" +
                 std::to_string(PRECISION_GRANULARITY);
 
-        stats.act_width_need = std::vector<std::vector<std::vector<double>>>(sizeof(T)*8 + 1);
-        stats.wgt_width_need = std::vector<std::vector<std::vector<double>>>(sizeof(T)*8 + 1);
+        stats.act_width_need = std::vector<std::vector<std::vector<double>>>(16 + 1);
+        stats.wgt_width_need = std::vector<std::vector<std::vector<double>>>(16 + 1);
 
         for(const Layer<T> &layer : network.getLayers()) {
-            if(layer.getType() == "Convolution" || layer.getType() == "InnerProduct") {
+            if(layer.getType() == "Convolution" || layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(layer.getWgt_precision());

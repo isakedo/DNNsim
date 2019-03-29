@@ -29,14 +29,23 @@ namespace core {
             act.reshape_to_4D();
         }
 
-        act.zero_pad(padding);
+        if(layer.getType() == "Convolution")
+            act.zero_pad(padding);
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = 1;
-        int Nx = act_shape[2];
-        int Ny = act_shape[3];
+        int Nx, Ny, R;
+        if(layer.getType() == "LSTM") {
+            R = act_shape[0];
+            Nx = 1;
+            Ny = 1;
+        } else {
+            R = 1;
+            Nx = act_shape[2];
+            Ny = act_shape[3];
+        }
 
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
@@ -66,7 +75,7 @@ namespace core {
 
         auto filter_sets = (int)ceil(num_filters / (double)M);
         auto activation_sets = (int)ceil(wgt_channels / (double)(N * perf_factor));
-        auto compute_cycles = filter_sets * out_x * out_y * Kx * Ky * activation_sets;
+        auto compute_cycles = filter_sets * out_x * out_y * Kx * Ky * activation_sets * R;
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
@@ -96,7 +105,7 @@ namespace core {
                 "_PMIN" + std::to_string(PMIN);
 
         for(const Layer<T> &layer : network.getLayers()) {
-            if(layer.getType() == "Convolution" || layer.getType() == "InnerProduct") {
+            if(layer.getType() == "Convolution" || layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(layer.getWgt_precision());

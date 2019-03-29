@@ -14,6 +14,7 @@
 	network: <Network name>
 	inputType: <Caffe|Trace|CParams|Protobuf|Gzip>
 	inputDataType: <Float32|Fixed16>
+	network_bits: <pos_num> // Default 16b networks
 	[activate_bias_and_out_act: true]
 	<experiment {
 		architecture: <None|BitPragmatic|Stripes|DynamicStripes|Laconic|BitTacticalP|BitTacticalE|SCNN|SCNNp|SCNNe|

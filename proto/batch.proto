@@ -61,8 +61,9 @@ message Batch {
         string inputType = 2;
         string inputDataType = 3;
         string network = 4;
-        bool activate_bias_and_out_act = 5;
-        repeated Experiment experiment = 6;
+        uint32 network_bits = 5;
+        bool activate_bias_and_out_act = 6;
+        repeated Experiment experiment = 7;
     }
 
     repeated Transform transform = 1;

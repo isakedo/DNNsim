@@ -57,6 +57,7 @@ namespace sys {
             std::string inputType = ""; // Protobuf/Gzip
             std::string inputDataType = ""; // Float32/Fixed16
             std::string network = "";
+            int network_bits = 0;
             bool activate_bias_out_act = false;
             std::vector<Experiment> experiments;
         };

@@ -60,6 +60,7 @@ namespace sys {
         simulate.network = simulate_proto.network();
         simulate.activate_bias_out_act = simulate_proto.activate_bias_and_out_act();
         simulate.batch = simulate_proto.batch();
+        simulate.network_bits = simulate_proto.network_bits() < 1 ? 16 : simulate_proto.network_bits();
 
         value = simulate_proto.inputtype();
         if(value  != "Caffe" && value != "Trace" && value != "CParams" && value != "Protobuf" && value != "Gzip")
