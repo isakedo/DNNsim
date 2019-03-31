@@ -161,8 +161,18 @@ namespace cnpy {
          */
         T get(unsigned long long index) const;
 
+        /* Return the maximum number
+         * @return  Maximum number
+         */
+        T max() const;
+
+        /* Return the minimum number
+         * @return  Minimum number
+         */
+        T min() const;
+
         /* Return the number of dimensions of the array
-         * @return      return the number of dimensions of the array
+         * @return  Number of dimensions of the array
          */
         unsigned long getDimensions() const;
 

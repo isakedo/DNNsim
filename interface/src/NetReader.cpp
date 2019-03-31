@@ -260,7 +260,8 @@ namespace interface {
         {
             // Read the existing network.
             check_path("net_traces/" + this->name);
-            std::string path = "net_traces/" + this->name + '/' + inputName() + ".proto";
+            std::string name = TENSORFLOW_8b ? inputName() + "-TF" : inputName();
+            std::string path = "net_traces/" + this->name + '/' + name + ".proto";
             check_path(path);
             std::fstream input(path,std::ios::in | std::ios::binary);
             if (!network_proto.ParseFromIstream(&input)) {
@@ -286,7 +287,8 @@ namespace interface {
 
         // Read the existing network.
         check_path("net_traces/" + this->name);
-        std::string path = "net_traces/" + this->name + '/' + inputName() + ".gz";
+        std::string name = TENSORFLOW_8b ? inputName() + "-TF" : inputName();
+        std::string path = "net_traces/" + this->name + '/' + name + ".gz";
         check_path(path);
         std::fstream input(path, std::ios::in | std::ios::binary);
 
@@ -296,8 +298,6 @@ namespace interface {
         if (!network_proto.ParseFromZeroCopyStream(&gzipInputStream)) {
             throw std::runtime_error("Failed to read Gzip protobuf");
         }
-
-        std::string name = network_proto.name();
 
         for(const protobuf::Network_Layer &layer_proto : network_proto.layers())
             layers.emplace_back(read_layer_proto(layer_proto));
@@ -392,6 +392,21 @@ namespace interface {
 
     template <typename T>
     void NetReader<T>::read_precision(core::Network<T> &network) {
+
+        if(TENSORFLOW_8b) {
+            int i = 0;
+            for(core::Layer<T> &layer : network.updateLayers()) {
+                if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
+                    layer.setAct_precision(8,7,0);
+                    layer.setWgt_precision(8,7,0);
+                    i++;
+                } else {
+                    layer.setAct_precision(-1,-1,-1);
+                    layer.setWgt_precision(-1,-1,-1);
+                }
+            }
+            return;
+        }
 
         std::string line;
         std::stringstream ss_line;

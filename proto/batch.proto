@@ -13,6 +13,7 @@ message Batch {
         string outputDataType = 5;
         string network = 6;
         bool activate_bias_and_out_act = 7;
+        bool tensorflow_8b = 8;
     }
 
     message Simulate {
@@ -63,7 +64,8 @@ message Batch {
         string network = 4;
         uint32 network_bits = 5;
         bool activate_bias_and_out_act = 6;
-        repeated Experiment experiment = 7;
+        bool tensorflow_8b = 7;
+        repeated Experiment experiment = 8;
     }
 
     repeated Transform transform = 1;

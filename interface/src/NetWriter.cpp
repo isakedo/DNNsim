@@ -22,7 +22,7 @@ namespace interface {
 
     /* Return value in two complement */
     static inline
-    uint16_t limitPrec(float num, int mag, int frac) {
+    uint16_t profiled_precision(float num, int mag, int frac) {
         double scale = pow(2.,(double)frac);
         double intmax = (1 << (mag + frac)) - 1;
         double intmin = -1 * intmax;
@@ -31,6 +31,17 @@ namespace interface {
         if (ds < intmin) ds = intmin;
         auto two_comp = (int)round(ds);
         return (uint16_t)two_comp;
+    }
+
+    static inline
+    uint16_t tensorflow_8b_precision(float num, double scale, int mask) {
+        if (num < 0) {
+            auto sign_mag = (int)round(-num * scale) | mask;
+            return (uint16_t)sign_mag;
+        } else {
+            auto sign_mag = (int)round(num * scale);
+            return (uint16_t)sign_mag;
+        }
     }
 
     template <typename T>
@@ -82,20 +93,67 @@ namespace interface {
                         layer_proto->add_out_act_data_flt(layer.getOutput_activations().get(i));
                 }
 
-            } else if (type == "f4" && this->data_conversion == "Fixed16") {
+            } else if (TENSORFLOW_8b && type == "f4" && this->data_conversion == "Fixed16") {
+
+                const int NUM_BITS = 8;
+                const int MIN_FIXED = 0;
+                const int MAX_FIXED = (1 << NUM_BITS) - 1;
+                const int SIGN_MASK = 1 << (NUM_BITS - 1);
+
+                auto max_wgt = layer.getWeights().max();
+                auto min_wgt = layer.getWeights().min();
+                auto abs_max_wgt = std::max(abs(min_wgt), abs(max_wgt));
+                auto scale_wgt = (MAX_FIXED - MIN_FIXED - 1) / (2 * abs_max_wgt);
+
                 for (unsigned long long i = 0; i < layer.getWeights().getMax_index(); i++)
-                    layer_proto->add_wgt_data_fxd(limitPrec(layer.getWeights().get(i),
-                         layer.getWgt_magnitude(),layer.getWgt_fraction()));
+                    layer_proto->add_wgt_data_fxd(tensorflow_8b_precision(layer.getWeights().get(i),scale_wgt,
+                            SIGN_MASK));
+
+                auto max_input_act = layer.getActivations().max();
+                auto min_input_act = layer.getActivations().min();
+                auto abs_max_input_act = std::max(abs(min_input_act), abs(max_input_act));
+                auto scale_input_act = (MAX_FIXED - MIN_FIXED - 1) / (2 * abs_max_input_act);
 
                 for (unsigned long long i = 0; i < layer.getActivations().getMax_index(); i++)
-                    layer_proto->add_act_data_fxd(limitPrec(layer.getActivations().get(i),
-                        layer.getAct_magnitude(),layer.getAct_fraction()));
+                    layer_proto->add_act_data_fxd(tensorflow_8b_precision(layer.getActivations().get(i),scale_input_act,
+                            SIGN_MASK));
+
+                if (this->activate_bias_and_out_act) {
+
+                    auto max_bias = layer.getBias().max();
+                    auto min_bias = layer.getBias().min();
+                    auto abs_max_bias = std::max(abs(min_bias), abs(max_bias));
+                    auto scale_bias = (MAX_FIXED - MIN_FIXED - 1) / (2 * abs_max_bias);
+
+                    for (unsigned long long i = 0; i < layer.getBias().getMax_index(); i++)
+                        layer_proto->add_bias_data_fxd(tensorflow_8b_precision(layer.getBias().get(i),scale_bias,
+                                SIGN_MASK));
+
+                    auto max_output_act = layer.getOutput_activations().max();
+                    auto min_output_act = layer.getOutput_activations().min();
+                    auto abs_max_output_act = std::max(abs(min_output_act), abs(max_output_act));
+                    auto scale_output_act = (MAX_FIXED - MIN_FIXED - 1) / (2 * abs_max_output_act);
+
+                    for (unsigned long long i = 0; i < layer.getOutput_activations().getMax_index(); i++)
+                        layer_proto->add_out_act_data_fxd(tensorflow_8b_precision(layer.getOutput_activations().get(i),
+                                scale_output_act,NUM_BITS));
+                }
+
+            } else if (type == "f4" && this->data_conversion == "Fixed16") {
+                for (unsigned long long i = 0; i < layer.getWeights().getMax_index(); i++)
+                    layer_proto->add_wgt_data_fxd(profiled_precision(layer.getWeights().get(i),
+                             layer.getWgt_magnitude(),layer.getWgt_fraction()));
+
+                for (unsigned long long i = 0; i < layer.getActivations().getMax_index(); i++)
+                    layer_proto->add_act_data_fxd(profiled_precision(layer.getActivations().get(i),
+                            layer.getAct_magnitude(),layer.getAct_fraction()));
 
                 if (this->activate_bias_and_out_act) {
                     for (unsigned long long i = 0; i < layer.getBias().getMax_index(); i++)
-                        layer_proto->add_bias_data_fxd(limitPrec(layer.getBias().get(i),1 + 0,15));
+                        layer_proto->add_bias_data_fxd(profiled_precision(layer.getBias().get(i),1 + 0,15));
                     for (unsigned long long i = 0; i < layer.getOutput_activations().getMax_index(); i++)
-                        layer_proto->add_out_act_data_fxd(limitPrec(layer.getOutput_activations().get(i),1 + 13,2));
+                        layer_proto->add_out_act_data_fxd(profiled_precision(layer.getOutput_activations().get(i),
+                                1 + 13,2));
                 }
 
             } else if (type == "t2") {
@@ -123,7 +181,8 @@ namespace interface {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
         check_path("net_traces/" + this->name);
-        std::string path = "net_traces/" + this->name + '/' + outputName() + ".proto";
+        std::string name = TENSORFLOW_8b ? outputName() + "-TF" : outputName();
+        std::string path = "net_traces/" + this->name + '/' + name + ".proto";
 
         if(!OVERWRITE) {
             try {
@@ -158,7 +217,8 @@ namespace interface {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
         check_path("net_traces/" + this->name);
-        std::string path = "net_traces/" + this->name + '/' + outputName() + ".gz";
+        std::string name = TENSORFLOW_8b ? outputName() + "-TF" : outputName();
+        std::string path = "net_traces/" + this->name + '/' + name + ".gz";
 
         if(!OVERWRITE) {
             try {

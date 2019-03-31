@@ -32,6 +32,9 @@ namespace interface {
         /* Force the writer to overwrite the output files */
         bool OVERWRITE;
 
+        /* Tensorflow 8 bit quantization */
+        bool TENSORFLOW_8b;
+
         /* Check if the path exists
          * @param path  Path we want to check
          */
@@ -62,9 +65,11 @@ namespace interface {
          * @param _data_conversion              Specification of the data transformation when writing the network
          * @param _activate_bias_and_out_act    Also write bias and output activations
          * @param _OVERWRITE                    Force the writer to overwrite the output files
+         * @param _TENSORFLOW_8b                Activate Tensorflow 8b quantization
          */
         NetWriter(const std::string &_name, const std::string &_data_conversion, bool _activate_bias_and_out_act,
-                bool _OVERWRITE) : activate_bias_and_out_act(_activate_bias_and_out_act), OVERWRITE(_OVERWRITE) {
+                bool _OVERWRITE, bool _TENSORFLOW_8b) : activate_bias_and_out_act(_activate_bias_and_out_act),
+                OVERWRITE(_OVERWRITE), TENSORFLOW_8b(_TENSORFLOW_8b) {
             this->name = _name;
             this->data_conversion = _data_conversion;
         }

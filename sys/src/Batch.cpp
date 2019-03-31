@@ -18,6 +18,7 @@ namespace sys {
         transform.network = transform_proto.network();
         transform.activate_bias_out_act = transform_proto.activate_bias_and_out_act();
         transform.batch = transform_proto.batch();
+        transform.tensorflow_8b = transform_proto.tensorflow_8b();
 
         value = transform_proto.inputtype();
         if(value  != "Caffe" && value != "Trace" && value != "CParams" && value != "Protobuf" && value != "Gzip")
@@ -60,6 +61,7 @@ namespace sys {
         simulate.network = simulate_proto.network();
         simulate.activate_bias_out_act = simulate_proto.activate_bias_and_out_act();
         simulate.batch = simulate_proto.batch();
+        simulate.tensorflow_8b = simulate_proto.tensorflow_8b();
         simulate.network_bits = simulate_proto.network_bits() < 1 ? 16 : simulate_proto.network_bits();
 
         value = simulate_proto.inputtype();
@@ -279,6 +281,7 @@ namespace sys {
             transform.outputType = "Protobuf";
             transform.outputDataType = "Fixed16";
             transform.batch = simulate.batch;
+            transform.tensorflow_8b = simulate.tensorflow_8b;
             this->transformations.emplace_back(transform);
             simulate.inputType = "Protobuf";
         }
