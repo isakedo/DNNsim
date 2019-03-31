@@ -34,14 +34,9 @@ namespace interface {
     }
 
     static inline
-    uint16_t tensorflow_8b_precision(float num, double scale, int mask) {
-        if (num < 0) {
-            auto sign_mag = (int)round(-num * scale) | mask;
-            return (uint16_t)sign_mag;
-        } else {
-            auto sign_mag = (int)round(num * scale);
-            return (uint16_t)sign_mag;
-        }
+    uint16_t tensorflow_8b_precision(float num, double scale, float min_value) {
+        auto sign_mag = (int)(round(num * scale) - round(min_value * scale));
+        return (uint16_t)sign_mag;
     }
 
     template <typename T>
@@ -96,47 +91,46 @@ namespace interface {
             } else if (TENSORFLOW_8b && type == "f4" && this->data_conversion == "Fixed16") {
 
                 const int NUM_BITS = 8;
-                const int MIN_FIXED = 0;
-                const int MAX_FIXED = (1 << NUM_BITS) - 1;
-                const int SIGN_MASK = 1 << (NUM_BITS - 1);
+                const int num_discrete_values = 1 << NUM_BITS;
+                const  auto range_adjust = num_discrete_values / (num_discrete_values - 1.0);
 
                 auto max_wgt = layer.getWeights().max();
                 auto min_wgt = layer.getWeights().min();
-                auto abs_max_wgt = std::max(abs(min_wgt), abs(max_wgt));
-                auto scale_wgt = (MAX_FIXED - MIN_FIXED - 1) / (2 * abs_max_wgt);
+                auto range_wgt = (max_wgt - min_wgt) * range_adjust;
+                auto scale_wgt = num_discrete_values / range_wgt;
 
                 for (unsigned long long i = 0; i < layer.getWeights().getMax_index(); i++)
                     layer_proto->add_wgt_data_fxd(tensorflow_8b_precision(layer.getWeights().get(i),scale_wgt,
-                            SIGN_MASK));
+                            min_wgt));
 
                 auto max_input_act = layer.getActivations().max();
                 auto min_input_act = layer.getActivations().min();
-                auto abs_max_input_act = std::max(abs(min_input_act), abs(max_input_act));
-                auto scale_input_act = (MAX_FIXED - MIN_FIXED - 1) / (2 * abs_max_input_act);
+                auto range_input_act = (max_input_act - min_input_act) * range_adjust;
+                auto scale_input_act = num_discrete_values / range_input_act;
 
                 for (unsigned long long i = 0; i < layer.getActivations().getMax_index(); i++)
                     layer_proto->add_act_data_fxd(tensorflow_8b_precision(layer.getActivations().get(i),scale_input_act,
-                            SIGN_MASK));
+                            min_input_act));
 
                 if (this->activate_bias_and_out_act) {
 
                     auto max_bias = layer.getBias().max();
                     auto min_bias = layer.getBias().min();
-                    auto abs_max_bias = std::max(abs(min_bias), abs(max_bias));
-                    auto scale_bias = (MAX_FIXED - MIN_FIXED - 1) / (2 * abs_max_bias);
+                    auto range_bias = (max_bias - min_bias) * range_adjust;
+                    auto scale_bias = num_discrete_values / range_bias;
 
                     for (unsigned long long i = 0; i < layer.getBias().getMax_index(); i++)
                         layer_proto->add_bias_data_fxd(tensorflow_8b_precision(layer.getBias().get(i),scale_bias,
-                                SIGN_MASK));
+                                min_bias));
 
                     auto max_output_act = layer.getOutput_activations().max();
                     auto min_output_act = layer.getOutput_activations().min();
-                    auto abs_max_output_act = std::max(abs(min_output_act), abs(max_output_act));
-                    auto scale_output_act = (MAX_FIXED - MIN_FIXED - 1) / (2 * abs_max_output_act);
+                    auto range_output_act = (max_output_act - min_output_act) * range_adjust;
+                    auto scale_output_act = num_discrete_values / range_output_act;
 
                     for (unsigned long long i = 0; i < layer.getOutput_activations().getMax_index(); i++)
                         layer_proto->add_out_act_data_fxd(tensorflow_8b_precision(layer.getOutput_activations().get(i),
-                                scale_output_act,NUM_BITS));
+                                scale_output_act,min_output_act));
                 }
 
             } else if (type == "f4" && this->data_conversion == "Fixed16") {
