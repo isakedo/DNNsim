@@ -593,7 +593,9 @@ namespace interface {
         for(const sys::Statistics::Stats &stats : sys::Statistics::getAll_stats()) {
             std::ofstream o_file;
             check_path("results/" + stats.net_name);
-            o_file.open ("results/" + stats.net_name + "/" + stats.arch + "_" + stats.task_name + ".csv");
+            std::string path = "results/" + stats.net_name + "/" + stats.arch + "_" + stats.task_name;
+            path = stats.tensorflow_8b ? path + "-TF.csv" : path + ".csv";
+            o_file.open (path);
             o_file << stats.net_name << std::endl;
             o_file << stats.arch << std::endl;
 

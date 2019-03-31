@@ -21,6 +21,9 @@ namespace sys {
             /* Simulator architecture */
             std::string arch;
 
+            /* Tensforflow flag */
+            bool tensorflow_8b;
+
             /* Layer vector */
             std::vector<std::string> layers;
 
@@ -144,6 +147,11 @@ namespace sys {
          * @param _stats    Stats struct that is going to be added
          */
         static void addStats(const Stats &_stats);
+
+        /* Update flags for the last stats
+         * @param TENSORFLOW_8b     Tensorflow 8b network
+         */
+        static void updateFlagsLastStat(bool TENSORFLOW_8b);
 
         /* Getter */
         static const std::vector<Stats> &getAll_stats();

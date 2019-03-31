@@ -103,8 +103,7 @@ std::vector<schedule> read_schedule(const std::string &network_name, const std::
     interface::NetReader<T> reader = interface::NetReader<T>(network_name, false, 0, false);
     int mux_entries = experiment.lookahead_h + experiment.lookaside_d + 1;
     std::string schedule_type = arch + "_" + experiment.search_shape + std::to_string(mux_entries) + "("
-                                + std::to_string(experiment.lookahead_h) + "-" +
-                                std::to_string(experiment.lookaside_d) + ")";
+            + std::to_string(experiment.lookahead_h) + "-" + std::to_string(experiment.lookaside_d) + ")";
     return reader.read_schedule_protobuf(schedule_type);
 }
 
@@ -116,8 +115,7 @@ void write_schedule(const core::Network<T> &network, core::BitTactical<T> &DNNsi
             false);
     int mux_entries = experiment.lookahead_h + experiment.lookaside_d + 1;
     std::string schedule_type = arch + "_" + experiment.search_shape + std::to_string(mux_entries) + "("
-                                + std::to_string(experiment.lookahead_h) + "-" +
-                                std::to_string(experiment.lookaside_d) + ")";
+            + std::to_string(experiment.lookahead_h) + "-" + std::to_string(experiment.lookaside_d) + ")";
     writer.write_schedule_protobuf(network_schedule,schedule_type);
 }
 
@@ -317,6 +315,9 @@ int main(int argc, char *argv[]) {
                         }
                     }
                 }
+
+                sys::Statistics::updateFlagsLastStat(simulate.tensorflow_8b);
+
             } catch (std::exception &exception) {
                 std::cerr << "Simulation error: " << exception.what() << std::endl;
                 #ifdef STOP_AFTER_ERROR
