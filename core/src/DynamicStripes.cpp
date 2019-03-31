@@ -742,7 +742,7 @@ namespace core {
         int WINDOWS_PER_GROUP = N_COLUMNS / N_GROUPS;
 
         // Weights
-        std::vector<double> wgt_width = std::vector<double>(std::min(N_GROUPS,max_filter-init_filter+1), 0);
+        std::vector<double> wgt_width = std::vector<double>(std::min(N_GROUPS,max_filter-init_filter), 0);
         uint16_t group_counter = 0;
         uint16_t group_index = 0;
         uint8_t max_bit = 0, min_bit = 16;
