@@ -49,7 +49,7 @@ Then, we can proceed to build the project
 Create folder **models** including a folder for each network. Every network must include:
    *  train_val.prototxt
    *  trace_params.csv (Instead of the prototxt file)
-      *  _Header_: \<Layer\>:\<Input layer\*\>:\<Output channels\>:\<Kernel X\>:\<Kernel Y\>:\<Padding\>:\<Stride\>
+      *  _Header_: \<Layer\>:\<Input layer\*\>:\<Output channels\>:\<Kernel X\>:\<Kernel Y\>:\<Stride\>:\<Padding\>
       *  \* Input layer is optional
    *  conv_params.csv (Instead of the prototxt file and the precision.txt) 
       *  _Header_: \<Network\>:\<Layer\>:\<Type(conv|fc|lstm)\>:\<Output channels\>:\<Weight channels\>:\<Kernel X\>: \\  
