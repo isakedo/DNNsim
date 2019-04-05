@@ -25,13 +25,13 @@ namespace core {
             else
                 act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
 
-            const auto &min_max_act_bits = this->minMax(act_bits);
-
             bool neg = false;
             if((act_bits & act_mask) != 0) {
                 act_bits = act_bits & ~(uint16_t)act_mask;
                 neg = true;
             }
+
+            const auto &min_max_act_bits = this->minMax(act_bits);
 
             auto min_act_bit = std::get<0>(min_max_act_bits);
             auto max_act_bit = std::get<1>(min_max_act_bits);
@@ -669,7 +669,6 @@ namespace core {
 
     /* AVERAGE WIDTH */
 
-
     template <typename T>
     std::vector<double> DynamicStripes<T>::computeAvgWidthDynamicStripesActTile(int batch, int recursion,
             const std::vector<int> &list_act_x, const std::vector<int> &list_act_y, int kernel_x, int kernel_y,
@@ -905,19 +904,61 @@ namespace core {
             for(int a = 0; a < act_width_need.size(); a++)
                 act_width_need_per[a] = act_width_need[a] / (double)act_width.size() * 100.;
 
-            // Calculate data from off-chip
-            auto num_act = R * Nx * Ny * act_channels;
-            stats.act_bits_baseline.back()[n] = num_act * NETWORK_BITS;
-            stats.act_bits_profiled.back()[n] = 4 + num_act * act_prec;
-            auto act_bits_datawidth = (uint64_t)ceil(NETWORK_BITS * num_act * act_avg_width / (double)NETWORK_BITS);
-            auto overhead = (uint64_t)(4 * ceil(num_act / (double)PRECISION_GRANULARITY));
-            stats.act_bits_datawidth.back()[n] = overhead + act_bits_datawidth;
-
             stats.act_avg_width.back()[n] = act_avg_width;
             stats.act_width_reduction.back()[n] = (act_prec - act_avg_width) * 100. / act_prec;
 
             for(int i = 0; i <= NETWORK_BITS; i++)
                 stats.act_width_need[i].back()[n] = act_width_need_per[i];
+
+        }
+
+        for(int n=0; n<batch_size; n++) {
+
+            uint64_t act_bits_datawidth = 0;
+            for(int r = 0; r < R; r++) {
+                for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
+                    for (int j = 0; j < Ny; j++) {
+                        for (int i = 0; i < Nx; i++) {
+                            uint8_t max_bit = 0, min_bit = 16, non_zeroes = 0;
+                            for(int channel = k; channel < std::min(k + WEIGHT_LANES,act_channels); channel++) {
+                                T act_bits;
+                                if(lstm)
+                                    act_bits = act.get(r, n, channel);
+                                else
+                                    act_bits = act.get(n, channel, i, j);
+
+                                if(act_bits != 0) non_zeroes++;
+
+                                bool neg = false;
+                                if((act_bits & act_mask) != 0) {
+                                    act_bits = act_bits & ~act_mask;
+                                    neg = true;
+                                }
+
+                                const auto &min_max_act_bits = this->minMax(act_bits);
+
+                                auto min_act_bit = std::get<0>(min_max_act_bits);
+                                auto max_act_bit = std::get<1>(min_max_act_bits);
+
+                                if(neg) max_act_bit += 1;
+
+                                if(min_act_bit < min_bit) min_bit = min_act_bit;
+                                if(max_act_bit > max_bit) max_bit = max_act_bit;
+
+                            }
+                            auto width = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+                            act_bits_datawidth = act_bits_datawidth + (width * non_zeroes);
+                        }
+                    }
+                }
+            }
+
+            // Calculate data from off-chip
+            auto num_act = R * Nx * Ny * act_channels;
+            stats.act_bits_baseline.back()[n] = num_act * NETWORK_BITS;
+            stats.act_bits_profiled.back()[n] = 4 + num_act * act_prec;
+            auto overhead = (uint64_t)((16 + log(NETWORK_BITS)) * ceil(num_act / 16.));
+            stats.act_bits_datawidth.back()[n] = overhead + act_bits_datawidth;
 
         }
 
@@ -929,9 +970,46 @@ namespace core {
                 for (int j = 0; j < Ky; j++) {
                     for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
                         auto tile_wgt_width = computeAvgWidthDynamicStripesWgtTile(i,j,k,m,wgt,wgt_channels,num_filters,
-                            wgt_mask);
+                                wgt_mask);
                         wgt_width.insert(wgt_width.end(),tile_wgt_width.begin(),tile_wgt_width.end());
 
+                    }
+                }
+
+            }
+        }
+
+        uint64_t wgt_bits_datawidth = 0;
+        for(int m=0; m<num_filters; m++) {
+            for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
+                for (int j = 0; j < Ky; j++) {
+                    for (int i = 0; i < Kx; i++) {
+                        uint8_t max_bit = 0, min_bit = 16, non_zeroes = 0;
+                        for(int channel = k; channel < std::min(k + WEIGHT_LANES,wgt_channels); channel++) {
+
+                            auto wgt_bits = wgt.get(m, channel, i, j);
+
+                            if(wgt_bits != 0) non_zeroes++;
+
+                            bool neg = false;
+                            if((wgt_bits & wgt_mask) != 0) {
+                                wgt_bits = wgt_bits & ~wgt_mask;
+                                neg = true;
+                            }
+
+                            const auto &min_max_act_bits = this->minMax(wgt_bits);
+
+                            auto min_act_bit = std::get<0>(min_max_act_bits);
+                            auto max_act_bit = std::get<1>(min_max_act_bits);
+
+                            if(neg) max_act_bit += 1;
+
+                            if(min_act_bit < min_bit) min_bit = min_act_bit;
+                            if(max_act_bit > max_bit) max_bit = max_act_bit;
+
+                        }
+                        auto width = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+                        wgt_bits_datawidth = wgt_bits_datawidth + (width * non_zeroes);
                     }
                 }
 
@@ -955,8 +1033,7 @@ namespace core {
             auto num_wgt = wgt.getMax_index();
             stats.wgt_bits_baseline.back()[n] = num_wgt * NETWORK_BITS;
             stats.wgt_bits_profiled.back()[n] = 4 + num_wgt * wgt_prec;
-            auto wgt_bits_datawidth = (uint64_t)ceil(NETWORK_BITS * num_wgt * wgt_avg_width / (double)NETWORK_BITS);
-            auto overhead = (uint64_t)(4 * ceil(num_wgt / (double)PRECISION_GRANULARITY));
+            auto overhead = (uint64_t)((16 + log(NETWORK_BITS)) * ceil(num_wgt / 16.));
             stats.wgt_bits_datawidth.back()[n] = overhead + wgt_bits_datawidth;
 
             stats.wgt_avg_width.back()[n] = wgt_avg_width;
