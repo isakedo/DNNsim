@@ -479,6 +479,97 @@ namespace cnpy {
     }
 
     template <typename T>
+    T max_1D(const std::vector<T> &vector) {
+        return *std::max_element(vector.begin(), vector.end());
+    }
+
+    template <typename T>
+    T max_2D(const std::vector<std::vector<T>> &vector) {
+        std::vector<T> maximums = std::vector<T>(vector.size(),0);
+        for(int i = 0; i < vector.size(); i++) {
+            maximums[i] = max_1D(vector[i]);
+        }
+        return max_1D(maximums);
+    }
+
+    template <typename T>
+    T max_3D(const std::vector<std::vector<std::vector<T>>> &vector) {
+        std::vector<T> maximums = std::vector<T>(vector.size(),0);
+        for(int i = 0; i < vector.size(); i++) {
+            maximums[i] = max_2D(vector[i]);
+        }
+        return max_1D(maximums);
+    }
+
+    template <typename T>
+    T max_4D(const std::vector<std::vector<std::vector<std::vector<T>>>> &vector) {
+        std::vector<T> maximums = std::vector<T>(vector.size(),0);
+        for(int i = 0; i < vector.size(); i++) {
+            maximums[i] = max_3D(vector[i]);
+        }
+        return max_1D(maximums);
+    }
+
+    template <typename T>
+    T Array<T>::max() const {
+        if (this->getDimensions() == 1)
+            return max_1D(this->data1D);
+        else if(this->getDimensions() == 2)
+            return max_2D(this->data2D);
+        else if (this->getDimensions() == 3)
+            return max_3D(this->data3D);
+        else if (this->getDimensions() == 4)
+            return max_4D(this->data4D);
+        else throw std::runtime_error("Array dimensions error");
+    }
+
+
+    template <typename T>
+    T min_1D(const std::vector<T> &vector) {
+        return *std::min_element(vector.begin(), vector.end());
+    }
+
+    template <typename T>
+    T min_2D(const std::vector<std::vector<T>> &vector) {
+        std::vector<T> minimums = std::vector<T>(vector.size(),0);
+        for(int i = 0; i < vector.size(); i++) {
+            minimums[i] = min_1D(vector[i]);
+        }
+        return min_1D(minimums);
+    }
+
+    template <typename T>
+    T min_3D(const std::vector<std::vector<std::vector<T>>> &vector) {
+        std::vector<T> minimums = std::vector<T>(vector.size(),0);
+        for(int i = 0; i < vector.size(); i++) {
+            minimums[i] = min_2D(vector[i]);
+        }
+        return min_1D(minimums);
+    }
+
+    template <typename T>
+    T min_4D(const std::vector<std::vector<std::vector<std::vector<T>>>> &vector) {
+        std::vector<T> minimums = std::vector<T>(vector.size(),0);
+        for(int i = 0; i < vector.size(); i++) {
+            minimums[i] = min_3D(vector[i]);
+        }
+        return min_1D(minimums);
+    }
+
+    template <typename T>
+    T Array<T>::min() const {
+        if (this->getDimensions() == 1)
+            return min_1D(this->data1D);
+        else if(this->getDimensions() == 2)
+            return min_2D(this->data2D);
+        else if (this->getDimensions() == 3)
+            return min_3D(this->data3D);
+        else if (this->getDimensions() == 4)
+            return min_4D(this->data4D);
+        else throw std::runtime_error("Array dimensions error");
+    }
+
+    template <typename T>
     T Array<T>::get(unsigned long long index) const {
         if(this->getDimensions() == 4) {
             auto i = index / (this->shape[1]*this->shape[2]*this->shape[3]);

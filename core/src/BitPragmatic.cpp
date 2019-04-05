@@ -228,7 +228,7 @@ namespace core {
 
         int groups = act_channels / wgt_channels;
         auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS/groups);
-        auto baseline_filters_sets = (uint32_t)ceil(num_filters/(double)16./groups);
+        auto baseline_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS/groups);
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
@@ -264,7 +264,8 @@ namespace core {
             stats.stall_cycles.back()[n] *= num_filters_sets;
         }
 
-        auto base_cycles = (uint64_t)(out_x * out_y * ceil(act_channels/16.) * Kx * Ky * baseline_filters_sets);
+        auto base_cycles = (uint64_t)(out_x * out_y * ceil(act_channels/(double)WEIGHT_LANES) * Kx * Ky *
+                baseline_filters_sets);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
@@ -339,7 +340,8 @@ namespace core {
             stats.cycles.back()[n] = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
         }
 
-        auto base_cycles = (uint64_t)(out_x * out_y * ceil(wgt_channels/16.) * Kx * Ky * ceil(num_filters/16.));
+        auto base_cycles = (uint64_t)(out_x * out_y * ceil(wgt_channels/(double)WEIGHT_LANES) * Kx * Ky *
+                ceil(num_filters/(double)N_ROWS));
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
@@ -368,7 +370,7 @@ namespace core {
         if(this->FAST_MODE) batch_size = 1;
 
         auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS);
-        auto baseline_filters_sets = (uint32_t)ceil(num_filters/16.);
+        auto baseline_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS);
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
@@ -421,7 +423,7 @@ namespace core {
 
         #endif
 
-        auto base_cycles = (uint64_t)(ceil(act_channels/16.) * baseline_filters_sets);
+        auto base_cycles = (uint64_t)(ceil(act_channels/(double)WEIGHT_LANES) * baseline_filters_sets);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);

@@ -22,6 +22,7 @@ namespace sys {
             std::string outputDataType = ""; // Protobuf/Gzip
             std::string network = "";
             bool activate_bias_out_act = false;
+            bool tensorflow_8b = false;
         };
 
         /* Struct for the Simulate instructions */
@@ -57,7 +58,9 @@ namespace sys {
             std::string inputType = ""; // Protobuf/Gzip
             std::string inputDataType = ""; // Float32/Fixed16
             std::string network = "";
+            int network_bits = 0;
             bool activate_bias_out_act = false;
+            bool tensorflow_8b = false;
             std::vector<Experiment> experiments;
         };
 

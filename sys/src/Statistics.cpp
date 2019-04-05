@@ -15,6 +15,11 @@ namespace sys {
         Statistics::all_stats.push_back(_stats);
     }
 
+    void Statistics::updateFlagsLastStat(bool TENSORFLOW_8b) {
+        Statistics::all_stats.back().tensorflow_8b = TENSORFLOW_8b;
+    }
+
+
     /* Getter */
     const std::vector<Statistics::Stats> &Statistics::getAll_stats() {
         return Statistics::all_stats;

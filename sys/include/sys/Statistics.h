@@ -21,6 +21,9 @@ namespace sys {
             /* Simulator architecture */
             std::string arch;
 
+            /* Tensforflow flag */
+            bool tensorflow_8b;
+
             /* Layer vector */
             std::vector<std::string> layers;
 
@@ -86,15 +89,17 @@ namespace sys {
             std::vector<std::vector<double>> act_avg_width;
             std::vector<std::vector<double>> act_width_reduction;
             std::vector<std::vector<std::vector<double>>> act_width_need;
-            std::vector<std::vector<uint64_t>> act_bytes_baseline;
-            std::vector<std::vector<uint64_t>> act_bytes_profiled;
-            std::vector<std::vector<uint64_t>> act_bytes_datawidth;
+            std::vector<std::vector<uint64_t>> act_bits_baseline;
+            std::vector<std::vector<uint64_t>> act_bits_profiled;
+            std::vector<std::vector<uint64_t>> act_bits_datawidth;
+            std::vector<std::vector<uint64_t>> act_bits_scnn;
             std::vector<std::vector<double>> wgt_avg_width;
             std::vector<std::vector<double>> wgt_width_reduction;
             std::vector<std::vector<std::vector<double>>> wgt_width_need;
-            std::vector<std::vector<uint64_t>> wgt_bytes_baseline;
-            std::vector<std::vector<uint64_t>> wgt_bytes_profiled;
-            std::vector<std::vector<uint64_t>> wgt_bytes_datawidth;
+            std::vector<std::vector<uint64_t>> wgt_bits_baseline;
+            std::vector<std::vector<uint64_t>> wgt_bits_profiled;
+            std::vector<std::vector<uint64_t>> wgt_bits_datawidth;
+            std::vector<std::vector<uint64_t>> wgt_bits_scnn;
 
             template <typename T>
             T get_average(const std::vector<T> &vector_stat) const {
@@ -142,6 +147,11 @@ namespace sys {
          * @param _stats    Stats struct that is going to be added
          */
         static void addStats(const Stats &_stats);
+
+        /* Update flags for the last stats
+         * @param TENSORFLOW_8b     Tensorflow 8b network
+         */
+        static void updateFlagsLastStat(bool TENSORFLOW_8b);
 
         /* Getter */
         static const std::vector<Stats> &getAll_stats();

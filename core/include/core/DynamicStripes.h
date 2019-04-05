@@ -28,19 +28,18 @@ namespace core {
         /* Bits per PE */
         const int BITS_PE;
 
-        struct AvgWidth_stats {
-            std::vector<double> act_width;
-            std::vector<double> wgt_width;
-        };
+        /* Network bits */
+        const int NETWORK_BITS;
 
         /* Compute number of one bit multiplications
          * @param layer_prec    Layer precision
          * @return              Number of one bit multiplications
          */
-        static inline uint16_t computeDynamicStripesBitsPE(uint8_t layer_prec);
+        uint16_t computeDynamicStripesBitsPE(uint8_t layer_prec);
 
         /* Compute cycles for dynamic stripes column
          * @param batch         Current number of batch
+         * @param recursion     Current recursion for LSTM
          * @param act_x         X position in the input activations
          * @param act_y         Y position in the input activations
          * @param kernel_x      X position in the kernel window
@@ -51,10 +50,12 @@ namespace core {
          * @param padded_act    Set of padded input activations
          * @param act_mask      Position of the activations sign bit
          * @param max_channel   Maximum number of channels
+         * @param lstm          True if it is LSTM layer
          * @return              Number of cycles
          */
-        uint8_t computeDynamicStripesColumn(int batch, int act_x, int act_y, int kernel_x, int kernel_y,
-                int init_channel, int stride, const cnpy::Array<T> &padded_act, int act_mask, int max_channel);
+        uint8_t computeDynamicStripesColumn(int batch, int recursion, int act_x, int act_y, int kernel_x, int kernel_y,
+                int init_channel, int stride, const cnpy::Array<T> &padded_act, int act_mask, int max_channel,
+                bool lstm);
 
         /* Compute cycles for dynamic stripes tile
          * @param batch                 Current number of batch
@@ -132,6 +133,7 @@ namespace core {
 
         /* Compute average width for activations for laconic tile
          * @param batch         Current number of batch
+         * @param recursion     Current recursion for LSTM
          * @param list_act_x    X position for the set of input windows
          * @param list_act_y    Y position for the set of input windows
          * @param kernel_x      X position in the kernel window
@@ -142,11 +144,13 @@ namespace core {
          * @param start_group   Starting channel of the group
          * @param max_channel   Maximum number of channels
          * @param act_mask      Position of the activations sign bit
+         * @param lstm          True if it is LSTM layer
          * @return              Average width per group
          */
-        std::vector<double> computeAvgWidthDynamicStripesActTile(int batch, const std::vector<int> &list_act_x,
-                const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int stride,
-                const cnpy::Array<T> &padded_act, int max_channel, int act_mask);
+        std::vector<double> computeAvgWidthDynamicStripesActTile(int batch, int recursion,
+                const std::vector<int> &list_act_x, const std::vector<int> &list_act_y, int kernel_x, int kernel_y,
+                int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, int act_mask,
+                bool lstm);
 
         /* Compute average width for weights for laconic tile
          * @param kernel_x      X position in the kernel window
@@ -176,13 +180,15 @@ namespace core {
          * @param _PRECISION_GRANULARITY    Granularity for dynamic precisions
          * @param _COLUMN_REGISTERS         Number of registers per SIP
          * @param _BITS_PE                  Number of bits per PE
+         * @param _NETWORK_BITS             Network bits
          * @param _N_THREADS                Number of parallel threads for multi-threading execution
          * @param _FAST_MODE                Enable fast mode to simulate only one image
          */
         DynamicStripes(int _N_COLUMNS, int _N_ROWS, const int &_PRECISION_GRANULARITY, int _COLUMN_REGISTERS,
-                int _BITS_PE, uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE),
-                N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS),  PRECISION_GRANULARITY(_PRECISION_GRANULARITY),
-                COLUMN_REGISTERS(_COLUMN_REGISTERS), BITS_PE(_BITS_PE) {}
+                int _BITS_PE, int _NETWORK_BITS, uint8_t _N_THREADS, bool _FAST_MODE) :
+                Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS),
+                PRECISION_GRANULARITY(_PRECISION_GRANULARITY), COLUMN_REGISTERS(_COLUMN_REGISTERS),
+                BITS_PE(_BITS_PE), NETWORK_BITS(_NETWORK_BITS) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate
