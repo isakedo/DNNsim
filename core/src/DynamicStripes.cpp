@@ -997,15 +997,15 @@ namespace core {
                                 neg = true;
                             }
 
-                            const auto &min_max_act_bits = this->minMax(wgt_bits);
+                            const auto &min_max_wgt_bits = this->minMax(wgt_bits);
 
-                            auto min_act_bit = std::get<0>(min_max_act_bits);
-                            auto max_act_bit = std::get<1>(min_max_act_bits);
+                            auto min_wgt_bit = std::get<0>(min_max_wgt_bits);
+                            auto max_wgt_bit = std::get<1>(min_max_wgt_bits);
 
-                            if(neg) max_act_bit += 1;
+                            if(neg) max_wgt_bit += 1;
 
-                            if(min_act_bit < min_bit) min_bit = min_act_bit;
-                            if(max_act_bit > max_bit) max_bit = max_act_bit;
+                            if(min_wgt_bit < min_bit) min_bit = min_wgt_bit;
+                            if(max_wgt_bit > max_bit) max_bit = max_wgt_bit;
 
                         }
                         auto width = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
