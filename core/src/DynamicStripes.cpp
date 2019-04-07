@@ -957,7 +957,7 @@ namespace core {
             auto num_act = R * Nx * Ny * act_channels;
             stats.act_bits_baseline.back()[n] = num_act * NETWORK_BITS;
             stats.act_bits_profiled.back()[n] = 4 + num_act * act_prec;
-            auto overhead = (uint64_t)((16 + log(NETWORK_BITS)) * ceil(num_act / 16.));
+            auto overhead = (uint64_t)((16 + log2(NETWORK_BITS)) * ceil(num_act / 16.));
             stats.act_bits_datawidth.back()[n] = overhead + act_bits_datawidth;
 
         }
@@ -1033,7 +1033,7 @@ namespace core {
             auto num_wgt = wgt.getMax_index();
             stats.wgt_bits_baseline.back()[n] = num_wgt * NETWORK_BITS;
             stats.wgt_bits_profiled.back()[n] = 4 + num_wgt * wgt_prec;
-            auto overhead = (uint64_t)((16 + log(NETWORK_BITS)) * ceil(num_wgt / 16.));
+            auto overhead = (uint64_t)((16 + log2(NETWORK_BITS)) * ceil(num_wgt / 16.));
             stats.wgt_bits_datawidth.back()[n] = overhead + wgt_bits_datawidth;
 
             stats.wgt_avg_width.back()[n] = wgt_avg_width;
