@@ -313,10 +313,9 @@ int main(int argc, char *argv[]) {
                             if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                         }
+                        sys::Statistics::updateFlagsLastStat(simulate.tensorflow_8b);
                     }
                 }
-
-                sys::Statistics::updateFlagsLastStat(simulate.tensorflow_8b);
 
             } catch (std::exception &exception) {
                 std::cerr << "Simulation error: " << exception.what() << std::endl;

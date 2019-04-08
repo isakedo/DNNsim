@@ -166,11 +166,11 @@ namespace core {
         std::vector<double> computeAvgWidthDynamicStripesWgtTile(int kernel_x, int kernel_y, int init_channel,
                 int init_filter, const cnpy::Array<T> &wgt, int max_channel, int max_filter, int wgt_mask);
 
-        /* Compute the average width for a convolutional layer
+        /* Compute the average width for a layer
          * @param layer     Layer for which we want to calculate the outputs
          * @param stats     Statistics to fill
          */
-        void computeAvgWidthConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats);
+        void computeAvgWidthLayer(const Layer<T> &layer, sys::Statistics::Stats &stats);
 
     public:
 

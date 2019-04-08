@@ -611,11 +611,13 @@ namespace core {
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = 1;
+        int R = (layer.getType() == "LSTM") ? act_shape[0] : 1;
+
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
 
         // Operations
-        const auto parallel_mult = (uint64_t)num_filters * wgt_channels;
+        const auto parallel_mult = (uint64_t)num_filters * wgt_channels * R;
         stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
         stats.speedup.emplace_back(std::vector<double>(batch_size,0));
@@ -625,7 +627,7 @@ namespace core {
         auto layer_prec = layer.getAct_precision();
 
         for (int n = 0; n<batch_size; n++) {
-            bit_counter = (uint64_t)computeDynamicStripesBitsPE((uint8_t)layer_prec)*wgt_channels*num_filters;
+            bit_counter = (uint64_t)computeDynamicStripesBitsPE((uint8_t)layer_prec) * wgt_channels * num_filters * R;
             stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
             stats.speedup.back()[n] = (double)parallel_mult * 256. / (double)bit_counter;
             stats.bit_multiplications.back()[n] = bit_counter;
@@ -655,7 +657,7 @@ namespace core {
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);
                 computePotentialsConvolution(layer,stats);
-            } else if (layer.getType() == "InnerProduct") {
+            } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);
@@ -789,7 +791,7 @@ namespace core {
     }
 
     template <typename T>
-    void DynamicStripes<T>::computeAvgWidthConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void DynamicStripes<T>::computeAvgWidthLayer(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
@@ -1126,7 +1128,7 @@ namespace core {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(layer.getWgt_precision());
-                computeAvgWidthConvolution(layer, stats);
+                computeAvgWidthLayer(layer, stats);
             }
         }
 

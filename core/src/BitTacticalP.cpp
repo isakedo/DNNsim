@@ -443,12 +443,14 @@ namespace core {
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = act_shape[0];
+        int R = (layer.getType() == "LSTM") ? act_shape[0] : 1;
+
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
         if(this->FAST_MODE) batch_size = 1;
 
         // Operations
-        const auto parallel_mult = (uint64_t)num_filters * wgt_channels;
+        const auto parallel_mult = (uint64_t)num_filters * wgt_channels * R;
         stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
         stats.speedup.emplace_back(std::vector<double>(batch_size,0));
@@ -465,9 +467,11 @@ namespace core {
         #endif
         for (n = 0; n<batch_size; n++) {
             uint64_t bit_counter = 0;
-            for (int m = 0; m<num_filters; m++) {
-                for (int k = 0; k<wgt_channels; k++) {
-                    bit_counter += computeTacticalPBitsPE(wgt.get(m, k), (uint8_t)act_layer_prec);
+            for (int r = 0; r < R; r++) {
+                for (int m = 0; m < num_filters; m++) {
+                    for (int k = 0; k < wgt_channels; k++) {
+                        bit_counter += computeTacticalPBitsPE(wgt.get(m, k), (uint8_t) act_layer_prec);
+                    }
                 }
             }
             stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
@@ -499,7 +503,7 @@ namespace core {
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);
                 computePotentialsConvolution(layer,stats);
-            } else if (layer.getType() == "InnerProduct") {
+            } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);

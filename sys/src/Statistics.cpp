@@ -9,6 +9,7 @@ namespace sys {
         stats.task_name = "none";
         stats.net_name = "none";
         stats.arch = "none";
+        stats.tensorflow_8b = false;
     }
 
     void Statistics::addStats(const Stats &_stats) {
