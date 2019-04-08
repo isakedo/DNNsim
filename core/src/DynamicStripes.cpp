@@ -954,7 +954,7 @@ namespace core {
             auto num_act = R * Nx * Ny * act_channels;
             stats.act_bits_baseline.back()[n] = num_act * NETWORK_BITS;
             stats.act_bits_profiled.back()[n] = 4 + num_act * act_prec;
-            auto overhead = (uint64_t)((16 + log(NETWORK_BITS)) * ceil(num_act / 16.));
+            auto overhead = (uint64_t)((16 + log2(NETWORK_BITS)) * ceil(num_act / 16.));
             stats.act_bits_datawidth.back()[n] = overhead + act_bits_datawidth;
 
         }
@@ -994,15 +994,15 @@ namespace core {
                                 neg = true;
                             }
 
-                            const auto &min_max_act_bits = this->minMax(wgt_bits);
+                            const auto &min_max_wgt_bits = this->minMax(wgt_bits);
 
-                            auto min_act_bit = std::get<0>(min_max_act_bits);
-                            auto max_act_bit = std::get<1>(min_max_act_bits);
+                            auto min_wgt_bit = std::get<0>(min_max_wgt_bits);
+                            auto max_wgt_bit = std::get<1>(min_max_wgt_bits);
 
-                            if(neg) max_act_bit += 1;
+                            if(neg) max_wgt_bit += 1;
 
-                            if(min_act_bit < min_bit) min_bit = min_act_bit;
-                            if(max_act_bit > max_bit) max_bit = max_act_bit;
+                            if(min_wgt_bit < min_bit) min_bit = min_wgt_bit;
+                            if(max_wgt_bit > max_bit) max_bit = max_wgt_bit;
 
                         }
                         auto width = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
@@ -1030,7 +1030,7 @@ namespace core {
             auto num_wgt = wgt.getMax_index();
             stats.wgt_bits_baseline.back()[n] = num_wgt * NETWORK_BITS;
             stats.wgt_bits_profiled.back()[n] = 4 + num_wgt * wgt_prec;
-            auto overhead = (uint64_t)((16 + log(NETWORK_BITS)) * ceil(num_wgt / 16.));
+            auto overhead = (uint64_t)((16 + log2(NETWORK_BITS)) * ceil(num_wgt / 16.));
             stats.wgt_bits_datawidth.back()[n] = overhead + wgt_bits_datawidth;
 
             stats.wgt_avg_width.back()[n] = wgt_avg_width;
