@@ -30,6 +30,7 @@ namespace core {
 
         /* Compute cycles for one column of laconic
          * @param batch         Current number of batch
+         * @param recursion     Current recursion for LSTM
          * @param act_x         X position for the input window
          * @param act_y         Y position for the input window
          * @param kernel_x      X position in the kernel window
@@ -41,11 +42,12 @@ namespace core {
          * @param wgt           Set of weights
          * @param max_channel   Maximum number of channels
          * @param max_filter    Maximum number of filters
+         * @param lstm          True if it is LSTM layer
          * @return              Number of cycles
          */
-        uint8_t computeLaconicColumn(int batch, int act_x, int act_y, int kernel_x, int kernel_y, int init_channel,
-                int init_filter, int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt,
-                int start_group, int max_channel, int max_filter);
+        uint8_t computeLaconicColumn(int batch, int recursion, int act_x, int act_y, int kernel_x, int kernel_y,
+                int init_channel, int init_filter, int stride, const cnpy::Array<T> &padded_act,
+                const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter, bool lstm);
 
         /* Compute cycles for laconic tile
          * @param batch         Current number of batch

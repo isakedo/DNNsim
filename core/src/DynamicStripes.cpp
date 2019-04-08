@@ -256,8 +256,7 @@ namespace core {
         long out_y = (Ny - Ky)/stride + 1;
 
         auto act_prec = layer.getAct_precision();
-        double act_intmax = (1 << (act_prec - 1)) - 1;
-        auto act_mask = (uint16_t)act_intmax + 1;
+        auto act_mask = (uint16_t)(1 << (act_prec - 1));
 
         auto wgt_layer_prec = layer.getWgt_precision();
         auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
@@ -346,8 +345,7 @@ namespace core {
         long out_y = (Ny - Ky)/stride + 1;
 
         auto act_prec = layer.getAct_precision();
-        double act_intmax = (1 << (act_prec - 1)) - 1;
-        auto act_mask = (uint16_t)act_intmax + 1;
+        auto act_mask = (uint16_t)(1 << (act_prec - 1));
 
         auto wgt_layer_prec = layer.getWgt_precision();
         auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
@@ -433,8 +431,7 @@ namespace core {
         int num_filters = wgt_shape[0];
 
         auto act_prec = layer.getAct_precision();
-        double act_intmax = (1 << (act_prec - 1)) - 1;
-        auto act_mask = (uint16_t)act_intmax + 1;
+        auto act_mask = (uint16_t)(1 << (act_prec - 1));
 
         auto wgt_layer_prec = layer.getWgt_precision();
         auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
@@ -848,12 +845,10 @@ namespace core {
         long out_y = (Ny - Ky)/stride + 1;
 
         auto act_prec = layer.getAct_precision();
-        double act_intmax = (1 << (act_prec - 1)) - 1;
-        auto act_mask = (uint16_t)act_intmax + 1;
+        auto act_mask = (uint16_t)(1 << (act_prec - 1));
 
         auto wgt_prec = layer.getWgt_precision();
-        double wgt_intmax = (1 << (wgt_prec - 1)) - 1;
-        auto wgt_mask = (uint16_t)wgt_intmax + 1;
+        auto wgt_mask = (uint16_t)(1 << (wgt_prec - 1));
 
         // Stats
         stats.act_avg_width.emplace_back(std::vector<double>(batch_size,0));

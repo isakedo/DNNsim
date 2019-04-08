@@ -25,16 +25,20 @@ namespace core {
 
         /* Compute cycles for Bit-Tactical P column
          * @param batch             Current number of batch
+         * @param recursion         Current recursion for LSTM
          * @param act_x             X position for the input window
          * @param act_y             Y position for the input window
          * @param stride            Stride of the current layer
          * @param padded_act        Set of padded input activations
          * @param dense_schedule    Data structure containing the weights
          * @param schedule_time     Time index for the scheduler
+         * @param act_mask          Position of the activations sign bit
+         * @param lstm              True if it is LSTM layer
          * @return                  Number of cycles
          */
-        uint8_t computeTacticalPColumn(int batch, int act_x, int act_y, int stride, const cnpy::Array<T> &padded_act,
-                const schedule &dense_schedule, int schedule_time);
+        uint8_t computeTacticalPColumn(int batch, int recursion, int act_x, int act_y, int stride,
+                const cnpy::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time, int act_mask,
+                bool lstm);
 
         /* Compute cycles for Bit-Tactical P tile
          * @param batch                 Current number of batch
@@ -44,14 +48,15 @@ namespace core {
          * @param padded_act            Set of padded input activations
          * @param dense_schedule        Data structure containing the weights
          * @param schedule_time         Time index for the scheduler
+         * @param act_mask              Position of the activations sign bit
          * @param cycles_per_group      Number of cycles per column (Overwritten)
          * @param end_previous_pallet   Cycle when the previous pallet finishes (Overwritten)
          * @param stats                 Statistics to fill
          */
         void computeTacticalPTile(int batch, const std::vector<int> &list_act_x, const std::vector<int>
                 &list_act_y, int stride, const cnpy::Array<T> &padded_act, const schedule &dense_schedule,
-                int schedule_time, std::vector<uint32_t> &cycles_per_col, std::vector<uint32_t> &end_previous_pallet,
-                sys::Statistics::Stats &stats);
+                int schedule_time, int act_mask, std::vector<uint32_t> &cycles_per_col,
+                std::vector<uint32_t> &end_previous_pallet, sys::Statistics::Stats &stats);
 
         /* Compute the timing for a convolutional layer
          * @param layer                 Layer for which we want to calculate the outputs

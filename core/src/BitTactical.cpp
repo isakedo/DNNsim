@@ -275,7 +275,7 @@ namespace core {
                 const auto &dense_schedule = scheduler(wgt, act.getShape()[1]);
                 network_schedule.push_back(dense_schedule);
 
-            } else if(layer.getType() == "InnerProduct") {
+            } else if(layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
 
                 cnpy::Array<T> wgt = layer.getWeights();
                 wgt.reshape_to_4D();

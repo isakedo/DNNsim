@@ -61,12 +61,18 @@ namespace core {
     }
 
     template <typename T>
-    uint8_t BitPragmatic<T>::computePragmaticColumn(int batch, int act_x, int act_y, int kernel_x, int kernel_y,
-            int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel) {
+    uint8_t BitPragmatic<T>::computePragmaticColumn(int batch, int recursion, int act_x, int act_y, int kernel_x,
+            int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, bool lstm) {
 
         std::vector<std::queue<uint8_t>> offsets;
         for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_channel); channel++) {
-            uint16_t act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
+
+            T act_bits;
+            if(lstm)
+                act_bits = padded_act.get(recursion, batch, channel);
+            else
+                act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
+
             #ifdef BOOTH_ENCODING
             act_bits = this->booth_encoding(act_bits);
             #endif
@@ -94,8 +100,8 @@ namespace core {
             std::vector<uint32_t> &end_previous_pallet, sys::Statistics::Stats &stats) {
 
         for(int window = 0; window < list_act_x.size(); window++) {
-            uint8_t column_cycles = computePragmaticColumn(batch, list_act_x[window], list_act_y[window], kernel_x,
-                    kernel_y, init_channel, stride, padded_act, max_channel);
+            uint8_t column_cycles = computePragmaticColumn(batch, 0, list_act_x[window], list_act_y[window], kernel_x,
+                    kernel_y, init_channel, stride, padded_act, max_channel, false);
             cycles_per_col[window] += column_cycles;
         }
 
@@ -358,16 +364,30 @@ namespace core {
 
         cnpy::Array<T> act = layer.getActivations();
         act.powers_of_two_representation();
-        if(act.getDimensions() == 4) act.reshape_to_2D();
-        act.reshape_to_4D();
+
+        if(layer.getType() == "InnerProduct") {
+            if (act.getDimensions() == 4) act.reshape_to_2D();
+            act.reshape_to_4D();
+        }
+
+        bool lstm = layer.getType() == "LSTM";
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = layer.getWeights().getShape();
 
-        int batch_size = act_shape[0];
-        int act_channels = act_shape[1];
-        int num_filters = wgt_shape[0];
+        int batch_size, act_channels, R;
+        if(lstm) {
+            R = act_shape[0];
+            batch_size = act_shape[1];
+            act_channels = act_shape[2];
+        } else {
+            R = 1;
+            batch_size = act_shape[0];
+            act_channels = act_shape[1];
+        }
         if(this->FAST_MODE) batch_size = 1;
+
+        int num_filters = wgt_shape[0];
 
         auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS);
         auto baseline_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS);
@@ -387,8 +407,10 @@ namespace core {
         #pragma omp parallel for private(n)
         #endif
         for (n = 0; n<batch_size; n++) {
-            for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
-                stats.cycles.back()[n] += computePragmaticColumn(n,0,0,0,0,k,0,act,act_channels);
+            for (int r = 0; r < R; r++) {
+                for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
+                    stats.cycles.back()[n] += computePragmaticColumn(n,r,0,0,0,0,k,0,act,act_channels,lstm);
+                }
             }
             stats.cycles.back()[n] *= num_filters_sets;
         }
@@ -404,15 +426,16 @@ namespace core {
 
             int column_index = 0;
             std::vector<int> column_end = std::vector<int>(N_COLUMNS, 0);
-
-            for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
-                if(stats.cycles.back()[n] < column_end[column_index])
-                    stats.cycles.back()[n] = column_end[column_index];
-                auto column_cycles = computePragmaticColumn(n,0,0,0,0,k,0,act,act_channels);
-                column_end[column_index] = stats.cycles.back()[n] + column_cycles;
-                stats.cycles.back()[n]++;
-                column_index++;
-                if(column_index >= N_COLUMNS) column_index = 0;
+            for (int r = 0; r < R; r++) {
+                for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
+                    if(stats.cycles.back()[n] < column_end[column_index])
+                        stats.cycles.back()[n] = column_end[column_index];
+                    auto column_cycles = computePragmaticColumn(n,r,0,0,0,0,k,0,act,act_channels,lstm);
+                    column_end[column_index] = stats.cycles.back()[n] + column_cycles;
+                    stats.cycles.back()[n]++;
+                    column_index++;
+                    if(column_index >= N_COLUMNS) column_index = 0;
+                }
             }
             uint64_t last_column_end = *std::max_element(column_end.begin(), column_end.end());
             uint64_t last_column_rem_cycles = last_column_end - stats.cycles.back()[n];
@@ -423,7 +446,7 @@ namespace core {
 
         #endif
 
-        auto base_cycles = (uint64_t)(ceil(act_channels/(double)WEIGHT_LANES) * baseline_filters_sets);
+        auto base_cycles = (uint64_t)(ceil(act_channels/(double)WEIGHT_LANES) * baseline_filters_sets * R);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
@@ -451,7 +474,7 @@ namespace core {
                     computeConvolution2D(layer, stats);
                 else
                     computeConvolution(layer, stats);
-            } else if (layer.getType() == "InnerProduct") {
+            } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
                 computeInnerProduct(layer,stats);
             }

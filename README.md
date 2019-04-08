@@ -124,7 +124,7 @@ parallelized per batch using OpenMP library
 This is necessary after changing the precisions, etc.
 ### Notes about simulations
     
-*   Missing support for LSTM layers in the accelerators
+*   Missing support for LSTM layers in the SCNN-like accelerators
 
 ### Allowed simulations
 

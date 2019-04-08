@@ -494,7 +494,7 @@ namespace core {
 
         cnpy::Array<T> act = layer.getActivations();
         if(act.getDimensions() == 4) act.reshape_to_2D();
-        cnpy::Array<T> wgt = layer.getWeights();
+        const cnpy::Array<T> &wgt = layer.getWeights();
 
         bool lstm = layer.getType() == "LSTM";
 
