@@ -53,7 +53,7 @@ Create folder **models** including a folder for each network. Every network must
       *  \* Input layer is optional
    *  conv_params.csv (Instead of the prototxt file and the precision.txt) 
       *  _Header_: \<Network\>:\<Layer\>:\<Type(conv|fc|lstm)\>:\<Output channels\>:\<Weight channels\>:\<Kernel X\>: \\  
-                   \<Kernel Y\>:\<Kernel size\>:\<Padding\>:\<Stride\>:\<Precision\>:\<Magnitude (without sign)\>
+                   \<Kernel Y\>:\<Kernel size\>:\<Stride\>:\<Padding\>:\<Precision\>:\<Magnitude (without sign)\>
       *  Weights are generic precision 0:15                
    *  precision.txt (Optional, contain 5 lines as the example, first line is skipped)
         *   If this file does not exist the precisions are 13:2 for activations and 0:15 for weights
@@ -162,7 +162,7 @@ Data type indicates the possible data types allowed: Float32 for 4bytes floating
 | Architecture | Input Parameters | Default Parameters\* | Data type |
 |:---:|:---:|:---:|:---:|
 | Stripes | N_COLUMNS, N_ROWS, BITS_PE | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
-| DynamicStripes | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY, COLUMN_REGISTERS, NETWORK_BITS | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
+| DynamicStripes | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY, COLUMN_REGISTERS, NETWORK_BITS, DIFFY | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
 | BitPragmatic | N_COLUMNS, N_ROWS, BITS_FIRST_STAGE, COLUMN_REGISTERS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16| Fixed16 |
 | Laconic | N_COLUMNS, N_ROWS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
 | BitTacticalP | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, PRECISION_GRANULARITY, COLUMN_REGISTERS | ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
