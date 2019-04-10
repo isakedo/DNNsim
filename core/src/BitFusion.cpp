@@ -199,11 +199,13 @@ namespace core {
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = 1;
+        int R = (layer.getType() == "LSTM") ? act_shape[0] : 1;
+
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
 
         // Operations
-        const auto parallel_mult = (uint64_t)num_filters * wgt_channels;
+        const auto parallel_mult = (uint64_t)num_filters * wgt_channels * R;
         stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
         stats.speedup.emplace_back(std::vector<double>(batch_size,0));
@@ -220,7 +222,7 @@ namespace core {
 
         for (int n = 0; n<batch_size; n++) {
             bit_counter = (uint64_t)computeBitFusionBitsPE(act_rounded_precision,wgt_rounded_precision) *
-                    wgt_channels * num_filters;
+                    wgt_channels * num_filters * R;
             stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
             stats.speedup.back()[n] = (double)parallel_mult * 256. / (double)bit_counter;
             stats.bit_multiplications.back()[n] = bit_counter;
@@ -250,7 +252,7 @@ namespace core {
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(layer.getWgt_precision());
                 computePotentialsConvolution(layer,stats);
-            } else if (layer.getType() == "InnerProduct") {
+            } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(layer.getWgt_precision());

@@ -41,6 +41,7 @@ namespace core {
 
         /* Compute cycles for one column of pragmatic
          * @param batch         Current number of batch
+         * @param recursion     Current recursion for LSTM
          * @param act_x         X position in the input activations
          * @param act_y         Y position in the input activations
          * @param kernel_x      X position in the kernel window
@@ -49,10 +50,11 @@ namespace core {
          * @param stride        Stride of the current layer
          * @param padded_act    Set of padded input activations
          * @param max_channel   Maximum number of channels
+         * @param lstm          True if it is LSTM layer
          * @return              Number of cycles
          */
-        uint8_t computePragmaticColumn(int batch, int act_x, int act_y, int kernel_x, int kernel_y, int init_channel,
-                int stride, const cnpy::Array<T> &padded_act, int max_channel);
+        uint8_t computePragmaticColumn(int batch, int recursion, int act_x, int act_y, int kernel_x, int kernel_y,
+                int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, bool lstm);
 
         /* Compute cycles for pragmatic tile
          * @param batch                 Current number of batch

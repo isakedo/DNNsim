@@ -15,8 +15,9 @@ namespace core {
     }
 
     template <typename T>
-    uint8_t BitTacticalP<T>::computeTacticalPColumn(int batch, int act_x, int act_y, int stride,
-            const cnpy::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time) {
+    uint8_t BitTacticalP<T>::computeTacticalPColumn(int batch, int recursion, int act_x, int act_y, int stride,
+            const cnpy::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time, int act_mask,
+            bool lstm) {
 
         uint8_t max_bit = 0, min_bit = 16;
         for (int row = 0; row < this->N_ROWS; row++) {
@@ -30,13 +31,24 @@ namespace core {
                 if(channel < 0) continue;
 
                 // Computation cycles
-                uint16_t act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x,
-                        stride * act_y + kernel_y);
+                T act_bits;
+                if(lstm)
+                    act_bits = padded_act.get(recursion, batch, channel);
+                else
+                    act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
+
+                bool neg = false;
+                if((act_bits & act_mask) != 0) {
+                    act_bits = act_bits & ~(uint16_t)act_mask;
+                    neg = true;
+                }
 
                 const auto &min_max_act_bits = this->minMax(act_bits);
 
                 auto min_act_bit = std::get<0>(min_max_act_bits);
                 auto max_act_bit = std::get<1>(min_max_act_bits);
+
+                if(neg) max_act_bit += 1;
 
                 if(min_act_bit < min_bit) min_bit = min_act_bit;
                 if(max_act_bit > max_bit) max_bit = max_act_bit;
@@ -51,7 +63,7 @@ namespace core {
     template <typename T>
     void BitTacticalP<T>::computeTacticalPTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int stride, const cnpy::Array<T> &padded_act,
-            const schedule &dense_schedule, int schedule_time, std::vector<uint32_t> &cycles_per_group,
+            const schedule &dense_schedule, int schedule_time, int act_mask, std::vector<uint32_t> &cycles_per_group,
             std::vector<uint32_t> &end_previous_pallet, sys::Statistics::Stats &stats) {
 
         int N_GROUPS = this->N_COLUMNS * 16 / PRECISION_GRANULARITY;
@@ -83,10 +95,18 @@ namespace core {
                     uint16_t act_bits = padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
                             stride * list_act_y[window] + kernel_y);
 
+                    bool neg = false;
+                    if((act_bits & act_mask) != 0) {
+                        act_bits = act_bits & ~(uint16_t)act_mask;
+                        neg = true;
+                    }
+
                     const auto &min_max_act_bits = this->minMax(act_bits);
 
                     auto min_act_bit = std::get<0>(min_max_act_bits);
                     auto max_act_bit = std::get<1>(min_max_act_bits);
+
+                    if(neg) max_act_bit += 1;
 
                     if(min_act_bit < min_bit) min_bit = min_act_bit;
                     if(max_act_bit > max_bit) max_bit = max_act_bit;
@@ -172,6 +192,9 @@ namespace core {
         long out_x = (Nx - Kx)/stride + 1;
         long out_y = (Ny - Ky)/stride + 1;
 
+        auto act_prec = layer.getAct_precision();
+        auto act_mask = (uint16_t)(1 << (act_prec - 1));
+
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
@@ -199,7 +222,7 @@ namespace core {
 
             while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, this->N_COLUMNS)) {
                 for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                    computeTacticalPTile(n, list_x, list_y, stride, act, dense_schedule, schedule_time,
+                    computeTacticalPTile(n, list_x, list_y, stride, act, dense_schedule, schedule_time, act_mask,
                             cycles_per_group, end_previous_pallet, stats);
                 }
             }
@@ -221,17 +244,33 @@ namespace core {
 
         cnpy::Array<T> act = layer.getActivations();
         act.sign_magnitude_representation(layer.getAct_precision());
-        if(act.getDimensions() == 4) act.reshape_to_2D();
-        act.reshape_to_4D();
         cnpy::Array<T> wgt = layer.getWeights();
         wgt.reshape_to_4D();
+
+        if(layer.getType() == "InnerProduct") {
+            if (act.getDimensions() == 4) act.reshape_to_2D();
+            act.reshape_to_4D();
+        }
+
+        bool lstm = layer.getType() == "LSTM";
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size = act_shape[0];
-        int act_channels = act_shape[1];
+        int batch_size, act_channels, R;
+        if(lstm) {
+            R = act_shape[0];
+            batch_size = act_shape[1];
+            act_channels = act_shape[2];
+        } else {
+            R = 1;
+            batch_size = act_shape[0];
+            act_channels = act_shape[1];
+        }
         if(this->FAST_MODE) batch_size = 1;
+
+        auto act_prec = layer.getAct_precision();
+        auto act_mask = (uint16_t)(1 << (act_prec - 1));
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
@@ -254,8 +293,11 @@ namespace core {
         #pragma omp parallel for private(n)
         #endif
         for (n = 0; n<batch_size; n++) {
-            for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                stats.cycles.back()[n] += computeTacticalPColumn(n,0,0,0,act,dense_schedule,schedule_time);
+            for (int r = 0; r < R; r++) {
+                for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
+                    stats.cycles.back()[n] += computeTacticalPColumn(n,r,0,0,0,act,dense_schedule,schedule_time,
+                            act_mask,lstm);
+                }
             }
         }
 
@@ -271,14 +313,17 @@ namespace core {
             int column_index = 0;
             std::vector<int> column_end = std::vector<int>(this->N_COLUMNS, 0);
 
-            for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                if(stats.cycles.back()[n] < column_end[column_index])
-                    stats.cycles.back()[n] = column_end[column_index];
-                auto column_cycles = computeTacticalPColumn(n,0,0,0,act,dense_schedule,schedule_time);
-                column_end[column_index] = stats.cycles.back()[n] + column_cycles;
-                stats.cycles.back()[n]++;
-                column_index++;
-                if(column_index >= this->N_COLUMNS) column_index = 0;
+            for (int r = 0; r < R; r++) {
+                for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
+                    if(stats.cycles.back()[n] < column_end[column_index])
+                        stats.cycles.back()[n] = column_end[column_index];
+                    auto column_cycles = computeTacticalPColumn(n,r,0,0,0,act,dense_schedule,schedule_time,act_mask,
+                            lstm);
+                    column_end[column_index] = stats.cycles.back()[n] + column_cycles;
+                    stats.cycles.back()[n]++;
+                    column_index++;
+                    if(column_index >= this->N_COLUMNS) column_index = 0;
+                }
             }
             uint64_t last_column_end = *std::max_element(column_end.begin(), column_end.end());
             stats.cycles.back()[n] = std::max(stats.cycles.back()[n], last_column_end);
@@ -312,7 +357,7 @@ namespace core {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 computeConvolution(layer, stats, schedule());
-            } else if(layer.getType() == "InnerProduct") {
+            } else if(layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 computeInnerProduct(layer, stats, schedule());
@@ -345,7 +390,7 @@ namespace core {
                 stats.act_prec.push_back(layer.getAct_precision());
                 computeConvolution(layer, stats, proto_dense_schedule);
                 sch_index++;
-            } else if(layer.getType() == "InnerProduct") {
+            } else if(layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 const schedule &proto_dense_schedule = schedules[sch_index];
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
@@ -443,12 +488,14 @@ namespace core {
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = act_shape[0];
+        int R = (layer.getType() == "LSTM") ? act_shape[0] : 1;
+
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
         if(this->FAST_MODE) batch_size = 1;
 
         // Operations
-        const auto parallel_mult = (uint64_t)num_filters * wgt_channels;
+        const auto parallel_mult = (uint64_t)num_filters * wgt_channels * R;
         stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
         stats.speedup.emplace_back(std::vector<double>(batch_size,0));
@@ -465,9 +512,11 @@ namespace core {
         #endif
         for (n = 0; n<batch_size; n++) {
             uint64_t bit_counter = 0;
-            for (int m = 0; m<num_filters; m++) {
-                for (int k = 0; k<wgt_channels; k++) {
-                    bit_counter += computeTacticalPBitsPE(wgt.get(m, k), (uint8_t)act_layer_prec);
+            for (int r = 0; r < R; r++) {
+                for (int m = 0; m < num_filters; m++) {
+                    for (int k = 0; k < wgt_channels; k++) {
+                        bit_counter += computeTacticalPBitsPE(wgt.get(m, k), (uint8_t) act_layer_prec);
+                    }
                 }
             }
             stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
@@ -499,7 +548,7 @@ namespace core {
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);
                 computePotentialsConvolution(layer,stats);
-            } else if (layer.getType() == "InnerProduct") {
+            } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);

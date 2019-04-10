@@ -61,6 +61,13 @@ namespace core {
          */
         bool check_act_bits(const std::vector<std::queue<uint8_t>> &offsets);
 
+        /* Return value into sign-magnitude representation
+         * @param two_comp  Signed value in two complement
+         * @param mask      Mask with one bit for the bit position
+         * @return          Value in sign-maginutde
+         */
+        uint16_t sign_magnitude(short two_comp, uint16_t mask);
+
     public:
 
         /* Constructor

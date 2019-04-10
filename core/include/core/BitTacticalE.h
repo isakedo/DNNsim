@@ -32,16 +32,18 @@ namespace core {
 
         /* Compute cycles for BitTacticalE column
          * @param batch             Current number of batch
+         * @param recursion         Current recursion for LSTM
          * @param act_x             X position for the input window
          * @param act_y             Y position for the input window
          * @param stride            Stride of the current layer
          * @param padded_act        Set of padded input activations
          * @param dense_schedule    Data structure containing the weights
          * @param schedule_time     Time index for the scheduler
+         * @param lstm              True if it is LSTM layer
          * @return                  Number of cycles
          */
-        uint8_t computeTacticalEColumn(int batch, int act_x, int act_y, int stride, const cnpy::Array<T> &padded_act,
-                const schedule &dense_schedule, int schedule_time);
+        uint8_t computeTacticalEColumn(int batch, int recursion, int act_x, int act_y, int stride,
+                const cnpy::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time, bool lstm);
 
         /* Compute cycles for BitTacticalE tile
          * @param batch                 Current number of batch

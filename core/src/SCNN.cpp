@@ -437,18 +437,22 @@ namespace core {
 
         cnpy::Array<T> act = layer.getActivations();
         if(act.getDimensions() == 4) act.reshape_to_2D();
-        cnpy::Array<T> wgt = layer.getWeights();
+        const cnpy::Array<T> &wgt = layer.getWeights();
+
+        bool lstm = layer.getType() == "LSTM";
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = act_shape[0];
+        int R = lstm ? act_shape[0] : 1;
+
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
         if(this->FAST_MODE) batch_size = 1;
 
         // Operations
-        const auto parallel_mult = (uint64_t)num_filters * wgt_channels;
+        const auto parallel_mult = (uint64_t)num_filters * wgt_channels * R;
         stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
         stats.speedup.emplace_back(std::vector<double>(batch_size,0));
@@ -462,9 +466,12 @@ namespace core {
         #endif
         for (n = 0; n<batch_size; n++) {
             uint64_t bit_counter = 0;
-            for (int m = 0; m<num_filters; m++) {
-                for (int k = 0; k<wgt_channels; k++) {
-                    bit_counter += computeSCNNBitsPE(act.get(n, k), wgt.get(m, k));
+            for (int r = 0; r < R; r++) {
+                for (int m = 0; m < num_filters; m++) {
+                    for (int k = 0; k < wgt_channels; k++) {
+                        auto act_bits = lstm ? act.get(r, n, k) : act.get(n, k);
+                        bit_counter += computeSCNNBitsPE(act_bits, wgt.get(m, k));
+                    }
                 }
             }
             stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
@@ -497,7 +504,7 @@ namespace core {
                 stats.act_prec.push_back(0);
                 stats.wgt_prec.push_back(0);
                 computePotentialsConvolution(layer,stats);
-            } else if (layer.getType() == "InnerProduct") {
+            } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(0);
                 stats.wgt_prec.push_back(0);

@@ -67,8 +67,8 @@ namespace core {
     }
 
     template <typename T>
-    uint8_t BitTacticalE<T>::computeTacticalEColumn(int batch, int act_x, int act_y, int stride,
-            const cnpy::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time) {
+    uint8_t BitTacticalE<T>::computeTacticalEColumn(int batch, int recursion, int act_x, int act_y, int stride,
+            const cnpy::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time, bool lstm) {
 
         std::list<uint16_t> unique_act_bits;
         std::vector<std::queue<uint8_t>> offsets;
@@ -81,7 +81,13 @@ namespace core {
                 int kernel_x = std::get<1>(wgt_tuple);
                 int kernel_y = std::get<2>(wgt_tuple);
                 if(channel < 0) continue;
-                auto act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
+
+                T act_bits;
+                if(lstm)
+                    act_bits = padded_act.get(recursion, batch, channel);
+                else
+                    act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
+
                 #ifdef BOOTH_ENCODING
                 act_bits = this->booth_encoding(act_bits);
                 #endif
@@ -116,8 +122,8 @@ namespace core {
 
         //Get the slowest column
         for(int window = 0; window < list_act_x.size(); window++) {
-            uint8_t column_cycles = computeTacticalEColumn(batch,list_act_x[window],list_act_y[window], stride,
-                    padded_act,dense_schedule,schedule_time);
+            uint8_t column_cycles = computeTacticalEColumn(batch,0,list_act_x[window],list_act_y[window], stride,
+                    padded_act,dense_schedule,schedule_time,false);
             cycles_per_col[window] += column_cycles;
         }
 
@@ -235,16 +241,29 @@ namespace core {
 
         cnpy::Array<T> act = layer.getActivations();
         act.powers_of_two_representation();
-        if(act.getDimensions() == 4) act.reshape_to_2D();
-        act.reshape_to_4D();
         cnpy::Array<T> wgt = layer.getWeights();
         wgt.reshape_to_4D();
+
+        if(layer.getType() == "InnerProduct") {
+            if (act.getDimensions() == 4) act.reshape_to_2D();
+            act.reshape_to_4D();
+        }
+
+        bool lstm = layer.getType() == "LSTM";
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size = act_shape[0];
-        int act_channels = act_shape[1];
+        int batch_size, act_channels, R;
+        if(lstm) {
+            R = act_shape[0];
+            batch_size = act_shape[1];
+            act_channels = act_shape[2];
+        } else {
+            R = 1;
+            batch_size = act_shape[0];
+            act_channels = act_shape[1];
+        }
         if(this->FAST_MODE) batch_size = 1;
 
         // Stats
@@ -268,8 +287,10 @@ namespace core {
         #pragma omp parallel for private(n)
         #endif
         for (n = 0; n<batch_size; n++) {
-            for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                stats.cycles.back()[n] += computeTacticalEColumn(n,0,0,0,act,dense_schedule,schedule_time);
+            for (int r = 0; r < R; r++) {
+                for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
+                    stats.cycles.back()[n] += computeTacticalEColumn(n,r,0,0,0,act,dense_schedule,schedule_time,lstm);
+                }
             }
         }
 
@@ -284,15 +305,16 @@ namespace core {
 
             int column_index = 0;
             std::vector<int> column_end = std::vector<int>(this->N_COLUMNS, 0);
-
-            for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                if(stats.cycles.back()[n] < column_end[column_index])
-                    stats.cycles.back()[n] = column_end[column_index];
-                auto column_cycles = computeTacticalEColumn(n,0,0,0,act,dense_schedule,schedule_time);
-                column_end[column_index] = stats.cycles.back()[n] + column_cycles;
-                stats.cycles.back()[n]++;
-                column_index++;
-                if(column_index >= this->N_COLUMNS) column_index = 0;
+            for (int r = 0; r < R; r++) {
+                for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
+                    if(stats.cycles.back()[n] < column_end[column_index])
+                        stats.cycles.back()[n] = column_end[column_index];
+                    auto column_cycles = computeTacticalEColumn(n,r,0,0,0,act,dense_schedule,schedule_time,lstm);
+                    column_end[column_index] = stats.cycles.back()[n] + column_cycles;
+                    stats.cycles.back()[n]++;
+                    column_index++;
+                    if(column_index >= this->N_COLUMNS) column_index = 0;
+                }
             }
             uint64_t last_column_end = *std::max_element(column_end.begin(), column_end.end());
             stats.cycles.back()[n] = std::max(stats.cycles.back()[n], last_column_end);
@@ -325,7 +347,7 @@ namespace core {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
                 computeConvolution(layer, stats, schedule());
-            } else if(layer.getType() == "InnerProduct") {
+            } else if(layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
                 computeInnerProduct(layer, stats, schedule());
             }
@@ -354,7 +376,7 @@ namespace core {
                 stats.layers.push_back(layer.getName());
                 computeConvolution(layer, stats, proto_dense_schedule);
                 sch_index++;
-            } else if(layer.getType() == "InnerProduct") {
+            } else if(layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 const schedule &proto_dense_schedule = schedules[sch_index];
                 stats.layers.push_back(layer.getName());
                 computeInnerProduct(layer, stats, proto_dense_schedule);
@@ -464,16 +486,20 @@ namespace core {
         if(act.getDimensions() == 4) act.reshape_to_2D();
         const cnpy::Array<T> &wgt = layer.getWeights();
 
+        bool lstm = layer.getType() == "LSTM";
+
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = act_shape[0];
+        int R = lstm ? act_shape[0] : 1;
+
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
         if(this->FAST_MODE) batch_size = 1;
 
         // Operations
-        const auto parallel_mult = (uint64_t)num_filters * wgt_channels;
+        const auto parallel_mult = (uint64_t)num_filters * wgt_channels * R;
         stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
         stats.speedup.emplace_back(std::vector<double>(batch_size,0));
@@ -487,9 +513,12 @@ namespace core {
         #endif
         for (n = 0; n<batch_size; n++) {
             uint64_t bit_counter = 0;
-            for (int m = 0; m<num_filters; m++) {
-                for (int k = 0; k<wgt_channels; k++) {
-                    bit_counter += computeTacticalEBitsPE(act.get(n, k), wgt.get(m, k));
+            for (int r = 0; r < R; r++) {
+                for (int m = 0; m < num_filters; m++) {
+                    for (int k = 0; k < wgt_channels; k++) {
+                        auto act_bits = lstm ? act.get(r, n, k) : act.get(n, k);
+                        bit_counter += computeTacticalEBitsPE(act_bits, wgt.get(m, k));
+                    }
                 }
             }
             stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
@@ -521,7 +550,7 @@ namespace core {
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);
                 computePotentialsConvolution(layer,stats);
-            } else if (layer.getType() == "InnerProduct") {
+            } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);

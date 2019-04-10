@@ -158,7 +158,7 @@ namespace interface {
                     throw std::runtime_error("Failed to read conv_params.csv");
 
                 auto layer = core::Layer<T>(type,words[1],"",stoi(words[3]), stoi(words[5]), stoi(words[6]),
-                        stoi(words[9]), stoi(words[8]));
+                        stoi(words[8]), stoi(words[9]));
                 layer.setAct_precision(stoi(words[10]),stoi(words[11]),(stoi(words[10])-1)-stoi(words[11]));
                 layer.setWgt_precision(16,0,15);
                 layers.emplace_back(layer);

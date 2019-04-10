@@ -249,7 +249,7 @@ int main(int argc, char *argv[]) {
                         } else if(experiment.architecture == "DynamicStripes") {
                             core::DynamicStripes<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
                                     experiment.precision_granularity, experiment.column_registers, experiment.bits_pe,
-                                    simulate.network_bits, N_THREADS,FAST_MODE);
+                                    simulate.network_bits, experiment.diffy, N_THREADS,FAST_MODE);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                             else if (experiment.task == "AvgWidth") DNNsim.average_width(network);
@@ -313,10 +313,9 @@ int main(int argc, char *argv[]) {
                             if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                         }
+                        sys::Statistics::updateFlagsLastStat(simulate.tensorflow_8b);
                     }
                 }
-
-                sys::Statistics::updateFlagsLastStat(simulate.tensorflow_8b);
 
             } catch (std::exception &exception) {
                 std::cerr << "Simulation error: " << exception.what() << std::endl;

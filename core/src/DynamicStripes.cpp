@@ -71,8 +71,22 @@ namespace core {
             for (int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES, max_channel); channel++) {
 
                 // Computation cycles
-                uint16_t act_bits = padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
-                        stride * list_act_y[window] + kernel_y);
+                uint16_t act_bits;
+                if(DIFFY) {
+                    // Computation cycles
+                    short raw_act_bits = padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
+                            stride * list_act_y[window] + kernel_y);
+                    short prev_act_bits = (stride * list_act_y[window] - stride < 0) ? 0 :
+                            padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
+                                stride * list_act_y[window] + kernel_y - stride);
+
+                    raw_act_bits = raw_act_bits - prev_act_bits;
+
+                    act_bits = this->sign_magnitude(raw_act_bits,(uint16_t)act_mask);
+                } else {
+                    act_bits = padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
+                            stride * list_act_y[window] + kernel_y);
+                }
 
                 bool neg = false;
                 if((act_bits & act_mask) != 0) {
@@ -223,7 +237,7 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.sign_magnitude_representation(layer.getAct_precision());
+        if(!DIFFY) act.sign_magnitude_representation(layer.getAct_precision());
         cnpy::Array<T> wgt = layer.getWeights();
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
@@ -256,8 +270,7 @@ namespace core {
         long out_y = (Ny - Ky)/stride + 1;
 
         auto act_prec = layer.getAct_precision();
-        double act_intmax = (1 << (act_prec - 1)) - 1;
-        auto act_mask = (uint16_t)act_intmax + 1;
+        auto act_mask = (uint16_t)(1 << (act_prec - 1));
 
         auto wgt_layer_prec = layer.getWgt_precision();
         auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
@@ -346,8 +359,7 @@ namespace core {
         long out_y = (Ny - Ky)/stride + 1;
 
         auto act_prec = layer.getAct_precision();
-        double act_intmax = (1 << (act_prec - 1)) - 1;
-        auto act_mask = (uint16_t)act_intmax + 1;
+        auto act_mask = (uint16_t)(1 << (act_prec - 1));
 
         auto wgt_layer_prec = layer.getWgt_precision();
         auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
@@ -433,8 +445,7 @@ namespace core {
         int num_filters = wgt_shape[0];
 
         auto act_prec = layer.getAct_precision();
-        double act_intmax = (1 << (act_prec - 1)) - 1;
-        auto act_mask = (uint16_t)act_intmax + 1;
+        auto act_mask = (uint16_t)(1 << (act_prec - 1));
 
         auto wgt_layer_prec = layer.getWgt_precision();
         auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
@@ -516,7 +527,9 @@ namespace core {
 
         stats.task_name = "cycles";
         stats.net_name = network.getName();
-        stats.arch = "DynamicStripes_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG" +
+        std::string arch = "DynamicStripes";
+        arch += (DIFFY ? "_Diffy" : "");
+        stats.arch = arch + "_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG" +
                 std::to_string(PRECISION_GRANULARITY) + "_CR" + std::to_string(COLUMN_REGISTERS) + "_BP" +
                 std::to_string(BITS_PE);
 
@@ -525,7 +538,7 @@ namespace core {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(layer.getWgt_precision());
-                if(layer.getWeights().getShape()[1] == 1)
+                if(layer.getWeights().getShape()[1] == 1 && layer.getActivations().getShape()[1] != 1)
                     computeConvolution2D(layer, stats);
                 else
                     computeConvolution(layer, stats);
@@ -611,11 +624,13 @@ namespace core {
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = 1;
+        int R = (layer.getType() == "LSTM") ? act_shape[0] : 1;
+
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
 
         // Operations
-        const auto parallel_mult = (uint64_t)num_filters * wgt_channels;
+        const auto parallel_mult = (uint64_t)num_filters * wgt_channels * R;
         stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
         stats.speedup.emplace_back(std::vector<double>(batch_size,0));
@@ -625,7 +640,7 @@ namespace core {
         auto layer_prec = layer.getAct_precision();
 
         for (int n = 0; n<batch_size; n++) {
-            bit_counter = (uint64_t)computeDynamicStripesBitsPE((uint8_t)layer_prec)*wgt_channels*num_filters;
+            bit_counter = (uint64_t)computeDynamicStripesBitsPE((uint8_t)layer_prec) * wgt_channels * num_filters * R;
             stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
             stats.speedup.back()[n] = (double)parallel_mult * 256. / (double)bit_counter;
             stats.bit_multiplications.back()[n] = bit_counter;
@@ -655,7 +670,7 @@ namespace core {
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);
                 computePotentialsConvolution(layer,stats);
-            } else if (layer.getType() == "InnerProduct") {
+            } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);
@@ -789,7 +804,7 @@ namespace core {
     }
 
     template <typename T>
-    void DynamicStripes<T>::computeAvgWidthConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void DynamicStripes<T>::computeAvgWidthLayer(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
@@ -846,12 +861,10 @@ namespace core {
         long out_y = (Ny - Ky)/stride + 1;
 
         auto act_prec = layer.getAct_precision();
-        double act_intmax = (1 << (act_prec - 1)) - 1;
-        auto act_mask = (uint16_t)act_intmax + 1;
+        auto act_mask = (uint16_t)(1 << (act_prec - 1));
 
         auto wgt_prec = layer.getWgt_precision();
-        double wgt_intmax = (1 << (wgt_prec - 1)) - 1;
-        auto wgt_mask = (uint16_t)wgt_intmax + 1;
+        auto wgt_mask = (uint16_t)(1 << (wgt_prec - 1));
 
         // Stats
         stats.act_avg_width.emplace_back(std::vector<double>(batch_size,0));
@@ -957,7 +970,7 @@ namespace core {
             auto num_act = R * Nx * Ny * act_channels;
             stats.act_bits_baseline.back()[n] = num_act * NETWORK_BITS;
             stats.act_bits_profiled.back()[n] = 4 + num_act * act_prec;
-            auto overhead = (uint64_t)((16 + log(NETWORK_BITS)) * ceil(num_act / 16.));
+            auto overhead = (uint64_t)((16 + log2(NETWORK_BITS)) * ceil(num_act / 16.));
             stats.act_bits_datawidth.back()[n] = overhead + act_bits_datawidth;
 
         }
@@ -997,15 +1010,15 @@ namespace core {
                                 neg = true;
                             }
 
-                            const auto &min_max_act_bits = this->minMax(wgt_bits);
+                            const auto &min_max_wgt_bits = this->minMax(wgt_bits);
 
-                            auto min_act_bit = std::get<0>(min_max_act_bits);
-                            auto max_act_bit = std::get<1>(min_max_act_bits);
+                            auto min_wgt_bit = std::get<0>(min_max_wgt_bits);
+                            auto max_wgt_bit = std::get<1>(min_max_wgt_bits);
 
-                            if(neg) max_act_bit += 1;
+                            if(neg) max_wgt_bit += 1;
 
-                            if(min_act_bit < min_bit) min_bit = min_act_bit;
-                            if(max_act_bit > max_bit) max_bit = max_act_bit;
+                            if(min_wgt_bit < min_bit) min_bit = min_wgt_bit;
+                            if(max_wgt_bit > max_bit) max_bit = max_wgt_bit;
 
                         }
                         auto width = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
@@ -1033,7 +1046,7 @@ namespace core {
             auto num_wgt = wgt.getMax_index();
             stats.wgt_bits_baseline.back()[n] = num_wgt * NETWORK_BITS;
             stats.wgt_bits_profiled.back()[n] = 4 + num_wgt * wgt_prec;
-            auto overhead = (uint64_t)((16 + log(NETWORK_BITS)) * ceil(num_wgt / 16.));
+            auto overhead = (uint64_t)((16 + log2(NETWORK_BITS)) * ceil(num_wgt / 16.));
             stats.wgt_bits_datawidth.back()[n] = overhead + wgt_bits_datawidth;
 
             stats.wgt_avg_width.back()[n] = wgt_avg_width;
@@ -1126,7 +1139,7 @@ namespace core {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(layer.getWgt_precision());
-                computeAvgWidthConvolution(layer, stats);
+                computeAvgWidthLayer(layer, stats);
             }
         }
 

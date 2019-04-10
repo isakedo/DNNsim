@@ -56,6 +56,9 @@ message Batch {
             uint32 N = 21;
             uint32 PMAX = 22;
             uint32 PMIN = 23;
+
+            // On top architectures
+            bool Diffy = 24;
         }
 
         uint32 batch = 1;
