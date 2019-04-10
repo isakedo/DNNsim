@@ -71,8 +71,22 @@ namespace core {
             for (int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES, max_channel); channel++) {
 
                 // Computation cycles
-                uint16_t act_bits = padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
-                        stride * list_act_y[window] + kernel_y);
+                uint16_t act_bits;
+                if(DIFFY) {
+                    // Computation cycles
+                    short raw_act_bits = padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
+                            stride * list_act_y[window] + kernel_y);
+                    short prev_act_bits = (stride * list_act_y[window] - stride < 0) ? 0 :
+                            padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
+                                stride * list_act_y[window] + kernel_y - stride);
+
+                    raw_act_bits = raw_act_bits - prev_act_bits;
+
+                    act_bits = this->sign_magnitude(raw_act_bits,(uint16_t)act_mask);
+                } else {
+                    act_bits = padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
+                            stride * list_act_y[window] + kernel_y);
+                }
 
                 bool neg = false;
                 if((act_bits & act_mask) != 0) {
@@ -223,7 +237,7 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.sign_magnitude_representation(layer.getAct_precision());
+        if(!DIFFY) act.sign_magnitude_representation(layer.getAct_precision());
         cnpy::Array<T> wgt = layer.getWeights();
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
@@ -513,7 +527,9 @@ namespace core {
 
         stats.task_name = "cycles";
         stats.net_name = network.getName();
-        stats.arch = "DynamicStripes_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG" +
+        std::string arch = "DynamicStripes";
+        arch += (DIFFY ? "_Diffy" : "");
+        stats.arch = arch + "_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG" +
                 std::to_string(PRECISION_GRANULARITY) + "_CR" + std::to_string(COLUMN_REGISTERS) + "_BP" +
                 std::to_string(BITS_PE);
 

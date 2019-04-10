@@ -52,6 +52,7 @@ namespace sys {
                 int N = 0;
                 int pmax = 0;
                 int pmin = 0;
+                bool diffy = false;
             };
 
             int batch = 0;

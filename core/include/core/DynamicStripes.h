@@ -31,6 +31,9 @@ namespace core {
         /* Network bits */
         const int NETWORK_BITS;
 
+        /* Diffy simualtion */
+        const bool DIFFY;
+
         /* Compute number of one bit multiplications
          * @param layer_prec    Layer precision
          * @return              Number of one bit multiplications
@@ -181,14 +184,15 @@ namespace core {
          * @param _COLUMN_REGISTERS         Number of registers per SIP
          * @param _BITS_PE                  Number of bits per PE
          * @param _NETWORK_BITS             Network bits
+         * @param _DIFFY                    Enable Diffy
          * @param _N_THREADS                Number of parallel threads for multi-threading execution
          * @param _FAST_MODE                Enable fast mode to simulate only one image
          */
         DynamicStripes(int _N_COLUMNS, int _N_ROWS, const int &_PRECISION_GRANULARITY, int _COLUMN_REGISTERS,
-                int _BITS_PE, int _NETWORK_BITS, uint8_t _N_THREADS, bool _FAST_MODE) :
+                int _BITS_PE, int _NETWORK_BITS, bool _DIFFY, uint8_t _N_THREADS, bool _FAST_MODE) :
                 Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS),
                 PRECISION_GRANULARITY(_PRECISION_GRANULARITY), COLUMN_REGISTERS(_COLUMN_REGISTERS),
-                BITS_PE(_BITS_PE), NETWORK_BITS(_NETWORK_BITS) {}
+                BITS_PE(_BITS_PE), NETWORK_BITS(_NETWORK_BITS), DIFFY(_DIFFY) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate
