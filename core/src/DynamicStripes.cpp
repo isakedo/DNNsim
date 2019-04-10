@@ -522,7 +522,7 @@ namespace core {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(layer.getWgt_precision());
-                if(layer.getWeights().getShape()[1] == 1)
+                if(layer.getWeights().getShape()[1] == 1 && layer.getActivations().getShape()[1] != 1)
                     computeConvolution2D(layer, stats);
                 else
                     computeConvolution(layer, stats);

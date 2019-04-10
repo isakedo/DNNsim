@@ -470,7 +470,7 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                if(layer.getWeights().getShape()[1] == 1)
+                if(layer.getWeights().getShape()[1] == 1 && layer.getActivations().getShape()[1] != 1)
                     computeConvolution2D(layer, stats);
                 else
                     computeConvolution(layer, stats);
