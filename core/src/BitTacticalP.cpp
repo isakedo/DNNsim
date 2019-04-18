@@ -56,8 +56,10 @@ namespace core {
             }
         }
 
-        return min_bit > max_bit ? (uint8_t)1 : max_bit - min_bit + (uint8_t)1;
-
+        int cycles;
+        if(MINOR_BIT) cycles = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+        else cycles = max_bit + 1;
+        return (uint8_t)cycles;
     }
 
     template <typename T>
@@ -115,14 +117,17 @@ namespace core {
             }
 
             group_counter++;
-            if(group_counter == WINDOWS_PER_GROUP)
-                per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+            if(group_counter == WINDOWS_PER_GROUP) {
+                if(MINOR_BIT) per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+                else per_group_cycles[group_index] = max_bit + 1;
+            }
 
         }
 
-        if(group_counter < WINDOWS_PER_GROUP)
-            per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
-
+        if(group_counter < WINDOWS_PER_GROUP) {
+            if(MINOR_BIT) per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+            else per_group_cycles[group_index] = max_bit + 1;
+        }
 
         for(int group = 0; group < N_GROUPS; group++) {
             cycles_per_group[group] += per_group_cycles[group];

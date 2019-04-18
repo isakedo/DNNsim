@@ -36,6 +36,7 @@ namespace sys {
                 int bits_pe = 0;
                 int column_registers = 0;
                 int precision_granularity = 0;
+                bool minor_bit = false;
                 int bits_first_stage = 0;
                 int lookahead_h = 0;
                 int lookaside_d = 0;

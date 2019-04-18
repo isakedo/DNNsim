@@ -29,36 +29,37 @@ message Batch {
 
             // For Dynamic Stripes
             uint32 precision_granularity = 6;
+            bool minor_bit = 7;
 
             // For pragmatic
-            uint32 bits_first_stage = 7;
+            uint32 bits_first_stage = 8;
 
             // For stripes
-            uint32 bits_pe = 8;
+            uint32 bits_pe = 9;
 
             // For tactical
-            uint32 lookahead_h = 9;
-            uint32 lookaside_d = 10;
-            string search_shape = 11;
-            bool read_schedule_from_proto = 12;
+            uint32 lookahead_h = 10;
+            uint32 lookaside_d = 11;
+            string search_shape = 12;
+            bool read_schedule_from_proto = 13;
 
             // SCNN
-            uint32 Wt = 13;
-            uint32 Ht = 14;
-            uint32 I = 15;
-            uint32 F = 16;
-            uint32 out_acc_size = 17;
-            uint32 banks = 18;
-            uint32 pe_serial_bits = 19;
+            uint32 Wt = 14;
+            uint32 Ht = 15;
+            uint32 I = 16;
+            uint32 F = 17;
+            uint32 out_acc_size = 18;
+            uint32 banks = 19;
+            uint32 pe_serial_bits = 20;
 
             // BitFusion
-            uint32 M = 20;
-            uint32 N = 21;
-            uint32 PMAX = 22;
-            uint32 PMIN = 23;
+            uint32 M = 21;
+            uint32 N = 22;
+            uint32 PMAX = 23;
+            uint32 PMIN = 24;
 
             // On top architectures
-            bool diffy = 24;
+            bool diffy = 25;
         }
 
         uint32 batch = 1;

@@ -43,7 +43,10 @@ namespace core {
 
         }
 
-        return min_bit > max_bit ? (uint8_t)1 : max_bit - min_bit + (uint8_t)1;
+        int cycles;
+        if(MINOR_BIT) cycles = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+        else cycles = max_bit + 1;
+        return (uint8_t)cycles;
 
     }
 
@@ -106,14 +109,17 @@ namespace core {
             }
 
             group_counter++;
-            if(group_counter == WINDOWS_PER_GROUP)
-                per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+            if(group_counter == WINDOWS_PER_GROUP) {
+                if(MINOR_BIT) per_group_cycles[group_index] = (uint8_t)((min_bit > max_bit) ? 1 : max_bit - min_bit + 1);
+                else per_group_cycles[group_index] = (uint8_t)(max_bit + 1);
+            }
 
         }
 
-        if(group_counter < WINDOWS_PER_GROUP)
-            per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
-
+        if(group_counter < WINDOWS_PER_GROUP) {
+            if(MINOR_BIT) per_group_cycles[group_index] = (uint8_t)((min_bit > max_bit) ? 1 : max_bit - min_bit + 1);
+            else per_group_cycles[group_index] = (uint8_t)(max_bit + 1);
+        }
 
         for(int group = 0; group < N_GROUPS; group++) {
             cycles_per_group[group] += per_group_cycles[group];
@@ -191,13 +197,19 @@ namespace core {
             }
 
             group_counter++;
-            if(group_counter == WINDOWS_PER_GROUP)
-                per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+            if(group_counter == WINDOWS_PER_GROUP) {
+                if(MINOR_BIT) per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+                else per_group_cycles[group_index] = max_bit + 1;
+
+            }
 
         }
 
-        if(group_counter < WINDOWS_PER_GROUP)
-            per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+        if(group_counter < WINDOWS_PER_GROUP) {
+            if(MINOR_BIT) per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+            else per_group_cycles[group_index] = max_bit + 1;
+
+        }
 
         for(int group = 0; group < N_GROUPS; group++) {
             cycles_per_group[group] += per_group_cycles[group];
@@ -736,13 +748,17 @@ namespace core {
             }
 
             group_counter++;
-            if(group_counter == WINDOWS_PER_GROUP)
-                act_width[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+            if(group_counter == WINDOWS_PER_GROUP) {
+                if(MINOR_BIT) act_width[group_index] = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
+                else act_width[group_index] = max_bit + 1;
+            }
 
         }
 
-        if(group_counter < WINDOWS_PER_GROUP)
-            act_width[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+        if(group_counter < WINDOWS_PER_GROUP) {
+            if(MINOR_BIT) act_width[group_index] = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
+            else act_width[group_index] = max_bit + 1;
+        }
 
         return act_width;
 
@@ -792,13 +808,16 @@ namespace core {
             }
 
             group_counter++;
-            if(group_counter == WINDOWS_PER_GROUP)
-                wgt_width[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
-
+            if(group_counter == WINDOWS_PER_GROUP) {
+                if(MINOR_BIT) wgt_width[group_index] = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
+                else wgt_width[group_index] = max_bit + 1;
+            }
         }
 
-        if(group_counter < WINDOWS_PER_GROUP)
-            wgt_width[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+        if(group_counter < WINDOWS_PER_GROUP) {
+            if(MINOR_BIT) wgt_width[group_index] = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
+            else wgt_width[group_index] = max_bit + 1;
+        }
 
         return wgt_width;
 
@@ -960,7 +979,9 @@ namespace core {
                                 if(max_act_bit > max_bit) max_bit = max_act_bit;
 
                             }
-                            auto width = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+                            int width;
+                            if(MINOR_BIT) width = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
+                            else width = max_bit + 1;
                             act_bits_datawidth = act_bits_datawidth + (width * non_zeroes);
                         }
                     }
@@ -1022,7 +1043,9 @@ namespace core {
                             if(max_wgt_bit > max_bit) max_bit = max_wgt_bit;
 
                         }
-                        auto width = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+                        int width;
+                        if(MINOR_BIT) width = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
+                        else width = max_bit + 1;
                         wgt_bits_datawidth = wgt_bits_datawidth + (width * non_zeroes);
                     }
                 }

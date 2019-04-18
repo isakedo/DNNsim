@@ -250,7 +250,7 @@ int main(int argc, char *argv[]) {
                         } else if(experiment.architecture == "DynamicStripes") {
                             core::DynamicStripes<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
                                     experiment.precision_granularity, experiment.column_registers, experiment.bits_pe,
-                                    simulate.network_bits, experiment.diffy, N_THREADS,FAST_MODE);
+                                    simulate.network_bits, experiment.minor_bit, experiment.diffy, N_THREADS,FAST_MODE);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                             else if (experiment.task == "AvgWidth") DNNsim.average_width(network);
@@ -264,7 +264,7 @@ int main(int argc, char *argv[]) {
                             core::BitTacticalP<uint16_t> DNNsim(experiment.n_columns, experiment.n_rows,
                                     experiment.precision_granularity, experiment.column_registers,
                                     experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape,
-                                    simulate.network_bits, N_THREADS, FAST_MODE);
+                                    simulate.network_bits, experiment.minor_bit, N_THREADS, FAST_MODE);
                             if(experiment.task == "Cycles" && experiment.read_schedule_from_proto) {
                                 auto dense_schedule = read_schedule<uint16_t>(network.getName(),"BitTactical",
                                         experiment);
