@@ -8,9 +8,9 @@ namespace core {
     template <typename T>
     uint8_t BitTacticalP<T>::computeTacticalPBitsPE(uint16_t wgt, uint8_t act_layer_prec) {
         #ifdef ZERO_COUNT
-        return wgt == 0 ? (uint8_t)1 : act_layer_prec * (uint8_t)16;
+        return wgt == 0 ? (uint8_t)1 : act_layer_prec * (uint8_t)NETWORK_BITS;
         #else
-        return wgt == 0 ? (uint8_t)0 : act_layer_prec * (uint8_t)16;
+        return wgt == 0 ? (uint8_t)0 : act_layer_prec * (uint8_t)NETWORK_BITS;
         #endif
     }
 
@@ -462,8 +462,9 @@ namespace core {
                 }
             }
             bit_counter *= out_x * out_y;
-            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
-            stats.speedup.back()[n] = (double)parallel_mult * 256. / (double)bit_counter;
+            double MAX_BITS = NETWORK_BITS * NETWORK_BITS;
+            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
+            stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
             stats.bit_multiplications.back()[n] = bit_counter;
         }
 
@@ -519,8 +520,9 @@ namespace core {
                     }
                 }
             }
-            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
-            stats.speedup.back()[n] = (double)parallel_mult * 256. / (double)bit_counter;
+            double MAX_BITS = NETWORK_BITS * NETWORK_BITS;
+            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
+            stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
             stats.bit_multiplications.back()[n] = bit_counter;
         }
 

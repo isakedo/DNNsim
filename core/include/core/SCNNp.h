@@ -15,6 +15,9 @@ namespace core {
         /* Number of bits in series that the PE process */
         const int PE_SERIAL_BITS;
 
+        /* Network bits */
+        const int NETWORK_BITS;
+
         struct PE_stats {
             uint32_t cycles = 0;
             uint32_t mults = 0;
@@ -96,12 +99,13 @@ namespace core {
          * @param _out_acc_size     Output accumulator size
          * @param _BANKS            Number of banks
          * @param _PE_SERIAL_BITS   Number of bits in series that the PE process
+         * @param _NETWORK_BITS     Network bits
          * @param _N_THREADS        Number of parallel threads for multi-threading execution
          * @param _FAST_MODE        Enable fast mode to simulate only one image
          */
-        SCNNp(int _Wt, int _Ht, int _I, int _F, int _out_acc_size, int _BANKS, int _PE_SERIAL_BITS, uint8_t _N_THREADS,
-              bool _FAST_MODE) : SCNN<T>(_Wt,_Ht,_I,_F,_out_acc_size,_BANKS,_N_THREADS, _FAST_MODE),
-              PE_SERIAL_BITS(_PE_SERIAL_BITS) {}
+        SCNNp(int _Wt, int _Ht, int _I, int _F, int _out_acc_size, int _BANKS, int _PE_SERIAL_BITS, int _NETWORK_BITS,
+                uint8_t _N_THREADS, bool _FAST_MODE) : SCNN<T>(_Wt,_Ht,_I,_F,_out_acc_size,_BANKS,_N_THREADS,
+                _FAST_MODE), PE_SERIAL_BITS(_PE_SERIAL_BITS), NETWORK_BITS(_NETWORK_BITS) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

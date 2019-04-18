@@ -22,11 +22,14 @@ namespace core {
         /* Bits per PE */
         const int BITS_PE;
 
+        /* Network bits */
+        const int NETWORK_BITS;
+
         /* Compute number of one bit multiplications
          * @param layer_prec    Layer precision
          * @return              Number of one bit multiplications
          */
-        static inline uint16_t computeStripesBitsPE(uint8_t layer_prec);
+        inline uint16_t computeStripesBitsPE(uint8_t layer_prec);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs
@@ -64,11 +67,13 @@ namespace core {
          * @param _N_COLUMNS    Number of columns
          * @param _N_ROWS       Number of rows
          * @param _BITS_PE      Number of bits per PE
+         * @param _NETWORK_BITS Network bits
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          */
-        Stripes(int _N_COLUMNS, int _N_ROWS, int _BITS_PE, uint8_t _N_THREADS, bool _FAST_MODE) :
-                Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), BITS_PE(_BITS_PE) {}
+        Stripes(int _N_COLUMNS, int _N_ROWS, int _BITS_PE, int _NETWORK_BITS, uint8_t _N_THREADS, bool _FAST_MODE) :
+                Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), BITS_PE(_BITS_PE),
+                NETWORK_BITS(_NETWORK_BITS) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

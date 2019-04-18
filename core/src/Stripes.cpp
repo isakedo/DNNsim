@@ -7,7 +7,7 @@ namespace core {
 
     template <typename T>
     uint16_t Stripes<T>::computeStripesBitsPE(uint8_t layer_prec) {
-        return layer_prec * (uint8_t)16;
+        return layer_prec * (uint8_t)NETWORK_BITS;
     }
 
     /* CYCLES */
@@ -363,10 +363,11 @@ namespace core {
 
         // Convolution
         for(int n=0; n<batch_size; n++) {
+            double MAX_BITS = NETWORK_BITS * NETWORK_BITS;
             bit_counter = (uint64_t)computeStripesBitsPE((uint8_t)layer_prec) * out_x * out_y * Kx * Ky * wgt_channels *
                     num_filters;
-            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
-            stats.speedup.back()[n] = (double)parallel_mult * 256. / (double)bit_counter;
+            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
+            stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
             stats.bit_multiplications.back()[n] = bit_counter;
         }
 
@@ -407,9 +408,10 @@ namespace core {
         auto layer_prec = layer.getAct_precision();
 
         for (int n = 0; n<batch_size; n++) {
+            double MAX_BITS = NETWORK_BITS * NETWORK_BITS;
             bit_counter = (uint64_t)computeStripesBitsPE((uint8_t)layer_prec)*wgt_channels * num_filters * R;
-            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
-            stats.speedup.back()[n] = (double)parallel_mult * 256. / (double)bit_counter;
+            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
+            stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
             stats.bit_multiplications.back()[n] = bit_counter;
         }
 
