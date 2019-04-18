@@ -27,6 +27,9 @@ namespace core {
         /* Number of registers per SIP */
         const int COLUMN_REGISTERS;
 
+        /* Diffy simualtion */
+        const bool DIFFY;
+
         /* Compute number of one bit multiplications given an activation
          * @param act       Activation
          * @return          Number of one bit multiplications
@@ -65,6 +68,7 @@ namespace core {
          * @param init_channel          Starting index for the channel
          * @param stride                Stride of the current layer
          * @param padded_act            Set of padded input activations
+         * @param act_mask              Position of the activations sign bit
          * @param max_channel           Maximum number of channels
          * @param cycles_per_col        Number of cycles per column (Overwritten)
          * @param end_previous_pallet   Cycle when the previous pallet finishes (Overwritten)
@@ -72,8 +76,8 @@ namespace core {
          */
         void computePragmaticTile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
                 int kernel_x, int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act,
-                int max_channel, std::vector<uint32_t> &cycles_per_col, std::vector<uint32_t> &end_previous_pallet,
-                sys::Statistics::Stats &stats);
+                int act_max, int max_channel, std::vector<uint32_t> &cycles_per_col,
+                std::vector<uint32_t> &end_previous_pallet, sys::Statistics::Stats &stats);
 
         /* Compute cycles for laconic tile
          * @param batch                 Current number of batch
@@ -133,12 +137,14 @@ namespace core {
          * @param _N_ROWS               Number of rows
          * @param _BITS_FIRST_STAGE     Bits of the first stage in the two stages shifting
          * @param _COLUMN_REGISTERS     Number of registers per SIP
+         * @param _DIFFY                Enable Diffy
          * @param _N_THREADS            Number of parallel threads for multi-threading execution
          * @param _FAST_MODE            Enable fast mode to simulate only one image
          */
-        BitPragmatic(int _N_COLUMNS, int _N_ROWS, int _BITS_FIRST_STAGE, int _COLUMN_REGISTERS, uint8_t _N_THREADS,
-                bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS),
-                BITS_FIRST_STAGE(_BITS_FIRST_STAGE), COLUMN_REGISTERS(_COLUMN_REGISTERS) {}
+        BitPragmatic(int _N_COLUMNS, int _N_ROWS, int _BITS_FIRST_STAGE, int _COLUMN_REGISTERS, bool _DIFFY,
+                uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS),
+                N_ROWS(_N_ROWS), BITS_FIRST_STAGE(_BITS_FIRST_STAGE), COLUMN_REGISTERS(_COLUMN_REGISTERS),
+                DIFFY(_DIFFY) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

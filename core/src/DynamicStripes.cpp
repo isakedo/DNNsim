@@ -73,7 +73,6 @@ namespace core {
                 // Computation cycles
                 uint16_t act_bits;
                 if(DIFFY) {
-                    // Computation cycles
                     short raw_act_bits = padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
                             stride * list_act_y[window] + kernel_y);
                     short prev_act_bits = (stride * list_act_y[window] - stride < 0) ? 0 :

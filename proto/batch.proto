@@ -58,7 +58,7 @@ message Batch {
             uint32 PMIN = 23;
 
             // On top architectures
-            bool Diffy = 24;
+            bool diffy = 24;
         }
 
         uint32 batch = 1;

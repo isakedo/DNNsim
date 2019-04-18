@@ -96,12 +96,48 @@ namespace core {
     template <typename T>
     void BitPragmatic<T>::computePragmaticTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int stride,
-            const cnpy::Array<T> &padded_act, int max_channel, std::vector<uint32_t> &cycles_per_col,
+            const cnpy::Array<T> &padded_act, int act_mask, int max_channel, std::vector<uint32_t> &cycles_per_col,
             std::vector<uint32_t> &end_previous_pallet, sys::Statistics::Stats &stats) {
 
         for(int window = 0; window < list_act_x.size(); window++) {
-            uint8_t column_cycles = computePragmaticColumn(batch, 0, list_act_x[window], list_act_y[window], kernel_x,
-                    kernel_y, init_channel, stride, padded_act, max_channel, false);
+
+            std::vector<std::queue<uint8_t>> offsets;
+            for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_channel); channel++) {
+
+                // Computation cycles
+                uint16_t act_bits;
+                if(DIFFY) {
+                    short raw_act_bits = padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
+                            stride * list_act_y[window] + kernel_y);
+                    short prev_act_bits = (stride * list_act_y[window] - stride < 0) ? 0 :
+                            padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
+                                    stride * list_act_y[window] + kernel_y - stride);
+
+                    raw_act_bits = raw_act_bits - prev_act_bits;
+
+                    act_bits = this->sign_magnitude(raw_act_bits,(uint16_t)act_mask);
+                } else {
+                    act_bits = padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
+                            stride * list_act_y[window] + kernel_y);
+                }
+
+                #ifdef BOOTH_ENCODING
+                act_bits = this->booth_encoding(act_bits);
+                #endif
+
+                uint8_t count = 0;
+                std::queue<uint8_t> act_offsets;
+                while (act_bits) {
+                    auto current_bit = act_bits & 1;
+                    if(current_bit) act_offsets.push(count);
+                    act_bits >>= 1;
+                    count++;
+                }
+
+                offsets.push_back(act_offsets);
+            }
+
+            uint8_t column_cycles = computePragmaticPE(offsets);
             cycles_per_col[window] += column_cycles;
         }
 
@@ -200,7 +236,7 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation();
+        if(!DIFFY) act.powers_of_two_representation();
         cnpy::Array<T> wgt = layer.getWeights();
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
@@ -232,6 +268,9 @@ namespace core {
         long out_x = (Nx - Kx)/stride + 1;
         long out_y = (Ny - Ky)/stride + 1;
 
+        auto act_prec = layer.getAct_precision();
+        auto act_mask = (uint16_t)(1 << (act_prec - 1));
+
         int groups = act_channels / wgt_channels;
         auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS/groups);
         auto baseline_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS/groups);
@@ -259,7 +298,7 @@ namespace core {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
                         for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
-                            computePragmaticTile(n,list_x, list_y, i, j, k, stride, act, act_channels,
+                            computePragmaticTile(n,list_x, list_y, i, j, k, stride, act, act_mask, act_channels,
                                     cycles_per_col, end_previous_pallet, stats);
                         }
                     }
@@ -464,7 +503,9 @@ namespace core {
 
         stats.task_name = "cycles";
         stats.net_name = network.getName();
-        stats.arch = "BitPragmatic_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_B" +
+        std::string arch = "BitPragmatic";
+        arch += (DIFFY ? "_Diffy" : "");
+        stats.arch = arch + "_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_B" +
                 std::to_string(BITS_FIRST_STAGE) + "_CR" + std::to_string(COLUMN_REGISTERS);
 
         for(const Layer<T> &layer : network.getLayers()) {

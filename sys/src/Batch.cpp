@@ -95,6 +95,7 @@ namespace sys {
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.column_registers = experiment_proto.column_registers();
                     experiment.bits_first_stage = experiment_proto.bits_first_stage();
+                    experiment.diffy = experiment_proto.diffy();
 
                 } else if(experiment_proto.architecture() == "Stripes") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();

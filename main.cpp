@@ -236,7 +236,8 @@ int main(int argc, char *argv[]) {
 
                         } else if(experiment.architecture == "BitPragmatic") {
                             core::BitPragmatic<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
-                                    experiment.bits_first_stage,experiment.column_registers, N_THREADS,FAST_MODE);
+                                    experiment.bits_first_stage,experiment.column_registers,experiment.diffy,
+                                    N_THREADS,FAST_MODE);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
