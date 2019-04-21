@@ -143,16 +143,17 @@ This is necessary after changing the precisions, etc.
 | Architecture | Description | 
 |:---:|:---:|
 | None | Special generic architecture |
-| Stripes | **Ap**: Exploits precision requirements of activations | 
-| DynamicStripes | **Ap**: Exploits dynamic precision requirements of a group of activations | 
 | BitPragmatic | **Ae**: Exploits bit-level sparsity of activations |
+| Stripes | **Ap**: Exploits precision requirements of activations |
+| DynamicStripes | **Ap**: Exploits dynamic precision requirements of a group of activations | 
+| Loom | **Wp + Ap**: Exploits dynamic precision requirements of a group of activations and weights |
 | Laconic | **We + Ae**: Exploits bit-level sparsity of both weights and activations |
 | BitTacticalP | **W + Ap**: Skips zero weights and exploits precision requirements of activations | 
 | BitTacticalE | **W + Ae**: Skips zero weights and exploits bit-level sparsity of activations | 
 | SCNN | **W + A**: Skips zero weights and zero activations |
 | SCNNp | **W + A + Ap**: Skips zero weights, zero activations, and exploits precision requirements of activations |
 | SCNNe | **W + A + Ae**: Skips zero weights, zero activations, and exploits bit-level sparsity of activations |
-| BitFusion | **Ap + Wp**: Exploits precision requirements of activations and weights for powers of two |
+| BitFusion | **Wp + Ap**: Exploits precision requirements of activations and weights for powers of two |
 
 Input parameters are the parameters that can be changed for each architecture in the prototxt batch file (Default values
 can be found inside **examples/README**)  
@@ -161,14 +162,15 @@ Data type indicates the possible data types allowed: Float32 for 4bytes floating
 
 | Architecture | Input Parameters | Default Parameters\* | Data type |
 |:---:|:---:|:---:|:---:|
-| Stripes | N_COLUMNS, N_ROWS, BITS_PE, NETWORK_BITS | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
-| DynamicStripes | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY, COLUMN_REGISTERS, NETWORK_BITS, MINOR_BIT, DIFFY | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
 | BitPragmatic | N_COLUMNS, N_ROWS, BITS_FIRST_STAGE, COLUMN_REGISTERS, DIFFY | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16| Fixed16 |
+| Stripes | N_COLUMNS, N_ROWS, BITS_PE | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
+| DynamicStripes | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY, COLUMN_REGISTERS, MINOR_BIT, DIFFY | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
+| Loom | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY, PE_SERIAL_BITS, MINOR_BIT, DIFFY | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
 | Laconic | N_COLUMNS, N_ROWS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
-| BitTacticalP | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, PRECISION_GRANULARITY, COLUMN_REGISTERS, NETWORK_BITS, MINOR_BIT | ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
+| BitTacticalP | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, PRECISION_GRANULARITY, COLUMN_REGISTERS, MINOR_BIT | ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
 | BitTacticalE | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, BITS_FIRST_STAGE, COLUMN_REGISTERS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
 | SCNN | Wt, Ht, I, F, out_acc_size, BANKS | ZERO_COUNT | Fixed16, Float32 |
-| SCNNp | Wt, Ht, I, F, out_acc_size, BANKS, PE_SERIAL_BITS, NETWORK_BITS | ZERO_COUNT | Fixed16 |
+| SCNNp | Wt, Ht, I, F, out_acc_size, BANKS, PE_SERIAL_BITS | ZERO_COUNT | Fixed16 |
 | SCNNe | Wt, Ht, I, F, out_acc_size, BANKS, PE_SERIAL_BITS | BOOTH_ENCODING, ZERO_COUNT | Fixed16 |
 | BitFusion | M, N, PMAX, PMIN | - | Fixed16 |
 

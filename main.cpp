@@ -29,6 +29,7 @@ THE SOFTWARE.
 #include <core/Inference.h>
 #include <core/Stripes.h>
 #include <core/DynamicStripes.h>
+#include <core/Loom.h>
 #include <core/BitPragmatic.h>
 #include <core/Laconic.h>
 #include <core/BitTacticalP.h>
@@ -254,6 +255,13 @@ int main(int argc, char *argv[]) {
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                             else if (experiment.task == "AvgWidth") DNNsim.average_width(network);
+
+                        } else if(experiment.architecture == "Loom") {
+                            core::Loom<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
+                                    experiment.precision_granularity, experiment.pe_serial_bits, experiment.minor_bit,
+                                    N_THREADS,FAST_MODE);
+                            if(experiment.task == "Cycles") DNNsim.run(network);
+                            else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
                         } else if (experiment.architecture == "Laconic") {
                             core::Laconic<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,N_THREADS,FAST_MODE);
