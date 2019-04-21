@@ -230,6 +230,7 @@ int main(int argc, char *argv[]) {
                     core::Network<uint16_t> network;
                     network = read<uint16_t>(simulate.inputType, simulate.network, simulate.activate_bias_out_act,
                             simulate.batch, simulate.tensorflow_8b);
+                    network.setNetwork_bits(simulate.network_bits);
                     for(const auto &experiment : simulate.experiments) {
                         if(experiment.architecture == "None") {
                             core::Simulator<uint16_t> DNNsim(N_THREADS,FAST_MODE);
