@@ -118,7 +118,7 @@ namespace sys {
 
                 } else if(experiment_proto.architecture() == "Loom") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
-                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 128 : experiment_proto.n_rows();
                     experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 256 :
                             experiment_proto.precision_granularity();
                     experiment.pe_serial_bits = experiment_proto.pe_serial_bits() < 1 ? 1 :
@@ -126,16 +126,16 @@ namespace sys {
                     experiment.minor_bit = experiment_proto.minor_bit();
                     if(experiment.precision_granularity % 16 != 0 ||
                        (((experiment.n_columns * 16) % experiment.precision_granularity) != 0))
-                        throw std::runtime_error("DynamicStripes precision granularity for network " + simulate.network
+                        throw std::runtime_error("Loom precision granularity for network " + simulate.network
                                                  + " must be multiple of 16 and divisible by the columns.");
                     if(experiment.precision_granularity % 16 != 0 ||
                        (((experiment.n_rows * 16) % experiment.precision_granularity) != 0))
-                        throw std::runtime_error("DynamicStripes precision granularity for network " + simulate.network
+                        throw std::runtime_error("Loom precision granularity for network " + simulate.network
                                                  + " must be multiple of 16 and divisible by the rows.");
 
                 } else if (experiment_proto.architecture() == "Laconic") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
-                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 8 : experiment_proto.n_rows();
+                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 128 : experiment_proto.n_rows();
 
                 } else if (experiment_proto.architecture() == "BitTacticalP") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
