@@ -6,9 +6,9 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    uint8_t BitTacticalP<T>::computeTacticalPBitsPE(uint16_t wgt, uint8_t act_layer_prec) {
+    uint8_t BitTacticalP<T>::computeTacticalPBitsPE(uint16_t wgt, uint8_t act_layer_prec, const int network_bits) {
         #ifdef ZERO_COUNT
-        return wgt == 0 ? (uint8_t)1 : act_layer_prec * (uint8_t)NETWORK_BITS;
+        return wgt == 0 ? (uint8_t)1 : act_layer_prec * (uint8_t)network_bits;
         #else
         return wgt == 0 ? (uint8_t)0 : act_layer_prec * (uint8_t)NETWORK_BITS;
         #endif
@@ -410,7 +410,8 @@ namespace core {
     /* POTENTIALS */
 
     template <typename T>
-    void BitTacticalP<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void BitTacticalP<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
+            const int network_bits) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
@@ -461,13 +462,14 @@ namespace core {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
                         for (int k = 0; k < wgt_channels; k++) {
-                            bit_counter += computeTacticalPBitsPE(wgt.get(m, k, i, j), (uint8_t)act_layer_prec);
+                            bit_counter += computeTacticalPBitsPE(wgt.get(m, k, i, j), (uint8_t)act_layer_prec,
+                                    network_bits);
                         }
                     }
                 }
             }
             bit_counter *= out_x * out_y;
-            double MAX_BITS = NETWORK_BITS * NETWORK_BITS;
+            double MAX_BITS = network_bits * network_bits;
             stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
             stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
             stats.bit_multiplications.back()[n] = bit_counter;
@@ -482,7 +484,8 @@ namespace core {
     }
 
     template <typename T>
-    void BitTacticalP<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void BitTacticalP<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats,
+            const int network_bits) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
@@ -521,11 +524,11 @@ namespace core {
             for (int r = 0; r < R; r++) {
                 for (int m = 0; m < num_filters; m++) {
                     for (int k = 0; k < wgt_channels; k++) {
-                        bit_counter += computeTacticalPBitsPE(wgt.get(m, k), (uint8_t) act_layer_prec);
+                        bit_counter += computeTacticalPBitsPE(wgt.get(m, k), (uint8_t) act_layer_prec, network_bits);
                     }
                 }
             }
-            double MAX_BITS = NETWORK_BITS * NETWORK_BITS;
+            double MAX_BITS = network_bits * network_bits;
             stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
             stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
             stats.bit_multiplications.back()[n] = bit_counter;
@@ -554,12 +557,12 @@ namespace core {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);
-                computePotentialsConvolution(layer,stats);
+                computePotentialsConvolution(layer,stats,network.getNetwork_bits());
             } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);
-                computePotentialsInnerProduct(layer,stats);
+                computePotentialsInnerProduct(layer,stats,network.getNetwork_bits());
             }
         }
 

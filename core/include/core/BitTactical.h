@@ -101,16 +101,20 @@ namespace core {
                 &proto_dense_schedule) = 0;
 
         /* Compute the potentials for a convolutional layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        virtual void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) = 0;
+        virtual void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
+                int network_bits) = 0;
 
         /* Compute the potentials for a inner product layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        virtual void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats) = 0;
+        virtual void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
+                int network_bits) = 0;
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

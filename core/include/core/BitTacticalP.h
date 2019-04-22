@@ -16,18 +16,16 @@ namespace core {
         /* Number of activations per group */
         const int PRECISION_GRANULARITY;
 
-        /* Network bits */
-        const int NETWORK_BITS;
-
         /* Calculate also the minor bit for dynamic precisions */
         const bool MINOR_BIT;
 
         /* Compute number of one bit multiplications given a weights and an activation
          * @param wgt               Weight
          * @param act_layer_rec     Layer precision
+         * @param network_bits      Max bits network
          * @return                  Number of one bit multiplications
          */
-        uint8_t computeTacticalPBitsPE(uint16_t wgt, uint8_t act_layer_prec);
+        uint8_t computeTacticalPBitsPE(uint16_t wgt, uint8_t act_layer_prec, int network_bits);
 
         /* Compute cycles for Bit-Tactical P column
          * @param batch             Current number of batch
@@ -81,16 +79,20 @@ namespace core {
                                  const schedule &proto_dense_schedule) override;
 
         /* Compute the potentials for a convolutional layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) override;
+        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits)
+            override;
 
         /* Compute the potentials for a inner product layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats) override;
+        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits)
+            override;
 
     public:
 

@@ -22,14 +22,12 @@ namespace core {
         /* Bits per PE */
         const int BITS_PE;
 
-        /* Network bits */
-        const int NETWORK_BITS;
-
         /* Compute number of one bit multiplications
          * @param layer_prec    Layer precision
+         * @param network_bits  Max bits network
          * @return              Number of one bit multiplications
          */
-        inline uint16_t computeStripesBitsPE(uint8_t layer_prec);
+        inline uint16_t computeStripesBitsPE(uint8_t layer_prec, int network_bits);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs
@@ -50,16 +48,18 @@ namespace core {
         void computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats);
 
         /* Compute the potentials for a convolutional layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
+        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits);
 
         /* Compute the potentials for a inner product layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
+        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits);
 
     public:
 

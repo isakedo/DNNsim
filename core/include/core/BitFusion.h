@@ -40,14 +40,14 @@ namespace core {
          * @param stats         Statistics to fill
          * @param network_bits  Max bits network
          */
-        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int NETWORK_BITS);
+        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits);
 
         /* Compute the potentials for a inner product layer
          * @param layer     Layer for which we want to calculate potentials
          * @param stats     Statistics to fill
          * @param network_bits  Max bits network
          */
-        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int NETWORK_BITS);
+        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits);
 
     public:
 

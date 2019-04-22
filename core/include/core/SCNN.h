@@ -54,11 +54,12 @@ namespace core {
         };
 
         /* Compute number of one bit multiplications given a weight and an activation
-         * @param act       Activation
-         * @param wgt       Weight
-         * @return          Number of one bit multiplications
+         * @param act           Activation
+         * @param wgt           Weight
+         * @param network_bits  Max bits network
+         * @return              Number of one bit multiplications
          */
-        uint16_t computeSCNNBitsPE(T act, T wgt);
+        uint16_t computeSCNNBitsPE(T act, T wgt, int network_bits);
 
         /* Compute SCNN processing engine
          * @param W         Width of the output activations
@@ -102,16 +103,20 @@ namespace core {
         void computeSCNNLayer(const Layer<T> &layer, sys::Statistics::Stats &stats);
 
         /* Compute the potentials for a convolutional layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        virtual void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
+        virtual void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
+                int network_bits);
 
         /* Compute the potentials for a inner product layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        virtual void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
+        virtual void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
+                int network_bits);
 
     public:
 

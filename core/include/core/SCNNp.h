@@ -15,9 +15,6 @@ namespace core {
         /* Number of bits in series that the PE process */
         const int PE_SERIAL_BITS;
 
-        /* Network bits */
-        const int NETWORK_BITS;
-
         struct PE_stats {
             uint32_t cycles = 0;
             uint32_t mults = 0;
@@ -30,11 +27,12 @@ namespace core {
         };
 
         /* Compute number of one bit multiplications given a weight and an activation
-         * @param act       Activation
-         * @param wgt       Weight
-         * @return          Number of one bit multiplications
+         * @param act           Activation
+         * @param wgt           Weight
+         * @param network_bits  Max bits network
+         * @return              Number of one bit multiplications
          */
-        uint16_t computeSCNNpBitsPE(T act, T wgt, uint16_t act_layer_prec);
+        uint16_t computeSCNNpBitsPE(T act, T wgt, uint8_t act_layer_prec, int network_bits);
 
         /* Compute SCNNp processing engine
          * @param W         Width of the output activations
@@ -78,16 +76,20 @@ namespace core {
         void computeSCNNpLayer(const Layer<T> &layer, sys::Statistics::Stats &stats);
 
         /* Compute the potentials for a convolutional layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) override;
+        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats, int network_bits)
+            override;
 
         /* Compute the potentials for a inner product layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats) override;
+        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats, int network_bits)
+            override;
 
     public:
 

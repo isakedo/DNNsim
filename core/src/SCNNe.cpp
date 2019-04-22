@@ -6,7 +6,7 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    uint16_t SCNNe<T>::computeSCNNeBitsPE(T act, T wgt) {
+    uint16_t SCNNe<T>::computeSCNNeBitsPE(T act, T wgt, const int network_bits) {
 
         #ifdef ZERO_COUNT
         if(wgt == 0) return 1;
@@ -24,7 +24,7 @@ namespace core {
 
         uint8_t act_effectual_bits = this->effectualBits(act_bits);
 
-        uint8_t bit_multiplications = act_effectual_bits * (uint8_t)16;
+        uint8_t bit_multiplications = act_effectual_bits * (uint8_t)network_bits;
         #ifdef ZERO_COUNT
         if(bit_multiplications == 0) bit_multiplications = 1;
         #endif
@@ -401,7 +401,8 @@ namespace core {
     /* POTENTIALS */
 
     template <typename T>
-    void SCNNe<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void SCNNe<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
+            const int network_bits) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
@@ -467,15 +468,16 @@ namespace core {
                             for (int j = 0; j < Ky; j++) {
                                 for (int k = 0; k < wgt_channels; k++) {
                                     bit_counter += computeSCNNeBitsPE(act.get(n, start_group + k, stride * x + i,
-                                            stride * y + j), wgt.get(m, k, i, j));
+                                            stride * y + j), wgt.get(m, k, i, j), network_bits);
                                 }
                             }
                         }
                     }
                 }
             }
-            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
-            stats.speedup.back()[n] = (double)parallel_mult * 256. / (double)bit_counter;
+            double MAX_BITS = network_bits * network_bits;
+            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
+            stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
             stats.bit_multiplications.back()[n] = bit_counter;
         }
 
@@ -488,7 +490,8 @@ namespace core {
     }
 
     template <typename T>
-    void SCNNe<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void SCNNe<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats,
+            const int network_bits) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
@@ -527,12 +530,13 @@ namespace core {
                 for (int m = 0; m < num_filters; m++) {
                     for (int k = 0; k < wgt_channels; k++) {
                         auto act_bits = lstm ? act.get(r, n, k) : act.get(n, k);
-                        bit_counter += computeSCNNeBitsPE(act_bits, wgt.get(m, k));
+                        bit_counter += computeSCNNeBitsPE(act_bits, wgt.get(m, k), network_bits);
                     }
                 }
             }
-            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
-            stats.speedup.back()[n] = (double)parallel_mult * 256. / (double)bit_counter;
+            double MAX_BITS = network_bits * network_bits;
+            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
+            stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
             stats.bit_multiplications.back()[n] = bit_counter;
         }
 
@@ -560,12 +564,12 @@ namespace core {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);
-                computePotentialsConvolution(layer,stats);
+                computePotentialsConvolution(layer,stats,network.getNetwork_bits());
             } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);
-                computePotentialsInnerProduct(layer,stats);
+                computePotentialsInnerProduct(layer,stats,network.getNetwork_bits());
             }
         }
 

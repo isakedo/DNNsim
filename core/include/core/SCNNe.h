@@ -29,11 +29,12 @@ namespace core {
         };
 
         /* Compute number of one bit multiplications given a weight and an activation
-         * @param act       Activation
-         * @param wgt       Weight
-         * @return          Number of one bit multiplications
+         * @param act           Activation
+         * @param wgt           Weight
+         * @param network_bits  Max bits network
+         * @return              Number of one bit multiplications
          */
-        uint16_t computeSCNNeBitsPE(T act, T wgt);
+        uint16_t computeSCNNeBitsPE(T act, T wgt, int network_bits);
 
         /* Compute SCNNe processing engine
          * @param W         Width of the output activations
@@ -77,16 +78,20 @@ namespace core {
         void computeSCNNeLayer(const Layer<T> &layer, sys::Statistics::Stats &stats);
 
         /* Compute the potentials for a convolutional layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) override;
+        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats, int network_bits)
+            override;
 
         /* Compute the potentials for a inner product layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats) override;
+        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats, int network_bits)
+            override;
 
     public:
 

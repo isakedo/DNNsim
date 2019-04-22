@@ -6,8 +6,8 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    uint16_t DynamicStripes<T>::computeDynamicStripesBitsPE(uint8_t layer_prec) {
-        return layer_prec * (uint8_t)NETWORK_BITS;
+    uint16_t DynamicStripes<T>::computeDynamicStripesBitsPE(uint8_t layer_prec, const int network_bits) {
+        return layer_prec * (uint8_t)network_bits;
     }
 
     template <typename T>
@@ -569,7 +569,8 @@ namespace core {
     /* POTENTIALS */
 
     template <typename T>
-    void DynamicStripes<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void DynamicStripes<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
+            const int network_bits) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
@@ -607,9 +608,9 @@ namespace core {
 
         // Convolution
         for(int n=0; n<batch_size; n++) {
-            double MAX_BITS = NETWORK_BITS * NETWORK_BITS;
-            bit_counter = (uint64_t)computeDynamicStripesBitsPE((uint8_t)layer_prec) * out_x * out_y * Kx * Ky *
-                    wgt_channels * num_filters;
+            bit_counter = (uint64_t)computeDynamicStripesBitsPE((uint8_t)layer_prec,network_bits) * out_x * out_y * Kx *
+                    Ky * wgt_channels * num_filters;
+            double MAX_BITS = network_bits * network_bits;
             stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
             stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
             stats.bit_multiplications.back()[n] = bit_counter;
@@ -624,7 +625,8 @@ namespace core {
     }
 
     template <typename T>
-    void DynamicStripes<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void DynamicStripes<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats,
+            const int network_bits) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
@@ -652,8 +654,9 @@ namespace core {
         auto layer_prec = layer.getAct_precision();
 
         for (int n = 0; n<batch_size; n++) {
-            double MAX_BITS = NETWORK_BITS * NETWORK_BITS;
-            bit_counter = (uint64_t)computeDynamicStripesBitsPE((uint8_t)layer_prec) * wgt_channels * num_filters * R;
+            bit_counter = (uint64_t)computeDynamicStripesBitsPE((uint8_t)layer_prec,network_bits) * wgt_channels *
+                    num_filters * R;
+            double MAX_BITS = network_bits * network_bits;
             stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
             stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
             stats.bit_multiplications.back()[n] = bit_counter;
@@ -682,12 +685,12 @@ namespace core {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);
-                computePotentialsConvolution(layer,stats);
+                computePotentialsConvolution(layer,stats,network.getNetwork_bits());
             } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);
-                computePotentialsInnerProduct(layer,stats);
+                computePotentialsInnerProduct(layer,stats,network.getNetwork_bits());
             }
         }
 
@@ -824,7 +827,8 @@ namespace core {
     }
 
     template <typename T>
-    void DynamicStripes<T>::computeAvgWidthLayer(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void DynamicStripes<T>::computeAvgWidthLayer(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
+            const int network_bits) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
@@ -929,10 +933,10 @@ namespace core {
             double act_avg_width = stats.get_average(act_width);
 
             // Calculate bits needed
-            std::vector<uint64_t> act_width_need (NETWORK_BITS + 1, 0);
-            std::vector<double> act_width_need_per (NETWORK_BITS + 1 ,0);
+            std::vector<uint64_t> act_width_need (network_bits + 1, 0);
+            std::vector<double> act_width_need_per (network_bits + 1 ,0);
             for(auto act_group : act_width)
-                for(int a = (int)act_group; a <= NETWORK_BITS; a++)
+                for(int a = (int)act_group; a <= network_bits; a++)
                     act_width_need[a]++;
             for(int a = 0; a < act_width_need.size(); a++)
                 act_width_need_per[a] = act_width_need[a] / (double)act_width.size() * 100.;
@@ -940,7 +944,7 @@ namespace core {
             stats.act_avg_width.back()[n] = act_avg_width;
             stats.act_width_reduction.back()[n] = (act_prec - act_avg_width) * 100. / act_prec;
 
-            for(int i = 0; i <= NETWORK_BITS; i++)
+            for(int i = 0; i <= network_bits; i++)
                 stats.act_width_need[i].back()[n] = act_width_need_per[i];
 
         }
@@ -990,9 +994,9 @@ namespace core {
 
             // Calculate data from off-chip
             auto num_act = R * Nx * Ny * act_channels;
-            stats.act_bits_baseline.back()[n] = num_act * NETWORK_BITS;
+            stats.act_bits_baseline.back()[n] = num_act * network_bits;
             stats.act_bits_profiled.back()[n] = 4 + num_act * act_prec;
-            auto overhead = (uint64_t)((16 + log2(NETWORK_BITS)) * ceil(num_act / 16.));
+            auto overhead = (uint64_t)((16 + log2(network_bits)) * ceil(num_act / 16.));
             stats.act_bits_datawidth.back()[n] = overhead + act_bits_datawidth;
 
         }
@@ -1056,10 +1060,10 @@ namespace core {
         double wgt_avg_width = stats.get_average(wgt_width);
 
         // Calculate bits needed
-        std::vector<uint64_t> wgt_width_need (NETWORK_BITS + 1, 0);
-        std::vector<double> wgt_width_need_per (NETWORK_BITS + 1, 0);
+        std::vector<uint64_t> wgt_width_need (network_bits + 1, 0);
+        std::vector<double> wgt_width_need_per (network_bits + 1, 0);
         for(auto wgt_group : wgt_width)
-            for(int w = (int)wgt_group; w <= NETWORK_BITS; w++)
+            for(int w = (int)wgt_group; w <= network_bits; w++)
                 wgt_width_need[w]++;
         for(int w = 0; w < wgt_width_need.size(); w++)
             wgt_width_need_per[w] = wgt_width_need[w] / (double)wgt_width.size() * 100.;
@@ -1068,15 +1072,15 @@ namespace core {
 
             // Calculate data from off-chip
             auto num_wgt = wgt.getMax_index();
-            stats.wgt_bits_baseline.back()[n] = num_wgt * NETWORK_BITS;
+            stats.wgt_bits_baseline.back()[n] = num_wgt * network_bits;
             stats.wgt_bits_profiled.back()[n] = 4 + num_wgt * wgt_prec;
-            auto overhead = (uint64_t)((16 + log2(NETWORK_BITS)) * ceil(num_wgt / 16.));
+            auto overhead = (uint64_t)((16 + log2(network_bits)) * ceil(num_wgt / 16.));
             stats.wgt_bits_datawidth.back()[n] = overhead + wgt_bits_datawidth;
 
             stats.wgt_avg_width.back()[n] = wgt_avg_width;
             stats.wgt_width_reduction.back()[n] = (wgt_prec - wgt_avg_width) * 100. / wgt_prec;
 
-            for (int i = 0; i <= NETWORK_BITS; i++) {
+            for (int i = 0; i <= network_bits; i++) {
                 stats.wgt_width_need[i].back()[n] = wgt_width_need_per[i];
             }
         }
@@ -1094,12 +1098,12 @@ namespace core {
                             if(lstm) act_bits = act.get(r, n, k);
                             else act_bits = act.get(n, k, x, y);
                             if (act_bits != 0) {
-                                act_bits_scnn += NETWORK_BITS + 4;
+                                act_bits_scnn += network_bits + 4;
                                 skips = 0;
                             } else {
                                 skips++;
                                 if (skips == 16) {
-                                    act_bits_scnn += NETWORK_BITS + 4;
+                                    act_bits_scnn += network_bits + 4;
                                     skips = 0;
                                 }
                             }
@@ -1120,12 +1124,12 @@ namespace core {
                     for (int x = 0; x < Kx; x++) {
                         auto act_bits = wgt.get(m, k, x, y);
                         if(act_bits != 0) {
-                            wgt_bits_scnn += NETWORK_BITS + 4;
+                            wgt_bits_scnn += network_bits + 4;
                             skips = 0;
                         } else {
                             skips++;
                             if(skips == 16) {
-                                wgt_bits_scnn += NETWORK_BITS + 4;
+                                wgt_bits_scnn += network_bits + 4;
                                 skips = 0;
                             }
                         }
@@ -1163,7 +1167,7 @@ namespace core {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(layer.getWgt_precision());
-                computeAvgWidthLayer(layer, stats);
+                computeAvgWidthLayer(layer, stats, network.getNetwork_bits());
             }
         }
 
