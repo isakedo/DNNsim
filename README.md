@@ -146,7 +146,7 @@ This is necessary after changing the precisions, etc.
 | BitPragmatic | **Ae**: Exploits bit-level sparsity of activations |
 | Stripes | **Ap**: Exploits precision requirements of activations |
 | DynamicStripes | **Ap**: Exploits dynamic precision requirements of a group of activations | 
-| Loom | **Wp + Ap**: Exploits precision requirements of weights and dynamic of group of activations |
+| Loom | **Wp + Ap**: Exploits precision requirements of weights and dynamic group of activations |
 | Laconic | **We + Ae**: Exploits bit-level sparsity of both weights and activations |
 | BitTacticalP | **W + Ap**: Skips zero weights and exploits precision requirements of activations | 
 | BitTacticalE | **W + Ae**: Skips zero weights and exploits bit-level sparsity of activations | 
