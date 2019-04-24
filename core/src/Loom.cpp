@@ -14,7 +14,7 @@ namespace core {
     uint8_t Loom<T>::computeLoomColumn(int batch, int recursion, int act_x, int act_y, int kernel_x, int kernel_y,
             int init_channel, int init_filter, int stride, const cnpy::Array<T> &padded_act,
             const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter, int act_mask, int wgt_mask,
-            bool lstm) {
+            int wgt_prec, bool lstm) {
 
         int N_GROUPS = N_ROWS * 16 / PRECISION_GRANULARITY;
         int FILTERS_PER_GROUP = N_ROWS / N_GROUPS;
@@ -107,6 +107,7 @@ namespace core {
         }
 
         act_cycles = (uint8_t)ceil(act_cycles/(double)PE_SERIAL_BITS);
+        max_wgt_cycles = DYNAMIC_WEIGHTS ? max_wgt_cycles : (uint8_t)wgt_prec;
         max_wgt_cycles = (uint8_t)ceil(max_wgt_cycles/(double)PE_SERIAL_BITS);
         return max_wgt_cycles * act_cycles;
 
@@ -116,7 +117,7 @@ namespace core {
     uint8_t Loom<T>::computeLoomTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int init_filter,
             int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group, int max_channel,
-            int max_filter, int act_mask, int wgt_mask) {
+            int max_filter, int act_mask, int wgt_mask, int wgt_prec) {
 
         int ACT_N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
         int WINDOWS_PER_GROUP = N_COLUMNS / ACT_N_GROUPS;
@@ -237,6 +238,7 @@ namespace core {
         }
 
         max_act_cycles = (uint8_t)ceil(max_act_cycles/(double)PE_SERIAL_BITS);
+        max_wgt_cycles = DYNAMIC_WEIGHTS ? max_wgt_cycles : (uint8_t)wgt_prec;
         max_wgt_cycles = (uint8_t)ceil(max_wgt_cycles/(double)PE_SERIAL_BITS);
         return max_wgt_cycles * max_act_cycles;
 
@@ -319,7 +321,7 @@ namespace core {
                         for (int j = 0; j < Ky; j++) {
                             for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
                                 stats.cycles.back()[n] += computeLoomTile(n,list_x, list_y, i, j, k, m, stride, act,
-                                        wgt, start_group, wgt_channels, num_filters, act_mask, wgt_mask);
+                                        wgt, start_group, wgt_channels, num_filters, act_mask, wgt_mask, wgt_prec);
                             }
                         }
                     }
@@ -392,7 +394,7 @@ namespace core {
                 for (int m = 0; m<num_filters; m+=N_ROWS) {
                     for (int k = 0; k<wgt_channels; k+=WEIGHT_LANES) {
                         stats.cycles.back()[n] += computeLoomColumn(n,r,0,0,0,0,k,m,0,act,wgt,0,wgt_channels,
-                                num_filters,lstm);
+                                num_filters,act_mask,wgt_mask,wgt_prec,lstm);
                     }
                 }
             }
@@ -416,7 +418,7 @@ namespace core {
                         if(stats.cycles.back()[n] < column_end[column_index])
                             stats.cycles.back()[n] = column_end[column_index];
                         auto column_cycles = computeLoomColumn(n,r,0,0,0,0,k,m,0,act,wgt,0,wgt_channels,num_filters,
-                                act_mask,wgt_mask,lstm);
+                                act_mask,wgt_mask,wgt_prec,lstm);
                         column_end[column_index] = stats.cycles.back()[n] + column_cycles;
                         stats.cycles.back()[n]++;
                         column_index++;
@@ -446,7 +448,8 @@ namespace core {
         stats.task_name = "cycles";
         stats.net_name = network.getName();
         stats.arch = "Loom_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG" +
-                std::to_string(PRECISION_GRANULARITY) + "_PSB" + std::to_string(PE_SERIAL_BITS);
+                std::to_string(PRECISION_GRANULARITY) + "_PSB" + std::to_string(PE_SERIAL_BITS) +
+                (DYNAMIC_WEIGHTS ? "_DW" : "") + (DYNAMIC_WEIGHTS && MINOR_BIT ? "_MB" : "");
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {

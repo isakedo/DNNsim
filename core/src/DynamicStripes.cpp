@@ -542,7 +542,7 @@ namespace core {
         arch += (DIFFY ? "_Diffy" : "");
         stats.arch = arch + "_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG" +
                 std::to_string(PRECISION_GRANULARITY) + "_CR" + std::to_string(COLUMN_REGISTERS) + "_BP" +
-                std::to_string(BITS_PE);
+                std::to_string(BITS_PE) + (MINOR_BIT ? "_MB" : "");
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {

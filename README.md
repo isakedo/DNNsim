@@ -146,7 +146,7 @@ This is necessary after changing the precisions, etc.
 | BitPragmatic | **Ae**: Exploits bit-level sparsity of activations |
 | Stripes | **Ap**: Exploits precision requirements of activations |
 | DynamicStripes | **Ap**: Exploits dynamic precision requirements of a group of activations | 
-| Loom | **Wp + Ap**: Exploits dynamic precision requirements of a group of activations and weights |
+| Loom | **Wp + Ap**: Exploits precision requirements of weights and dynamic of group of activations |
 | Laconic | **We + Ae**: Exploits bit-level sparsity of both weights and activations |
 | BitTacticalP | **W + Ap**: Skips zero weights and exploits precision requirements of activations | 
 | BitTacticalE | **W + Ae**: Skips zero weights and exploits bit-level sparsity of activations | 
@@ -165,7 +165,7 @@ Data type indicates the possible data types allowed: Float32 for 4bytes floating
 | BitPragmatic | N_COLUMNS, N_ROWS, BITS_FIRST_STAGE, COLUMN_REGISTERS, DIFFY | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16| Fixed16 |
 | Stripes | N_COLUMNS, N_ROWS, BITS_PE | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
 | DynamicStripes | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY, COLUMN_REGISTERS, MINOR_BIT, DIFFY | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
-| Loom | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY, PE_SERIAL_BITS, MINOR_BIT | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
+| Loom | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY, PE_SERIAL_BITS, MINOR_BIT, DYNAMIC_WEIGHTS | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
 | Laconic | N_COLUMNS, N_ROWS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
 | BitTacticalP | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, PRECISION_GRANULARITY, COLUMN_REGISTERS, MINOR_BIT | ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |
 | BitTacticalE | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, BITS_FIRST_STAGE, COLUMN_REGISTERS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES 16 | Fixed16 |

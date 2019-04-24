@@ -34,6 +34,7 @@
 		[search_shape: <L|T>] //Only for BitTactical: Default L
 		[read_schedule_from_proto: true] //Only for BitTactical: Default false
 		[pe_serial_bits: <pos_num>] //Default 1
+		[dynamic_weights: true] //Only for Loom
 
 		//SCNN-like architectures
 		[Ht: <pos_num>] //Default 8 | p and e: 32

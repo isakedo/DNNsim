@@ -28,6 +28,9 @@ namespace core {
         /* Calculate also the minor bit for dynamic precisions */
         const bool MINOR_BIT;
 
+        /* Calculate dynamic precision for weights rather than profiled */
+        const bool DYNAMIC_WEIGHTS;
+
         /* Compute number of one bit multiplications given a weights and an activation
          * @param act_prec  Activation layer precision
          * @param wgt_prec  Weight layer precision
@@ -49,13 +52,14 @@ namespace core {
          * @param wgt           Set of weights
          * @param max_channel   Maximum number of channels
          * @param max_filter    Maximum number of filters
+         * @param wgt_prec      Profiled weight precision
          * @param lstm          True if it is LSTM layer
          * @return              Number of cycles
          */
         uint8_t computeLoomColumn(int batch, int recursion, int act_x, int act_y, int kernel_x, int kernel_y,
                 int init_channel, int init_filter, int stride, const cnpy::Array<T> &padded_act,
                 const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter, int act_mask, int wgt_mask,
-                bool lstm);
+                int wgt_prec, bool lstm);
 
         /* Compute cycles for laconic tile
          * @param batch         Current number of batch
@@ -71,12 +75,13 @@ namespace core {
          * @param start_group   Starting channel of the group
          * @param max_channel   Maximum number of channels
          * @param max_filter    Maximum number of filters
+         * @param wgt_prec      Profiled weight precision
          * @return              Number of cycles
          */
         uint8_t computeLoomTile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
                 int kernel_x, int kernel_y, int init_channel, int init_filter, int stride,
                 const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group, int max_channel,
-                int max_filter, int act_mask, int wgt_mask);
+                int max_filter, int act_mask, int wgt_mask, int wgt_prec);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs
@@ -112,13 +117,14 @@ namespace core {
          * @param _PRECISION_GRANULARITY    Granularity for dynamic precisions
          * @param _PE_SERIAL_BITS           Number of bits in series that the PE process
          * @param _MINOR_BIT                Calculate also the minor bit for dynamic precisions
+         * @param _DYNAMIC_WEIGHTS          Calculate dynamic precision for weights rather than profiled
          * @param _N_THREADS                Number of parallel threads for multi-threading execution
          * @param _FAST_MODE                Enable fast mode to simulate only one image
          */
         Loom(int _N_COLUMNS, int _N_ROWS, int _PRECISION_GRANULARITY, int _PE_SERIAL_BITS, bool _MINOR_BIT,
-                uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS),
-                N_ROWS(_N_ROWS), PRECISION_GRANULARITY(_PRECISION_GRANULARITY), PE_SERIAL_BITS(_PE_SERIAL_BITS),
-                MINOR_BIT(_MINOR_BIT) {}
+                bool _DYNAMIC_WEIGHTS, uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE),
+                N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), PRECISION_GRANULARITY(_PRECISION_GRANULARITY),
+                PE_SERIAL_BITS(_PE_SERIAL_BITS), MINOR_BIT(_MINOR_BIT), DYNAMIC_WEIGHTS(_DYNAMIC_WEIGHTS) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

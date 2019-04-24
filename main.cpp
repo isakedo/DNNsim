@@ -261,7 +261,7 @@ int main(int argc, char *argv[]) {
                         } else if(experiment.architecture == "Loom") {
                             core::Loom<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
                                     experiment.precision_granularity, experiment.pe_serial_bits, experiment.minor_bit,
-                                    N_THREADS,FAST_MODE);
+                                    experiment.dynamic_weights,N_THREADS,FAST_MODE);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 

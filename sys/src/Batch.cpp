@@ -124,6 +124,7 @@ namespace sys {
                     experiment.pe_serial_bits = experiment_proto.pe_serial_bits() < 1 ? 1 :
                             experiment_proto.pe_serial_bits();
                     experiment.minor_bit = experiment_proto.minor_bit();
+                    experiment.dynamic_weights = experiment_proto.dynamic_weights();
                     if(experiment.precision_granularity % 16 != 0 ||
                        (((experiment.n_columns * 16) % experiment.precision_granularity) != 0))
                         throw std::runtime_error("Loom precision granularity for network " + simulate.network
