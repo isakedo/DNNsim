@@ -11,11 +11,13 @@
 
 <simulate {
     batch: <pos_num> //Numpy traces batch. Default 0
+    epochs: <pos_num> //Default 1
 	network: <Network name>
 	inputType: <Caffe|Trace|CParams|Protobuf|Gzip>
 	inputDataType: <Float32|Fixed16>
 	network_bits: <pos_num> // Default 16b networks
 	[activate_bias_and_out_act: true]
+	[training: true]
 	<experiment {
 		architecture: <None|BitPragmatic|Stripes|DynamicStripes|Loom|Laconic|BitTacticalP|BitTacticalE|SCNN|SCNNp|SCNNe|
 		                BitFusion>
@@ -35,6 +37,7 @@
 		[read_schedule_from_proto: true] //Only for BitTactical: Default false
 		[pe_serial_bits: <pos_num>] //Default 1
 		[dynamic_weights: true] //Only for Loom
+		[diffy: true] //Only for BitPragmatic and DynamicStripes
 
 		//SCNN-like architectures
 		[Ht: <pos_num>] //Default 8 | p and e: 32

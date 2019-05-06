@@ -126,7 +126,7 @@ This is necessary after changing the precisions, etc.
     
 *   Missing support for LSTM layers in the SCNN-like accelerators
 
-### Allowed simulations
+### Allowed Inference simulations
 
 *  Allowed input types for the simulations:
 
@@ -192,6 +192,45 @@ Data type indicates the possible data types allowed: Float32 for 4bytes floating
 | Inference | Calculate output activations for the forward pass | Float32 |
 | Sparsity | Calculate sparsity for actiations and weights, number of zero values | Fixed16, Float32 |
 | BitSparsity | Calculate bit sparsity for activations and weights, number of zero bits | Fixed16 |
+
+### Allowed Training simulations
+
+*  Allowed input types for the simulations:
+
+| inputType | Description | 
+|:---:|:---:|
+| Trace | Load network model from *trace_params.csv*, precisions from *precision.txt*, and traces from numpy arrays | 
+
+*  Allowed architectures:
+
+| Architecture | Description | 
+|:---:|:---:|
+| None | Special generic architecture |
+| DynamicStripesFP | **Ap**: Exploits dynamic precision requirements of a group of activations | 
+
+Input parameters are the parameters that can be changed for each architecture in the prototxt batch file (Default values
+can be found inside **examples/README**)  
+Default parameters are defined in the header of each architecture, they can be changed in the specific file  
+Data type indicates the possible data types allowed: Float32 for 4bytes floating point, and BFloat16 for 2bytes 
+truncated floating point   
+
+| Architecture | Input Parameters | Default Parameters\* | Data type |
+|:---:|:---:|:---:|:---:|
+| DynamicStripesFP | - | - | BFloat16 |
+
+*\*Default features can be removed in their specific header file*
+
+*  Allowed tasks for these architectures:
+
+| Task | Description | 
+|:---:|:---:|
+| AvgWidth | Calculate average effective width for the activations and weights per group (Only for DynamicStripes architecture) |
+
+* Allowed task for the special architecture "None":
+
+| Task | Description | Data type |
+|:---:|:---:|:---:|
+| Sparsity | Calculate sparsity for actiations and weights, number of zero values | Float32 |
 
 ### Structure:
 *   **sys**: Folder for system libraries

@@ -69,44 +69,61 @@ namespace sys {
 
         value = simulate_proto.inputtype();
         if(value != "Trace")
-            throw std::runtime_error("Input type training configuration for network " + simulate.network +
+            throw std::runtime_error("Training input type configuration for network " + simulate.network +
                                      " must be <Trace>.");
         else
             simulate.inputType = simulate_proto.inputtype();
 
         value = simulate_proto.inputdatatype();
-        if(value  != "Float32")
-            throw std::runtime_error("Input data type training configuration for network " + simulate.network +
-                                     " must be <Float32>.");
+        if(value  != "Float32" && value != "BFloat16")
+            throw std::runtime_error("Training input data type configuration for network " + simulate.network +
+                                     " must be <Float32|BFloat16>.");
         else
             simulate.inputDataType = simulate_proto.inputdatatype();
 
-        for(const auto &experiment_proto : simulate_proto.experiment()) {
+        if (simulate.inputDataType == "BFloat16") {
+            for(const auto &experiment_proto : simulate_proto.experiment()) {
 
-        	Batch::Simulate::Experiment experiment;
-            if(experiment_proto.architecture() == "None") {
+                Batch::Simulate::Experiment experiment;
+                if(experiment_proto.architecture() == "DynamicStripes") {
+
+                } else throw std::runtime_error("Training architecture for network " + simulate.network +
+                                                " in BFloat16 must be <DynamicStripes>.");
+
+                value = experiment_proto.task();
+                if(value != "AvgWidth")
+                    throw std::runtime_error("Training task for network " + simulate.network +
+                                             " in BFloat16 must be <AvgWidth>.");
+
+                if(experiment_proto.architecture() != "DynamicStripesFP" && experiment_proto.task() == "AvgWidth")
+                    throw std::runtime_error("Training task \"AvgWidth\" for network " + simulate.network +
+                                             " in BFloat16 is only allowed for DynamicStripesFP.");
+
+                experiment.architecture = experiment_proto.architecture();
+                experiment.task = experiment_proto.task();
+                simulate.experiments.emplace_back(experiment);
+
+            }
+        } else if (simulate.inputDataType == "Float32") {
+            for (const auto &experiment_proto : simulate_proto.experiment()) {
+
+                Batch::Simulate::Experiment experiment;
+                if (experiment_proto.architecture() == "None") {
 
                     value = experiment_proto.task();
-                    if(value != "Sparsity" )
-                        throw std::runtime_error("Task for network " + simulate.network + " in Float32 for architecture"
-                                                 " None must be <Sparsity>.");
+                    if (value != "Inference" && value != "Sparsity")
+                        throw std::runtime_error("Training task for network " + simulate.network +
+                                                 " in Float32 for architecture"" None must be <Sparsity>.");
 
-            } else if (experiment_proto.architecture() == "DynamicStripes") {
+                } else
+                    throw std::runtime_error("Training architecture for network " + simulate.network +
+                                             " in Float32 must be <None>.");
 
-            } else throw std::runtime_error("Architecture for network " + simulate.network +
-                                            " in Float32 must be <None|DynamicStripes>.");
+                experiment.architecture = experiment_proto.architecture();
+                experiment.task = experiment_proto.task();
+                simulate.experiments.emplace_back(experiment);
 
-            value = experiment_proto.task();
-            if(experiment_proto.architecture() != "None" && value  != "AvgWidth")
-                throw std::runtime_error("Task for network " + simulate.network + " in Float32 must be <AvgWidth>.");
-
-            if(experiment_proto.architecture() != "DynamicStripes" && experiment_proto.task() == "AvgWidth")
-                throw std::runtime_error("Task \"AvgWidth\" for training network " + simulate.network +
-                                         " in Float32 is only allowed for DynamicStripes.");
-
-            experiment.architecture = experiment_proto.architecture();
-            experiment.task = experiment_proto.task();
-            simulate.experiments.emplace_back(experiment);
+            }
 
         }
 
