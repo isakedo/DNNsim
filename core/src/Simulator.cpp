@@ -253,18 +253,18 @@ namespace core {
                 stats.fw_zero_bias.emplace_back(std::vector<uint64_t>(epochs,0));
                 stats.fw_total_bias.emplace_back(std::vector<uint64_t>(epochs,0));
 
-				stats.bw_act_grad_sparsity.emplace_back(std::vector<double>(epochs,0));
-        		stats.bw_zero_act_grad.emplace_back(std::vector<uint64_t>(epochs,0));
-        		stats.bw_total_act_grad.emplace_back(std::vector<uint64_t>(epochs,0));
+				stats.bw_in_grad_sparsity.emplace_back(std::vector<double>(epochs,0));
+        		stats.bw_zero_in_grad.emplace_back(std::vector<uint64_t>(epochs,0));
+        		stats.bw_total_in_grad.emplace_back(std::vector<uint64_t>(epochs,0));
 				stats.bw_wgt_grad_sparsity.emplace_back(std::vector<double>(epochs,0));
         		stats.bw_zero_wgt_grad.emplace_back(std::vector<uint64_t>(epochs,0));
         		stats.bw_total_wgt_grad.emplace_back(std::vector<uint64_t>(epochs,0));
                 stats.bw_bias_grad_sparsity.emplace_back(std::vector<double>(epochs,0));
                 stats.bw_zero_bias_grad.emplace_back(std::vector<uint64_t>(epochs,0));
                 stats.bw_total_bias_grad.emplace_back(std::vector<uint64_t>(epochs,0));
-                stats.bw_out_act_grad_sparsity.emplace_back(std::vector<double>(epochs,0));
-                stats.bw_zero_out_act_grad.emplace_back(std::vector<uint64_t>(epochs,0));
-                stats.bw_total_out_act_grad.emplace_back(std::vector<uint64_t>(epochs,0));
+                stats.bw_out_grad_sparsity.emplace_back(std::vector<double>(epochs,0));
+                stats.bw_zero_out_grad.emplace_back(std::vector<uint64_t>(epochs,0));
+                stats.bw_total_out_grad.emplace_back(std::vector<uint64_t>(epochs,0));
 			}
 
 			// Forward
@@ -301,7 +301,7 @@ namespace core {
 
 			//Backward
             uint64_t zero_act_grad = 0;
-            const auto &act_grad = layer.getActivation_gradients();
+            const auto &act_grad = layer.getInputGradients();
 			if(layer_it != 0) {
                 for (uint64_t i = 0; i < act_grad.getMax_index(); i++) {
                     const auto data = act_grad.get(i);
@@ -310,21 +310,21 @@ namespace core {
             }
 
             uint64_t zero_wgt_grad = 0;
-            const auto &wgt_grad = layer.getWeight_gradients();
+            const auto &wgt_grad = layer.getWeightGradients();
             for(uint64_t i = 0; i < wgt_grad.getMax_index(); i++) {
                 const auto data = wgt_grad.get(i);
                 if(data == 0) zero_wgt_grad++;
             }
 
             uint64_t zero_bias_grad = 0;
-            const auto &bias_grad = layer.getBias_gradients();
+            const auto &bias_grad = layer.getBiasGradients();
             for(uint64_t i = 0; i < bias_grad.getMax_index(); i++) {
                 const auto data = bias_grad.get(i);
                 if(data == 0) zero_bias_grad++;
             }
 
             uint64_t zero_out_act_grad = 0;
-            const auto &out_act_grad = layer.getOutput_activation_gradients();
+            const auto &out_act_grad = layer.getOutputGradients();
             if(layer_it != 0) {
                 for (uint64_t i = 0; i < out_act_grad.getMax_index(); i++) {
                     const auto data = out_act_grad.get(i);
@@ -333,9 +333,9 @@ namespace core {
             }
 
             if(layer_it != 0) {
-                stats.bw_act_grad_sparsity[layer_it][epoch] = zero_act_grad / (double)act_grad.getMax_index() * 100.;
-                stats.bw_zero_act_grad[layer_it][epoch] = zero_act_grad;
-                stats.bw_total_act_grad[layer_it][epoch] = act_grad.getMax_index();
+                stats.bw_in_grad_sparsity[layer_it][epoch] = zero_act_grad / (double)act_grad.getMax_index() * 100.;
+                stats.bw_zero_in_grad[layer_it][epoch] = zero_act_grad;
+                stats.bw_total_in_grad[layer_it][epoch] = act_grad.getMax_index();
             }
             stats.bw_wgt_grad_sparsity[layer_it][epoch] = zero_wgt_grad / (double)wgt_grad.getMax_index() * 100.;
             stats.bw_zero_wgt_grad[layer_it][epoch] = zero_wgt_grad;
@@ -343,10 +343,10 @@ namespace core {
             stats.bw_bias_grad_sparsity[layer_it][epoch] = zero_bias_grad / (double)bias_grad.getMax_index() * 100.;
             stats.bw_zero_bias_grad[layer_it][epoch] = zero_bias_grad;
             stats.bw_total_bias_grad[layer_it][epoch] = bias_grad.getMax_index();
-            stats.bw_out_act_grad_sparsity[layer_it][epoch] = zero_out_act_grad /
+            stats.bw_out_grad_sparsity[layer_it][epoch] = zero_out_act_grad /
                     (double)out_act_grad.getMax_index() * 100.;
-            stats.bw_zero_out_act_grad[layer_it][epoch] = zero_out_act_grad;
-            stats.bw_total_out_act_grad[layer_it][epoch] = out_act_grad.getMax_index();
+            stats.bw_zero_out_grad[layer_it][epoch] = zero_out_act_grad;
+            stats.bw_total_out_grad[layer_it][epoch] = out_act_grad.getMax_index();
         }
 
 	}

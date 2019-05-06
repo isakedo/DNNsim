@@ -35,6 +35,7 @@ namespace sys {
 
             /* Computation time per layer */
             std::vector<std::chrono::duration<double>> time;
+            std::vector<std::vector<std::chrono::duration<double>>> training_time;
 
             /* Stats for cycles */
             std::vector<std::vector<uint64_t>> cycles;
@@ -96,18 +97,18 @@ namespace sys {
             std::vector<std::vector<uint64_t>> fw_zero_bias;
             std::vector<std::vector<uint64_t>> fw_total_bias;
 
-            std::vector<std::vector<double>> bw_act_grad_sparsity;
-            std::vector<std::vector<uint64_t>> bw_zero_act_grad;
-            std::vector<std::vector<uint64_t>> bw_total_act_grad;
+            std::vector<std::vector<double>> bw_in_grad_sparsity;
+            std::vector<std::vector<uint64_t>> bw_zero_in_grad;
+            std::vector<std::vector<uint64_t>> bw_total_in_grad;
             std::vector<std::vector<double>> bw_wgt_grad_sparsity;
             std::vector<std::vector<uint64_t>> bw_zero_wgt_grad;
             std::vector<std::vector<uint64_t>> bw_total_wgt_grad;
             std::vector<std::vector<double>> bw_bias_grad_sparsity;
             std::vector<std::vector<uint64_t>> bw_zero_bias_grad;
             std::vector<std::vector<uint64_t>> bw_total_bias_grad;
-            std::vector<std::vector<double>> bw_out_act_grad_sparsity;
-            std::vector<std::vector<uint64_t>> bw_zero_out_act_grad;
-            std::vector<std::vector<uint64_t>> bw_total_out_act_grad;
+            std::vector<std::vector<double>> bw_out_grad_sparsity;
+            std::vector<std::vector<uint64_t>> bw_zero_out_grad;
+            std::vector<std::vector<uint64_t>> bw_total_out_grad;
 
             /* Stats for average width */
             std::vector<std::vector<double>> act_avg_width;

@@ -163,10 +163,10 @@ namespace core {
 
             if(layer.getType() == "Convolution") {
                 computeConvolution(layer, result, has_ReLU);
-                check_values(layer, layer.getOutput_activations(), result);
+                check_values(layer, layer.getOutputActivations(), result);
             } else if(layer.getType() == "InnerProduct") {
                 computeInnerProduct(layer, result, has_ReLU);
-                check_values(layer,layer.getOutput_activations(),result);
+                check_values(layer,layer.getOutputActivations(),result);
             }
 
         }

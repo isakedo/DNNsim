@@ -85,10 +85,10 @@ namespace sys {
             for(const auto &experiment_proto : simulate_proto.experiment()) {
 
                 Batch::Simulate::Experiment experiment;
-                if(experiment_proto.architecture() == "DynamicStripes") {
+                if(experiment_proto.architecture() == "DynamicStripesFP") {
 
                 } else throw std::runtime_error("Training architecture for network " + simulate.network +
-                                                " in BFloat16 must be <DynamicStripes>.");
+                                                " in BFloat16 must be <DynamicStripesFP>.");
 
                 value = experiment_proto.task();
                 if(value != "AvgWidth")

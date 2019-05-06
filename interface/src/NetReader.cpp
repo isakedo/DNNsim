@@ -241,7 +241,7 @@ namespace interface {
                 cnpy::Array<T> biases; biases.set_values(biases_data,biases_shape);
                 layer.setBias(biases);
                 cnpy::Array<T> out_activations; out_activations.set_values(out_activations_data,out_activations_shape);
-                layer.setOutput_activations(out_activations);
+                layer.setOutputActivations(out_activations);
             }
 
         }
@@ -384,7 +384,7 @@ namespace interface {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
                 std::string file = "/act-" + layer.getName() + "-" + std::to_string(batch) + "-out.npy" ;
                 cnpy::Array<T> activations; activations.set_values("net_traces/" + this->name + file);
-                layer.setOutput_activations(activations);
+                layer.setOutputActivations(activations);
             }
         }
     }
@@ -440,7 +440,7 @@ namespace interface {
                 std::string file = "/outGrad/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
                         std::to_string(batch) + "-wGrad.npy" ;
                 cnpy::Array<T> weight_gradients; weight_gradients.set_values("net_traces/" + this->name + file);
-                layer.setWeight_gradients(weight_gradients);
+                layer.setWeightGradients(weight_gradients);
             }
         }
     }
@@ -454,7 +454,7 @@ namespace interface {
                 std::string file = "/outGrad/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
                         std::to_string(batch) + "-bGrad.npy" ;
                 cnpy::Array<T> bias_gradients; bias_gradients.set_values("net_traces/" + this->name + file);
-                layer.setBias_gradients(bias_gradients);
+                layer.setBiasGradients(bias_gradients);
             }
         }
     }
@@ -469,8 +469,8 @@ namespace interface {
                 if(first_layer) {first_layer = false; continue;}
                 std::string file = "/outGrad/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
                         std::to_string(batch) + "-inGrad.npy" ;
-                cnpy::Array<T> activation_gradients; activation_gradients.set_values("net_traces/" + this->name + file);
-                layer.setActivation_gradients(activation_gradients);
+                cnpy::Array<T> input_gradients; input_gradients.set_values("net_traces/" + this->name + file);
+                layer.setInputGradients(input_gradients);
             }
         }
     }
@@ -483,8 +483,8 @@ namespace interface {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
                 std::string file = "/outGrad/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
                         std::to_string(batch) + "-outGrad.npy" ;
-                cnpy::Array<T> activation_gradients; activation_gradients.set_values("net_traces/" + this->name + file);
-                layer.setOutput_activation_gradients(activation_gradients);
+                cnpy::Array<T> output_gradients; output_gradients.set_values("net_traces/" + this->name + file);
+                layer.setOutputGradients(output_gradients);
             }
         }
     }

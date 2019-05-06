@@ -66,11 +66,21 @@ Create folder **models** including a folder for each network. Every network must
    7;8;7;8;8;9;8;8;
    ```
     
-Create folder **net_traces** including a folder for each network. Every network must include:
-   * wgt-$NAME.npy
-   * bias-$NAME.npy (Optional, only for inference)
-   * act-$NAME-0.npy
-   * act-$NAME-0-out.npy (Optional, only for inference)
+Create folder **net_traces** including a folder for each network. 
+In the case of **inference** simulation, every network must include:
+   * wgt-$LAYER.npy
+   * bias-$LAYER.npy (Optional, only for inference)
+   * act-$LAYER-$BATCH.npy
+   * act-$LAYER-$BATCH-out.npy (Optional, only for inference)   
+   
+In the case of **training** simulation, every network must include in subdirectories:
+   * weights/$LAYER-$EPOCH-$BATCH-w.npy
+   * bias/$LAYER-$EPOCH-$BATCH-b.npy
+   * input/$LAYER-$EPOCH-$BATCH-in.npy
+   * outGrad/$LAYER-$EPOCH-$BATCH-wGrad.npy
+   * outGrad/$LAYER-$EPOCH-$BATCH-bGrad.npy
+   * outGrad/$LAYER-$EPOCH-$BATCH-inGrad.npy
+   * outGrad/$LAYER-$EPOCH-$BATCH-wGrad.npy
    
 Create folder **results** including a folder for each network. The corresponding results will appear in this subfolders.
     
