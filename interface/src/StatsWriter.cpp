@@ -640,6 +640,7 @@ namespace interface {
             else if(!stats.cycles.empty() && arch == "BitFusion") dump_csv_BitFusion_cycles(o_file,stats);
             else if(!stats.work_reduction.empty()) dump_csv_potentials(o_file,stats);
             else if(!stats.act_sparsity.empty()) dump_csv_sparsity(o_file,stats);
+			else if(!stats.fw_act_sparsity.empty()) dump_csv_training_sparsity(o_file,stats);
             else if(!stats.act_avg_width.empty()) dump_csv_average_width(o_file,stats);
 
             o_file.close();

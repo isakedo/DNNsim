@@ -65,6 +65,18 @@ namespace core {
         /* numpy array containing the output activations for the layer */
         cnpy::Array<T> output_activations;
 
+        /* numpy array containing the weight gradients for the layer */
+        cnpy::Array<T> weight_gradients;
+
+        /* numpy array containing the bias gradients for the layer */
+        cnpy::Array<T> bias_gradients;
+
+        /* numpy array containing the activation gradients for the layer */
+        cnpy::Array<T> activation_gradients;
+
+        /* numpy array containing the output activation gradients for the layer */
+        cnpy::Array<T> output_activation_gradients;
+
     public:
 
         /* Constructor
@@ -111,6 +123,13 @@ namespace core {
         void setActivations(const cnpy::Array<T> &activations) { Layer::activations = activations; }
         void setOutput_activations(const cnpy::Array<T> &output_activations) {
             Layer::output_activations = output_activations; }
+        void setWeight_gradients(const cnpy::Array<T> &weight_gradients) { 
+			Layer::weight_gradients = weight_gradients; }
+        void setBias_gradients(const cnpy::Array<T> &bias_gradients) { Layer::bias_gradients = bias_gradients; }
+        void setActivation_gradients(const cnpy::Array<T> &activation_gradients) { 
+			Layer::activation_gradients = activation_gradients; }
+        void setOutput_activation_gradients(const cnpy::Array<T> &output_activation_gradients) {
+            Layer::output_activation_gradients = output_activation_gradients; }
         void setAct_precision(int act_precision, int act_magnitude, int act_fraction) {
             Layer::act_precision = act_precision;
             Layer::act_magnitude = act_magnitude;

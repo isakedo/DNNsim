@@ -41,7 +41,6 @@ namespace interface {
         } else if (layer_caffe.type() == "InnerProduct") {
             Nn = layer_caffe.inner_product_param().num_output();
             Kx = 1; Ky = 1; stride = 1; padding = 0;
-
         } else if (layer_caffe.type() == "LSTM") {
             Nn = layer_caffe.recurrent_param().num_output();
             Kx = 1; Ky = 1; stride = 1; padding = 0;
@@ -386,6 +385,97 @@ namespace interface {
                 std::string file = "/act-" + layer.getName() + "-" + std::to_string(batch) + "-out.npy" ;
                 cnpy::Array<T> activations; activations.set_values("net_traces/" + this->name + file);
                 layer.setOutput_activations(activations);
+            }
+        }
+    }
+
+    template <typename T>
+    void NetReader<T>::read_training_weights_npy(core::Network<T> &network) {
+        check_path("net_traces/" + this->name);
+		check_path("net_traces/" + this->name + "/weights");
+        for(core::Layer<T> &layer : network.updateLayers()) {
+            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
+                std::string file = layer.getName() + "-" + std::to_string(batch) + "-" + std::to_string(epoch) + "-w.npy" ;
+                cnpy::Array<T> weights; weights.set_values("net_traces/" + this->name + file);
+                layer.setWeights(weights);
+            }
+        }
+    }
+
+	template <typename T>
+    void NetReader<T>::read_training_bias_npy(core::Network<T> &network) {
+        check_path("net_traces/" + this->name);
+		check_path("net_traces/" + this->name + "/bias");
+        for(core::Layer<T> &layer : network.updateLayers()) {
+            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
+                std::string file = layer.getName() + "-" + std::to_string(batch) + "-" + std::to_string(epoch) + "-b.npy" ;
+                cnpy::Array<T> bias; bias.set_values("net_traces/" + this->name + file);
+                layer.setBias(bias);
+            }
+        }
+    }
+
+    template <typename T>
+    void NetReader<T>::read_training_activations_npy(core::Network<T> &network) {
+        check_path("net_traces/" + this->name);
+		check_path("net_traces/" + this->name + "/input");
+        for(core::Layer<T> &layer : network.updateLayers()) {
+            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
+                std::string file = layer.getName() + "-" + std::to_string(batch) + "-" + std::to_string(epoch) + "-in.npy" ;
+                cnpy::Array<T> activations; activations.set_values("net_traces/" + this->name + file);
+                layer.setActivations(activations);
+            }
+        }
+    }
+
+    template <typename T>
+    void NetReader<T>::read_training_weight_gradients_npy(core::Network<T> &network) {
+        check_path("net_traces/" + this->name);
+		check_path("net_traces/" + this->name + "/outGrad");
+        for(core::Layer<T> &layer : network.updateLayers()) {
+            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
+                std::string file = layer.getName() + "-" + std::to_string(batch) + "-" + std::to_string(epoch) + "-wGrad.npy" ;
+                cnpy::Array<T> weight_gradients; weight_gradients.set_values("net_traces/" + this->name + file);
+                layer.setWeight_gradients(weight_gradients);
+            }
+        }
+    }
+
+    template <typename T>
+    void NetReader<T>::read_training_bias_gradients_npy(core::Network<T> &network) {
+        check_path("net_traces/" + this->name);
+		check_path("net_traces/" + this->name + "/outGrad");
+        for(core::Layer<T> &layer : network.updateLayers()) {
+            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
+                std::string file = layer.getName() + "-" + std::to_string(batch) + "-" + std::to_string(epoch) + "-bGrad.npy" ;
+                cnpy::Array<T> bias_gradients; bias_gradients.set_values("net_traces/" + this->name + file);
+                layer.setBias_gradients(bias_gradients);
+            }
+        }
+    }
+
+    template <typename T>
+    void NetReader<T>::read_training_activation_gradients_npy(core::Network<T> &network) {
+        check_path("net_traces/" + this->name);
+		check_path("net_traces/" + this->name + "/outGrad");
+        for(core::Layer<T> &layer : network.updateLayers()) {
+            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
+                std::string file = layer.getName() + "-" + std::to_string(batch) + "-" + std::to_string(epoch) + "-inGrad.npy" ;
+                cnpy::Array<T> activation_gradients; activation_gradients.set_values("net_traces/" + this->name + file);
+                layer.setActivation_gradients(activation_gradients);
+            }
+        }
+    }
+
+    template <typename T>
+    void NetReader<T>::read_training_output_activation_gradients_npy(core::Network<T> &network) {
+        check_path("net_traces/" + this->name);
+		check_path("net_traces/" + this->name + "/outGrad");
+        for(core::Layer<T> &layer : network.updateLayers()) {
+            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
+                std::string file = layer.getName() + "-" + std::to_string(batch) + "-" + std::to_string(epoch) + "-outGrad.npy" ;
+                cnpy::Array<T> activation_gradients; activation_gradients.set_values("net_traces/" + this->name + file);
+                layer.setOutput_activation_gradients(activation_gradients);
             }
         }
     }

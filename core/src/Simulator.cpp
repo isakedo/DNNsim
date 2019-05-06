@@ -226,6 +226,83 @@ namespace core {
         sys::Statistics::addStats(stats);
     }
 
+	void training_sparsity(const Network<T> &network, sys::Statistics::Stats &stats, int epoch, int max_epoch) {
+
+		if(epoch == 0) {
+		    stats.task_name = "sparsity";
+		    stats.net_name = network.getName();
+		    stats.arch = "None";
+		}
+
+        for(int layer_it; layer_it < network.getLayers().size(); layer_it++) {
+
+			const Layer<T> &layer = network.getLayers()[layer_it];
+
+			if(epoch == 0) {
+            	stats.layers.push_back(layer.getName());
+				stats.fw_act_sparsity.emplace_back(std::vector<double>(max_epoch,0));
+        		stats.fw_zero_act.emplace_back(std::vector<uint64_t>(max_epoch,0));
+        		stats.fw_total_act.emplace_back(std::vector<uint64_t>(max_epoch,0));
+				stats.fw_wgt_sparsity.emplace_back(std::vector<double>(max_epoch,0));
+        		stats.fw_zero_wgt.emplace_back(std::vector<uint64_t>(max_epoch,0));
+        		stats.fw_total_wgt.emplace_back(std::vector<uint64_t>(max_epoch,0));
+				stats.bw_act_grad_sparsity.emplace_back(std::vector<double>(max_epoch,0));
+        		stats.bw_zero_act_grad.emplace_back(std::vector<uint64_t>(max_epoch,0));
+        		stats.bw_total_act_grad.emplace_back(std::vector<uint64_t>(max_epoch,0));
+				stats.bw_wgt_grad_sparsity.emplace_back(std::vector<double>(max_epoch,0));
+        		stats.bw_zero_wgt_grad.emplace_back(std::vector<uint64_t>(max_epoch,0));
+        		stats.bw_total_wgt_grad.emplace_back(std::vector<uint64_t>(max_epoch,0));
+			}
+
+			// Forward
+            uint64_t zero_act = 0;
+            const auto &act = layer.getActivations();
+            for(uint64_t i = 0; i < act.getMax_index(); i++) {
+                const auto data = act.get(i);
+                if(data == 0) zero_act++;
+            }
+
+            uint64_t zero_wgt = 0;
+            const auto &wgt = layer.getWeights();
+            for(uint64_t i = 0; i < wgt.getMax_index(); i++) {
+                const auto data = wgt.get(i);
+                if(data == 0) zero_wgt++;
+            }
+
+            stats.fw_act_sparsity[layer_it][epoch] = zero_act / (double)act.getMax_index() * 100.;
+            stats.fw_zero_act[layer_it][epoch] = zero_act;
+            stats.fw_total_act[layer_it][epoch] = act.getMax_index();
+            stats.fw_wgt_sparsity[layer_it][epoch] = zero_wgt / (double)wgt.getMax_index() * 100.;
+            stats.fw_zero_wgt[layer_it][epoch] = zero_wgt;
+            stats.fw_total_wgt[layer_it][epoch] = wgt.getMax_index();
+
+			//Backward
+            uint64_t zero_act_grad = 0;
+            const auto &act_grad = layer.getActivation_gradients();
+            for(uint64_t i = 0; i < act_grad.getMax_index(); i++) {
+                const auto data = act_grad.get(i);
+                if(data == 0) zero_act_grad++;
+            }
+
+            uint64_t zero_wgt_grad = 0;
+            const auto &wgt_grad = layer.getWeight_gradients();
+            for(uint64_t i = 0; i < wgt_grad.getMax_index(); i++) {
+                const auto data = wgt_grad.get(i);
+                if(data == 0) zero_wgt_grad++;
+            }
+
+            stats.bw_act_grad_sparsity[layer_it][epoch] = zero_act_grad / (double)act_grad.getMax_index() * 100.;
+            stats.bw_zero_act_grad[layer_it][epoch] = zero_act_grad;
+            stats.bw_total_act_grad[layer_it][epoch] = act_grad.getMax_index();
+            stats.bw_wgt_grad_sparsity[layer_it][epoch] = zero_wgt_grad / (double)wgt_grad.getMax_index() * 100.;
+            stats.bw_zero_wgt_grad[layer_it][epoch] = zero_wgt_grad;
+            stats.bw_total_wgt_grad[layer_it][epoch] = wgt_grad.getMax_index();
+        }
+
+        // Set statistics to write
+        sys::Statistics::addStats(stats);
+	}
+
     INITIALISE_DATA_TYPES(Simulator);
 
 }

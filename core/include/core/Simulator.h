@@ -86,6 +86,14 @@ namespace core {
          */
         void bit_sparsity(const Network<T> &network);
 
+        /* Calculate the training sparsity in the network
+         * @param network   Network we want to check
+		 * @param stats		Shared stats for the epochs
+		 * @param epoch		Current epoch
+		 * @param max_epoch Max epoch
+         */
+        void training_sparsity(const Network<T> &network, sys::Statistics::Stats &stats, int epoch, int max_epoch);
+
     };
 
 }

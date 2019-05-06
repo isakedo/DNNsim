@@ -58,12 +58,14 @@ namespace sys {
             };
 
             int batch = 0;
+            int max_epoch = 0;
             std::string inputType = ""; // Protobuf/Gzip
             std::string inputDataType = ""; // Float32/Fixed16
             std::string network = "";
             int network_bits = 0;
             bool activate_bias_out_act = false;
             bool tensorflow_8b = false;
+            bool training = false;			
             std::vector<Experiment> experiments;
         };
 
@@ -83,10 +85,15 @@ namespace sys {
          */
         Transform read_transformation(const protobuf::Batch_Transform &transform_proto);
 
-        /* Return the simulation parsed from the prototxt file
+        /* Return the training simulation parsed from the prototxt file
          * @param simulate_proto   prototxt simulation
          */
-        Simulate read_simulation(const protobuf::Batch_Simulate &simulate_proto);
+        Simulate read_training_simulation(const protobuf::Batch_Simulate &simulate_proto);
+
+        /* Return the inference simulation parsed from the prototxt file
+         * @param simulate_proto   prototxt simulation
+         */
+        Simulate read_inference_simulation(const protobuf::Batch_Simulate &simulate_proto);
 
     public:
 

@@ -55,14 +55,74 @@ namespace sys {
         return transform;
     }
 
-    Batch::Simulate Batch::read_simulation(const protobuf::Batch_Simulate &simulate_proto) {
+    Batch::Simulate Batch::read_training_simulation(const protobuf::Batch_Simulate &simulate_proto) {
         Batch::Simulate simulate;
         std::string value;
         simulate.network = simulate_proto.network();
         simulate.activate_bias_out_act = simulate_proto.activate_bias_and_out_act();
         simulate.batch = simulate_proto.batch();
+        simulate.max_epoch = simulate_proto.max_epoch();
         simulate.tensorflow_8b = simulate_proto.tensorflow_8b();
         simulate.network_bits = simulate_proto.network_bits() < 1 ? 16 : simulate_proto.network_bits();
+		simulate.training = simulate_proto.training();
+        if(simulate.tensorflow_8b) simulate.network_bits = 8;
+
+        value = simulate_proto.inputtype();
+        if(value != "Trace")
+            throw std::runtime_error("Input type training configuration for network " + simulate.network +
+                                     " must be <Trace>.");
+        else
+            simulate.inputType = simulate_proto.inputtype();
+
+        value = simulate_proto.inputdatatype();
+        if(value  != "Float32")
+            throw std::runtime_error("Input data type training configuration for network " + simulate.network +
+                                     " must be <Float32>.");
+        else
+            simulate.inputDataType = simulate_proto.inputdatatype();
+
+        for(const auto &experiment_proto : simulate_proto.experiment()) {
+
+        	Batch::Simulate::Experiment experiment;
+            if(experiment_proto.architecture() == "None") {
+
+                    value = experiment_proto.task();
+                    if(value != "Sparsity" )
+                        throw std::runtime_error("Task for network " + simulate.network + " in Float32 for architecture"
+                                                 " None must be <Sparsity>.");
+
+            } else if (experiment_proto.architecture() == "DynamicStripes") {
+
+            } else throw std::runtime_error("Architecture for network " + simulate.network +
+                                            " in Float32 must be <None|DynamicStripes>.");
+
+            value = experiment_proto.task();
+            if(experiment_proto.architecture() != "None" && value  != "AvgWidth")
+                throw std::runtime_error("Task for network " + simulate.network + " in Float32 must be <AvgWidth>.");
+
+            if(experiment_proto.architecture() != "DynamicStripes" && experiment_proto.task() == "AvgWidth")
+                throw std::runtime_error("Task \"AvgWidth\" for training network " + simulate.network +
+                                         " in Float32 is only allowed for DynamicStripes.");
+
+            experiment.architecture = experiment_proto.architecture();
+            experiment.task = experiment_proto.task();
+            simulate.experiments.emplace_back(experiment);
+
+        }
+
+        return simulate;
+    }
+
+    Batch::Simulate Batch::read_inference_simulation(const protobuf::Batch_Simulate &simulate_proto) {
+        Batch::Simulate simulate;
+        std::string value;
+        simulate.network = simulate_proto.network();
+        simulate.activate_bias_out_act = simulate_proto.activate_bias_and_out_act();
+        simulate.batch = simulate_proto.batch();
+        simulate.max_epoch = simulate_proto.max_epoch();
+        simulate.tensorflow_8b = simulate_proto.tensorflow_8b();
+        simulate.network_bits = simulate_proto.network_bits() < 1 ? 16 : simulate_proto.network_bits();
+		simulate.training = simulate_proto.training();
         if(simulate.tensorflow_8b) simulate.network_bits = 8;
 
         value = simulate_proto.inputtype();
@@ -334,7 +394,8 @@ namespace sys {
 
         for(const auto &simulate : batch.simulate()) {
             try {
-                this->simulations.emplace_back(read_simulation(simulate));
+                this->simulations.emplace_back(simulate.training() ? 
+					read_training_simulation(simulate) : read_inference_simulation(simulate));
             } catch (std::exception &exception) {
                 std::cerr << "Prototxt simulation error: " << exception.what() << std::endl;
                 #ifdef STOP_AFTER_ERROR

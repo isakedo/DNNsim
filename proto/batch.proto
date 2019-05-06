@@ -65,13 +65,15 @@ message Batch {
         }
 
         uint32 batch = 1;
-        string inputType = 2;
-        string inputDataType = 3;
-        string network = 4;
-        uint32 network_bits = 5;
-        bool activate_bias_and_out_act = 6;
-        bool tensorflow_8b = 7;
-        repeated Experiment experiment = 8;
+        uint32 max_epoch = 2;
+        string inputType = 3;
+        string inputDataType = 4;
+        string network = 5;
+        uint32 network_bits = 6;
+        bool activate_bias_and_out_act = 7;
+        bool tensorflow_8b = 8;
+		bool training = 9;
+        repeated Experiment experiment = 10;
     }
 
     repeated Transform transform = 1;
