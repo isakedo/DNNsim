@@ -28,20 +28,18 @@ namespace core {
         /* Bits per PE */
         const int BITS_PE;
 
-        /* Network bits */
-        const int NETWORK_BITS;
-
         /* Calculate also the minor bit for dynamic precisions */
         const bool MINOR_BIT;
 
-        /* Diffy simualtion */
+        /* Diffy simulation */
         const bool DIFFY;
 
         /* Compute number of one bit multiplications
          * @param layer_prec    Layer precision
+         * @param network_bits  Max bits network
          * @return              Number of one bit multiplications
          */
-        uint16_t computeDynamicStripesBitsPE(uint8_t layer_prec);
+        uint16_t computeDynamicStripesBitsPE(uint8_t layer_prec, int network_bits);
 
         /* Compute cycles for dynamic stripes column
          * @param batch         Current number of batch
@@ -126,16 +124,18 @@ namespace core {
         void computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats);
 
         /* Compute the potentials for a convolutional layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
+        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits);
 
         /* Compute the potentials for a inner product layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
+        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits);
 
         /* Compute average width for activations for laconic tile
          * @param batch         Current number of batch
@@ -173,10 +173,11 @@ namespace core {
                 int init_filter, const cnpy::Array<T> &wgt, int max_channel, int max_filter, int wgt_mask);
 
         /* Compute the average width for a layer
-         * @param layer     Layer for which we want to calculate the outputs
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate the outputs
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        void computeAvgWidthLayer(const Layer<T> &layer, sys::Statistics::Stats &stats);
+        void computeAvgWidthLayer(const Layer<T> &layer, sys::Statistics::Stats &stats, int network_bits);
 
     public:
 
@@ -186,17 +187,16 @@ namespace core {
          * @param _PRECISION_GRANULARITY    Granularity for dynamic precisions
          * @param _COLUMN_REGISTERS         Number of registers per SIP
          * @param _BITS_PE                  Number of bits per PE
-         * @param _NETWORK_BITS             Network bits
          * @param _MINOR_BIT                Calculate also the minor bit for dynamic precisions
          * @param _DIFFY                    Enable Diffy
          * @param _N_THREADS                Number of parallel threads for multi-threading execution
          * @param _FAST_MODE                Enable fast mode to simulate only one image
          */
         DynamicStripes(int _N_COLUMNS, int _N_ROWS, const int &_PRECISION_GRANULARITY, int _COLUMN_REGISTERS,
-                int _BITS_PE, int _NETWORK_BITS, bool _MINOR_BIT, bool _DIFFY, uint8_t _N_THREADS, bool _FAST_MODE) :
+                int _BITS_PE, bool _MINOR_BIT, bool _DIFFY, uint8_t _N_THREADS, bool _FAST_MODE) :
                 Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS),
-                PRECISION_GRANULARITY(_PRECISION_GRANULARITY), COLUMN_REGISTERS(_COLUMN_REGISTERS),
-                BITS_PE(_BITS_PE), NETWORK_BITS(_NETWORK_BITS), MINOR_BIT(_MINOR_BIT), DIFFY(_DIFFY) {}
+                PRECISION_GRANULARITY(_PRECISION_GRANULARITY), COLUMN_REGISTERS(_COLUMN_REGISTERS), BITS_PE(_BITS_PE),
+                MINOR_BIT(_MINOR_BIT), DIFFY(_DIFFY) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

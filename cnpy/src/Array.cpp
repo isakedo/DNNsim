@@ -128,18 +128,22 @@ namespace cnpy {
     }
 
     template <typename T>
-    void Array<T>::powers_of_two_representation() {
+    void Array<T>::powers_of_two_representation(int prec) {
+        double intmax = (1 << (prec - 1)) - 1;
+        auto mask = (uint16_t)intmax + 1;
         if (this->getDimensions() == 1) {
             for(int i = 0; i < this->shape[0]; i++) {
                 auto two_comp = (short)this->data1D[i];
-                auto powers_of_two = (uint16_t)abs(two_comp);
+                auto abs_value = (uint16_t)abs(two_comp);
+                auto powers_of_two = abs_value & ~mask;
                 this->data1D[i] = powers_of_two;
             }
         } else if(this->getDimensions() == 2){
             for(int i = 0; i < this->shape[0]; i++) {
                 for(int j = 0; j < this->shape[1]; j++) {
                     auto two_comp = (short)this->data2D[i][j];
-                    auto powers_of_two = (uint16_t)abs(two_comp);
+                    auto abs_value = (uint16_t)abs(two_comp);
+                    auto powers_of_two = abs_value & ~mask;
                     this->data2D[i][j] = powers_of_two;
                 }
             }
@@ -148,7 +152,8 @@ namespace cnpy {
                 for(int j = 0; j < this->shape[1]; j++) {
                     for(int k = 0; k < this->shape[2]; k++) {
                         auto two_comp = (short)this->data3D[i][j][k];
-                        auto powers_of_two = (uint16_t)abs(two_comp);
+                        auto abs_value = (uint16_t)abs(two_comp);
+                        auto powers_of_two = abs_value & ~mask;
                         this->data3D[i][j][k] = powers_of_two;
                     }
                 }
@@ -159,7 +164,8 @@ namespace cnpy {
                     for(int k = 0; k < this->shape[2]; k++) {
                         for(int l = 0; l < this->shape[3]; l++) {
                             auto two_comp = (short)this->data4D[i][j][k][l];
-                            auto powers_of_two = (uint16_t)abs(two_comp);
+                            auto abs_value = (uint16_t)abs(two_comp);
+                            auto powers_of_two = abs_value & ~mask;
                             this->data4D[i][j][k][l] = powers_of_two;
                         }
                     }

@@ -60,6 +60,8 @@ message Batch {
 
             // On top architectures
             bool diffy = 25;
+
+            bool dynamic_weights = 26;
         }
 
         uint32 batch = 1;

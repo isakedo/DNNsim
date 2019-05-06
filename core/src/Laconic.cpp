@@ -85,9 +85,9 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation();
+        act.powers_of_two_representation(layer.getAct_precision());
         cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
+        wgt.powers_of_two_representation(layer.getWgt_precision());
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
         int padding = layer.getPadding();
@@ -169,9 +169,9 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation();
+        act.powers_of_two_representation(layer.getAct_precision());
         cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
+        wgt.powers_of_two_representation(layer.getWgt_precision());
         wgt.reshape_to_4D();
 
         if(layer.getType() == "InnerProduct") {
@@ -287,14 +287,15 @@ namespace core {
     /* POTENTIALS */
 
     template <typename T>
-    void Laconic<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void Laconic<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
+            const int network_bits) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation();
+        act.powers_of_two_representation(layer.getAct_precision());
         cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
+        wgt.powers_of_two_representation(layer.getWgt_precision());
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
         const std::vector<size_t> &act_shape = act.getShape();
@@ -361,8 +362,9 @@ namespace core {
                     }
                 }
             }
-            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
-            stats.speedup.back()[n] = (double)parallel_mult * 256. / (double)bit_counter;
+            double MAX_BITS = network_bits * network_bits;
+            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
+            stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
             stats.bit_multiplications.back()[n] = bit_counter;
         }
 
@@ -375,15 +377,16 @@ namespace core {
     }
 
     template <typename T>
-    void Laconic<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void Laconic<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats,
+            const int network_bits) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation();
+        act.powers_of_two_representation(layer.getAct_precision());
         if(act.getDimensions() == 4) act.reshape_to_2D();
         cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation();
+        wgt.powers_of_two_representation(layer.getWgt_precision());
 
         bool lstm = layer.getType() == "LSTM";
 
@@ -420,8 +423,9 @@ namespace core {
                     }
                 }
             }
-            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / 256. * 100);
-            stats.speedup.back()[n] = (double)parallel_mult * 256. / (double)bit_counter;
+            double MAX_BITS = network_bits * network_bits;
+            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
+            stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
             stats.bit_multiplications.back()[n] = bit_counter;
         }
 
@@ -449,12 +453,12 @@ namespace core {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(layer.getWgt_precision());
-                computePotentialsConvolution(layer,stats);
+                computePotentialsConvolution(layer,stats,network.getNetwork_bits());
             } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(layer.getWgt_precision());
-                computePotentialsInnerProduct(layer,stats);
+                computePotentialsInnerProduct(layer,stats,network.getNetwork_bits());
             }
         }
 

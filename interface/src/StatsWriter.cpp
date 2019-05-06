@@ -116,6 +116,33 @@ namespace interface {
         o_file << line;
     }
 
+    void dump_csv_Loom_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
+        o_file << "layer,n_act,cycles,time(s)" << std::endl;
+
+        #ifdef PER_IMAGE_RESULTS
+        for (int j = 0; j < stats.cycles.front().size(); j++) {
+            for (int i = 0; i < stats.layers.size(); i++) {
+                char line[256];
+                snprintf(line, sizeof(line), "%s,%d,%lu,0\n", stats.layers[i].c_str(), j, stats.cycles[i][j]);
+                o_file << line;
+            }
+        }
+        #endif
+
+        double total_time = 0.;
+        for (int i = 0; i < stats.layers.size(); i++) {
+            total_time += stats.time[i].count();
+            char line[256];
+            snprintf(line, sizeof(line), "%s,AVG,%lu,%.2f\n", stats.layers[i].c_str(),stats.get_average(stats.cycles[i])
+                    , stats.time[i].count());
+            o_file << line;
+        }
+
+        char line[256];
+        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%.2f\n", stats.get_total(stats.cycles), total_time);
+        o_file << line;
+    }
+
     void dump_csv_Laconic_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
         o_file << "layer,n_act,cycles,time(s)" << std::endl;
 
@@ -594,7 +621,7 @@ namespace interface {
             std::ofstream o_file;
             check_path("results/" + stats.net_name);
             std::string path = "results/" + stats.net_name + "/" + stats.arch + "_" + stats.task_name;
-            path = stats.tensorflow_8b ? path + "-TF.csv" : path + ".csv";
+            path += stats.tensorflow_8b ? "-TF.csv" : ".csv";
             o_file.open (path);
             o_file << stats.net_name << std::endl;
             o_file << stats.arch << std::endl;
@@ -603,6 +630,7 @@ namespace interface {
             if(!stats.cycles.empty() && arch == "BitPragmatic") dump_csv_BitPragmatic_cycles(o_file,stats);
             else if(!stats.cycles.empty() && arch == "Stripes") dump_csv_Stripes_cycles(o_file,stats);
             else if(!stats.cycles.empty() && arch == "DynamicStripes") dump_csv_DynamicStripes_cycles(o_file,stats);
+            else if(!stats.cycles.empty() && arch == "Loom") dump_csv_Loom_cycles(o_file,stats);
             else if(!stats.cycles.empty() && arch == "Laconic") dump_csv_Laconic_cycles(o_file,stats);
             else if(!stats.cycles.empty() && arch == "BitTacticalP") dump_csv_BitTacticalP_cycles(o_file,stats);
             else if(!stats.cycles.empty() && arch == "BitTacticalE") dump_csv_BitTacticalE_cycles(o_file,stats);

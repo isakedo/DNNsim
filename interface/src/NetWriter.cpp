@@ -34,8 +34,10 @@ namespace interface {
     }
 
     static inline
-    uint16_t tensorflow_8b_precision(float num, double scale, float min_value) {
-        auto sign_mag = (int)(round(num * scale) - round(min_value * scale));
+    uint16_t tensorflow_8b_precision(float num, double scale, float min_value, int max_fixed, int min_fixed) {
+        auto sign_mag = (int)(round(num * scale) - round(min_value * scale) + min_fixed);
+        sign_mag = std::max(sign_mag, min_fixed);
+        sign_mag = std::min(sign_mag, max_fixed);
         return (uint16_t)sign_mag;
     }
 
@@ -91,8 +93,10 @@ namespace interface {
             } else if (TENSORFLOW_8b && type == "f4" && this->data_conversion == "Fixed16") {
 
                 const int NUM_BITS = 8;
+                const int max_fixed = 127;
+                const int min_fixed = -128;
                 const int num_discrete_values = 1 << NUM_BITS;
-                const  auto range_adjust = num_discrete_values / (num_discrete_values - 1.0);
+                const auto range_adjust = num_discrete_values / (num_discrete_values - 1.0);
 
                 auto max_wgt = layer.getWeights().max();
                 auto min_wgt = layer.getWeights().min();
@@ -101,7 +105,7 @@ namespace interface {
 
                 for (unsigned long long i = 0; i < layer.getWeights().getMax_index(); i++)
                     layer_proto->add_wgt_data_fxd(tensorflow_8b_precision(layer.getWeights().get(i),scale_wgt,
-                            min_wgt));
+                            min_wgt,max_fixed,min_fixed));
 
                 auto max_input_act = layer.getActivations().max();
                 auto min_input_act = layer.getActivations().min();
@@ -110,7 +114,7 @@ namespace interface {
 
                 for (unsigned long long i = 0; i < layer.getActivations().getMax_index(); i++)
                     layer_proto->add_act_data_fxd(tensorflow_8b_precision(layer.getActivations().get(i),scale_input_act,
-                            min_input_act));
+                            min_input_act,max_fixed,min_fixed));
 
                 if (this->activate_bias_and_out_act) {
 
@@ -121,7 +125,7 @@ namespace interface {
 
                     for (unsigned long long i = 0; i < layer.getBias().getMax_index(); i++)
                         layer_proto->add_bias_data_fxd(tensorflow_8b_precision(layer.getBias().get(i),scale_bias,
-                                min_bias));
+                                min_bias,max_fixed,min_fixed));
 
                     auto max_output_act = layer.getOutput_activations().max();
                     auto min_output_act = layer.getOutput_activations().min();
@@ -130,7 +134,7 @@ namespace interface {
 
                     for (unsigned long long i = 0; i < layer.getOutput_activations().getMax_index(); i++)
                         layer_proto->add_out_act_data_fxd(tensorflow_8b_precision(layer.getOutput_activations().get(i),
-                                scale_output_act,min_output_act));
+                                scale_output_act,min_output_act,max_fixed,min_fixed));
                 }
 
             } else if (type == "f4" && this->data_conversion == "Fixed16") {

@@ -29,6 +29,7 @@ THE SOFTWARE.
 #include <core/Inference.h>
 #include <core/Stripes.h>
 #include <core/DynamicStripes.h>
+#include <core/Loom.h>
 #include <core/BitPragmatic.h>
 #include <core/Laconic.h>
 #include <core/BitTacticalP.h>
@@ -208,6 +209,7 @@ int main(int argc, char *argv[]) {
                     core::Network<float> network;
                     network = read<float>(simulate.inputType, simulate.network, simulate.activate_bias_out_act,
                             simulate.batch, simulate.tensorflow_8b);
+                    network.setNetwork_bits(simulate.network_bits);
                     for(const auto &experiment : simulate.experiments) {
                         if(experiment.architecture == "None") {
                             if(experiment.task == "Inference") {
@@ -228,6 +230,7 @@ int main(int argc, char *argv[]) {
                     core::Network<uint16_t> network;
                     network = read<uint16_t>(simulate.inputType, simulate.network, simulate.activate_bias_out_act,
                             simulate.batch, simulate.tensorflow_8b);
+                    network.setNetwork_bits(simulate.network_bits);
                     for(const auto &experiment : simulate.experiments) {
                         if(experiment.architecture == "None") {
                             core::Simulator<uint16_t> DNNsim(N_THREADS,FAST_MODE);
@@ -243,17 +246,24 @@ int main(int argc, char *argv[]) {
 
                         } else if(experiment.architecture == "Stripes") {
                             core::Stripes<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,experiment.bits_pe,
-                                    simulate.network_bits,N_THREADS,FAST_MODE);
+                                    N_THREADS,FAST_MODE);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
                         } else if(experiment.architecture == "DynamicStripes") {
                             core::DynamicStripes<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
                                     experiment.precision_granularity, experiment.column_registers, experiment.bits_pe,
-                                    simulate.network_bits, experiment.minor_bit, experiment.diffy, N_THREADS,FAST_MODE);
+                                    experiment.minor_bit, experiment.diffy, N_THREADS,FAST_MODE);
                             if(experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
                             else if (experiment.task == "AvgWidth") DNNsim.average_width(network);
+
+                        } else if(experiment.architecture == "Loom") {
+                            core::Loom<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
+                                    experiment.precision_granularity, experiment.pe_serial_bits, experiment.minor_bit,
+                                    experiment.dynamic_weights,N_THREADS,FAST_MODE);
+                            if(experiment.task == "Cycles") DNNsim.run(network);
+                            else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
                         } else if (experiment.architecture == "Laconic") {
                             core::Laconic<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,N_THREADS,FAST_MODE);
@@ -264,7 +274,7 @@ int main(int argc, char *argv[]) {
                             core::BitTacticalP<uint16_t> DNNsim(experiment.n_columns, experiment.n_rows,
                                     experiment.precision_granularity, experiment.column_registers,
                                     experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape,
-                                    simulate.network_bits, experiment.minor_bit, N_THREADS, FAST_MODE);
+                                    experiment.minor_bit, N_THREADS, FAST_MODE);
                             if(experiment.task == "Cycles" && experiment.read_schedule_from_proto) {
                                 auto dense_schedule = read_schedule<uint16_t>(network.getName(),"BitTactical",
                                         experiment);
@@ -298,7 +308,7 @@ int main(int argc, char *argv[]) {
                         } else if (experiment.architecture == "SCNNp") {
                             core::SCNNp<uint16_t> DNNsim(experiment.Wt, experiment.Ht, experiment.I, experiment.F,
                                     experiment.out_acc_size, experiment.banks, experiment.pe_serial_bits,
-                                    simulate.network_bits, N_THREADS, FAST_MODE);
+                                    N_THREADS, FAST_MODE);
                             if (experiment.task == "Cycles") DNNsim.run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network);
 

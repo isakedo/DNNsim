@@ -22,14 +22,12 @@ namespace core {
         /* Bits per PE */
         const int BITS_PE;
 
-        /* Network bits */
-        const int NETWORK_BITS;
-
         /* Compute number of one bit multiplications
          * @param layer_prec    Layer precision
+         * @param network_bits  Max bits network
          * @return              Number of one bit multiplications
          */
-        inline uint16_t computeStripesBitsPE(uint8_t layer_prec);
+        inline uint16_t computeStripesBitsPE(uint8_t layer_prec, int network_bits);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs
@@ -50,16 +48,18 @@ namespace core {
         void computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats);
 
         /* Compute the potentials for a convolutional layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
+        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits);
 
         /* Compute the potentials for a inner product layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
+        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits);
 
     public:
 
@@ -67,13 +67,11 @@ namespace core {
          * @param _N_COLUMNS    Number of columns
          * @param _N_ROWS       Number of rows
          * @param _BITS_PE      Number of bits per PE
-         * @param _NETWORK_BITS Network bits
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          */
-        Stripes(int _N_COLUMNS, int _N_ROWS, int _BITS_PE, int _NETWORK_BITS, uint8_t _N_THREADS, bool _FAST_MODE) :
-                Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), BITS_PE(_BITS_PE),
-                NETWORK_BITS(_NETWORK_BITS) {}
+        Stripes(int _N_COLUMNS, int _N_ROWS, int _BITS_PE, uint8_t _N_THREADS, bool _FAST_MODE) :
+                Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), BITS_PE(_BITS_PE) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

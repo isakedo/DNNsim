@@ -16,18 +16,16 @@ namespace core {
         /* Number of activations per group */
         const int PRECISION_GRANULARITY;
 
-        /* Network bits */
-        const int NETWORK_BITS;
-
         /* Calculate also the minor bit for dynamic precisions */
         const bool MINOR_BIT;
 
         /* Compute number of one bit multiplications given a weights and an activation
          * @param wgt               Weight
          * @param act_layer_rec     Layer precision
+         * @param network_bits      Max bits network
          * @return                  Number of one bit multiplications
          */
-        uint8_t computeTacticalPBitsPE(uint16_t wgt, uint8_t act_layer_prec);
+        uint8_t computeTacticalPBitsPE(uint16_t wgt, uint8_t act_layer_prec, int network_bits);
 
         /* Compute cycles for Bit-Tactical P column
          * @param batch             Current number of batch
@@ -81,16 +79,20 @@ namespace core {
                                  const schedule &proto_dense_schedule) override;
 
         /* Compute the potentials for a convolutional layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) override;
+        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits)
+            override;
 
         /* Compute the potentials for a inner product layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats) override;
+        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits)
+            override;
 
     public:
 
@@ -102,16 +104,14 @@ namespace core {
          * @param _LOOKAHEAD_D              Value for scheduler lookahead
          * @param _LOOKASIDE_H              Value for scheduler lookaside
          * @param _SEARCH_SHAPE             Type of search
-         * @param _NETWORK_BITS             Network bits
          * @param _MINOR_BIT                Calculate also the minor bit for dynamic precisions
          * @param _N_THREADS                Number of parallel threads for multi-threading execution
          * @param _FAST_MODE                Enable fast mode to simulate only one image
          */
         BitTacticalP(int _N_COLUMNS, int _N_ROWS, int _PRECISION_GRANULARITY, int _COLUMN_REGISTERS, int _LOOKAHEAD_H,
-                int _LOOKASIDE_D, const char _SEARCH_SHAPE, int _NETWORK_BITS, bool _MINOR_BIT, uint8_t _N_THREADS,
-                bool _FAST_MODE) : BitTactical<T>(_N_COLUMNS, _N_ROWS,_COLUMN_REGISTERS,_LOOKAHEAD_H,_LOOKASIDE_D,
-                _SEARCH_SHAPE,_N_THREADS,_FAST_MODE), PRECISION_GRANULARITY(_PRECISION_GRANULARITY),
-                NETWORK_BITS(_NETWORK_BITS), MINOR_BIT(_MINOR_BIT) {}
+                int _LOOKASIDE_D, const char _SEARCH_SHAPE, bool _MINOR_BIT, uint8_t _N_THREADS, bool _FAST_MODE) :
+                BitTactical<T>(_N_COLUMNS, _N_ROWS,_COLUMN_REGISTERS,_LOOKAHEAD_H,_LOOKASIDE_D,_SEARCH_SHAPE,_N_THREADS,
+                _FAST_MODE), PRECISION_GRANULARITY(_PRECISION_GRANULARITY), MINOR_BIT(_MINOR_BIT) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

@@ -27,14 +27,15 @@ namespace core {
         /* Number of registers per SIP */
         const int COLUMN_REGISTERS;
 
-        /* Diffy simualtion */
+        /* Diffy simulation */
         const bool DIFFY;
 
         /* Compute number of one bit multiplications given an activation
-         * @param act       Activation
-         * @return          Number of one bit multiplications
+         * @param act           Activation
+         * @param network_bits  Max bits network
+         * @return              Number of one bit multiplications
          */
-        uint8_t computePragmaticBitsPE(uint16_t act);
+        uint8_t computePragmaticBitsPE(uint16_t act, int network_bits);
 
         /* Compute number of cycles for a two stage shift pragmatic PE
          * @param offsets   Explicit position for the ones for all the values
@@ -119,16 +120,18 @@ namespace core {
         void computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats);
 
         /* Compute the potentials for a convolutional layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
+        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits);
 
         /* Compute the potentials for a inner product layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
+         * @param layer         Layer for which we want to calculate potentials
+         * @param stats         Statistics to fill
+         * @param network_bits  Max bits network
          */
-        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats);
+        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits);
 
     public:
 

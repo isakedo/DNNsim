@@ -6,8 +6,8 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    uint16_t Stripes<T>::computeStripesBitsPE(uint8_t layer_prec) {
-        return layer_prec * (uint8_t)NETWORK_BITS;
+    uint16_t Stripes<T>::computeStripesBitsPE(uint8_t layer_prec, const int network_bits) {
+        return layer_prec * (uint8_t)network_bits;
     }
 
     /* CYCLES */
@@ -104,7 +104,6 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation();
         cnpy::Array<T> wgt = layer.getWeights();
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
@@ -325,7 +324,8 @@ namespace core {
     /* POTENTIALS */
 
     template <typename T>
-    void Stripes<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void Stripes<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
+            const int network_bits) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
@@ -363,9 +363,9 @@ namespace core {
 
         // Convolution
         for(int n=0; n<batch_size; n++) {
-            double MAX_BITS = NETWORK_BITS * NETWORK_BITS;
-            bit_counter = (uint64_t)computeStripesBitsPE((uint8_t)layer_prec) * out_x * out_y * Kx * Ky * wgt_channels *
-                    num_filters;
+            bit_counter = (uint64_t)computeStripesBitsPE((uint8_t)layer_prec,network_bits) * out_x * out_y * Kx * Ky *
+                    wgt_channels * num_filters;
+            double MAX_BITS = network_bits * network_bits;
             stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
             stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
             stats.bit_multiplications.back()[n] = bit_counter;
@@ -380,7 +380,8 @@ namespace core {
     }
 
     template <typename T>
-    void Stripes<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void Stripes<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats,
+            const int network_bits) {
 
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
@@ -408,8 +409,9 @@ namespace core {
         auto layer_prec = layer.getAct_precision();
 
         for (int n = 0; n<batch_size; n++) {
-            double MAX_BITS = NETWORK_BITS * NETWORK_BITS;
-            bit_counter = (uint64_t)computeStripesBitsPE((uint8_t)layer_prec)*wgt_channels * num_filters * R;
+            bit_counter = (uint64_t)computeStripesBitsPE((uint8_t)layer_prec,network_bits) * wgt_channels * num_filters
+                    * R;
+            double MAX_BITS = network_bits * network_bits;
             stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
             stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
             stats.bit_multiplications.back()[n] = bit_counter;
@@ -438,12 +440,12 @@ namespace core {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);
-                computePotentialsConvolution(layer,stats);
+                computePotentialsConvolution(layer,stats,network.getNetwork_bits());
             } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
                 stats.act_prec.push_back(layer.getAct_precision());
                 stats.wgt_prec.push_back(0);
-                computePotentialsInnerProduct(layer,stats);
+                computePotentialsInnerProduct(layer,stats,network.getNetwork_bits());
             }
         }
 

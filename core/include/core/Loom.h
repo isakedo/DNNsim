@@ -1,17 +1,15 @@
-#ifndef DNNSIM_LACONIC_H
-#define DNNSIM_LACONIC_H
+#ifndef DNNSIM_LOOM_H
+#define DNNSIM_LOOM_H
 
 #include "Simulator.h"
 
-#define ZERO_COUNT // Count zeroes as 1 cycle
-#define BOOTH_ENCODING // Activate booth-like encoding
 #define FC_MULTIPLEX_COLUMNS // Execute each mult-add in a different column
 #define WEIGHT_LANES 16 // Number of weight lanes
 
 namespace core {
 
     template <typename T>
-    class Laconic : public Simulator<T> {
+    class Loom : public Simulator<T> {
 
     private:
 
@@ -21,12 +19,24 @@ namespace core {
         /* Number of rows */
         const int N_ROWS;
 
+        /* Number of activations per group */
+        const int PRECISION_GRANULARITY;
+
+        /* Number of bits in series that the PE process */
+        const int PE_SERIAL_BITS;
+
+        /* Calculate also the minor bit for dynamic precisions */
+        const bool MINOR_BIT;
+
+        /* Calculate dynamic precision for weights rather than profiled */
+        const bool DYNAMIC_WEIGHTS;
+
         /* Compute number of one bit multiplications given a weights and an activation
-         * @param act       Activation
-         * @param wgt       Weight
+         * @param act_prec  Activation layer precision
+         * @param wgt_prec  Weight layer precision
          * @return          Number of one bit multiplications
          */
-        uint8_t computeLaconicPE(uint16_t act, uint16_t wgt);
+        uint8_t computeLoomBitsPE(uint8_t act_prec, uint8_t wgt_prec);
 
         /* Compute cycles for one column of laconic
          * @param batch         Current number of batch
@@ -42,12 +52,14 @@ namespace core {
          * @param wgt           Set of weights
          * @param max_channel   Maximum number of channels
          * @param max_filter    Maximum number of filters
+         * @param wgt_prec      Profiled weight precision
          * @param lstm          True if it is LSTM layer
          * @return              Number of cycles
          */
-        uint8_t computeLaconicColumn(int batch, int recursion, int act_x, int act_y, int kernel_x, int kernel_y,
+        uint8_t computeLoomColumn(int batch, int recursion, int act_x, int act_y, int kernel_x, int kernel_y,
                 int init_channel, int init_filter, int stride, const cnpy::Array<T> &padded_act,
-                const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter, bool lstm);
+                const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter, int act_mask, int wgt_mask,
+                int wgt_prec, bool lstm);
 
         /* Compute cycles for laconic tile
          * @param batch         Current number of batch
@@ -63,12 +75,13 @@ namespace core {
          * @param start_group   Starting channel of the group
          * @param max_channel   Maximum number of channels
          * @param max_filter    Maximum number of filters
+         * @param wgt_prec      Profiled weight precision
          * @return              Number of cycles
          */
-        uint8_t computeLaconicTile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
+        uint8_t computeLoomTile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
                 int kernel_x, int kernel_y, int init_channel, int init_filter, int stride,
                 const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group, int max_channel,
-                int max_filter);
+                int max_filter, int act_mask, int wgt_mask, int wgt_prec);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs
@@ -99,13 +112,19 @@ namespace core {
     public:
 
         /* Constructor
-         * @param _N_COLUMNS    Number of columns
-         * @param _N_ROWS       Number of rows
-         * @param _N_THREADS    Number of parallel threads for multi-threading execution
-         * @param _FAST_MODE    Enable fast mode to simulate only one image
+         * @param _N_COLUMNS                Number of columns
+         * @param _N_ROWS                   Number of rows
+         * @param _PRECISION_GRANULARITY    Granularity for dynamic precisions
+         * @param _PE_SERIAL_BITS           Number of bits in series that the PE process
+         * @param _MINOR_BIT                Calculate also the minor bit for dynamic precisions
+         * @param _DYNAMIC_WEIGHTS          Calculate dynamic precision for weights rather than profiled
+         * @param _N_THREADS                Number of parallel threads for multi-threading execution
+         * @param _FAST_MODE                Enable fast mode to simulate only one image
          */
-        Laconic(int _N_COLUMNS, int _N_ROWS, uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE),
-                N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS) {}
+        Loom(int _N_COLUMNS, int _N_ROWS, int _PRECISION_GRANULARITY, int _PE_SERIAL_BITS, bool _MINOR_BIT,
+                bool _DYNAMIC_WEIGHTS, uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE),
+                N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), PRECISION_GRANULARITY(_PRECISION_GRANULARITY),
+                PE_SERIAL_BITS(_PE_SERIAL_BITS), MINOR_BIT(_MINOR_BIT), DYNAMIC_WEIGHTS(_DYNAMIC_WEIGHTS) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate
@@ -121,4 +140,4 @@ namespace core {
 
 }
 
-#endif //DNNSIM_LACONIC_H
+#endif //DNNSIM_LOOM_H
