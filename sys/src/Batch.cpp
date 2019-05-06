@@ -86,6 +86,8 @@ namespace sys {
 
                 Batch::Simulate::Experiment experiment;
                 if(experiment_proto.architecture() == "DynamicStripesFP") {
+                    experiment.leading_bit = experiment_proto.leading_bit();
+                    experiment.minor_bit = experiment_proto.minor_bit();
 
                 } else throw std::runtime_error("Training architecture for network " + simulate.network +
                                                 " in BFloat16 must be <DynamicStripesFP>.");
@@ -186,6 +188,7 @@ namespace sys {
                     experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 256 :
                             experiment_proto.precision_granularity();
                     experiment.bits_pe = experiment_proto.bits_pe() < 1 ? 16 : experiment_proto.bits_pe();
+                    experiment.leading_bit = experiment_proto.leading_bit();
                     experiment.minor_bit = experiment_proto.minor_bit();
                     experiment.diffy = experiment_proto.diffy();
                     if(experiment.precision_granularity % 16 != 0 ||
@@ -200,6 +203,7 @@ namespace sys {
                             experiment_proto.precision_granularity();
                     experiment.pe_serial_bits = experiment_proto.pe_serial_bits() < 1 ? 1 :
                             experiment_proto.pe_serial_bits();
+                    experiment.leading_bit = experiment_proto.leading_bit();
                     experiment.minor_bit = experiment_proto.minor_bit();
                     experiment.dynamic_weights = experiment_proto.dynamic_weights();
                     if(experiment.precision_granularity % 16 != 0 ||
@@ -226,6 +230,7 @@ namespace sys {
                     experiment.search_shape = experiment_proto.search_shape().empty() ? 'L' :
                             experiment_proto.search_shape().c_str()[0];
                     experiment.read_schedule_from_proto = experiment_proto.read_schedule_from_proto();
+                    experiment.leading_bit = experiment_proto.leading_bit();
                     experiment.minor_bit = experiment_proto.minor_bit();
                     value = experiment.search_shape;
                     if(value != "L" && value != "T")

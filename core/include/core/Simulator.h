@@ -16,6 +16,18 @@ namespace core {
     template <typename T>
     class Simulator {
 
+    private:
+
+        typedef union {
+            float f;
+            struct {
+                unsigned int truncated_mantissa : 16;
+                unsigned int mantissa : 7;
+                unsigned int exponent : 8;
+                unsigned int sign : 1;
+            } field;
+        } bfloat16;
+
     protected:
 
         /* Number of parallel cores */
@@ -36,6 +48,12 @@ namespace core {
          */
         bool iterateWindows(long out_x, long out_y, std::vector<int> &list_x, std::vector<int> &list_y,
                 int &x_counter, int &y_counter, int max_windows = 16);
+
+        /* Extract sign, exponent, and mantissa in bfloat16 format from a float
+         * @param number    Floating point 32 number
+         * return           Tuple containing sign, exponent, and mantissa (truncated)
+         */
+        std::tuple<uint8_t,uint8_t,uint8_t> extract_bfloat16(float number);
 
         /* Return the optimal encoding for the given value
          * @param value     Value to encode WITHOUT the sign

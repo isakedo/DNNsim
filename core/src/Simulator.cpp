@@ -30,6 +30,15 @@ namespace core {
         return false;
     }
 
+    template <typename T>
+    std::tuple<uint8_t,uint8_t,uint8_t> Simulator<T>::extract_bfloat16(float number) {
+        bfloat16 bf_number = { .f = number };
+        auto sign = (uint8_t)bf_number.field.sign;
+        auto exponent = (uint8_t)bf_number.field.exponent;
+        auto mantissa = (uint8_t)bf_number.field.mantissa;
+        return std::make_tuple(sign,exponent,mantissa);
+    }
+
     /* Only encode the values when get less number of bits */
     uint16_t generateBoothEncoding(uint16_t n) {
         uint32_t padded_n = n << 2;
@@ -272,6 +281,7 @@ namespace core {
             const auto &act = layer.getActivations();
             for(uint64_t i = 0; i < act.getMax_index(); i++) {
                 const auto data = act.get(i);
+                extract_bfloat16(data);
                 if(data == 0) zero_act++;
             }
 
