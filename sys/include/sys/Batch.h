@@ -58,7 +58,7 @@ namespace sys {
             };
 
             int batch = 0;
-            int max_epoch = 0;
+            int epochs = 0;
             std::string inputType = ""; // Protobuf/Gzip
             std::string inputDataType = ""; // Float32/Fixed16
             std::string network = "";

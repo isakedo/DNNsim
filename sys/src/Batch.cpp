@@ -61,7 +61,7 @@ namespace sys {
         simulate.network = simulate_proto.network();
         simulate.activate_bias_out_act = simulate_proto.activate_bias_and_out_act();
         simulate.batch = simulate_proto.batch();
-        simulate.max_epoch = simulate_proto.max_epoch();
+        simulate.epochs = simulate_proto.epochs() < 1 ? 1 : simulate_proto.epochs();
         simulate.tensorflow_8b = simulate_proto.tensorflow_8b();
         simulate.network_bits = simulate_proto.network_bits() < 1 ? 16 : simulate_proto.network_bits();
 		simulate.training = simulate_proto.training();
@@ -119,7 +119,7 @@ namespace sys {
         simulate.network = simulate_proto.network();
         simulate.activate_bias_out_act = simulate_proto.activate_bias_and_out_act();
         simulate.batch = simulate_proto.batch();
-        simulate.max_epoch = simulate_proto.max_epoch();
+        simulate.epochs = simulate_proto.epochs();
         simulate.tensorflow_8b = simulate_proto.tensorflow_8b();
         simulate.network_bits = simulate_proto.network_bits() < 1 ? 16 : simulate_proto.network_bits();
 		simulate.training = simulate_proto.training();

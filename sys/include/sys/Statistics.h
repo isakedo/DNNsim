@@ -92,12 +92,22 @@ namespace sys {
             std::vector<std::vector<double>> fw_wgt_sparsity;
             std::vector<std::vector<uint64_t>> fw_zero_wgt;
             std::vector<std::vector<uint64_t>> fw_total_wgt;
+            std::vector<std::vector<double>> fw_bias_sparsity;
+            std::vector<std::vector<uint64_t>> fw_zero_bias;
+            std::vector<std::vector<uint64_t>> fw_total_bias;
+
             std::vector<std::vector<double>> bw_act_grad_sparsity;
             std::vector<std::vector<uint64_t>> bw_zero_act_grad;
             std::vector<std::vector<uint64_t>> bw_total_act_grad;
             std::vector<std::vector<double>> bw_wgt_grad_sparsity;
             std::vector<std::vector<uint64_t>> bw_zero_wgt_grad;
             std::vector<std::vector<uint64_t>> bw_total_wgt_grad;
+            std::vector<std::vector<double>> bw_bias_grad_sparsity;
+            std::vector<std::vector<uint64_t>> bw_zero_bias_grad;
+            std::vector<std::vector<uint64_t>> bw_total_bias_grad;
+            std::vector<std::vector<double>> bw_out_act_grad_sparsity;
+            std::vector<std::vector<uint64_t>> bw_zero_out_act_grad;
+            std::vector<std::vector<uint64_t>> bw_total_out_act_grad;
 
             /* Stats for average width */
             std::vector<std::vector<double>> act_avg_width;

@@ -115,6 +115,10 @@ namespace core {
         const cnpy::Array<T> &getBias() const { return bias; }
         const cnpy::Array<T> &getActivations() const { return activations; }
         const cnpy::Array<T> &getOutput_activations() const { return output_activations; }
+        const cnpy::Array<T> &getWeight_gradients() const { return weight_gradients; }
+        const cnpy::Array<T> &getBias_gradients() const { return bias_gradients; }
+        const cnpy::Array<T> &getActivation_gradients() const { return activation_gradients; }
+        const cnpy::Array<T> &getOutput_activation_gradients() const { return output_activation_gradients; }
 
         /* Setters */
 
@@ -123,11 +127,10 @@ namespace core {
         void setActivations(const cnpy::Array<T> &activations) { Layer::activations = activations; }
         void setOutput_activations(const cnpy::Array<T> &output_activations) {
             Layer::output_activations = output_activations; }
-        void setWeight_gradients(const cnpy::Array<T> &weight_gradients) { 
-			Layer::weight_gradients = weight_gradients; }
+        void setWeight_gradients(const cnpy::Array<T> &weight_gradients) { Layer::weight_gradients = weight_gradients; }
         void setBias_gradients(const cnpy::Array<T> &bias_gradients) { Layer::bias_gradients = bias_gradients; }
-        void setActivation_gradients(const cnpy::Array<T> &activation_gradients) { 
-			Layer::activation_gradients = activation_gradients; }
+        void setActivation_gradients(const cnpy::Array<T> &activation_gradients) {
+            Layer::activation_gradients = activation_gradients; }
         void setOutput_activation_gradients(const cnpy::Array<T> &output_activation_gradients) {
             Layer::output_activation_gradients = output_activation_gradients; }
         void setAct_precision(int act_precision, int act_magnitude, int act_fraction) {

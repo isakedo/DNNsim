@@ -65,7 +65,7 @@ message Batch {
         }
 
         uint32 batch = 1;
-        uint32 max_epoch = 2;
+        uint32 epochs = 2;
         string inputType = 3;
         string inputDataType = 4;
         string network = 5;

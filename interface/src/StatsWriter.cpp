@@ -466,6 +466,65 @@ namespace interface {
         o_file << line;
     }
 
+    void dump_csv_training_sparsity(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
+        o_file << "layer,epoch,fw_act_sparsity,zeros,total,fw_wgt_sparsity,zeros,total,fw_bias_sparsity,zeros,total,"
+                  "bw_act_grad_sparsity,zeros,total,bw_wgt_grad_sparsity,zeros,total,bw_bias_grad_sparsity,zeros,total,"
+                  "bw_out_act_grad_sparsity,zeros,total" << std::endl;
+
+        #ifdef PER_EPOCH_RESULTS
+        for (int j = 0; j < stats.fw_act_sparsity.front().size(); j++) {
+            for (int i = 0; i < stats.layers.size(); i++) {
+                char line[256];
+                snprintf(line, sizeof(line), "%s,%d,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,"
+                        "%.2f,%lu,%lu,%.2f,%lu,%lu\n", stats.layers[i].c_str(), j, stats.fw_act_sparsity[i][j],
+                        stats.fw_zero_act[i][j], stats.fw_total_act[i][j], stats.fw_wgt_sparsity[i][j],
+                        stats.fw_zero_wgt[i][j], stats.fw_total_wgt[i][j], stats.fw_bias_sparsity[i][j],
+                        stats.fw_zero_bias[i][j], stats.fw_total_bias[i][j], stats.bw_act_grad_sparsity[i][j],
+                        stats.bw_zero_act_grad[i][j], stats.bw_total_act_grad[i][j], stats.bw_wgt_grad_sparsity[i][j],
+                        stats.bw_zero_wgt_grad[i][j], stats.bw_total_wgt_grad[i][j], stats.bw_bias_grad_sparsity[i][j],
+                        stats.bw_zero_bias_grad[i][j], stats.bw_total_bias_grad[i][j],
+                        stats.bw_out_act_grad_sparsity[i][j], stats.bw_zero_out_act_grad[i][j],
+                        stats.bw_total_out_act_grad[i][j]);
+                o_file << line;
+            }
+        }
+        #endif
+
+        for (int i = 0; i < stats.layers.size(); i++) {
+            char line[256];
+            snprintf(line, sizeof(line), "%s,AVG,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,"
+                    "%.2f,%lu,%lu,%.2f,%lu,%lu\n", stats.layers[i].c_str(), stats.get_average(stats.fw_act_sparsity[i]),
+                    stats.get_average(stats.fw_zero_act[i]), stats.get_average(stats.fw_total_act[i]),
+                    stats.get_average(stats.fw_wgt_sparsity[i]), stats.get_average(stats.fw_zero_wgt[i]),
+                    stats.get_average(stats.fw_total_wgt[i]), stats.get_average(stats.fw_bias_sparsity[i]),
+                    stats.get_average(stats.fw_zero_bias[i]), stats.get_average(stats.fw_total_bias[i]),
+                    stats.get_average(stats.bw_act_grad_sparsity[i]), stats.get_average(stats.bw_zero_act_grad[i]),
+                    stats.get_average(stats.bw_total_act_grad[i]), stats.get_average(stats.bw_wgt_grad_sparsity[i]),
+                    stats.get_average(stats.bw_zero_wgt_grad[i]), stats.get_average(stats.bw_total_wgt_grad[i]),
+                    stats.get_average(stats.bw_bias_grad_sparsity[i]), stats.get_average(stats.bw_zero_bias_grad[i]),
+                    stats.get_average(stats.bw_total_bias_grad[i]),
+                    stats.get_average(stats.bw_out_act_grad_sparsity[i]),
+                    stats.get_average(stats.bw_zero_out_act_grad[i]),
+                    stats.get_average(stats.bw_total_out_act_grad[i]));
+            o_file << line;
+        }
+
+        char line[256];
+        snprintf(line, sizeof(line), "TOTAL,AVG,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,"
+                "%.2f,%lu,%lu,%.2f,%lu,%lu\n", stats.get_average(stats.fw_act_sparsity),
+                stats.get_total(stats.fw_zero_act), stats.get_total(stats.fw_total_act),
+                stats.get_average(stats.fw_wgt_sparsity), stats.get_total(stats.fw_zero_wgt),
+                stats.get_total(stats.fw_total_wgt), stats.get_average(stats.fw_bias_sparsity),
+                stats.get_total(stats.fw_zero_bias), stats.get_total(stats.fw_total_bias),
+                stats.get_average(stats.bw_act_grad_sparsity), stats.get_total(stats.bw_zero_act_grad),
+                stats.get_total(stats.bw_total_act_grad), stats.get_average(stats.bw_wgt_grad_sparsity),
+                stats.get_total(stats.bw_zero_wgt_grad), stats.get_total(stats.bw_total_wgt_grad),
+                stats.get_average(stats.bw_bias_grad_sparsity), stats.get_total(stats.bw_zero_bias_grad),
+                stats.get_total(stats.bw_total_bias_grad), stats.get_average(stats.bw_out_act_grad_sparsity),
+                stats.get_total(stats.bw_zero_out_act_grad), stats.get_total(stats.bw_total_out_act_grad));
+        o_file << line;
+    }
+
     void dump_csv_average_width(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
         o_file << "layer,n_act,act_avg_width,act_reduction,act_bits_baseline,act_bits_profiled,act_bits_datawidth,"
                   "act_bits_scnn,act_precision,wgt_avg_width,wgt_reduction,wgt_bits_baseline,wgt_bits_profiled,"
@@ -640,7 +699,7 @@ namespace interface {
             else if(!stats.cycles.empty() && arch == "BitFusion") dump_csv_BitFusion_cycles(o_file,stats);
             else if(!stats.work_reduction.empty()) dump_csv_potentials(o_file,stats);
             else if(!stats.act_sparsity.empty()) dump_csv_sparsity(o_file,stats);
-			else if(!stats.fw_act_sparsity.empty()) dump_csv_training_sparsity(o_file,stats);
+            else if(!stats.fw_act_sparsity.empty()) dump_csv_training_sparsity(o_file,stats);
             else if(!stats.act_avg_width.empty()) dump_csv_average_width(o_file,stats);
 
             o_file.close();

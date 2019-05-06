@@ -40,7 +40,7 @@ THE SOFTWARE.
 #include <core/BitFusion.h>
 
 template <typename T>
-core::Network<T> read_training(const std::string &network_name, bool activate_bias_and_out_act, int batch, int epoch) {
+core::Network<T> read_training(const std::string &network_name, int batch, int epoch) {
 
     // Read the network
     core::Network<T> network;
@@ -48,17 +48,15 @@ core::Network<T> read_training(const std::string &network_name, bool activate_bi
 	network = reader.read_network_trace_params();
 
 	// Forward traces
-	reader.read_weights_npy(network);
-	reader.read_activations_npy(network);
-	if(activate_bias_and_out_act) reader.read_bias_npy(network);
+	reader.read_training_weights_npy(network);
+	reader.read_training_activations_npy(network);
+	reader.read_training_bias_npy(network);
 
 	// Backward traces
-	reader.read_weight_gradients_npy(network);
-	reader.read_activation_gradients_npy(network);
-	if(activate_bias_and_out_act) {
-		reader.read_bias_gradients_npy(network);	
-		reader.read_output_activation_gradients_npy(network);
-	}
+	reader.read_training_weight_gradients_npy(network);
+	reader.read_training_activation_gradients_npy(network);
+	reader.read_training_bias_gradients_npy(network);
+	reader.read_training_output_activation_gradients_npy(network);
 
     return network;
 
@@ -233,19 +231,21 @@ int main(int argc, char *argv[]) {
 				// Training traces
 				if(simulate.training) {
 						
-					int max_epoch = simulate.max_epoch;
+					int epochs = simulate.epochs;
 					for(const auto &experiment : simulate.experiments) {
 
 						// Initialize statistics
 						sys::Statistics::Stats stats;
 						sys::Statistics::initialize(stats);
 
-						for (int epoch = 0; epoch < max_epoch; epoch++) {
+						for (int epoch = 0; epoch < epochs; epoch++) {
+							core::Network<float> network;
 							network = read_training<float>(simulate.network, simulate.batch, epoch);
 
 				        	if(experiment.architecture == "None") {
 				        		core::Simulator<float> DNNsim(N_THREADS,FAST_MODE);
-				                if (experiment.task == "Sparsity") DNNsim.training_sparsity(network,stats,epoch,max_epoch);
+				                if (experiment.task == "Sparsity") DNNsim.training_sparsity(network,stats,epoch,
+				                        epochs);
 				            } else if (experiment.architecture == "DynamicStripes") {
 								//core::DynamicStripesFP<float> DNNsim(N_THREADS,FAST_MODE);
 				                //if (experiment.task == "AvgWidth") DNNsim.average_width(network,stats);
@@ -254,8 +254,7 @@ int main(int argc, char *argv[]) {
 
 						sys::Statistics::addStats(stats);
 
-		            }						
-				}					
+		            }
 
 				// Inference traces
 				} else {
