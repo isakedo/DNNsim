@@ -254,10 +254,10 @@ truncated floating point
 *   **core**: Folder for the main classes of the simulator
     *   Network: class to store the network
     *   Layer: class to store the layer of the network
-    *   InferenceSimulator: class that defines the behaviour of a standard deep learning inference simulation
+    *   Inference: class that defines the behaviour of a standard deep learning inference simulation
     *   Stripes: class for the Stripes accelerator
     *   DynamicStripes: class for the Dynamic-Stripes accelerator
-    *   DynamicStripesfp: class for the floating point Dynamic-Stripes training accelerator
+    *   DynamicStripesFP: class for the floating point Dynamic-Stripes training accelerator
     *   Loom: class for the Loom accelerator
     *   BitPragmatic: class for the Bit-Pragmatic accelerator
     *   Laconic: class for the Laconic accelerator
