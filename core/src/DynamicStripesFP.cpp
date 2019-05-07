@@ -22,20 +22,11 @@ namespace core {
         int fourth_dim = data_shape[3];
 
         auto end = dstr_first_dim ? first_dim : second_dim;
-        auto elements = (uint64_t)first_dim*second_dim;
-        std::vector<double> data_width = std::vector<double>(elements,0.0);
-        std::vector<uint64_t> groups = std::vector<uint64_t>(elements,0);
-        std::vector<uint64_t> data_bits_datawidth = std::vector<uint64_t>(elements,0);
 
-        int i,j;
-
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(i,j)
-        #endif
-        for(i = 0; i < first_dim; i += i_incr) {
-            for (j = 0; j < second_dim; j += j_incr) {
+        std::vector<double> data_width;
+        uint64_t data_bits_datawidth = 0;
+        for(int i = 0; i < first_dim; i += i_incr) {
+            for (int j = 0; j < second_dim; j += j_incr) {
                 for (int k = 0; k < third_dim; k++) {
                     for (int l = 0; l < fourth_dim; l++) {
 
@@ -63,25 +54,20 @@ namespace core {
                         if(LEADING_BIT) width = (min_bit > max_bit) ? 0 : max_bit + 1;
                         else if(MINOR_BIT) width = (min_bit > max_bit) ? 0 : field_bits - min_bit;
                         else width = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
-                        data_bits_datawidth[i*second_dim + j] += (width * non_zeroes);
-                        data_width[i*second_dim + j] += width;
-                        groups[i*second_dim + j]++;
+                        data_bits_datawidth = data_bits_datawidth + (width * non_zeroes);
+                        data_width.push_back(width);
                     }
                 }
             }
 
         }
 
-        auto data_bits_datawidth_total = (uint64_t)accumulate(data_bits_datawidth.begin(),data_bits_datawidth.end(),0.0);
-        auto data_width_total = accumulate(data_width.begin(), data_width.end(), 0.0);
-        auto groups_total = (uint64_t)accumulate(groups.begin(), groups.end(), 0.0);
-
         auto num_data = first_dim * second_dim * third_dim * fourth_dim;
         auto overhead = (uint64_t)((16 + ceil(log2(field_bits))) * ceil(num_data / 16.));
 
-        avg_width = data_width_total / groups_total;
+        avg_width = accumulate(data_width.begin(), data_width.end(), 0.0) / data_width.size();
         bits_baseline = (uint64_t)num_data * field_bits;
-        bits_datawidth = overhead + data_bits_datawidth_total;
+        bits_datawidth = overhead + data_bits_datawidth;
 
     }
 
