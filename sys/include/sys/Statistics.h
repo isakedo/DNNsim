@@ -151,10 +151,10 @@ namespace sys {
             }
 
             template <typename T>
-            T get_average(const std::vector<std::vector<T>> &vector_stat) const {
-                std::vector<T> averages = std::vector<T>(vector_stat.size(),0);
-                for(int i = 0; i < vector_stat.size(); i++) {
-                    averages[i] = this->get_average(vector_stat[i]);
+            T get_average(const std::vector<std::vector<T>> &vector_stat, bool skip_first = false) const {
+                std::vector<T> averages = std::vector<T>(vector_stat.size() - skip_first,0);
+                for(int i = skip_first; i < vector_stat.size(); i++) {
+                    averages[i - skip_first] = this->get_average(vector_stat[i]);
                 }
                 return this->get_average(averages);
             }

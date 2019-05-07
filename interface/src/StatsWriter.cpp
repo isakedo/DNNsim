@@ -671,6 +671,70 @@ namespace interface {
 
     }
 
+    void dump_csv_training_average_width(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
+        o_file << "layer,epoch,fw_act_avg_width,fw_act_bits_baseline,fw_act_bits_datawidth,fw_wgt_avg_width,"
+                  "fw_wgt_bits_baseline,fw_wgt_bits_datawidth,bw_in_grad_avg_width,bw_in_grad_bits_baseline,"
+                  "bw_in_grad_bits_datawidth,bw_wgt_grad_avg_width,bw_wgt_grad_bits_baseline,"
+                  "bw_wgt_grad_bits_datawidth,bw_out_grad_avg_width,bw_out_grad_bits_baseline,"
+                  "bw_out_grad_bits_datawidth,time(s)" << std::endl;
+
+        #ifdef PER_EPOCH_RESULTS
+        for (int j = 0; j < stats.fw_act_avg_width.front().size(); j++) {
+            for (int i = 0; i < stats.layers.size(); i++) {
+                char line[256];
+                snprintf(line, sizeof(line),"%s,%d,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f\n",
+                        stats.layers[i].c_str(), j, stats.fw_act_avg_width[i][j], stats.fw_act_bits_baseline[i][j],
+                        stats.fw_act_bits_datawidth[i][j], stats.fw_wgt_avg_width[i][j],
+                        stats.fw_wgt_bits_baseline[i][j], stats.fw_wgt_bits_datawidth[i][j],
+                        stats.bw_in_grad_avg_width[i][j], stats.bw_in_grad_bits_baseline[i][j],
+                        stats.bw_in_grad_bits_datawidth[i][j], stats.bw_wgt_grad_avg_width[i][j],
+                        stats.bw_wgt_grad_bits_baseline[i][j], stats.bw_wgt_grad_bits_datawidth[i][j],
+                        stats.bw_out_grad_avg_width[i][j], stats.bw_out_grad_bits_baseline[i][j],
+                        stats.bw_out_grad_bits_datawidth[i][j], stats.training_time[i][j].count());
+                o_file << line;
+            }
+        }
+        #endif
+
+        std::vector<double> epoch_time = std::vector<double>(stats.layers.size(),0);
+        for (int j = 0; j < stats.fw_act_avg_width.front().size(); j++) {
+            for (int i = 0; i < stats.layers.size(); i++) {
+                epoch_time[i] += stats.training_time[i][j].count();
+            }
+        }
+
+        for (int i = 0; i < stats.layers.size(); i++) {
+            char line[256];
+            snprintf(line, sizeof(line), "%s,AVG,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f\n",
+                    stats.layers[i].c_str(), stats.get_average(stats.fw_act_avg_width[i]),
+                    stats.get_average(stats.fw_act_bits_baseline[i]), stats.get_average(stats.fw_act_bits_datawidth[i]),
+                    stats.get_average(stats.fw_wgt_avg_width[i]), stats.get_average(stats.fw_wgt_bits_baseline[i]),
+                    stats.get_average(stats.fw_wgt_bits_datawidth[i]), stats.get_average(stats.bw_in_grad_avg_width[i]),
+                    stats.get_average(stats.bw_in_grad_bits_baseline[i]),
+                    stats.get_average(stats.bw_in_grad_bits_datawidth[i]),
+                    stats.get_average(stats.bw_wgt_grad_avg_width[i]),
+                    stats.get_average(stats.bw_wgt_grad_bits_baseline[i]),
+                    stats.get_average(stats.bw_wgt_grad_bits_datawidth[i]),
+                    stats.get_average(stats.bw_out_grad_avg_width[i]),
+                    stats.get_average(stats.bw_out_grad_bits_baseline[i]),
+                    stats.get_average(stats.bw_out_grad_bits_datawidth[i]), epoch_time[i]);
+            o_file << line;
+        }
+
+        char line[256];
+        snprintf(line, sizeof(line), "TOTAL,AVG,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f\n",
+                stats.get_average(stats.fw_act_avg_width), stats.get_total(stats.fw_act_bits_baseline),
+                stats.get_total(stats.fw_act_bits_datawidth), stats.get_average(stats.fw_wgt_avg_width),
+                stats.get_total(stats.fw_wgt_bits_baseline), stats.get_total(stats.fw_wgt_bits_datawidth),
+                stats.get_average(stats.bw_in_grad_avg_width,true), stats.get_total(stats.bw_in_grad_bits_baseline),
+                stats.get_total(stats.bw_in_grad_bits_datawidth), stats.get_average(stats.bw_wgt_grad_avg_width),
+                stats.get_total(stats.bw_wgt_grad_bits_baseline), stats.get_total(stats.bw_wgt_grad_bits_datawidth),
+                stats.get_average(stats.bw_out_grad_avg_width), stats.get_total(stats.bw_out_grad_bits_baseline),
+                stats.get_total(stats.bw_out_grad_bits_datawidth),
+                stats.get_total(epoch_time));
+        o_file << line;
+    }
+
     void StatsWriter::dump_csv() {
 
         for(const sys::Statistics::Stats &stats : sys::Statistics::getAll_stats()) {
@@ -698,6 +762,7 @@ namespace interface {
             else if(!stats.act_sparsity.empty()) dump_csv_sparsity(o_file,stats);
             else if(!stats.fw_act_sparsity.empty()) dump_csv_training_sparsity(o_file,stats);
             else if(!stats.act_avg_width.empty()) dump_csv_average_width(o_file,stats);
+            else if(!stats.fw_act_avg_width.empty()) dump_csv_training_average_width(o_file,stats);
 
             o_file.close();
         }

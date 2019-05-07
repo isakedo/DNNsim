@@ -21,23 +21,23 @@ namespace core {
 
         /* Compute the average width along the second dimensions
          * @param data              Input data
+         * @param dstr_first_dim    Apply dynamic precision through first dimension instead of second
          * @param avg_width         Average width per group stat
          * @param bits_baseline     Bits of the baseline stat
          * @param bits_datawidth    Bits for the datawidth per group stat
          */
-        void computeAvgWidthSecondDim(const cnpy::Array<T> &data, double &avg_width, uint64_t &bits_baseline, 
-                uint64_t &bits_datawidth);
+        void computeAvgWidthData(const cnpy::Array<T> &data, bool dstr_first_dim, double &avg_width,
+                uint64_t &bits_baseline, uint64_t &bits_datawidth);
 
         /* Compute the average width for a layer
          * @param network       Network we want to check
          * @param layer_it      Index pointing the current layer in the network
          * @param stats         Statistics to fill
-         * @param network_bits  Max bits network
          * @param epoch		    Current epoch
 		 * @param epochs        Number of epochs
          */
         void computeAvgWidthLayer(const Network<T> &network, int layer_it, sys::Statistics::Stats &stats,
-                int network_bits, int epoch, int epochs);
+                int epoch, int epochs);
 
     public:
 

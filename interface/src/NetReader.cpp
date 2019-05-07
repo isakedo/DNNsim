@@ -102,7 +102,8 @@ namespace interface {
                     words.push_back(word);
 
                 std::string type;
-                if (words[0].find("fc") != std::string::npos || words[0].find("inner_prod") != std::string::npos)
+                if (words[0].find("fc") != std::string::npos || words[0].find("inner_prod") != std::string::npos ||
+                        words[0].find("Linear") != std::string::npos)
                     type = "InnerProduct";
                 else if (words[0].find("lstm") != std::string::npos)
                     type = "LSTM";

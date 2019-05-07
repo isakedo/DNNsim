@@ -247,7 +247,7 @@ int main(int argc, char *argv[]) {
 				        		core::Simulator<float> DNNsim(N_THREADS,FAST_MODE);
 				                if (experiment.task == "Sparsity") DNNsim.training_sparsity(network,stats,epoch,
 				                        epochs);
-				            } else if (experiment.architecture == "DynamicStripes") {
+				            } else if (experiment.architecture == "DynamicStripesFP") {
 								core::DynamicStripesFP<float> DNNsim(experiment.leading_bit,experiment.minor_bit,
                                         experiment.exponent,N_THREADS,FAST_MODE);
 				                if (experiment.task == "AvgWidth") DNNsim.average_width(network,stats,epoch,epochs);
