@@ -226,7 +226,7 @@ truncated floating point
 
 | Architecture | Input Parameters | Default Parameters\* | Data type |
 |:---:|:---:|:---:|:---:|
-| DynamicStripesFP | LEADING_BIT, MINOR_BIT | - | BFloat16 |
+| DynamicStripesFP | LEADING_BIT, MINOR_BIT, EXPONENT | - | BFloat16 |
 
 *\*Default features can be removed in their specific header file*
 
@@ -257,6 +257,7 @@ truncated floating point
     *   InferenceSimulator: class that defines the behaviour of a standard deep learning inference simulation
     *   Stripes: class for the Stripes accelerator
     *   DynamicStripes: class for the Dynamic-Stripes accelerator
+    *   DynamicStripesfp: class for the floating point Dynamic-Stripes training accelerator
     *   Loom: class for the Loom accelerator
     *   BitPragmatic: class for the Bit-Pragmatic accelerator
     *   Laconic: class for the Laconic accelerator
