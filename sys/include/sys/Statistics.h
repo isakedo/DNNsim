@@ -126,6 +126,25 @@ namespace sys {
             std::vector<std::vector<uint64_t>> wgt_bits_datawidth;
             std::vector<std::vector<uint64_t>> wgt_bits_scnn;
 
+            /* Stats for training average width */
+            std::vector<std::vector<double>> fw_act_avg_width;
+            std::vector<std::vector<uint64_t>> fw_act_bits_baseline;
+            std::vector<std::vector<uint64_t>> fw_act_bits_datawidth;
+            std::vector<std::vector<double>> fw_wgt_avg_width;
+            std::vector<std::vector<uint64_t>> fw_wgt_bits_baseline;
+            std::vector<std::vector<uint64_t>> fw_wgt_bits_datawidth;
+
+            std::vector<std::vector<double>> bw_in_grad_avg_width;
+            std::vector<std::vector<uint64_t>> bw_in_grad_bits_baseline;
+            std::vector<std::vector<uint64_t>> bw_in_grad_bits_datawidth;
+            std::vector<std::vector<double>> bw_wgt_grad_avg_width;
+            std::vector<std::vector<uint64_t>> bw_wgt_grad_bits_baseline;
+            std::vector<std::vector<uint64_t>> bw_wgt_grad_bits_datawidth;
+            std::vector<std::vector<double>> bw_out_grad_avg_width;
+            std::vector<std::vector<uint64_t>> bw_out_grad_bits_baseline;
+            std::vector<std::vector<uint64_t>> bw_out_grad_bits_datawidth;
+
+
             template <typename T>
             T get_average(const std::vector<T> &vector_stat) const {
                 return accumulate(vector_stat.begin(), vector_stat.end(), 0.0) / vector_stat.size();

@@ -63,6 +63,7 @@ message Batch {
             bool diffy = 26;
 
             bool dynamic_weights = 27;
+            bool exponent = 28;
         }
 
         uint32 batch = 1;

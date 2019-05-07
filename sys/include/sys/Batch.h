@@ -56,6 +56,7 @@ namespace sys {
                 int pmin = 0;
                 bool diffy = false;
                 bool dynamic_weights = false;
+                bool exponent = false;
             };
 
             int batch = 0;

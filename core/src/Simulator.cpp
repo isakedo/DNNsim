@@ -31,7 +31,7 @@ namespace core {
     }
 
     template <typename T>
-    std::tuple<uint8_t,uint8_t,uint8_t> Simulator<T>::extract_bfloat16(float number) {
+    std::tuple<uint8_t,uint8_t,uint8_t> Simulator<T>::split_bfloat16(float number) {
         bfloat16 bf_number = { .f = number };
         auto sign = (uint8_t)bf_number.field.sign;
         auto exponent = (uint8_t)bf_number.field.exponent;
@@ -281,7 +281,6 @@ namespace core {
             const auto &act = layer.getActivations();
             for(uint64_t i = 0; i < act.getMax_index(); i++) {
                 const auto data = act.get(i);
-                extract_bfloat16(data);
                 if(data == 0) zero_act++;
             }
 

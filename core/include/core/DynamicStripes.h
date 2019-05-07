@@ -31,9 +31,6 @@ namespace core {
         /* Calculate only the leading bit for dynamic precisions */
         const bool LEADING_BIT;
 
-        /* Calculate only the minor bit for dynamic precisions */
-        const bool MINOR_BIT;
-
         /* Diffy simulation */
         const bool DIFFY;
 
@@ -191,16 +188,15 @@ namespace core {
          * @param _COLUMN_REGISTERS         Number of registers per SIP
          * @param _BITS_PE                  Number of bits per PE
          * @param _LEADING_BIT              Calculate only the leading bit for dynamic precisions
-         * @param _MINOR_BIT                Calculate only the minor bit for dynamic precisions
          * @param _DIFFY                    Enable Diffy
          * @param _N_THREADS                Number of parallel threads for multi-threading execution
          * @param _FAST_MODE                Enable fast mode to simulate only one image
          */
         DynamicStripes(int _N_COLUMNS, int _N_ROWS, const int &_PRECISION_GRANULARITY, int _COLUMN_REGISTERS,
-                int _BITS_PE, bool _LEADING_BIT, bool _MINOR_BIT, bool _DIFFY, uint8_t _N_THREADS, bool _FAST_MODE) :
+                int _BITS_PE, bool _LEADING_BIT, bool _DIFFY, uint8_t _N_THREADS, bool _FAST_MODE) :
                 Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS),
                 PRECISION_GRANULARITY(_PRECISION_GRANULARITY), COLUMN_REGISTERS(_COLUMN_REGISTERS), BITS_PE(_BITS_PE),
-                LEADING_BIT(_LEADING_BIT), MINOR_BIT(_MINOR_BIT), DIFFY(_DIFFY) {}
+                LEADING_BIT(_LEADING_BIT), DIFFY(_DIFFY) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate
