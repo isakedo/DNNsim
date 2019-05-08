@@ -88,7 +88,6 @@ namespace sys {
                 if(experiment_proto.architecture() == "DynamicStripesFP") {
                     experiment.leading_bit = experiment_proto.leading_bit();
                     experiment.minor_bit = experiment_proto.minor_bit();
-                    experiment.exponent = experiment_proto.exponent();
 
                 } else throw std::runtime_error("Training architecture for network " + simulate.network +
                                                 " in BFloat16 must be <DynamicStripesFP>.");

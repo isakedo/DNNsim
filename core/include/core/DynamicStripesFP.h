@@ -16,9 +16,6 @@ namespace core {
         /* Calculate only the minor bit for dynamic precisions */
         const bool MINOR_BIT;
 
-        /* Calculate exponent instead of mantissa */
-        const bool EXPONENT;
-
         /* Compute the average width along the second dimensions
          * @param data              Input data
          * @param dstr_first_dim    Apply dynamic precision through first dimension instead of second
@@ -44,13 +41,11 @@ namespace core {
         /* Constructor
          * @param _LEADING_BIT     Calculate only the leading bit for dynamic precisions
          * @param _MINOR_BIT       Calculate only the minor bit for dynamic precisions
-         * @param _EXPONENT        Calculate exponent instead of mantissa 
          * @param _N_THREADS       Number of parallel threads for multi-threading execution
          * @param _FAST_MODE       Enable fast mode to simulate only one image
          */
-        DynamicStripesFP(bool _LEADING_BIT, bool _MINOR_BIT, bool _EXPONENT, uint8_t _N_THREADS, bool _FAST_MODE) :
-                Simulator<T>(_N_THREADS,_FAST_MODE), LEADING_BIT(_LEADING_BIT), MINOR_BIT(_MINOR_BIT),
-                EXPONENT(_EXPONENT) {}
+        DynamicStripesFP(bool _LEADING_BIT, bool _MINOR_BIT, uint8_t _N_THREADS, bool _FAST_MODE) :
+                Simulator<T>(_N_THREADS,_FAST_MODE), LEADING_BIT(_LEADING_BIT), MINOR_BIT(_MINOR_BIT) {}
 
         /* Calculate the average width in the network transformed to sign-magnitude
          * @param network   Network we want to check

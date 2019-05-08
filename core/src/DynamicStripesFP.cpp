@@ -8,8 +8,8 @@ namespace core {
     template <typename T>
     void DynamicStripesFP<T>::computeAvgWidthData(const cnpy::Array<T> &data, bool dstr_first_dim, double &avg_width,
             uint64_t &bits_baseline, uint64_t &bits_datawidth) {
-        
-        const auto field_bits = (uint8_t)(EXPONENT ? 8 : 7);
+
+        const int mask = 0x80;
 
         auto i_incr = dstr_first_dim ? 16 : 1;
         auto j_incr = dstr_first_dim ? 1 : 16;
@@ -35,15 +35,29 @@ namespace core {
                         for(int dstr = init; dstr < std::min(init + 16,end); dstr++) {
                             
                             auto data_float = dstr_first_dim ? data.get(dstr, j, k, l) : data.get(i, dstr, k, l);
+
+                            if(data_float == 0) continue;
+
                             auto data_bfloat = this->split_bfloat16(data_float);
-                            auto field = EXPONENT ? std::get<1>(data_bfloat) : std::get<2>(data_bfloat);
+                            auto biased_exponent = std::get<1>(data_bfloat);
 
-                            if(field != 0) non_zeroes++;
+                            int unbiased_exponent = biased_exponent - 127;
+                            auto exponent = this->sign_magnitude((short)unbiased_exponent, mask);
 
-                            const auto &min_max_data_bits = this->minMax(field);
+                            bool neg = false;
+                            if((exponent & mask) != 0) {
+                                exponent = exponent & ~(uint16_t)mask;
+                                neg = true;
+                            }
+
+                            if(exponent != 0) non_zeroes++;
+
+                            const auto &min_max_data_bits = this->minMax(exponent);
 
                             auto min_data_bit = std::get<0>(min_max_data_bits);
                             auto max_data_bit = std::get<1>(min_max_data_bits);
+
+                            if(neg) max_data_bit += 1;
 
                             if(min_data_bit < min_bit) min_bit = min_data_bit;
                             if(max_data_bit > max_bit) max_bit = max_data_bit;
@@ -52,7 +66,7 @@ namespace core {
 
                         int width;
                         if(LEADING_BIT) width = (min_bit > max_bit) ? 0 : max_bit + 1;
-                        else if(MINOR_BIT) width = (min_bit > max_bit) ? 0 : field_bits - min_bit;
+                        else if(MINOR_BIT) width = (min_bit > max_bit) ? 0 : 8 - min_bit;
                         else width = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
                         data_bits_datawidth = data_bits_datawidth + (width * non_zeroes);
                         data_width.push_back(width);
@@ -66,7 +80,7 @@ namespace core {
         auto overhead = (uint64_t)((16 + 4) * ceil(num_data / 16.));
 
         avg_width = accumulate(data_width.begin(), data_width.end(), 0.0) / data_width.size();
-        bits_baseline = (uint64_t)num_data * field_bits;
+        bits_baseline = (uint64_t)num_data * 8;
         bits_datawidth = overhead + data_bits_datawidth;
 
     }
@@ -164,6 +178,7 @@ namespace core {
             stats.task_name = "average_width";
             stats.net_name = network.getName();
             stats.arch = "DynamicStripesFP";
+            stats.arch += (LEADING_BIT ? "_LB" : "");
         }
 
         for(int layer_it = 0; layer_it < network.getLayers().size(); layer_it++) {
