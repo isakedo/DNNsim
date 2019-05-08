@@ -291,22 +291,12 @@ namespace core {
                 if(data == 0) zero_wgt++;
             }
 
-            uint64_t zero_bias = 0;
-            const auto &bias = layer.getBias();
-            for(uint64_t i = 0; i < bias.getMax_index(); i++) {
-                const auto data = bias.get(i);
-                if(data == 0) zero_bias++;
-            }
-
             stats.fw_act_sparsity[layer_it][epoch] = zero_act / (double)act.getMax_index() * 100.;
             stats.fw_zero_act[layer_it][epoch] = zero_act;
             stats.fw_total_act[layer_it][epoch] = act.getMax_index();
             stats.fw_wgt_sparsity[layer_it][epoch] = zero_wgt / (double)wgt.getMax_index() * 100.;
             stats.fw_zero_wgt[layer_it][epoch] = zero_wgt;
             stats.fw_total_wgt[layer_it][epoch] = wgt.getMax_index();
-            stats.fw_bias_sparsity[layer_it][epoch] = zero_bias / (double)bias.getMax_index() * 100.;
-            stats.fw_zero_bias[layer_it][epoch] = zero_bias;
-            stats.fw_total_bias[layer_it][epoch] = bias.getMax_index();
 
 			//Backward
             uint64_t zero_act_grad = 0;
@@ -323,13 +313,6 @@ namespace core {
             for(uint64_t i = 0; i < wgt_grad.getMax_index(); i++) {
                 const auto data = wgt_grad.get(i);
                 if(data == 0) zero_wgt_grad++;
-            }
-
-            uint64_t zero_bias_grad = 0;
-            const auto &bias_grad = layer.getBiasGradients();
-            for(uint64_t i = 0; i < bias_grad.getMax_index(); i++) {
-                const auto data = bias_grad.get(i);
-                if(data == 0) zero_bias_grad++;
             }
 
             uint64_t zero_out_act_grad = 0;
@@ -349,13 +332,35 @@ namespace core {
             stats.bw_wgt_grad_sparsity[layer_it][epoch] = zero_wgt_grad / (double)wgt_grad.getMax_index() * 100.;
             stats.bw_zero_wgt_grad[layer_it][epoch] = zero_wgt_grad;
             stats.bw_total_wgt_grad[layer_it][epoch] = wgt_grad.getMax_index();
-            stats.bw_bias_grad_sparsity[layer_it][epoch] = zero_bias_grad / (double)bias_grad.getMax_index() * 100.;
-            stats.bw_zero_bias_grad[layer_it][epoch] = zero_bias_grad;
-            stats.bw_total_bias_grad[layer_it][epoch] = bias_grad.getMax_index();
             stats.bw_out_grad_sparsity[layer_it][epoch] = zero_out_act_grad /
                     (double)out_act_grad.getMax_index() * 100.;
             stats.bw_zero_out_grad[layer_it][epoch] = zero_out_act_grad;
             stats.bw_total_out_grad[layer_it][epoch] = out_act_grad.getMax_index();
+
+            if(!layer.getBias().getShape().empty()) {
+
+                uint64_t zero_bias = 0;
+                const auto &bias = layer.getBias();
+                for(uint64_t i = 0; i < bias.getMax_index(); i++) {
+                    const auto data = bias.get(i);
+                    if(data == 0) zero_bias++;
+                }
+
+                uint64_t zero_bias_grad = 0;
+                const auto &bias_grad = layer.getBiasGradients();
+                for(uint64_t i = 0; i < bias_grad.getMax_index(); i++) {
+                    const auto data = bias_grad.get(i);
+                    if(data == 0) zero_bias_grad++;
+                }
+
+                stats.fw_bias_sparsity[layer_it][epoch] = zero_bias / (double)bias.getMax_index() * 100.;
+                stats.fw_zero_bias[layer_it][epoch] = zero_bias;
+                stats.fw_total_bias[layer_it][epoch] = bias.getMax_index();
+                stats.bw_bias_grad_sparsity[layer_it][epoch] = zero_bias_grad / (double)bias_grad.getMax_index() * 100.;
+                stats.bw_zero_bias_grad[layer_it][epoch] = zero_bias_grad;
+                stats.bw_total_bias_grad[layer_it][epoch] = bias_grad.getMax_index();
+            }
+
         }
 
 	}

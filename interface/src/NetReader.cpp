@@ -412,8 +412,12 @@ namespace interface {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
                 std::string file = "/bias/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
                         std::to_string(batch) + "-b.npy" ;
-                cnpy::Array<T> bias; bias.set_values("net_traces/" + this->name + file);
-                layer.setBias(bias);
+                try {
+                    cnpy::Array<T> bias; bias.set_values("net_traces/" + this->name + file);
+                    layer.setBias(bias);
+                } catch(std::exception &exception) {
+                    continue;
+                }
             }
         }
     }
@@ -454,8 +458,12 @@ namespace interface {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
                 std::string file = "/outGrad/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
                         std::to_string(batch) + "-bGrad.npy" ;
-                cnpy::Array<T> bias_gradients; bias_gradients.set_values("net_traces/" + this->name + file);
-                layer.setBiasGradients(bias_gradients);
+                try {
+                    cnpy::Array<T> bias_gradients; bias_gradients.set_values("net_traces/" + this->name + file);
+                    layer.setBiasGradients(bias_gradients);
+                } catch(std::exception &exception) {
+                    continue;
+                }
             }
         }
     }
