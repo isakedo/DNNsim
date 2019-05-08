@@ -63,7 +63,7 @@ namespace core {
         }
 
         auto num_data = first_dim * second_dim * third_dim * fourth_dim;
-        auto overhead = (uint64_t)((16 + ceil(log2(field_bits))) * ceil(num_data / 16.));
+        auto overhead = (uint64_t)((16 + 4) * ceil(num_data / 16.));
 
         avg_width = accumulate(data_width.begin(), data_width.end(), 0.0) / data_width.size();
         bits_baseline = (uint64_t)num_data * field_bits;
