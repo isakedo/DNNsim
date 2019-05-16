@@ -64,19 +64,19 @@ core::Network<T> read_training(const std::string &network_name, int batch, int e
 }
 
 template <typename T>
-core::Network<T> read(const std::string &input_type, const std::string &network_name, bool activate_bias_and_out_act,
+core::Network<T> read(const std::string &input_type, const std::string &network_name, bool bias_and_out_act,
         int batch, bool tensorflow_8b) {
 
     // Read the network
     core::Network<T> network;
-    interface::NetReader<T> reader = interface::NetReader<T>(network_name, activate_bias_and_out_act, batch,0,
+    interface::NetReader<T> reader = interface::NetReader<T>(network_name, bias_and_out_act, batch,0,
             tensorflow_8b);
     if (input_type == "Caffe") {
         network = reader.read_network_caffe();
         reader.read_precision(network);
         reader.read_weights_npy(network);
         reader.read_activations_npy(network);
-        if(activate_bias_and_out_act) {
+        if(bias_and_out_act) {
             reader.read_bias_npy(network);
             reader.read_output_activations_npy(network);
         }
@@ -85,7 +85,7 @@ core::Network<T> read(const std::string &input_type, const std::string &network_
         reader.read_precision(network);
         reader.read_weights_npy(network);
         reader.read_activations_npy(network);
-        if(activate_bias_and_out_act) {
+        if(bias_and_out_act) {
             reader.read_bias_npy(network);
             reader.read_output_activations_npy(network);
         }
@@ -93,7 +93,7 @@ core::Network<T> read(const std::string &input_type, const std::string &network_
         network = reader.read_network_conv_params();
         reader.read_weights_npy(network);
         reader.read_activations_npy(network);
-        if(activate_bias_and_out_act) {
+        if(bias_and_out_act) {
             reader.read_bias_npy(network);
             reader.read_output_activations_npy(network);
         }
@@ -109,11 +109,11 @@ core::Network<T> read(const std::string &input_type, const std::string &network_
 
 template <typename T>
 void write(const core::Network<T> &network, const std::string &output_type, const std::string &data_conversion,
-        bool activate_bias_and_out_act, bool OVERWRITE, bool tensorflow_8b) {
+        bool bias_and_out_act, bool OVERWRITE, bool tensorflow_8b) {
 
     // Write network
     interface::NetWriter<T> writer = interface::NetWriter<T>(network.getName(),data_conversion,
-            activate_bias_and_out_act,OVERWRITE,tensorflow_8b);
+            bias_and_out_act,OVERWRITE,tensorflow_8b);
     if (output_type == "Protobuf") {
         writer.write_network_protobuf(network);
     } else {
@@ -208,16 +208,16 @@ int main(int argc, char *argv[]) {
             try {
                 if (transform.inputDataType == "Float32") {
                     core::Network<float> network;
-                    network = read<float>(transform.inputType, transform.network, transform.activate_bias_out_act,
+                    network = read<float>(transform.inputType, transform.network, transform.bias_and_out_act,
                             transform.batch, transform.tensorflow_8b);
                     write<float>(network, transform.outputType, transform.outputDataType,
-                            transform.activate_bias_out_act, OVERWRITE, transform.tensorflow_8b);
+                            transform.bias_and_out_act, OVERWRITE, transform.tensorflow_8b);
                 } else if (transform.inputDataType == "Fixed16") {
                     core::Network<uint16_t> network;
-                    network = read<uint16_t>(transform.inputType, transform.network, transform.activate_bias_out_act,
+                    network = read<uint16_t>(transform.inputType, transform.network, transform.bias_and_out_act,
                             transform.batch, transform.tensorflow_8b);
                     write<uint16_t>(network, transform.outputType, transform.outputDataType,
-                            transform.activate_bias_out_act, OVERWRITE, transform.tensorflow_8b);
+                            transform.bias_and_out_act, OVERWRITE, transform.tensorflow_8b);
                 }
             } catch (std::exception &exception) {
                 std::cerr << "Transformation error: " << exception.what() << std::endl;
@@ -263,7 +263,7 @@ int main(int argc, char *argv[]) {
 
 		            if (simulate.inputDataType == "Float32") {
 		                core::Network<float> network;
-		                network = read<float>(simulate.inputType, simulate.network, simulate.activate_bias_out_act,
+		                network = read<float>(simulate.inputType, simulate.network, simulate.bias_and_out_act,
 		                        simulate.batch, simulate.tensorflow_8b);
 		                network.setNetwork_bits(simulate.network_bits);
 		                for(const auto &experiment : simulate.experiments) {
@@ -284,7 +284,7 @@ int main(int argc, char *argv[]) {
 		                }
 		            } else if (simulate.inputDataType == "Fixed16") {
 		                core::Network<uint16_t> network;
-		                network = read<uint16_t>(simulate.inputType, simulate.network, simulate.activate_bias_out_act,
+		                network = read<uint16_t>(simulate.inputType, simulate.network, simulate.bias_and_out_act,
 		                        simulate.batch, simulate.tensorflow_8b);
 		                network.setNetwork_bits(simulate.network_bits);
 		                for(const auto &experiment : simulate.experiments) {

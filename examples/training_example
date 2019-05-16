@@ -1,0 +1,18 @@
+
+
+simulate {
+	network: "alexnet_tr"
+	inputType: "Trace"
+	training: True
+	batch: 5004
+	epochs: 3
+	inputDataType: "BFloat16"
+	experiment {
+        architecture: "DynamicStripesFP"
+        task: "AvgWidth"
+        leading_bit: True
+	}
+
+}
+
+

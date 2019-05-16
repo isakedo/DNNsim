@@ -16,7 +16,7 @@ namespace sys {
         Batch::Transform transform;
         std::string value;
         transform.network = transform_proto.network();
-        transform.activate_bias_out_act = transform_proto.activate_bias_and_out_act();
+        transform.bias_and_out_act = transform_proto.bias_and_out_act();
         transform.batch = transform_proto.batch();
         transform.tensorflow_8b = transform_proto.tensorflow_8b();
 
@@ -59,7 +59,7 @@ namespace sys {
         Batch::Simulate simulate;
         std::string value;
         simulate.network = simulate_proto.network();
-        simulate.activate_bias_out_act = simulate_proto.activate_bias_and_out_act();
+        simulate.bias_and_out_act = simulate_proto.bias_and_out_act();
         simulate.batch = simulate_proto.batch();
         simulate.epochs = simulate_proto.epochs() < 1 ? 1 : simulate_proto.epochs();
         simulate.tensorflow_8b = simulate_proto.tensorflow_8b();
@@ -136,9 +136,9 @@ namespace sys {
         Batch::Simulate simulate;
         std::string value;
         simulate.network = simulate_proto.network();
-        simulate.activate_bias_out_act = simulate_proto.activate_bias_and_out_act();
+        simulate.bias_and_out_act = simulate_proto.bias_and_out_act();
         simulate.batch = simulate_proto.batch();
-        simulate.epochs = simulate_proto.epochs();
+        simulate.epochs = simulate_proto.epochs() < 1 ? 1 : simulate_proto.epochs();
         simulate.tensorflow_8b = simulate_proto.tensorflow_8b();
         simulate.network_bits = simulate_proto.network_bits() < 1 ? 16 : simulate_proto.network_bits();
 		simulate.training = simulate_proto.training();
@@ -197,7 +197,7 @@ namespace sys {
 
                 } else if(experiment_proto.architecture() == "Loom") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
-                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 128 : experiment_proto.n_rows();
+                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 256 :
                             experiment_proto.precision_granularity();
                     experiment.pe_serial_bits = experiment_proto.pe_serial_bits() < 1 ? 1 :
@@ -215,7 +215,7 @@ namespace sys {
 
                 } else if (experiment_proto.architecture() == "Laconic") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
-                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 128 : experiment_proto.n_rows();
+                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
 
                 } else if (experiment_proto.architecture() == "BitTacticalP") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
@@ -343,8 +343,8 @@ namespace sys {
                         throw std::runtime_error("Task for network " + simulate.network + " in Float32 for architecture"
                                                  " None must be <Inference|Sparsity>.");
 
-                    if(experiment_proto.task() == "Inference" && !simulate_proto.activate_bias_and_out_act())
-                        throw std::runtime_error("Inference task requires flag \"activate_bias_and_out_act\"");
+                    if(experiment_proto.task() == "Inference" && !simulate_proto.bias_and_out_act())
+                        throw std::runtime_error("Inference task requires flag \"bias_and_out_act\"");
 
                 } else if (experiment_proto.architecture() == "SCNN") {
                     experiment.Wt = experiment_proto.wt() < 1 ? 8 : experiment_proto.wt();

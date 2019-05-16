@@ -70,7 +70,7 @@ namespace interface {
         }
 
         for(const auto &layer : network.layer()) {
-            if(activate_bias_and_out_act && this->layers_allowed.find(layer.type()) != this->layers_allowed.end()) {
+            if(bias_and_out_act && this->layers_allowed.find(layer.type()) != this->layers_allowed.end()) {
                 layers.emplace_back(read_layer_caffe(layer));
             } else if(this->layers_data.find(layer.type()) != this->layers_data.end()) {
                 layers.emplace_back(read_layer_caffe(layer));
@@ -191,7 +191,7 @@ namespace interface {
 
             std::vector<size_t> biases_shape;
             std::vector<size_t> out_activations_shape;
-            if (this->activate_bias_and_out_act) {
+            if (this->bias_and_out_act) {
                 for (const int value : layer_proto.bias_shape())
                     biases_shape.push_back((size_t) value);
                 for (const int value : layer_proto.out_act_shape())
@@ -211,7 +211,7 @@ namespace interface {
                 for (const auto value : layer_proto.act_data_flt())
                     activations_data.push_back(value);
 
-                if (this->activate_bias_and_out_act) {
+                if (this->bias_and_out_act) {
                     for (const auto value : layer_proto.bias_data_flt())
                         biases_data.push_back(value);
                     for (const auto value : layer_proto.out_act_data_flt())
@@ -224,7 +224,7 @@ namespace interface {
                 for (const auto value : layer_proto.act_data_fxd())
                     activations_data.push_back(value);
 
-                if (this->activate_bias_and_out_act) {
+                if (this->bias_and_out_act) {
                     for (const auto value : layer_proto.bias_data_fxd())
                         biases_data.push_back(value);
                     for (const auto value : layer_proto.out_act_data_fxd())
@@ -238,7 +238,7 @@ namespace interface {
             cnpy::Array<T> activations; activations.set_values(activations_data,activations_shape);
             layer.setActivations(activations);
 
-            if (this->activate_bias_and_out_act) {
+            if (this->bias_and_out_act) {
                 cnpy::Array<T> biases; biases.set_values(biases_data,biases_shape);
                 layer.setBias(biases);
                 cnpy::Array<T> out_activations; out_activations.set_values(out_activations_data,out_activations_shape);

@@ -29,7 +29,7 @@ namespace interface {
         std::string name;
 
         /* Also read bias and output activations */
-        bool activate_bias_and_out_act;
+        bool bias_and_out_act;
 
         /* Numpy activations batch to read from */
         int batch;
@@ -63,15 +63,14 @@ namespace interface {
     public:
 
         /* Constructor
-         * @param _name                         			The name of the network
-         * @param _activate_bias_and_out_act  Also write bias and output activations
-         * @param _batch                        			Numpy batch of the activations
-         * @param _epoch                        			Numpy epoch of the training traces
-         * @param _TENSORFLOW_8b                Activate Tensorflow 8b quantization
+         * @param _name                 The name of the network
+         * @param _bias_and_out_act     Also write bias and output activations
+         * @param _batch                Numpy batch of the activations
+         * @param _epoch                Numpy epoch of the training traces
+         * @param _TENSORFLOW_8b        Activate Tensorflow 8b quantization
          */
-        NetReader(const std::string &_name, bool _activate_bias_and_out_act, int _batch, int _epoch, bool _TENSORFLOW_8b) :
-                activate_bias_and_out_act(_activate_bias_and_out_act), batch(_batch), epoch(_epoch), 
-				TENSORFLOW_8b(_TENSORFLOW_8b) {
+        NetReader(const std::string &_name, bool _bias_and_out_act, int _batch, int _epoch, bool _TENSORFLOW_8b) :
+                bias_and_out_act(_bias_and_out_act), batch(_batch), epoch(_epoch), TENSORFLOW_8b(_TENSORFLOW_8b) {
             this->name = _name;
         }
 

@@ -12,7 +12,7 @@ message Batch {
         string outputType = 4; // Protobuf/Gzip
         string outputDataType = 5;
         string network = 6;
-        bool activate_bias_and_out_act = 7;
+        bool bias_and_out_act = 7;
         bool tensorflow_8b = 8;
     }
 
@@ -71,7 +71,7 @@ message Batch {
         string inputDataType = 4;
         string network = 5;
         uint32 network_bits = 6;
-        bool activate_bias_and_out_act = 7;
+        bool bias_and_out_act = 7;
         bool tensorflow_8b = 8;
 		bool training = 9;
         repeated Experiment experiment = 10;

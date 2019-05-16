@@ -12,13 +12,13 @@ transform {
 	inputDataType: "Float32"
 	outputType: "Gzip"
 	outputDataType: "Float32"
-	activate_bias_and_out_act: true
+	bias_and_out_act: true
 }
 
 transform {
 	network: "bvlc_googlenet"
 	inputType: "Caffe"
 	inputDataType: "Float32"
-	outputType: "Protobuf"
+	outputType: "Gzip"
 	outputDataType: "Fixed16"
 }

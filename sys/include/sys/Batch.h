@@ -16,12 +16,12 @@ namespace sys {
         /* Struct for the Transform instructions */
         struct Transform {
             int batch = 0;
-            std::string inputType = ""; // Caffe/Protobuf/Gzip
+            std::string inputType = "";
             std::string inputDataType = "";
-            std::string outputType = ""; // Protobuf/Gzip
-            std::string outputDataType = ""; // Protobuf/Gzip
+            std::string outputType = "";
+            std::string outputDataType = "";
             std::string network = "";
-            bool activate_bias_out_act = false;
+            bool bias_and_out_act = false;
             bool tensorflow_8b = false;
         };
 
@@ -60,11 +60,11 @@ namespace sys {
 
             int batch = 0;
             int epochs = 0;
-            std::string inputType = ""; // Protobuf/Gzip
-            std::string inputDataType = ""; // Float32/Fixed16
+            std::string inputType = "";
+            std::string inputDataType = "";
             std::string network = "";
             int network_bits = 0;
-            bool activate_bias_out_act = false;
+            bool bias_and_out_act = false;
             bool tensorflow_8b = false;
             bool training = false;			
             std::vector<Experiment> experiments;
