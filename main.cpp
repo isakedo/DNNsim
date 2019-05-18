@@ -41,24 +41,32 @@ THE SOFTWARE.
 #include <core/BitFusion.h>
 
 template <typename T>
-core::Network<T> read_training(const std::string &network_name, int batch, int epoch) {
+core::Network<T> read_training(const std::string &network_name, int batch, int epoch, int traces_mode) {
 
     // Read the network
     core::Network<T> network;
     interface::NetReader<T> reader = interface::NetReader<T>(network_name, false, batch, epoch, false);
 	network = reader.read_network_trace_params();
 
+	bool forward = (traces_mode & 0x1) != 0;
+	bool backward = (traces_mode & 0x2) != 0;
+	network.setForkward(forward);
+	network.setBackward(backward);
+
 	// Forward traces
-	reader.read_training_weights_npy(network);
-	reader.read_training_activations_npy(network);
-	reader.read_training_bias_npy(network);
+	if(forward) {
+		reader.read_training_weights_npy(network);
+		reader.read_training_activations_npy(network);
+		reader.read_training_bias_npy(network);
+	}
 
 	// Backward traces
-	reader.read_training_weight_gradients_npy(network);
-	reader.read_training_activation_gradients_npy(network);
-	reader.read_training_bias_gradients_npy(network);
-	reader.read_training_output_activation_gradients_npy(network);
-
+	if(backward) {
+		reader.read_training_weight_gradients_npy(network);
+		reader.read_training_activation_gradients_npy(network);
+		reader.read_training_bias_gradients_npy(network);
+		reader.read_training_output_activation_gradients_npy(network);
+	}
     return network;
 
 }
@@ -231,6 +239,11 @@ int main(int argc, char *argv[]) {
             try {
 				// Training traces
 				if(simulate.training) {
+
+					int traces_mode = 0;
+					if(simulate.only_forward) traces_mode = 1;
+					else if(simulate.only_backward) traces_mode = 2;
+					else traces_mode = 3;
 						
 					int epochs = simulate.epochs;
 					for(const auto &experiment : simulate.experiments) {
@@ -241,7 +254,7 @@ int main(int argc, char *argv[]) {
 
 						for (int epoch = 0; epoch < epochs; epoch++) {
 							core::Network<float> network;
-							network = read_training<float>(simulate.network, simulate.batch, epoch);
+							network = read_training<float>(simulate.network, simulate.batch, epoch, traces_mode);
 
 				        	if(experiment.architecture == "None") {
 				        		core::Simulator<float> DNNsim(N_THREADS,FAST_MODE);

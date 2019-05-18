@@ -1,5 +1,3 @@
-
-
 simulate {
 	network: "alexnet_tr"
 	inputType: "Trace"
@@ -14,5 +12,3 @@ simulate {
 	}
 
 }
-
-

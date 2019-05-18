@@ -74,7 +74,9 @@ message Batch {
         bool bias_and_out_act = 7;
         bool tensorflow_8b = 8;
 		bool training = 9;
-        repeated Experiment experiment = 10;
+		bool only_forward = 10;
+		bool only_backward = 11;
+        repeated Experiment experiment = 13;
     }
 
     repeated Transform transform = 1;

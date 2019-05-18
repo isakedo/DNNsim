@@ -250,6 +250,8 @@ The batch file can be constructed as follows for the simualtion tool:
 | bias_and_out_act | bool | Read and store bias and output activations too | True-False| False | 
 | tensorflow_8b | bool | Use tensorflow 8bits quantization | True-False | False |
 | training | bool | Change mode to training simulations | True-False | False |
+| only_forward | bool | Only forward traces in the training simulations | True-False | False |
+| only_backward | bool | Only backward traces in the training simulations | True-False | False |
 
 Experiments for the simulation tool can contain the following parameters.
 

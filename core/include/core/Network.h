@@ -20,6 +20,12 @@ namespace core {
         /* Max number of bits for the network*/
         int network_bits;
 
+        /* Active forward traces */
+        bool forward;
+
+        /* Active backward traces */
+        bool backward;
+
     public:
 
         /* Default constructor */
@@ -37,10 +43,14 @@ namespace core {
         const std::string &getName() const { return name; }
         const std::vector<Layer<T>> &getLayers() const { return layers; }
         int getNetwork_bits() const { return network_bits; }
+        bool getForward() const { return forward; }
+        bool getBackward() const { return backward; }
 
         /* Setters */
         std::vector<Layer<T>> &updateLayers() { return layers; }
         void setNetwork_bits(int network_bits) { Network::network_bits = network_bits; }
+        void setForkward(bool forward) { Network::forward = forward; }
+        void setBackward(bool backward) { Network::backward = backward; }
 
     };
 

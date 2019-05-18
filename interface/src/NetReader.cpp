@@ -107,6 +107,10 @@ namespace interface {
                     type = "InnerProduct";
                 else if (words[0].find("lstm") != std::string::npos)
                     type = "LSTM";
+                else if (words[0].find("encoder") != std::string::npos)
+                    type = "Encoder";
+                else if (words[0].find("decoder") != std::string::npos)
+                    type = "Decoder";
                 else
                     type = "Convolution";
 

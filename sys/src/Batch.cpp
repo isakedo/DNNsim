@@ -65,6 +65,8 @@ namespace sys {
         simulate.tensorflow_8b = simulate_proto.tensorflow_8b();
         simulate.network_bits = simulate_proto.network_bits() < 1 ? 16 : simulate_proto.network_bits();
 		simulate.training = simulate_proto.training();
+        simulate.only_forward = simulate_proto.only_forward();
+        simulate.only_backward = simulate_proto.only_backward();
         if(simulate.tensorflow_8b) simulate.network_bits = 8;
 
         value = simulate_proto.inputtype();

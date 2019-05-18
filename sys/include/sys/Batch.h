@@ -66,7 +66,9 @@ namespace sys {
             int network_bits = 0;
             bool bias_and_out_act = false;
             bool tensorflow_8b = false;
-            bool training = false;			
+            bool training = false;
+            bool only_forward = false;
+            bool only_backward = false;
             std::vector<Experiment> experiments;
         };
 
