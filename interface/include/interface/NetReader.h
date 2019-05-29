@@ -23,7 +23,7 @@ namespace interface {
         const std::set<std::string> layers_allowed = {"Convolution","InnerProduct","LSTM","ReLU"};
 
         /* Layers that we want weights, activations, and output activations */
-        const std::set<std::string> layers_data = {"Convolution","InnerProduct","LSTM"};
+        const std::set<std::string> layers_data = {"Convolution","InnerProduct","LSTM","Encoder","Decoder"};
 
         /* Name of the network */
         std::string name;
@@ -135,9 +135,10 @@ namespace interface {
         void read_training_bias_npy(core::Network<T> &network);
 
         /* Read the activations from training traces into given network
-         * @param network       Network with the layers already initialized
+         * @param network           Network with the layers already initialized
+         * @param decoder_states    Number of states(steps) in the decoder traces
          */
-        void read_training_activations_npy(core::Network<T> &network);
+        void read_training_activations_npy(core::Network<T> &network, uint16_t decoder_states = 0);
 
         /* Read the weight gradients from training traces into given network
          * @param network       Network with the layers already initialized

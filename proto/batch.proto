@@ -76,6 +76,7 @@ message Batch {
 		bool training = 9;
 		bool only_forward = 10;
 		bool only_backward = 11;
+        uint32 decoder_states = 12;
         repeated Experiment experiment = 13;
     }
 

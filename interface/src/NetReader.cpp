@@ -102,15 +102,15 @@ namespace interface {
                     words.push_back(word);
 
                 std::string type;
-                if (words[0].find("fc") != std::string::npos || words[0].find("inner_prod") != std::string::npos ||
+                if (words[0].find("decoder") != std::string::npos)
+                    type = "Decoder";
+                else if (words[0].find("encoder") != std::string::npos)
+                    type = "Encoder";
+                else if (words[0].find("fc") != std::string::npos || words[0].find("inner_prod") != std::string::npos ||
                         words[0].find("Linear") != std::string::npos)
                     type = "InnerProduct";
                 else if (words[0].find("lstm") != std::string::npos)
                     type = "LSTM";
-                else if (words[0].find("encoder") != std::string::npos)
-                    type = "Encoder";
-                else if (words[0].find("decoder") != std::string::npos)
-                    type = "Decoder";
                 else
                     type = "Convolution";
 
@@ -427,15 +427,25 @@ namespace interface {
     }
 
     template <typename T>
-    void NetReader<T>::read_training_activations_npy(core::Network<T> &network) {
+    void NetReader<T>::read_training_activations_npy(core::Network<T> &network, const uint16_t decoder_states) {
         check_path("net_traces/" + this->name);
 		check_path("net_traces/" + this->name + "/input");
         for(core::Layer<T> &layer : network.updateLayers()) {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                std::string file = "/input/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
-                        std::to_string(batch) + "-in.npy" ;
-                cnpy::Array<T> activations; activations.set_values("net_traces/" + this->name + file);
-                layer.setActivations(activations);
+                if(layer.getType() == "Decoder") {
+                    std::vector<cnpy::Array<T>> decoder_activations = std::vector<cnpy::Array<T>>(decoder_states);
+                    for(int decoder_state = 0; decoder_state < decoder_states; decoder_state++) {
+                        std::string file = "/input/" + layer.getName() + "_" + std::to_string(decoder_state) + "-" +
+                                std::to_string(epoch) + "-" + std::to_string(batch) + "-in.npy" ;
+                        decoder_activations[decoder_state].set_values("net_traces/" + this->name + file);
+                    }
+                    layer.setDecoderActivations(decoder_activations);
+                } else {
+                    std::string file = "/input/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
+                            std::to_string(batch) + "-in.npy" ;
+                    cnpy::Array<T> activations; activations.set_values("net_traces/" + this->name + file);
+                    layer.setActivations(activations);
+                }
             }
         }
     }

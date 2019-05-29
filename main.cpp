@@ -41,7 +41,8 @@ THE SOFTWARE.
 #include <core/BitFusion.h>
 
 template <typename T>
-core::Network<T> read_training(const std::string &network_name, int batch, int epoch, int traces_mode) {
+core::Network<T> read_training(const std::string &network_name, int batch, int epoch, int decoder_states,
+        int traces_mode) {
 
     // Read the network
     core::Network<T> network;
@@ -56,7 +57,7 @@ core::Network<T> read_training(const std::string &network_name, int batch, int e
 	// Forward traces
 	if(forward) {
 		reader.read_training_weights_npy(network);
-		reader.read_training_activations_npy(network);
+		reader.read_training_activations_npy(network, (uint16_t)decoder_states);
 		reader.read_training_bias_npy(network);
 	}
 
@@ -254,7 +255,8 @@ int main(int argc, char *argv[]) {
 
 						for (int epoch = 0; epoch < epochs; epoch++) {
 							core::Network<float> network;
-							network = read_training<float>(simulate.network, simulate.batch, epoch, traces_mode);
+							network = read_training<float>(simulate.network, simulate.batch, epoch,
+							        simulate.decoder_states, traces_mode);
 
 				        	if(experiment.architecture == "None") {
 				        		core::Simulator<float> DNNsim(N_THREADS,FAST_MODE);
@@ -262,7 +264,7 @@ int main(int argc, char *argv[]) {
 				                        epochs);
 				                else if (experiment.task == "ExpDistr") DNNsim.training_distribution(network, stats,
 				                        epoch, epochs, false);
-								else if (experiment.task == "MantDistr") DNNsim.training_distribution(network, stats,
+				                else if (experiment.task == "MantDistr") DNNsim.training_distribution(network, stats,
 								        epoch, epochs, true);
 				            } else if (experiment.architecture == "DynamicStripesFP") {
 								core::DynamicStripesFP<float> DNNsim(experiment.leading_bit,experiment.minor_bit,

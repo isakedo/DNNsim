@@ -69,6 +69,7 @@ namespace sys {
             bool training = false;
             bool only_forward = false;
             bool only_backward = false;
+            int decoder_states = 0;
             std::vector<Experiment> experiments;
         };
 
