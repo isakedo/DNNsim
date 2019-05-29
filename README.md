@@ -211,7 +211,9 @@ truncated floating point
 
 | Task | Description | Data type |
 |:---:|:---:|:---:|
-| Sparsity | Calculate sparsity for actiations and weights, number of zero values | Float32 |
+| Sparsity | Calculate sparsity for forward and backward, number of zero values | Float32 |
+| ExpDistr | Print exponent data distribution for forward and backward | BFloat16 |
+| MantDistr | Print mantissa data distribution for forward and backward | BFloat16 |
 
 ### Default Parameters Description   
 
@@ -258,7 +260,7 @@ Experiments for the simulation tool can contain the following parameters.
 | Name | Data Type | Description | Valid Options | Default |
 |:---:|:---:|:---:|:---:|:---:|
 | architecture | string | Name of the architecture to simulate | Allowed architectures | N/A |
-| task | string | Name of the architecture to simulate | Allowed taks | N/A |
+| task | string | Name of the architecture to simulate | Allowed tasks | N/A |
 | | | | | |
 | n_columns | uint32 | Number of columns/windows in the tile | Positive number | 16 |
 | n_rows | uint32 | Number of rows/filters in the tile | Positive number | 16 |

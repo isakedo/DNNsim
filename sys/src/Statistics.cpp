@@ -10,6 +10,7 @@ namespace sys {
         stats.net_name = "none";
         stats.arch = "none";
         stats.tensorflow_8b = false;
+        stats.mantissa_data = false;
     }
 
     void Statistics::addStats(const Stats &_stats) {

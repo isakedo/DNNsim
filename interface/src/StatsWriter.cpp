@@ -11,7 +11,7 @@ namespace interface {
     }
 
     void dump_csv_BitPragmatic_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,cycles,baseline_cycles,speedup,stall_cycles,time(s)" << std::endl;
+        o_file << "layer,batch,cycles,baseline_cycles,speedup,stall_cycles,time(s)" << std::endl;
 
         #ifdef PER_IMAGE_RESULTS
         for (int j = 0; j < stats.cycles.front().size(); j++) {
@@ -43,7 +43,7 @@ namespace interface {
     }
 
     void dump_csv_Stripes_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,cycles,baseline_cycles,speedup,columns_per_act,rows_per_wgt,idle_columns,idle_rows,"
+        o_file << "layer,batch,cycles,baseline_cycles,speedup,columns_per_act,rows_per_wgt,idle_columns,idle_rows,"
                   "act_precision,wgt_precision,time(s)" << std::endl;
 
         #ifdef PER_IMAGE_RESULTS
@@ -81,7 +81,7 @@ namespace interface {
     }
 
     void dump_csv_DynamicStripes_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,cycles,baseline_cycles,speedup,stall_cycles,rows_per_wgt,idle_rows,act_precision,"
+        o_file << "layer,batch,cycles,baseline_cycles,speedup,stall_cycles,rows_per_wgt,idle_rows,act_precision,"
                   "wgt_precision,time(s)" << std::endl;
 
         #ifdef PER_IMAGE_RESULTS
@@ -117,7 +117,7 @@ namespace interface {
     }
 
     void dump_csv_Loom_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,cycles,time(s)" << std::endl;
+        o_file << "layer,batch,cycles,time(s)" << std::endl;
 
         #ifdef PER_IMAGE_RESULTS
         for (int j = 0; j < stats.cycles.front().size(); j++) {
@@ -144,7 +144,7 @@ namespace interface {
     }
 
     void dump_csv_Laconic_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,cycles,time(s)" << std::endl;
+        o_file << "layer,batch,cycles,time(s)" << std::endl;
 
         #ifdef PER_IMAGE_RESULTS
         for (int j = 0; j < stats.cycles.front().size(); j++) {
@@ -171,7 +171,7 @@ namespace interface {
     }
 
     void dump_csv_BitTacticalE_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,cycles,stall_cycles,time(s)" << std::endl;
+        o_file << "layer,batch,cycles,stall_cycles,time(s)" << std::endl;
 
 
         #ifdef PER_IMAGE_RESULTS
@@ -201,7 +201,7 @@ namespace interface {
     }
 
     void dump_csv_BitTacticalP_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,cycles,stall_cycles,act_precision,time(s)" << std::endl;
+        o_file << "layer,batch,cycles,stall_cycles,act_precision,time(s)" << std::endl;
 
         #ifdef PER_IMAGE_RESULTS
         for (int j = 0; j < stats.cycles.front().size(); j++) {
@@ -231,7 +231,7 @@ namespace interface {
     }
 
     void dump_csv_SCNN_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,cycles,dense_cycles,mults,idle_bricks,idle_conflicts,idle_pe,idle_halo,"
+        o_file << "layer,batch,cycles,dense_cycles,mults,idle_bricks,idle_conflicts,idle_pe,idle_halo,"
                   "total_mult_cycles,halo_transfers,weight_buff_reads,act_buff_reads,accumulator_updates,i_loop,f_loop,"
                   "offchip_weight_reads,time(s)" << std::endl;
 
@@ -280,7 +280,7 @@ namespace interface {
     }
 
     void dump_csv_SCNNp_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,cycles,dense_cycles,mults,idle_bricks,idle_conflicts,idle_column_cycles,column_stalls,"
+        o_file << "layer,batch,cycles,dense_cycles,mults,idle_bricks,idle_conflicts,idle_column_cycles,column_stalls,"
                   "idle_pe,idle_halo,total_mult_cycles,halo_transfers,weight_buff_reads,act_buff_reads,"
                   "accumulator_updates,i_loop,f_loop,offchip_weight_reads,time(s)" << std::endl;
 
@@ -332,7 +332,7 @@ namespace interface {
     }
 
     void dump_csv_SCNNe_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,cycles,dense_cycles,mults,idle_bricks,idle_conflicts,idle_column_cycles,column_stalls,"
+        o_file << "layer,batch,cycles,dense_cycles,mults,idle_bricks,idle_conflicts,idle_column_cycles,column_stalls,"
                   "idle_pe,idle_halo,total_mult_cycles,halo_transfers,weight_buff_reads,act_buff_reads,"
                   "accumulator_updates,i_loop,f_loop,offchip_weight_reads,time(s)" << std::endl;
 
@@ -384,7 +384,7 @@ namespace interface {
     }
 
     void dump_csv_BitFusion_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,cycles,perf_factor,time_multiplex,act_precision,wgt_precision,time(s)" << std::endl;
+        o_file << "layer,batch,cycles,perf_factor,time_multiplex,act_precision,wgt_precision,time(s)" << std::endl;
 
         #ifdef PER_IMAGE_RESULTS
         for (int j = 0; j < stats.cycles.front().size(); j++) {
@@ -414,7 +414,7 @@ namespace interface {
     }
 
     void dump_csv_potentials(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,work_reduction,speedup,parallel_mult,bit_mult,act_precision,wgt_precision,time(s)"
+        o_file << "layer,batch,work_reduction,speedup,parallel_mult,bit_mult,act_precision,wgt_precision,time(s)"
                << std::endl;
 
         #ifdef PER_IMAGE_RESULTS
@@ -523,7 +523,7 @@ namespace interface {
     }
 
     void dump_csv_average_width(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,n_act,act_avg_width,act_reduction,act_bits_baseline,act_bits_profiled,act_bits_datawidth,"
+        o_file << "layer,batch,act_avg_width,act_reduction,act_bits_baseline,act_bits_profiled,act_bits_datawidth,"
                   "act_bits_scnn,act_precision,wgt_avg_width,wgt_reduction,wgt_bits_baseline,wgt_bits_profiled,"
                   "wgt_bits_datawidth,wgt_bits_scnn,wgt_precision,time(s)" << std::endl;
 
@@ -570,104 +570,72 @@ namespace interface {
 
         o_file << std::endl;
         o_file << "Activations" << std::endl;
-        o_file << "layer,n_act,0 bits,1 bits,2 bits,3 bits,4 bits,5 bits,6 bits,7 bits,8 bits,9 bits,10 bits,11 bits,"
-                  "12 bits,13 bits,14 bits,15 bits,16 bits" << std::endl;
+        o_file << "layer,batch";
+        for(int i = 0; i <= 16; i++) {
+            o_file << "," << i << " bits";
+        }
+        o_file << std::endl;
 
 
         #ifdef PER_IMAGE_RESULTS
         for (int j = 0; j < stats.act_avg_width.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
-                char line2[512];
-                snprintf(line2, sizeof(line2), "%s,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,"
-                        "%.2f,%.2f,%.2f,%.2f\n", stats.layers[i].c_str(), j, stats.act_width_need[0][i][j],
-                        stats.act_width_need[1][i][j], stats.act_width_need[2][i][j], stats.act_width_need[3][i][j],
-                        stats.act_width_need[4][i][j], stats.act_width_need[5][i][j], stats.act_width_need[6][i][j],
-                        stats.act_width_need[7][i][j], stats.act_width_need[8][i][j], stats.act_width_need[9][i][j],
-                        stats.act_width_need[10][i][j], stats.act_width_need[11][i][j], stats.act_width_need[12][i][j],
-                        stats.act_width_need[13][i][j], stats.act_width_need[14][i][j], stats.act_width_need[15][i][j],
-                        stats.act_width_need[16][i][j]);
-                o_file << line2;
+                o_file << stats.layers[i] << "," << j;
+                for(int v = 0; v <= 16; v++) {
+                    o_file << "," << stats.act_width_need[v][i][j];
+                }
+                o_file << std::endl;
             }
         }
         #endif
 
         for (int i = 0; i < stats.layers.size(); i++) {
-            char line2[512];
-            snprintf(line2, sizeof(line2), "%s,AVG,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,"
-                    "%.2f,%.2f,%.2f,%.2f\n", stats.layers[i].c_str(), stats.get_average(stats.act_width_need[0][i]),
-                    stats.get_average(stats.act_width_need[1][i]), stats.get_average(stats.act_width_need[2][i]),
-                    stats.get_average(stats.act_width_need[3][i]), stats.get_average(stats.act_width_need[4][i]),
-                    stats.get_average(stats.act_width_need[5][i]), stats.get_average(stats.act_width_need[6][i]),
-                    stats.get_average(stats.act_width_need[7][i]), stats.get_average(stats.act_width_need[8][i]),
-                    stats.get_average(stats.act_width_need[9][i]), stats.get_average(stats.act_width_need[10][i]),
-                    stats.get_average(stats.act_width_need[11][i]), stats.get_average(stats.act_width_need[12][i]),
-                    stats.get_average(stats.act_width_need[13][i]), stats.get_average(stats.act_width_need[14][i]),
-                    stats.get_average(stats.act_width_need[15][i]), stats.get_average(stats.act_width_need[16][i]));
-            o_file << line2;
+            o_file << stats.layers[i] + ",AVG";
+            for(int v = 0; v <= 16; v++) {
+                o_file << "," << stats.get_average(stats.act_width_need[v][i]);
+            }
+            o_file << std::endl;
         }
 
-        char line2[512];
-        snprintf(line2, sizeof(line2), "TOTAL,AVG,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,"
-                "%.2f,%.2f,%.2f,%.2f\n", stats.get_average(stats.act_width_need[0]),
-                stats.get_average(stats.act_width_need[1]), stats.get_average(stats.act_width_need[2]),
-                stats.get_average(stats.act_width_need[3]), stats.get_average(stats.act_width_need[4]),
-                stats.get_average(stats.act_width_need[5]), stats.get_average(stats.act_width_need[6]),
-                stats.get_average(stats.act_width_need[7]), stats.get_average(stats.act_width_need[8]),
-                stats.get_average(stats.act_width_need[9]), stats.get_average(stats.act_width_need[10]),
-                stats.get_average(stats.act_width_need[11]), stats.get_average(stats.act_width_need[12]),
-                stats.get_average(stats.act_width_need[13]), stats.get_average(stats.act_width_need[14]),
-                stats.get_average(stats.act_width_need[15]), stats.get_average(stats.act_width_need[16]));
-        o_file << line2;
+        o_file << "TOTAL,AVG";
+        for(int v = 0; v <= 16; v++) {
+            o_file << "," << stats.get_average(stats.act_width_need[v]);
+        }
+        o_file << std::endl;
 
         o_file << std::endl;
         o_file << "Weights" << std::endl;
-        o_file << "layer,n_act,0 bits,1 bits,2 bits,3 bits,4 bits,5 bits,6 bits,7 bits,8 bits,9 bits,10 bits,11 bits,"
-                  "12 bits,13 bits,14 bits,15 bits,16 bits" << std::endl;
+        o_file << "layer,batch";
+        for(int i = 0; i <= 16; i++) {
+            o_file << "," << i << " bits";
+        }
+        o_file << std::endl;
 
         #ifdef PER_IMAGE_RESULTS
-        for (int j = 0; j < stats.act_avg_width.front().size(); j++) {
+        for (int j = 0; j < stats.wgt_avg_width.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
-                char line3[512];
-                snprintf(line3, sizeof(line3), "%s,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,"
-                        "%.2f,%.2f,%.2f,%.2f\n", stats.layers[i].c_str(), j, stats.wgt_width_need[0][i][j],
-                        stats.wgt_width_need[1][i][j], stats.wgt_width_need[2][i][j], stats.wgt_width_need[3][i][j],
-                        stats.wgt_width_need[4][i][j], stats.wgt_width_need[5][i][j], stats.wgt_width_need[6][i][j],
-                        stats.wgt_width_need[7][i][j], stats.wgt_width_need[8][i][j], stats.wgt_width_need[9][i][j],
-                        stats.wgt_width_need[10][i][j], stats.wgt_width_need[11][i][j], stats.wgt_width_need[12][i][j],
-                        stats.wgt_width_need[13][i][j], stats.wgt_width_need[14][i][j], stats.wgt_width_need[15][i][j],
-                        stats.wgt_width_need[16][i][j]);
-                o_file << line3;
+                o_file << stats.layers[i] << "," << j;
+                for(int v = 0; v <= 16; v++) {
+                    o_file << "," << stats.wgt_width_need[v][i][j];
+                }
+                o_file << std::endl;
             }
         }
         #endif
 
         for (int i = 0; i < stats.layers.size(); i++) {
-            char line3[512];
-            snprintf(line3, sizeof(line3), "%s,AVG,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,"
-                    "%.2f,%.2f,%.2f,%.2f\n", stats.layers[i].c_str(), stats.get_average(stats.wgt_width_need[0][i]),
-                    stats.get_average(stats.wgt_width_need[1][i]), stats.get_average(stats.wgt_width_need[2][i]),
-                    stats.get_average(stats.wgt_width_need[3][i]), stats.get_average(stats.wgt_width_need[4][i]),
-                    stats.get_average(stats.wgt_width_need[5][i]), stats.get_average(stats.wgt_width_need[6][i]),
-                    stats.get_average(stats.wgt_width_need[7][i]), stats.get_average(stats.wgt_width_need[8][i]),
-                    stats.get_average(stats.wgt_width_need[9][i]), stats.get_average(stats.wgt_width_need[10][i]),
-                    stats.get_average(stats.wgt_width_need[11][i]), stats.get_average(stats.wgt_width_need[12][i]),
-                    stats.get_average(stats.wgt_width_need[13][i]), stats.get_average(stats.wgt_width_need[14][i]),
-                    stats.get_average(stats.wgt_width_need[15][i]), stats.get_average(stats.wgt_width_need[16][i]));
-            o_file << line3;
+            o_file << stats.layers[i] << ",AVG";
+            for(int v = 0; v <= 16; v++) {
+                o_file << "," << stats.get_average(stats.wgt_width_need[v][i]);
+            }
+            o_file << std::endl;
         }
 
-        char line3[512];
-        snprintf(line3, sizeof(line3), "TOTAL,AVG,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,"
-                "%.2f,%.2f,%.2f,%.2f\n", stats.get_average(stats.wgt_width_need[0]),
-                stats.get_average(stats.wgt_width_need[1]), stats.get_average(stats.wgt_width_need[2]),
-                stats.get_average(stats.wgt_width_need[3]), stats.get_average(stats.wgt_width_need[4]),
-                stats.get_average(stats.wgt_width_need[5]), stats.get_average(stats.wgt_width_need[6]),
-                stats.get_average(stats.wgt_width_need[7]), stats.get_average(stats.wgt_width_need[8]),
-                stats.get_average(stats.wgt_width_need[9]), stats.get_average(stats.wgt_width_need[10]),
-                stats.get_average(stats.wgt_width_need[11]), stats.get_average(stats.wgt_width_need[12]),
-                stats.get_average(stats.wgt_width_need[13]), stats.get_average(stats.wgt_width_need[14]),
-                stats.get_average(stats.wgt_width_need[15]), stats.get_average(stats.wgt_width_need[16]));
-        o_file << line3;
+        o_file << "TOTAL,AVG";
+        for(int v = 0; v <= 16; v++) {
+            o_file << "," << stats.get_average(stats.wgt_width_need[v]);
+        }
+        o_file << std::endl;
 
     }
 
@@ -735,6 +703,72 @@ namespace interface {
         o_file << line;
     }
 
+    void dump_line_training_distribution(std::ofstream &o_file, const sys::Statistics::Stats &stats,
+            const std::vector<std::vector<std::vector<uint64_t>>> &stat) {
+        o_file << "layer,epoch";
+        auto MAX_VALUE = stats.mantissa_data ? 128 : 256;
+        for(int i = 0; i < MAX_VALUE; i++) {
+            o_file << "," << (stats.mantissa_data ? i : i - 127);
+        }
+        o_file << std::endl;
+
+        #ifdef PER_EPOCH_RESULTS
+        for (int j = 0; j < stat.front().front().size(); j++) {
+            for (int i = 0; i < stats.layers.size(); i++) {
+                o_file << stats.layers[i] << "," << j;
+                for(int v = 0; v < MAX_VALUE; v++) {
+                    o_file << "," << stat[v][i][j];
+                }
+                o_file << std::endl;
+            }
+        }
+        #endif
+
+        for (int i = 0; i < stats.layers.size(); i++) {
+            o_file << stats.layers[i] << ",AVG";
+            for(int v = 0; v < MAX_VALUE; v++) {
+                o_file << "," << stats.get_average(stat[v][i]);
+            }
+            o_file << std::endl;
+        }
+
+        o_file << "TOTAL,AVG";
+        for(int v = 0; v < MAX_VALUE; v++) {
+            o_file << "," << stats.get_total(stat[v]);
+        }
+        o_file << std::endl;
+    }
+
+    void dump_csv_training_distribution(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
+        o_file << std::endl << "Forward Activations" << std::endl;
+        dump_line_training_distribution(o_file,stats,stats.fw_act_values);
+        o_file << std::endl;
+
+        o_file << std::endl << "Forward Weights" << std::endl;
+        dump_line_training_distribution(o_file,stats,stats.fw_wgt_values);
+        o_file << std::endl;
+
+        o_file << std::endl << "Forward Bias" << std::endl;
+        dump_line_training_distribution(o_file,stats,stats.fw_bias_values);
+        o_file << std::endl;
+
+        o_file << std::endl << "Backward Input Gradients" << std::endl;
+        dump_line_training_distribution(o_file,stats,stats.bw_in_grad_values);
+        o_file << std::endl;
+
+        o_file << std::endl << "Backward Weight Gradients" << std::endl;
+        dump_line_training_distribution(o_file,stats,stats.bw_wgt_grad_values);
+        o_file << std::endl;
+
+        o_file << std::endl << "Backward Bias Gradients" << std::endl;
+        dump_line_training_distribution(o_file,stats,stats.bw_bias_grad_values);
+        o_file << std::endl;
+
+        o_file << std::endl << "Backward Output Gradients" << std::endl;
+        dump_line_training_distribution(o_file,stats,stats.bw_out_grad_values);
+        o_file << std::endl;
+    }
+
     void StatsWriter::dump_csv() {
 
         for(const sys::Statistics::Stats &stats : sys::Statistics::getAll_stats()) {
@@ -763,6 +797,7 @@ namespace interface {
             else if(!stats.fw_act_sparsity.empty()) dump_csv_training_sparsity(o_file,stats);
             else if(!stats.act_avg_width.empty()) dump_csv_average_width(o_file,stats);
             else if(!stats.fw_act_avg_width.empty()) dump_csv_training_average_width(o_file,stats);
+            else if(!stats.fw_act_values.empty()) dump_csv_training_distribution(o_file,stats);
 
             o_file.close();
         }

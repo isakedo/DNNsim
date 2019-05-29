@@ -112,6 +112,16 @@ namespace core {
          */
         void training_sparsity(const Network<T> &network, sys::Statistics::Stats &stats, int epoch, int epochs);
 
+        /* Calculate the training exponent distribution in the network
+         * @param network   Network we want to check
+         * @param stats		Shared stats for the epochs
+         * @param epoch		Current epoch
+         * @param epochs    Number of epochs
+         * @param mantissa  Mantissa distribution instead of exponent
+         */
+        void training_distribution(const Network<T> &network, sys::Statistics::Stats &stats, int epoch,
+                int epochs, bool mantissa);
+
     };
 
 }

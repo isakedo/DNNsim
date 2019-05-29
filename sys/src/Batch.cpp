@@ -87,7 +87,14 @@ namespace sys {
             for(const auto &experiment_proto : simulate_proto.experiment()) {
 
                 Batch::Simulate::Experiment experiment;
-                if(experiment_proto.architecture() == "DynamicStripesFP") {
+                if(experiment_proto.architecture() == "None") {
+
+                    value = experiment_proto.task();
+                    if(value != "ExpDistr" && value != "MantDistr")
+                        throw std::runtime_error("Training task for network " + simulate.network + " in BFloat16 for"
+                                                 " architecture None must be <ExpDistr|MantDistr>.");
+
+                } else if(experiment_proto.architecture() == "DynamicStripesFP") {
                     experiment.leading_bit = experiment_proto.leading_bit();
                     experiment.minor_bit = experiment_proto.minor_bit();
 
@@ -95,7 +102,7 @@ namespace sys {
                                                 " in BFloat16 must be <DynamicStripesFP>.");
 
                 value = experiment_proto.task();
-                if(value != "AvgWidth")
+                if(experiment_proto.architecture() != "None" and value != "AvgWidth")
                     throw std::runtime_error("Training task for network " + simulate.network +
                                              " in BFloat16 must be <AvgWidth>.");
 

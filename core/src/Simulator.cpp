@@ -320,11 +320,9 @@ namespace core {
 
                 uint64_t zero_out_act_grad = 0;
                 const auto &out_act_grad = layer.getOutputGradients();
-                if(layer_it != 0) {
-                    for (uint64_t i = 0; i < out_act_grad.getMax_index(); i++) {
-                        const auto data = out_act_grad.get(i);
-                        if (data == 0) zero_out_act_grad++;
-                    }
+                for (uint64_t i = 0; i < out_act_grad.getMax_index(); i++) {
+                    const auto data = out_act_grad.get(i);
+                    if (data == 0) zero_out_act_grad++;
                 }
 
                 if(layer_it != 0) {
@@ -372,6 +370,120 @@ namespace core {
         }
 
 	}
+
+
+    template <typename T>
+    void Simulator<T>::training_distribution(const Network<T> &network, sys::Statistics::Stats &stats,
+            int epoch, int epochs, bool mantissa) {
+
+        const auto MAX_VALUE = mantissa ? 128 : 256;
+
+        if(epoch == 0) {
+            stats.task_name = mantissa ? "mantissa_distribution" : "exponent_distribution";
+            stats.net_name = network.getName();
+            stats.arch = "None";
+            stats.mantissa_data = mantissa;
+
+            stats.fw_act_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
+            stats.fw_wgt_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
+            stats.fw_bias_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
+            stats.bw_in_grad_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
+            stats.bw_wgt_grad_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
+            stats.bw_bias_grad_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
+            stats.bw_out_grad_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
+        }
+
+        for(int layer_it = 0; layer_it < network.getLayers().size(); layer_it++) {
+
+            const Layer<T> &layer = network.getLayers()[layer_it];
+
+            if(epoch == 0) {
+                stats.layers.push_back(layer.getName());
+
+                for(int i = 0; i < MAX_VALUE; i++) {
+                    stats.fw_act_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
+                    stats.fw_wgt_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
+                    stats.fw_bias_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
+                    stats.bw_in_grad_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
+                    stats.bw_wgt_grad_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
+                    stats.bw_bias_grad_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
+                    stats.bw_out_grad_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
+                }
+            }
+
+            // Forward
+            if(network.getForward()) {
+                const auto &act = layer.getActivations();
+                for(uint64_t i = 0; i < act.getMax_index(); i++) {
+                    const auto data_float = act.get(i);
+                    auto data_bfloat = this->split_bfloat16(data_float);
+                    auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
+                    stats.fw_act_values[bin_value][layer_it][epoch]++;
+                }
+
+                const auto &wgt = layer.getWeights();
+                for(uint64_t i = 0; i < wgt.getMax_index(); i++) {
+                    const auto data_float = wgt.get(i);
+                    auto data_bfloat = this->split_bfloat16(data_float);
+                    auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
+                    stats.fw_wgt_values[bin_value][layer_it][epoch]++;
+                }
+            }
+
+            //Backward
+            if(network.getBackward()) {
+                const auto &act_grad = layer.getInputGradients();
+                if(layer_it != 0) {
+                    for (uint64_t i = 0; i < act_grad.getMax_index(); i++) {
+                        const auto data_float = act_grad.get(i);
+                        auto data_bfloat = this->split_bfloat16(data_float);
+                        auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
+                        stats.bw_in_grad_values[bin_value][layer_it][epoch]++;
+                    }
+                }
+
+                const auto &wgt_grad = layer.getWeightGradients();
+                for(uint64_t i = 0; i < wgt_grad.getMax_index(); i++) {
+                    const auto data_float = wgt_grad.get(i);
+                    auto data_bfloat = this->split_bfloat16(data_float);
+                    auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
+                    stats.bw_wgt_grad_values[bin_value][layer_it][epoch]++;
+                }
+
+                const auto &out_act_grad = layer.getOutputGradients();
+                for (uint64_t i = 0; i < out_act_grad.getMax_index(); i++) {
+                    const auto data_float = out_act_grad.get(i);
+                    auto data_bfloat = this->split_bfloat16(data_float);
+                    auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
+                    stats.bw_out_grad_values[bin_value][layer_it][epoch]++;
+                }
+            }
+
+            if(!layer.getBias().getShape().empty()) {
+
+                const auto &bias = layer.getBias();
+                for(uint64_t i = 0; i < bias.getMax_index(); i++) {
+                    const auto data_float = bias.get(i);
+                    auto data_bfloat = this->split_bfloat16(data_float);
+                    auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
+                    stats.fw_bias_values[bin_value][layer_it][epoch]++;
+                }
+            }
+
+            if(!layer.getBiasGradients().getShape().empty()) {
+
+                const auto &bias_grad = layer.getBiasGradients();
+                for(uint64_t i = 0; i < bias_grad.getMax_index(); i++) {
+                    const auto data_float = bias_grad.get(i);
+                    auto data_bfloat = this->split_bfloat16(data_float);
+                    auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
+                    stats.bw_bias_grad_values[bin_value][layer_it][epoch]++;
+                }
+            }
+
+        }
+
+    }
 
     INITIALISE_DATA_TYPES(Simulator);
 

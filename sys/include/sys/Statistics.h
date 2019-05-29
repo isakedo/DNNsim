@@ -110,6 +110,16 @@ namespace sys {
             std::vector<std::vector<uint64_t>> bw_zero_out_grad;
             std::vector<std::vector<uint64_t>> bw_total_out_grad;
 
+            /* Training value distribution */
+            bool mantissa_data;
+            std::vector<std::vector<std::vector<uint64_t>>> fw_act_values;
+            std::vector<std::vector<std::vector<uint64_t>>> fw_wgt_values;
+            std::vector<std::vector<std::vector<uint64_t>>> fw_bias_values;
+            std::vector<std::vector<std::vector<uint64_t>>> bw_in_grad_values;
+            std::vector<std::vector<std::vector<uint64_t>>> bw_wgt_grad_values;
+            std::vector<std::vector<std::vector<uint64_t>>> bw_bias_grad_values;
+            std::vector<std::vector<std::vector<uint64_t>>> bw_out_grad_values;
+
             /* Stats for average width */
             std::vector<std::vector<double>> act_avg_width;
             std::vector<std::vector<double>> act_width_reduction;
