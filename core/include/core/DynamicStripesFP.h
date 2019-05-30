@@ -16,15 +16,32 @@ namespace core {
         /* Calculate only the minor bit for dynamic precisions */
         const bool MINOR_BIT;
 
-        /* Compute the average width along the second dimensions
+        /* Compute the average width along the first dimension
          * @param data              Input data
-         * @param dstr_first_dim    Apply dynamic precision through first dimension instead of second
          * @param avg_width         Average width per group stat
          * @param bits_baseline     Bits of the baseline stat
          * @param bits_datawidth    Bits for the datawidth per group stat
          */
-        void computeAvgWidthData(const cnpy::Array<T> &data, bool dstr_first_dim, double &avg_width,
-                uint64_t &bits_baseline, uint64_t &bits_datawidth);
+        void computeAvgWidthDataFirstDim(const cnpy::Array<T> &data, double &avg_width, uint64_t &bits_baseline,
+                uint64_t &bits_datawidth);
+
+        /* Compute the average width along the first dimension
+         * @param data              Input data
+         * @param avg_width         Average width per group stat
+         * @param bits_baseline     Bits of the baseline stat
+         * @param bits_datawidth    Bits for the datawidth per group stat
+         */
+        void computeAvgWidthDataSecondDim(const cnpy::Array<T> &data, double &avg_width, uint64_t &bits_baseline,
+                uint64_t &bits_datawidth);
+
+        /* Compute the average width along the first dimension
+         * @param data              Input data
+         * @param avg_width         Average width per group stat
+         * @param bits_baseline     Bits of the baseline stat
+         * @param bits_datawidth    Bits for the datawidth per group stat
+         */
+        void computeAvgWidthDataSeq2Seq(const cnpy::Array<T> &data, double &avg_width, uint64_t &bits_baseline,
+                uint64_t &bits_datawidth);
 
         /* Compute the average width for a layer
          * @param network       Network we want to check

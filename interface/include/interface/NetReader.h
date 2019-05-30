@@ -136,9 +136,8 @@ namespace interface {
 
         /* Read the activations from training traces into given network
          * @param network           Network with the layers already initialized
-         * @param decoder_states    Number of states(steps) in the decoder traces
          */
-        void read_training_activations_npy(core::Network<T> &network, uint16_t decoder_states = 0);
+        void read_training_activations_npy(core::Network<T> &network);
 
         /* Read the weight gradients from training traces into given network
          * @param network       Network with the layers already initialized

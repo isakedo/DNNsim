@@ -123,6 +123,7 @@ namespace interface {
                 else
                     throw std::runtime_error("Failed to read trace_params.csv");
 
+
             }
             myfile.close();
         }
@@ -400,7 +401,12 @@ namespace interface {
 		check_path("net_traces/" + this->name + "/weights");
         for(core::Layer<T> &layer : network.updateLayers()) {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                std::string file = "/weights/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
+                std::string layer_name = layer.getName();
+                if(layer.getType() == "Decoder") {
+                    auto pos = layer_name.find_last_of('_');
+                    layer_name = layer_name.substr(0, pos);
+                }
+                std::string file = "/weights/" + layer_name + "-" + std::to_string(epoch) + "-" +
                         std::to_string(batch) + "-w.npy" ;
                 cnpy::Array<T> weights; weights.set_values("net_traces/" + this->name + file);
                 layer.setWeights(weights);
@@ -414,7 +420,12 @@ namespace interface {
 		check_path("net_traces/" + this->name + "/bias");
         for(core::Layer<T> &layer : network.updateLayers()) {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                std::string file = "/bias/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
+                std::string layer_name = layer.getName();
+                if(layer.getType() == "Decoder") {
+                    auto pos = layer_name.find_last_of('_');
+                    layer_name = layer_name.substr(0, pos);
+                }
+                std::string file = "/bias/" + layer_name + "-" + std::to_string(epoch) + "-" +
                         std::to_string(batch) + "-b.npy" ;
                 try {
                     cnpy::Array<T> bias; bias.set_values("net_traces/" + this->name + file);
@@ -427,25 +438,15 @@ namespace interface {
     }
 
     template <typename T>
-    void NetReader<T>::read_training_activations_npy(core::Network<T> &network, const uint16_t decoder_states) {
+    void NetReader<T>::read_training_activations_npy(core::Network<T> &network) {
         check_path("net_traces/" + this->name);
 		check_path("net_traces/" + this->name + "/input");
         for(core::Layer<T> &layer : network.updateLayers()) {
             if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                if(layer.getType() == "Decoder") {
-                    std::vector<cnpy::Array<T>> decoder_activations = std::vector<cnpy::Array<T>>(decoder_states);
-                    for(int decoder_state = 0; decoder_state < decoder_states; decoder_state++) {
-                        std::string file = "/input/" + layer.getName() + "_" + std::to_string(decoder_state) + "-" +
-                                std::to_string(epoch) + "-" + std::to_string(batch) + "-in.npy" ;
-                        decoder_activations[decoder_state].set_values("net_traces/" + this->name + file);
-                    }
-                    layer.setDecoderActivations(decoder_activations);
-                } else {
-                    std::string file = "/input/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
-                            std::to_string(batch) + "-in.npy" ;
-                    cnpy::Array<T> activations; activations.set_values("net_traces/" + this->name + file);
-                    layer.setActivations(activations);
-                }
+                std::string file = "/input/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
+                        std::to_string(batch) + "-in.npy" ;
+                cnpy::Array<T> activations; activations.set_values("net_traces/" + this->name + file);
+                layer.setActivations(activations);
             }
         }
     }

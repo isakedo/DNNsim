@@ -62,9 +62,6 @@ namespace core {
         /* numpy array containing the activations for the layer */
         cnpy::Array<T> activations;
 
-        /* vector of numpy arrays containing the activations for the layer */
-        std::vector<cnpy::Array<T>> decoder_activations;
-
         /* numpy array containing the output activations for the layer */
         cnpy::Array<T> output_activations;
 
@@ -117,7 +114,6 @@ namespace core {
         const cnpy::Array<T> &getWeights() const { return weights; }
         const cnpy::Array<T> &getBias() const { return bias; }
         const cnpy::Array<T> &getActivations() const { return activations; }
-        const std::vector<cnpy::Array<T>> &getDecoderActivations() const { return decoder_activations; }
         const cnpy::Array<T> &getOutputActivations() const { return output_activations; }
         const cnpy::Array<T> &getWeightGradients() const { return weight_gradients; }
         const cnpy::Array<T> &getBiasGradients() const { return bias_gradients; }
@@ -126,11 +122,10 @@ namespace core {
 
         /* Setters */
 
+        void setName(const std::string &name) { Layer::name = name; }
         void setWeights(const cnpy::Array<T> &weights) { Layer::weights = weights; }
         void setBias(const cnpy::Array<T> &bias) { Layer::bias = bias; }
         void setActivations(const cnpy::Array<T> &activations) { Layer::activations = activations; }
-        void setDecoderActivations(const std::vector<cnpy::Array<T>> &decoder_activations) {
-            Layer::decoder_activations = decoder_activations; }
         void setOutputActivations(const cnpy::Array<T> &output_activations) {
             Layer::output_activations = output_activations; }
         void setWeightGradients(const cnpy::Array<T> &weight_gradients) { Layer::weight_gradients = weight_gradients; }

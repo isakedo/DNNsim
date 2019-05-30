@@ -67,7 +67,7 @@ namespace sys {
 		simulate.training = simulate_proto.training();
         simulate.only_forward = simulate_proto.only_forward();
         simulate.only_backward = simulate_proto.only_backward();
-        simulate.decoder_states = simulate_proto.decoder_states() < 1 ? 1 : simulate_proto.decoder_states();
+        simulate.decoder_states = simulate_proto.decoder_states();
         if(simulate.tensorflow_8b) simulate.network_bits = 8;
 
         value = simulate_proto.inputtype();

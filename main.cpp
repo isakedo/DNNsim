@@ -48,6 +48,7 @@ core::Network<T> read_training(const std::string &network_name, int batch, int e
     core::Network<T> network;
     interface::NetReader<T> reader = interface::NetReader<T>(network_name, false, batch, epoch, false);
 	network = reader.read_network_trace_params();
+	if(decoder_states > 0) network.duplicate_decoder_layers(decoder_states);
 
 	bool forward = (traces_mode & 0x1) != 0;
 	bool backward = (traces_mode & 0x2) != 0;
@@ -57,7 +58,7 @@ core::Network<T> read_training(const std::string &network_name, int batch, int e
 	// Forward traces
 	if(forward) {
 		reader.read_training_weights_npy(network);
-		reader.read_training_activations_npy(network, (uint16_t)decoder_states);
+		reader.read_training_activations_npy(network);
 		reader.read_training_bias_npy(network);
 	}
 

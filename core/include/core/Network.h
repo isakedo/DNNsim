@@ -52,6 +52,30 @@ namespace core {
         void setForkward(bool forward) { Network::forward = forward; }
         void setBackward(bool backward) { Network::backward = backward; }
 
+        /* Duplicate the decoder layers to store all decode steps
+         * @param decoder_states Number of decoder states in the traces
+         */
+        void duplicate_decoder_layers(int decoder_states) {
+
+            std::vector<Layer<T>> tmp_layers;
+            std::vector<Layer<T>> tmp_decoders;
+
+            for(const auto layer : this->layers) {
+                if(layer.getType() == "Decoder") tmp_decoders.push_back(layer);
+                else tmp_layers.push_back(layer);
+            }
+
+            for(int decoder_state = 0; decoder_state < decoder_states; decoder_state++) {
+                for(const auto layer : tmp_decoders) {
+                    tmp_layers.push_back(layer);
+                    tmp_layers.back().setName(tmp_layers.back().getName() + "_" + std::to_string(decoder_state));
+                }
+            }
+
+            this->layers = tmp_layers;
+
+        }
+
     };
 
 }

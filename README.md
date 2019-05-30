@@ -254,6 +254,7 @@ The batch file can be constructed as follows for the simualtion tool:
 | training | bool | Change mode to training simulations | True-False | False |
 | only_forward | bool | Only forward traces in the training simulations | True-False | False |
 | only_backward | bool | Only backward traces in the training simulations | True-False | False |
+| decoder_states | uint32 | Number of decoder traces for Seq2Seq simulations in training | Positive numbers | 0 (Not Seq2Seq) |
 
 Experiments for the simulation tool can contain the following parameters.
 
