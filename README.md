@@ -211,7 +211,9 @@ truncated floating point
 
 | Task | Description | Data type |
 |:---:|:---:|:---:|
-| Sparsity | Calculate sparsity for forward and backward, number of zero values | Float32 |
+| Sparsity | Calculate sparsity for forward and backward, number of zero values | BFloat16 |
+| ExpBitSparsity | Calculate the bit-sparsity only for the exponent, number of zero bits | BFloat16 |
+| MantBitSparsity | Calculate sparsity only for the mantissa, number of zero bits | BFloat16 |
 | ExpDistr | Print exponent data distribution for forward and backward | BFloat16 |
 | MantDistr | Print mantissa data distribution for forward and backward | BFloat16 |
 

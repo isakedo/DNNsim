@@ -25,7 +25,7 @@ namespace core {
         void computeAvgWidthDataFirstDim(const cnpy::Array<T> &data, double &avg_width, uint64_t &bits_baseline,
                 uint64_t &bits_datawidth);
 
-        /* Compute the average width along the first dimension
+        /* Compute the average width along the second dimension
          * @param data              Input data
          * @param avg_width         Average width per group stat
          * @param bits_baseline     Bits of the baseline stat
@@ -34,7 +34,7 @@ namespace core {
         void computeAvgWidthDataSecondDim(const cnpy::Array<T> &data, double &avg_width, uint64_t &bits_baseline,
                 uint64_t &bits_datawidth);
 
-        /* Compute the average width along the first dimension
+        /* Compute the average width along the third dimension for Seq2Seq models
          * @param data              Input data
          * @param avg_width         Average width per group stat
          * @param bits_baseline     Bits of the baseline stat

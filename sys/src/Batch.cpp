@@ -77,10 +77,9 @@ namespace sys {
         else
             simulate.inputType = simulate_proto.inputtype();
 
-        value = simulate_proto.inputdatatype();
-        if(value  != "Float32" && value != "BFloat16")
+        if(simulate_proto.inputdatatype() != "BFloat16")
             throw std::runtime_error("Training input data type configuration for network " + simulate.network +
-                                     " must be <Float32|BFloat16>.");
+                                     " must be <BFloat16>.");
         else
             simulate.inputDataType = simulate_proto.inputdatatype();
 
@@ -91,9 +90,11 @@ namespace sys {
                 if(experiment_proto.architecture() == "None") {
 
                     value = experiment_proto.task();
-                    if(value != "ExpDistr" && value != "MantDistr")
+                    if(value != "Sparsity" && value != "ExpBitSparsity" && value != "MantBitSparsity" &&
+                            value != "ExpDistr" && value != "MantDistr")
                         throw std::runtime_error("Training task for network " + simulate.network + " in BFloat16 for"
-                                                 " architecture None must be <ExpDistr|MantDistr>.");
+                                                 " architecture None must be <Sparsity|ExpBitSparsity|MantBitSparsity|"
+                                                 "ExpDistr|MantDistr>.");
 
                 } else if(experiment_proto.architecture() == "DynamicStripesFP") {
                     experiment.leading_bit = experiment_proto.leading_bit();
@@ -116,27 +117,6 @@ namespace sys {
                 simulate.experiments.emplace_back(experiment);
 
             }
-        } else if (simulate.inputDataType == "Float32") {
-            for (const auto &experiment_proto : simulate_proto.experiment()) {
-
-                Batch::Simulate::Experiment experiment;
-                if (experiment_proto.architecture() == "None") {
-
-                    value = experiment_proto.task();
-                    if (value != "Inference" && value != "Sparsity")
-                        throw std::runtime_error("Training task for network " + simulate.network +
-                                                 " in Float32 for architecture"" None must be <Sparsity>.");
-
-                } else
-                    throw std::runtime_error("Training architecture for network " + simulate.network +
-                                             " in Float32 must be <None>.");
-
-                experiment.architecture = experiment_proto.architecture();
-                experiment.task = experiment_proto.task();
-                simulate.experiments.emplace_back(experiment);
-
-            }
-
         }
 
         return simulate;

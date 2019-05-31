@@ -263,6 +263,10 @@ int main(int argc, char *argv[]) {
 				        		core::Simulator<float> DNNsim(N_THREADS,FAST_MODE);
 				                if (experiment.task == "Sparsity") DNNsim.training_sparsity(network,stats,epoch,
 				                        epochs);
+				                else if (experiment.task == "ExpBitSparsity") DNNsim.training_bit_sparsity(network,
+				                        stats, epoch, epochs, false);
+				                else if (experiment.task == "MantBitSparsity") DNNsim.training_bit_sparsity(network,
+				                        stats, epoch, epochs, true);
 				                else if (experiment.task == "ExpDistr") DNNsim.training_distribution(network, stats,
 				                        epoch, epochs, false);
 				                else if (experiment.task == "MantDistr") DNNsim.training_distribution(network, stats,
