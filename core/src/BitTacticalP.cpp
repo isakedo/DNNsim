@@ -57,7 +57,7 @@ namespace core {
         }
 
         int cycles;
-        if(MINOR_BIT) cycles = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+        if(!LEADING_BIT) cycles = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
         else cycles = max_bit + 1;
         return (uint8_t)cycles;
     }
@@ -118,14 +118,14 @@ namespace core {
 
             group_counter++;
             if(group_counter == WINDOWS_PER_GROUP) {
-                if(MINOR_BIT) per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+                if(!LEADING_BIT) per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
                 else per_group_cycles[group_index] = max_bit + 1;
             }
 
         }
 
         if(group_counter < WINDOWS_PER_GROUP) {
-            if(MINOR_BIT) per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+            if(!LEADING_BIT) per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
             else per_group_cycles[group_index] = max_bit + 1;
         }
 
@@ -355,7 +355,7 @@ namespace core {
         stats.arch = "BitTacticalP_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS) + "_PG_" +
                 std::to_string(PRECISION_GRANULARITY) + "_CR" + std::to_string(this->COLUMN_REGISTERS) + "_" +
                 this->SEARCH_SHAPE + std::to_string(mux_entries) + "(" + std::to_string(this->LOOKAHEAD_H) + "-" +
-                std::to_string(this->LOOKASIDE_D) + ")";
+                std::to_string(this->LOOKASIDE_D) + ")" + (LEADING_BIT ? "_LB" : "");
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {

@@ -25,8 +25,8 @@ namespace core {
         /* Number of bits in series that the PE process */
         const int PE_SERIAL_BITS;
 
-        /* Calculate also the minor bit for dynamic precisions */
-        const bool MINOR_BIT;
+        /* Calculate only the leading bit for dynamic precisions */
+        const bool LEADING_BIT;
 
         /* Calculate dynamic precision for weights rather than profiled */
         const bool DYNAMIC_WEIGHTS;
@@ -116,15 +116,15 @@ namespace core {
          * @param _N_ROWS                   Number of rows
          * @param _PRECISION_GRANULARITY    Granularity for dynamic precisions
          * @param _PE_SERIAL_BITS           Number of bits in series that the PE process
-         * @param _MINOR_BIT                Calculate also the minor bit for dynamic precisions
+         * @param _LEADING_BIT              Calculate only the leading bit for dynamic precisions
          * @param _DYNAMIC_WEIGHTS          Calculate dynamic precision for weights rather than profiled
          * @param _N_THREADS                Number of parallel threads for multi-threading execution
          * @param _FAST_MODE                Enable fast mode to simulate only one image
          */
-        Loom(int _N_COLUMNS, int _N_ROWS, int _PRECISION_GRANULARITY, int _PE_SERIAL_BITS, bool _MINOR_BIT,
+        Loom(int _N_COLUMNS, int _N_ROWS, int _PRECISION_GRANULARITY, int _PE_SERIAL_BITS, bool _LEADING_BIT,
                 bool _DYNAMIC_WEIGHTS, uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE),
-                N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), PRECISION_GRANULARITY(_PRECISION_GRANULARITY),
-                PE_SERIAL_BITS(_PE_SERIAL_BITS), MINOR_BIT(_MINOR_BIT), DYNAMIC_WEIGHTS(_DYNAMIC_WEIGHTS) {}
+                N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), PRECISION_GRANULARITY(_PRECISION_GRANULARITY), 
+                PE_SERIAL_BITS(_PE_SERIAL_BITS), LEADING_BIT(_LEADING_BIT), DYNAMIC_WEIGHTS(_DYNAMIC_WEIGHTS) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

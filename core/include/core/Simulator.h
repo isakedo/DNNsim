@@ -16,6 +16,18 @@ namespace core {
     template <typename T>
     class Simulator {
 
+    private:
+
+        typedef union {
+            float f;
+            struct {
+                unsigned int truncated_mantissa : 16;
+                unsigned int mantissa : 7;
+                unsigned int exponent : 8;
+                unsigned int sign : 1;
+            } field;
+        } bfloat16;
+
     protected:
 
         /* Number of parallel cores */
@@ -36,6 +48,12 @@ namespace core {
          */
         bool iterateWindows(long out_x, long out_y, std::vector<int> &list_x, std::vector<int> &list_y,
                 int &x_counter, int &y_counter, int max_windows = 16);
+
+        /* Split sign, exponent, and mantissa in bfloat16 format from a float
+         * @param number    Floating point 32 number
+         * return           Tuple containing sign, exponent, and mantissa (truncated)
+         */
+        std::tuple<uint8_t,uint8_t,uint8_t> split_bfloat16(float number);
 
         /* Return the optimal encoding for the given value
          * @param value     Value to encode WITHOUT the sign
@@ -85,6 +103,34 @@ namespace core {
          * @param network   Network we want to check
          */
         void bit_sparsity(const Network<T> &network);
+
+        /* Calculate the training sparsity in the network
+         * @param network   Network we want to check
+		 * @param stats		Shared stats for the epochs
+		 * @param epoch		Current epoch
+		 * @param epochs    Number of epochs
+         */
+        void training_sparsity(const Network<T> &network, sys::Statistics::Stats &stats, int epoch, int epochs);
+
+        /* Calculate the training bit sparsity in the network
+         * @param network   Network we want to check
+         * @param stats		Shared stats for the epochs
+         * @param epoch		Current epoch
+         * @param epochs    Number of epochs
+         * @param mantissa  Mantissa bit sparsity instead of exponent
+         */
+        void training_bit_sparsity(const Network<T> &network, sys::Statistics::Stats &stats, int epoch, int epochs,
+                bool mantissa);
+
+        /* Calculate the training exponent distribution in the network
+         * @param network   Network we want to check
+         * @param stats		Shared stats for the epochs
+         * @param epoch		Current epoch
+         * @param epochs    Number of epochs
+         * @param mantissa  Mantissa distribution instead of exponent
+         */
+        void training_distribution(const Network<T> &network, sys::Statistics::Stats &stats, int epoch, int epochs,
+                bool mantissa);
 
     };
 

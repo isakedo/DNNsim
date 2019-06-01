@@ -16,12 +16,12 @@ namespace sys {
         /* Struct for the Transform instructions */
         struct Transform {
             int batch = 0;
-            std::string inputType = ""; // Caffe/Protobuf/Gzip
+            std::string inputType = "";
             std::string inputDataType = "";
-            std::string outputType = ""; // Protobuf/Gzip
-            std::string outputDataType = ""; // Protobuf/Gzip
+            std::string outputType = "";
+            std::string outputDataType = "";
             std::string network = "";
-            bool activate_bias_out_act = false;
+            bool bias_and_out_act = false;
             bool tensorflow_8b = false;
         };
 
@@ -36,6 +36,7 @@ namespace sys {
                 int bits_pe = 0;
                 int column_registers = 0;
                 int precision_granularity = 0;
+                bool leading_bit = false;
                 bool minor_bit = false;
                 int bits_first_stage = 0;
                 int lookahead_h = 0;
@@ -58,12 +59,17 @@ namespace sys {
             };
 
             int batch = 0;
-            std::string inputType = ""; // Protobuf/Gzip
-            std::string inputDataType = ""; // Float32/Fixed16
+            int epochs = 0;
+            std::string inputType = "";
+            std::string inputDataType = "";
             std::string network = "";
             int network_bits = 0;
-            bool activate_bias_out_act = false;
+            bool bias_and_out_act = false;
             bool tensorflow_8b = false;
+            bool training = false;
+            bool only_forward = false;
+            bool only_backward = false;
+            int decoder_states = 0;
             std::vector<Experiment> experiments;
         };
 
@@ -83,10 +89,15 @@ namespace sys {
          */
         Transform read_transformation(const protobuf::Batch_Transform &transform_proto);
 
-        /* Return the simulation parsed from the prototxt file
+        /* Return the training simulation parsed from the prototxt file
          * @param simulate_proto   prototxt simulation
          */
-        Simulate read_simulation(const protobuf::Batch_Simulate &simulate_proto);
+        Simulate read_training_simulation(const protobuf::Batch_Simulate &simulate_proto);
+
+        /* Return the inference simulation parsed from the prototxt file
+         * @param simulate_proto   prototxt simulation
+         */
+        Simulate read_inference_simulation(const protobuf::Batch_Simulate &simulate_proto);
 
     public:
 

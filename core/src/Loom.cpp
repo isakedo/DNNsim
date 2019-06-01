@@ -83,21 +83,21 @@ namespace core {
 
             group_counter++;
             if(group_counter == FILTERS_PER_GROUP) {
-                if(MINOR_BIT) per_group_cycles[group_index] = (uint8_t)((min_wgt_group_bit > max_wgt_group_bit) ? 1 :
-                        max_wgt_group_bit - min_wgt_group_bit + 1);
+                if(!LEADING_BIT) per_group_cycles[group_index] = (uint8_t)((min_wgt_group_bit > max_wgt_group_bit) ? 
+                		1 : max_wgt_group_bit - min_wgt_group_bit + 1);
                 else per_group_cycles[group_index] = (uint8_t)(max_wgt_group_bit + 1);
             }
         }
 
         if(group_counter < FILTERS_PER_GROUP) {
-            if(MINOR_BIT) per_group_cycles[group_index] = (uint8_t)((min_wgt_group_bit > max_wgt_group_bit) ? 1 :
-                    max_wgt_group_bit - min_wgt_group_bit + 1);
+            if(!LEADING_BIT) per_group_cycles[group_index] = (uint8_t)((min_wgt_group_bit > max_wgt_group_bit) ? 
+            		1 : max_wgt_group_bit - min_wgt_group_bit + 1);
             else per_group_cycles[group_index] = (uint8_t)(max_wgt_group_bit + 1);
         }
 
         uint8_t act_cycles;
-        if(MINOR_BIT) act_cycles = (uint8_t)((min_act_group_bit > max_act_group_bit) ? 1 :
-                max_act_group_bit - min_act_group_bit + 1);
+        if(!LEADING_BIT) act_cycles = (uint8_t)((min_act_group_bit > max_act_group_bit) ? 
+        		1 : max_act_group_bit - min_act_group_bit + 1);
         else act_cycles = (uint8_t)(max_act_group_bit + 1);
 
         // Slowest PE
@@ -160,16 +160,16 @@ namespace core {
 
             group_counter++;
             if(group_counter == WINDOWS_PER_GROUP) {
-                if(MINOR_BIT) act_per_group_cycles[group_index] = (uint8_t)((min_act_group_bit > max_act_group_bit) ? 1
-                        : max_act_group_bit - min_act_group_bit + 1);
+                if(!LEADING_BIT) act_per_group_cycles[group_index] = (uint8_t)((min_act_group_bit > max_act_group_bit) ? 
+                		1 : max_act_group_bit - min_act_group_bit + 1);
                 else act_per_group_cycles[group_index] = (uint8_t)(max_act_group_bit + 1);
             }
 
         }
 
         if(group_counter < WINDOWS_PER_GROUP) {
-            if(MINOR_BIT) act_per_group_cycles[group_index] = (uint8_t)((min_act_group_bit > max_act_group_bit) ? 1 :
-                    max_act_group_bit - min_act_group_bit + 1);
+            if(!LEADING_BIT) act_per_group_cycles[group_index] = (uint8_t)((min_act_group_bit > max_act_group_bit) ? 
+            		1 : max_act_group_bit - min_act_group_bit + 1);
             else act_per_group_cycles[group_index] = (uint8_t)(max_act_group_bit + 1);
         }
 
@@ -214,15 +214,15 @@ namespace core {
 
             group_counter++;
             if(group_counter == FILTERS_PER_GROUP) {
-                if(MINOR_BIT) wgt_per_group_cycles[group_index] = (uint8_t)((min_wgt_group_bit > max_wgt_group_bit) ? 1
-                        : max_wgt_group_bit - min_wgt_group_bit + 1);
+                if(!LEADING_BIT) wgt_per_group_cycles[group_index] = (uint8_t)((min_wgt_group_bit > max_wgt_group_bit) ? 
+                		1 : max_wgt_group_bit - min_wgt_group_bit + 1);
                 else wgt_per_group_cycles[group_index] = (uint8_t)(max_wgt_group_bit + 1);
             }
         }
 
         if(group_counter < FILTERS_PER_GROUP) {
-            if(MINOR_BIT) wgt_per_group_cycles[group_index] = (uint8_t)((min_wgt_group_bit > max_wgt_group_bit) ? 1 :
-                    max_wgt_group_bit - min_wgt_group_bit + 1);
+            if(!LEADING_BIT) wgt_per_group_cycles[group_index] = (uint8_t)((min_wgt_group_bit > max_wgt_group_bit) ? 
+            		1 : max_wgt_group_bit - min_wgt_group_bit + 1);
             else wgt_per_group_cycles[group_index] = (uint8_t)(max_wgt_group_bit + 1);
         }
 
@@ -449,7 +449,7 @@ namespace core {
         stats.net_name = network.getName();
         stats.arch = "Loom_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG" +
                 std::to_string(PRECISION_GRANULARITY) + "_PSB" + std::to_string(PE_SERIAL_BITS) +
-                (DYNAMIC_WEIGHTS ? "_DW" : "") + (DYNAMIC_WEIGHTS && MINOR_BIT ? "_MB" : "");
+                (DYNAMIC_WEIGHTS ? "_DW" : "") + (DYNAMIC_WEIGHTS && LEADING_BIT ? "_LB" : "");
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {

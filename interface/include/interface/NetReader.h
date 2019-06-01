@@ -23,16 +23,19 @@ namespace interface {
         const std::set<std::string> layers_allowed = {"Convolution","InnerProduct","LSTM","ReLU"};
 
         /* Layers that we want weights, activations, and output activations */
-        const std::set<std::string> layers_data = {"Convolution","InnerProduct","LSTM"};
+        const std::set<std::string> layers_data = {"Convolution","InnerProduct","LSTM","Encoder","Decoder"};
 
         /* Name of the network */
         std::string name;
 
         /* Also read bias and output activations */
-        bool activate_bias_and_out_act;
+        bool bias_and_out_act;
 
         /* Numpy activations batch to read from */
         int batch;
+
+        /* Numpy activations epoch to read from */
+        int epoch;
 
         /* Tensorflow 8 bit quantization */
         bool TENSORFLOW_8b;
@@ -60,13 +63,14 @@ namespace interface {
     public:
 
         /* Constructor
-         * @param _name                         The name of the network
-         * @param _activate_bias_and_out_act    Also write bias and output activations
-         * @param _batch                        Numpy batch of the activations
-         * @param _TENSORFLOW_8b                Activate Tensorflow 8b quantization
+         * @param _name                 The name of the network
+         * @param _bias_and_out_act     Also write bias and output activations
+         * @param _batch                Numpy batch of the activations
+         * @param _epoch                Numpy epoch of the training traces
+         * @param _TENSORFLOW_8b        Activate Tensorflow 8b quantization
          */
-        NetReader(const std::string &_name, bool _activate_bias_and_out_act, int _batch, bool _TENSORFLOW_8b) :
-                activate_bias_and_out_act(_activate_bias_and_out_act), batch(_batch), TENSORFLOW_8b(_TENSORFLOW_8b) {
+        NetReader(const std::string &_name, bool _bias_and_out_act, int _batch, int _epoch, bool _TENSORFLOW_8b) :
+                bias_and_out_act(_bias_and_out_act), batch(_batch), epoch(_epoch), TENSORFLOW_8b(_TENSORFLOW_8b) {
             this->name = _name;
         }
 
@@ -100,17 +104,17 @@ namespace interface {
          */
         std::vector<schedule> read_schedule_protobuf(const std::string &schedule_type);
 
-        /* Read the weights into initialized given network
+        /* Read the weights into given network
          * @param network       Network with the layers already initialized
          */
         void read_weights_npy(core::Network<T> &network);
 
-        /* Read the bias into initialized given network
+        /* Read the bias into given network
          * @param network       Network with the layers already initialized
          */
         void read_bias_npy(core::Network<T> &network);
 
-        /* Read the activations into initialized given network
+        /* Read the activations into given network
          * @param network       Network with the layers already initialized
          */
         void read_activations_npy(core::Network<T> &network);
@@ -119,6 +123,41 @@ namespace interface {
          * @param network       Network with the layers already initialized
          */
         void read_output_activations_npy(core::Network<T> &network);
+
+        /* Read the weights from training traces into given network
+         * @param network       Network with the layers already initialized
+         */
+        void read_training_weights_npy(core::Network<T> &network);
+
+        /* Read the bias from training traces into given network
+         * @param network       Network with the layers already initialized
+         */
+        void read_training_bias_npy(core::Network<T> &network);
+
+        /* Read the activations from training traces into given network
+         * @param network           Network with the layers already initialized
+         */
+        void read_training_activations_npy(core::Network<T> &network);
+
+        /* Read the weight gradients from training traces into given network
+         * @param network       Network with the layers already initialized
+         */
+        void read_training_weight_gradients_npy(core::Network<T> &network);
+
+        /* Read the bias gradients from training traces into given network
+         * @param network       Network with the layers already initialized
+         */
+        void read_training_bias_gradients_npy(core::Network<T> &network);
+
+        /* Read the activation gradients from training traces into given network
+         * @param network       Network with the layers already initialized
+         */
+        void read_training_activation_gradients_npy(core::Network<T> &network);
+
+        /* Read the output activation gradients from training traces into given network
+         * @param network       Network with the layers already initialized
+         */
+        void read_training_output_activation_gradients_npy(core::Network<T> &network);
 
         /* Read the precision for each layer
          * @param network       Network with the layers already initialized

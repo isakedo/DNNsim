@@ -44,7 +44,7 @@ namespace core {
         }
 
         int cycles;
-        if(MINOR_BIT) cycles = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+        if(!LEADING_BIT) cycles = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
         else cycles = max_bit + 1;
         return (uint8_t)cycles;
 
@@ -110,14 +110,14 @@ namespace core {
 
             group_counter++;
             if(group_counter == WINDOWS_PER_GROUP) {
-                if(MINOR_BIT) per_group_cycles[group_index] = (uint8_t)((min_bit > max_bit) ? 1 : max_bit - min_bit + 1);
+                if(!LEADING_BIT) per_group_cycles[group_index] = (uint8_t)((min_bit > max_bit) ? 1 : max_bit - min_bit + 1);
                 else per_group_cycles[group_index] = (uint8_t)(max_bit + 1);
             }
 
         }
 
         if(group_counter < WINDOWS_PER_GROUP) {
-            if(MINOR_BIT) per_group_cycles[group_index] = (uint8_t)((min_bit > max_bit) ? 1 : max_bit - min_bit + 1);
+            if(!LEADING_BIT) per_group_cycles[group_index] = (uint8_t)((min_bit > max_bit) ? 1 : max_bit - min_bit + 1);
             else per_group_cycles[group_index] = (uint8_t)(max_bit + 1);
         }
 
@@ -198,7 +198,7 @@ namespace core {
 
             group_counter++;
             if(group_counter == WINDOWS_PER_GROUP) {
-                if(MINOR_BIT) per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+                if(!LEADING_BIT) per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
                 else per_group_cycles[group_index] = max_bit + 1;
 
             }
@@ -206,7 +206,7 @@ namespace core {
         }
 
         if(group_counter < WINDOWS_PER_GROUP) {
-            if(MINOR_BIT) per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
+            if(!LEADING_BIT) per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
             else per_group_cycles[group_index] = max_bit + 1;
 
         }
@@ -542,7 +542,7 @@ namespace core {
         arch += (DIFFY ? "_Diffy" : "");
         stats.arch = arch + "_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG" +
                 std::to_string(PRECISION_GRANULARITY) + "_CR" + std::to_string(COLUMN_REGISTERS) + "_BP" +
-                std::to_string(BITS_PE) + (MINOR_BIT ? "_MB" : "");
+                std::to_string(BITS_PE) + (LEADING_BIT ? "_LB" : "");
 
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
@@ -752,14 +752,14 @@ namespace core {
 
             group_counter++;
             if(group_counter == WINDOWS_PER_GROUP) {
-                if(MINOR_BIT) act_width[group_index] = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
+                if(!LEADING_BIT) act_width[group_index] = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
                 else act_width[group_index] = max_bit + 1;
             }
 
         }
 
         if(group_counter < WINDOWS_PER_GROUP) {
-            if(MINOR_BIT) act_width[group_index] = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
+            if(!LEADING_BIT) act_width[group_index] = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
             else act_width[group_index] = max_bit + 1;
         }
 
@@ -812,13 +812,13 @@ namespace core {
 
             group_counter++;
             if(group_counter == WINDOWS_PER_GROUP) {
-                if(MINOR_BIT) wgt_width[group_index] = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
+                if(!LEADING_BIT) wgt_width[group_index] = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
                 else wgt_width[group_index] = max_bit + 1;
             }
         }
 
         if(group_counter < WINDOWS_PER_GROUP) {
-            if(MINOR_BIT) wgt_width[group_index] = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
+            if(!LEADING_BIT) wgt_width[group_index] = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
             else wgt_width[group_index] = max_bit + 1;
         }
 
@@ -984,7 +984,7 @@ namespace core {
 
                             }
                             int width;
-                            if(MINOR_BIT) width = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
+                            if(!LEADING_BIT) width = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
                             else width = max_bit + 1;
                             act_bits_datawidth = act_bits_datawidth + (width * non_zeroes);
                         }
@@ -1048,7 +1048,7 @@ namespace core {
 
                         }
                         int width;
-                        if(MINOR_BIT) width = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
+                        if(!LEADING_BIT) width = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
                         else width = max_bit + 1;
                         wgt_bits_datawidth = wgt_bits_datawidth + (width * non_zeroes);
                     }
@@ -1157,7 +1157,7 @@ namespace core {
         stats.task_name = "average_width";
         stats.net_name = network.getName();
         stats.arch = "DynamicStripes_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG" +
-                std::to_string(PRECISION_GRANULARITY);
+                std::to_string(PRECISION_GRANULARITY) + (LEADING_BIT ? "_LB" : "");
 
         stats.act_width_need = std::vector<std::vector<std::vector<double>>>(16 + 1);
         stats.wgt_width_need = std::vector<std::vector<std::vector<double>>>(16 + 1);

@@ -35,6 +35,7 @@ namespace sys {
 
             /* Computation time per layer */
             std::vector<std::chrono::duration<double>> time;
+            std::vector<std::vector<std::chrono::duration<double>>> training_time;
 
             /* Stats for cycles */
             std::vector<std::vector<uint64_t>> cycles;
@@ -85,6 +86,40 @@ namespace sys {
             std::vector<uint64_t> zero_wgt;
             std::vector<uint64_t> total_wgt;
 
+			/* Stats for training sparsity */
+            std::vector<std::vector<double>> fw_act_sparsity;
+            std::vector<std::vector<uint64_t>> fw_zero_act;
+            std::vector<std::vector<uint64_t>> fw_total_act;
+            std::vector<std::vector<double>> fw_wgt_sparsity;
+            std::vector<std::vector<uint64_t>> fw_zero_wgt;
+            std::vector<std::vector<uint64_t>> fw_total_wgt;
+            std::vector<std::vector<double>> fw_bias_sparsity;
+            std::vector<std::vector<uint64_t>> fw_zero_bias;
+            std::vector<std::vector<uint64_t>> fw_total_bias;
+
+            std::vector<std::vector<double>> bw_in_grad_sparsity;
+            std::vector<std::vector<uint64_t>> bw_zero_in_grad;
+            std::vector<std::vector<uint64_t>> bw_total_in_grad;
+            std::vector<std::vector<double>> bw_wgt_grad_sparsity;
+            std::vector<std::vector<uint64_t>> bw_zero_wgt_grad;
+            std::vector<std::vector<uint64_t>> bw_total_wgt_grad;
+            std::vector<std::vector<double>> bw_bias_grad_sparsity;
+            std::vector<std::vector<uint64_t>> bw_zero_bias_grad;
+            std::vector<std::vector<uint64_t>> bw_total_bias_grad;
+            std::vector<std::vector<double>> bw_out_grad_sparsity;
+            std::vector<std::vector<uint64_t>> bw_zero_out_grad;
+            std::vector<std::vector<uint64_t>> bw_total_out_grad;
+
+            /* Training value distribution */
+            bool mantissa_data;
+            std::vector<std::vector<std::vector<uint64_t>>> fw_act_values;
+            std::vector<std::vector<std::vector<uint64_t>>> fw_wgt_values;
+            std::vector<std::vector<std::vector<uint64_t>>> fw_bias_values;
+            std::vector<std::vector<std::vector<uint64_t>>> bw_in_grad_values;
+            std::vector<std::vector<std::vector<uint64_t>>> bw_wgt_grad_values;
+            std::vector<std::vector<std::vector<uint64_t>>> bw_bias_grad_values;
+            std::vector<std::vector<std::vector<uint64_t>>> bw_out_grad_values;
+
             /* Stats for average width */
             std::vector<std::vector<double>> act_avg_width;
             std::vector<std::vector<double>> act_width_reduction;
@@ -101,16 +136,35 @@ namespace sys {
             std::vector<std::vector<uint64_t>> wgt_bits_datawidth;
             std::vector<std::vector<uint64_t>> wgt_bits_scnn;
 
+            /* Stats for training average width */
+            std::vector<std::vector<double>> fw_act_avg_width;
+            std::vector<std::vector<uint64_t>> fw_act_bits_baseline;
+            std::vector<std::vector<uint64_t>> fw_act_bits_datawidth;
+            std::vector<std::vector<double>> fw_wgt_avg_width;
+            std::vector<std::vector<uint64_t>> fw_wgt_bits_baseline;
+            std::vector<std::vector<uint64_t>> fw_wgt_bits_datawidth;
+
+            std::vector<std::vector<double>> bw_in_grad_avg_width;
+            std::vector<std::vector<uint64_t>> bw_in_grad_bits_baseline;
+            std::vector<std::vector<uint64_t>> bw_in_grad_bits_datawidth;
+            std::vector<std::vector<double>> bw_wgt_grad_avg_width;
+            std::vector<std::vector<uint64_t>> bw_wgt_grad_bits_baseline;
+            std::vector<std::vector<uint64_t>> bw_wgt_grad_bits_datawidth;
+            std::vector<std::vector<double>> bw_out_grad_avg_width;
+            std::vector<std::vector<uint64_t>> bw_out_grad_bits_baseline;
+            std::vector<std::vector<uint64_t>> bw_out_grad_bits_datawidth;
+
+
             template <typename T>
             T get_average(const std::vector<T> &vector_stat) const {
                 return accumulate(vector_stat.begin(), vector_stat.end(), 0.0) / vector_stat.size();
             }
 
             template <typename T>
-            T get_average(const std::vector<std::vector<T>> &vector_stat) const {
-                std::vector<T> averages = std::vector<T>(vector_stat.size(),0);
-                for(int i = 0; i < vector_stat.size(); i++) {
-                    averages[i] = this->get_average(vector_stat[i]);
+            T get_average(const std::vector<std::vector<T>> &vector_stat, bool skip_first = false) const {
+                std::vector<T> averages = std::vector<T>(vector_stat.size() - skip_first,0);
+                for(int i = skip_first; i < vector_stat.size(); i++) {
+                    averages[i - skip_first] = this->get_average(vector_stat[i]);
                 }
                 return this->get_average(averages);
             }

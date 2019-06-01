@@ -10,10 +10,10 @@ namespace core {
 
     private:
 
-        /* Matrix width */
+        /* Systolic array width */
         const int M;
 
-        /* Matrix height */
+        /* Systolic array height */
         const int N;
 
         /* Maximum precision */

@@ -69,10 +69,10 @@ namespace interface {
             for (size_t length : layer.getActivations().getShape())
                 layer_proto->add_act_shape((int) length);
 
-            if(this->activate_bias_and_out_act) {
+            if(this->bias_and_out_act) {
                 for (size_t length : layer.getBias().getShape())
                     layer_proto->add_bias_shape((int) length);
-                for (size_t length : layer.getOutput_activations().getShape())
+                for (size_t length : layer.getOutputActivations().getShape())
                     layer_proto->add_out_act_shape((int) length);
             }
 
@@ -83,11 +83,11 @@ namespace interface {
                 for (unsigned long long i = 0; i < layer.getActivations().getMax_index(); i++)
                     layer_proto->add_act_data_flt(layer.getActivations().get(i));
 
-                if (this->activate_bias_and_out_act) {
+                if (this->bias_and_out_act) {
                     for (unsigned long long i = 0; i < layer.getBias().getMax_index(); i++)
                         layer_proto->add_bias_data_flt(layer.getBias().get(i));
-                    for (unsigned long long i = 0; i < layer.getOutput_activations().getMax_index(); i++)
-                        layer_proto->add_out_act_data_flt(layer.getOutput_activations().get(i));
+                    for (unsigned long long i = 0; i < layer.getOutputActivations().getMax_index(); i++)
+                        layer_proto->add_out_act_data_flt(layer.getOutputActivations().get(i));
                 }
 
             } else if (TENSORFLOW_8b && type == "f4" && this->data_conversion == "Fixed16") {
@@ -116,7 +116,7 @@ namespace interface {
                     layer_proto->add_act_data_fxd(tensorflow_8b_precision(layer.getActivations().get(i),scale_input_act,
                             min_input_act,max_fixed,min_fixed));
 
-                if (this->activate_bias_and_out_act) {
+                if (this->bias_and_out_act) {
 
                     auto max_bias = layer.getBias().max();
                     auto min_bias = layer.getBias().min();
@@ -127,13 +127,13 @@ namespace interface {
                         layer_proto->add_bias_data_fxd(tensorflow_8b_precision(layer.getBias().get(i),scale_bias,
                                 min_bias,max_fixed,min_fixed));
 
-                    auto max_output_act = layer.getOutput_activations().max();
-                    auto min_output_act = layer.getOutput_activations().min();
+                    auto max_output_act = layer.getOutputActivations().max();
+                    auto min_output_act = layer.getOutputActivations().min();
                     auto range_output_act = (max_output_act - min_output_act) * range_adjust;
                     auto scale_output_act = num_discrete_values / range_output_act;
 
-                    for (unsigned long long i = 0; i < layer.getOutput_activations().getMax_index(); i++)
-                        layer_proto->add_out_act_data_fxd(tensorflow_8b_precision(layer.getOutput_activations().get(i),
+                    for (unsigned long long i = 0; i < layer.getOutputActivations().getMax_index(); i++)
+                        layer_proto->add_out_act_data_fxd(tensorflow_8b_precision(layer.getOutputActivations().get(i),
                                 scale_output_act,min_output_act,max_fixed,min_fixed));
                 }
 
@@ -146,11 +146,11 @@ namespace interface {
                     layer_proto->add_act_data_fxd(profiled_precision(layer.getActivations().get(i),
                             layer.getAct_magnitude(),layer.getAct_fraction()));
 
-                if (this->activate_bias_and_out_act) {
+                if (this->bias_and_out_act) {
                     for (unsigned long long i = 0; i < layer.getBias().getMax_index(); i++)
                         layer_proto->add_bias_data_fxd(profiled_precision(layer.getBias().get(i),1 + 0,15));
-                    for (unsigned long long i = 0; i < layer.getOutput_activations().getMax_index(); i++)
-                        layer_proto->add_out_act_data_fxd(profiled_precision(layer.getOutput_activations().get(i),
+                    for (unsigned long long i = 0; i < layer.getOutputActivations().getMax_index(); i++)
+                        layer_proto->add_out_act_data_fxd(profiled_precision(layer.getOutputActivations().get(i),
                                 1 + 13,2));
                 }
 
@@ -161,11 +161,11 @@ namespace interface {
                 for (unsigned long long i = 0; i < layer.getActivations().getMax_index(); i++)
                     layer_proto->add_act_data_fxd(layer.getActivations().get(i));
 
-                if (this->activate_bias_and_out_act) {
+                if (this->bias_and_out_act) {
                     for (unsigned long long i = 0; i < layer.getBias().getMax_index(); i++)
                         layer_proto->add_bias_data_fxd(layer.getBias().get(i));
-                    for (unsigned long long i = 0; i < layer.getOutput_activations().getMax_index(); i++)
-                        layer_proto->add_out_act_data_fxd(layer.getOutput_activations().get(i));
+                    for (unsigned long long i = 0; i < layer.getOutputActivations().getMax_index(); i++)
+                        layer_proto->add_out_act_data_fxd(layer.getOutputActivations().get(i));
                 }
 
             }

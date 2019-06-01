@@ -5,6 +5,7 @@
 #include <sys/Statistics.h>
 
 //#define PER_IMAGE_RESULTS
+#define PER_EPOCH_RESULTS
 
 namespace interface {
 

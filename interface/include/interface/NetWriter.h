@@ -27,7 +27,7 @@ namespace interface {
         std::string data_conversion;
 
         /* Also write bias and output activations */
-        bool activate_bias_and_out_act;
+        bool bias_and_out_act;
 
         /* Force the writer to overwrite the output files */
         bool OVERWRITE;
@@ -63,13 +63,13 @@ namespace interface {
         /* Constructor
          * @param _path                         Path containing the files with the network architecture
          * @param _data_conversion              Specification of the data transformation when writing the network
-         * @param _activate_bias_and_out_act    Also write bias and output activations
+         * @param _bias_and_out_act             Also write bias and output activations
          * @param _OVERWRITE                    Force the writer to overwrite the output files
          * @param _TENSORFLOW_8b                Activate Tensorflow 8b quantization
          */
-        NetWriter(const std::string &_name, const std::string &_data_conversion, bool _activate_bias_and_out_act,
-                bool _OVERWRITE, bool _TENSORFLOW_8b) : activate_bias_and_out_act(_activate_bias_and_out_act),
-                OVERWRITE(_OVERWRITE), TENSORFLOW_8b(_TENSORFLOW_8b) {
+        NetWriter(const std::string &_name, const std::string &_data_conversion, bool _bias_and_out_act,
+                bool _OVERWRITE, bool _TENSORFLOW_8b) : bias_and_out_act(_bias_and_out_act), OVERWRITE(_OVERWRITE),
+                TENSORFLOW_8b(_TENSORFLOW_8b) {
             this->name = _name;
             this->data_conversion = _data_conversion;
         }

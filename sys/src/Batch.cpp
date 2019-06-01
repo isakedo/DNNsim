@@ -16,7 +16,7 @@ namespace sys {
         Batch::Transform transform;
         std::string value;
         transform.network = transform_proto.network();
-        transform.activate_bias_out_act = transform_proto.activate_bias_and_out_act();
+        transform.bias_and_out_act = transform_proto.bias_and_out_act();
         transform.batch = transform_proto.batch();
         transform.tensorflow_8b = transform_proto.tensorflow_8b();
 
@@ -55,14 +55,83 @@ namespace sys {
         return transform;
     }
 
-    Batch::Simulate Batch::read_simulation(const protobuf::Batch_Simulate &simulate_proto) {
+    Batch::Simulate Batch::read_training_simulation(const protobuf::Batch_Simulate &simulate_proto) {
         Batch::Simulate simulate;
         std::string value;
         simulate.network = simulate_proto.network();
-        simulate.activate_bias_out_act = simulate_proto.activate_bias_and_out_act();
+        simulate.bias_and_out_act = simulate_proto.bias_and_out_act();
         simulate.batch = simulate_proto.batch();
+        simulate.epochs = simulate_proto.epochs() < 1 ? 1 : simulate_proto.epochs();
         simulate.tensorflow_8b = simulate_proto.tensorflow_8b();
         simulate.network_bits = simulate_proto.network_bits() < 1 ? 16 : simulate_proto.network_bits();
+		simulate.training = simulate_proto.training();
+        simulate.only_forward = simulate_proto.only_forward();
+        simulate.only_backward = simulate_proto.only_backward();
+        simulate.decoder_states = simulate_proto.decoder_states();
+        if(simulate.tensorflow_8b) simulate.network_bits = 8;
+
+        value = simulate_proto.inputtype();
+        if(value != "Trace")
+            throw std::runtime_error("Training input type configuration for network " + simulate.network +
+                                     " must be <Trace>.");
+        else
+            simulate.inputType = simulate_proto.inputtype();
+
+        if(simulate_proto.inputdatatype() != "BFloat16")
+            throw std::runtime_error("Training input data type configuration for network " + simulate.network +
+                                     " must be <BFloat16>.");
+        else
+            simulate.inputDataType = simulate_proto.inputdatatype();
+
+        if (simulate.inputDataType == "BFloat16") {
+            for(const auto &experiment_proto : simulate_proto.experiment()) {
+
+                Batch::Simulate::Experiment experiment;
+                if(experiment_proto.architecture() == "None") {
+
+                    value = experiment_proto.task();
+                    if(value != "Sparsity" && value != "ExpBitSparsity" && value != "MantBitSparsity" &&
+                            value != "ExpDistr" && value != "MantDistr")
+                        throw std::runtime_error("Training task for network " + simulate.network + " in BFloat16 for"
+                                                 " architecture None must be <Sparsity|ExpBitSparsity|MantBitSparsity|"
+                                                 "ExpDistr|MantDistr>.");
+
+                } else if(experiment_proto.architecture() == "DynamicStripesFP") {
+                    experiment.leading_bit = experiment_proto.leading_bit();
+                    experiment.minor_bit = experiment_proto.minor_bit();
+
+                } else throw std::runtime_error("Training architecture for network " + simulate.network +
+                                                " in BFloat16 must be <DynamicStripesFP>.");
+
+                value = experiment_proto.task();
+                if(experiment_proto.architecture() != "None" and value != "AvgWidth")
+                    throw std::runtime_error("Training task for network " + simulate.network +
+                                             " in BFloat16 must be <AvgWidth>.");
+
+                if(experiment_proto.architecture() != "DynamicStripesFP" && experiment_proto.task() == "AvgWidth")
+                    throw std::runtime_error("Training task \"AvgWidth\" for network " + simulate.network +
+                                             " in BFloat16 is only allowed for DynamicStripesFP.");
+
+                experiment.architecture = experiment_proto.architecture();
+                experiment.task = experiment_proto.task();
+                simulate.experiments.emplace_back(experiment);
+
+            }
+        }
+
+        return simulate;
+    }
+
+    Batch::Simulate Batch::read_inference_simulation(const protobuf::Batch_Simulate &simulate_proto) {
+        Batch::Simulate simulate;
+        std::string value;
+        simulate.network = simulate_proto.network();
+        simulate.bias_and_out_act = simulate_proto.bias_and_out_act();
+        simulate.batch = simulate_proto.batch();
+        simulate.epochs = simulate_proto.epochs() < 1 ? 1 : simulate_proto.epochs();
+        simulate.tensorflow_8b = simulate_proto.tensorflow_8b();
+        simulate.network_bits = simulate_proto.network_bits() < 1 ? 16 : simulate_proto.network_bits();
+		simulate.training = simulate_proto.training();
         if(simulate.tensorflow_8b) simulate.network_bits = 8;
 
         value = simulate_proto.inputtype();
@@ -109,7 +178,7 @@ namespace sys {
                     experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 256 :
                             experiment_proto.precision_granularity();
                     experiment.bits_pe = experiment_proto.bits_pe() < 1 ? 16 : experiment_proto.bits_pe();
-                    experiment.minor_bit = experiment_proto.minor_bit();
+                    experiment.leading_bit = experiment_proto.leading_bit();
                     experiment.diffy = experiment_proto.diffy();
                     if(experiment.precision_granularity % 16 != 0 ||
                             (((experiment.n_columns * 16) % experiment.precision_granularity) != 0))
@@ -118,12 +187,12 @@ namespace sys {
 
                 } else if(experiment_proto.architecture() == "Loom") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
-                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 128 : experiment_proto.n_rows();
+                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 256 :
                             experiment_proto.precision_granularity();
                     experiment.pe_serial_bits = experiment_proto.pe_serial_bits() < 1 ? 1 :
                             experiment_proto.pe_serial_bits();
-                    experiment.minor_bit = experiment_proto.minor_bit();
+                    experiment.leading_bit = experiment_proto.leading_bit();
                     experiment.dynamic_weights = experiment_proto.dynamic_weights();
                     if(experiment.precision_granularity % 16 != 0 ||
                        (((experiment.n_columns * 16) % experiment.precision_granularity) != 0))
@@ -136,7 +205,7 @@ namespace sys {
 
                 } else if (experiment_proto.architecture() == "Laconic") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
-                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 128 : experiment_proto.n_rows();
+                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
 
                 } else if (experiment_proto.architecture() == "BitTacticalP") {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
@@ -149,7 +218,7 @@ namespace sys {
                     experiment.search_shape = experiment_proto.search_shape().empty() ? 'L' :
                             experiment_proto.search_shape().c_str()[0];
                     experiment.read_schedule_from_proto = experiment_proto.read_schedule_from_proto();
-                    experiment.minor_bit = experiment_proto.minor_bit();
+                    experiment.leading_bit = experiment_proto.leading_bit();
                     value = experiment.search_shape;
                     if(value != "L" && value != "T")
                         throw std::runtime_error("BitTactical search shape for network " + simulate.network +
@@ -264,8 +333,8 @@ namespace sys {
                         throw std::runtime_error("Task for network " + simulate.network + " in Float32 for architecture"
                                                  " None must be <Inference|Sparsity>.");
 
-                    if(experiment_proto.task() == "Inference" && !simulate_proto.activate_bias_and_out_act())
-                        throw std::runtime_error("Inference task requires flag \"activate_bias_and_out_act\"");
+                    if(experiment_proto.task() == "Inference" && !simulate_proto.bias_and_out_act())
+                        throw std::runtime_error("Inference task requires flag \"bias_and_out_act\"");
 
                 } else if (experiment_proto.architecture() == "SCNN") {
                     experiment.Wt = experiment_proto.wt() < 1 ? 8 : experiment_proto.wt();
@@ -334,7 +403,8 @@ namespace sys {
 
         for(const auto &simulate : batch.simulate()) {
             try {
-                this->simulations.emplace_back(read_simulation(simulate));
+                this->simulations.emplace_back(simulate.training() ? 
+					read_training_simulation(simulate) : read_inference_simulation(simulate));
             } catch (std::exception &exception) {
                 std::cerr << "Prototxt simulation error: " << exception.what() << std::endl;
                 #ifdef STOP_AFTER_ERROR

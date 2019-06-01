@@ -1,8 +1,8 @@
 simulate {
 	network: "bvlc_alexnet"
-	inputType: "Gzip"
+	inputType: "Caffe"
 	inputDataType: "Float32"
-	activate_bias_and_out_act: true
+	bias_and_out_act: true
 	experiment {
 	    architecture: "None"
 	    task: "Inference"
@@ -13,7 +13,7 @@ simulate {
 	network: "bvlc_googlenet"
 	inputType: "Caffe"
 	inputDataType: "Float32"
-	activate_bias_and_out_act: true
+	bias_and_out_act: true
 	experiment {
 	    architecture: "None"
 	    task: "Inference"
