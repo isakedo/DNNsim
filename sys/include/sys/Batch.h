@@ -13,18 +13,6 @@ namespace sys {
 
     public:
 
-        /* Struct for the Transform instructions */
-        struct Transform {
-            int batch = 0;
-            std::string inputType = "";
-            std::string inputDataType = "";
-            std::string outputType = "";
-            std::string outputDataType = "";
-            std::string network = "";
-            bool bias_and_out_act = false;
-            bool tensorflow_8b = false;
-        };
-
         /* Struct for the Simulate instructions */
         struct Simulate {
 
@@ -60,11 +48,10 @@ namespace sys {
 
             int batch = 0;
             int epochs = 0;
-            std::string inputType = "";
-            std::string inputDataType = "";
+            std::string model = "";
+            std::string data_type = "";
             std::string network = "";
             int network_bits = 0;
-            bool bias_and_out_act = false;
             bool tensorflow_8b = false;
             bool training = false;
             bool only_forward = false;
@@ -78,16 +65,8 @@ namespace sys {
         /* Path to the batch file */
         std::string path;
 
-        /* Transformations */
-        std::vector<Transform> transformations;
-
         /* Simulations */
         std::vector<Simulate> simulations;
-
-        /* Return the transformation parsed from the prototxt file
-         * @param transform_proto   prototxt transformation
-         */
-        Transform read_transformation(const protobuf::Batch_Transform &transform_proto);
 
         /* Return the training simulation parsed from the prototxt file
          * @param simulate_proto   prototxt simulation
@@ -110,7 +89,6 @@ namespace sys {
         void read_batch();
 
         /* Getters */
-        const std::vector<Transform> &getTransformations() const;
         const std::vector<Simulate> &getSimulations() const;
 
     };

@@ -226,7 +226,7 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.sign_magnitude_representation(layer.getAct_precision());
+        act.sign_magnitude_representation(layer.getActPrecision());
         cnpy::Array<T> wgt = layer.getWeights();
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
@@ -424,7 +424,7 @@ namespace core {
         int it_per_group = num_filters / groups;
 
         // Get layer precision
-        auto act_layer_prec = layer.getAct_precision();
+        auto act_layer_prec = layer.getActPrecision();
 
         // Operations
         const auto parallel_mult = (uint64_t)(num_filters * out_x * out_y * Kx * Ky * wgt_channels);
@@ -504,7 +504,7 @@ namespace core {
         if(this->FAST_MODE) batch_size = 1;
 
         // Get layer precision
-        auto act_layer_prec = layer.getAct_precision();
+        auto act_layer_prec = layer.getActPrecision();
 
         // Operations
         const auto parallel_mult = (uint64_t)num_filters * wgt_channels * R;
@@ -558,12 +558,12 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
                 stats.wgt_prec.push_back(0);
                 computePotentialsConvolution(layer,stats,network.getNetwork_bits());
             } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
                 stats.wgt_prec.push_back(0);
                 computePotentialsInnerProduct(layer,stats,network.getNetwork_bits());
             }

@@ -49,8 +49,8 @@ namespace core {
         long out_y = (Ny - Ky)/stride + 1;
 
         // Get layer precision
-        auto act_layer_prec = layer.getAct_precision();
-        auto wgt_layer_prec = layer.getWgt_precision();
+        auto act_layer_prec = layer.getActPrecision();
+        auto wgt_layer_prec = layer.getWgtPrecision();
 
         auto columns_per_act = (int)ceil(act_layer_prec / (double)BITS_PE);
         auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
@@ -129,8 +129,8 @@ namespace core {
         long out_y = (Ny - Ky)/stride + 1;
 
         // Get layer precision
-        auto act_layer_prec = layer.getAct_precision();
-        auto wgt_layer_prec = layer.getWgt_precision();
+        auto act_layer_prec = layer.getActPrecision();
+        auto wgt_layer_prec = layer.getWgtPrecision();
 
         auto columns_per_act = (int)ceil(act_layer_prec / (double)BITS_PE);
         auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
@@ -215,8 +215,8 @@ namespace core {
         int num_filters = wgt_shape[0];
 
         // Get layer precision
-        auto act_layer_prec = layer.getAct_precision();
-        auto wgt_layer_prec = layer.getWgt_precision();
+        auto act_layer_prec = layer.getActPrecision();
+        auto wgt_layer_prec = layer.getWgtPrecision();
 
         auto columns_per_act = (int)ceil(act_layer_prec / (double)BITS_PE);
         auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
@@ -302,16 +302,16 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
-                stats.wgt_prec.push_back(layer.getWgt_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
+                stats.wgt_prec.push_back(layer.getWgtPrecision());
                 if(layer.getWeights().getShape()[1] == 1 && layer.getActivations().getShape()[1] != 1)
                     computeConvolution2D(layer, stats);
                 else
                     computeConvolution(layer, stats);
             } else if(layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
-                stats.wgt_prec.push_back(layer.getWgt_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
+                stats.wgt_prec.push_back(layer.getWgtPrecision());
                 computeInnerProduct(layer, stats);
             }
         }
@@ -359,7 +359,7 @@ namespace core {
         uint64_t bit_counter = 0;
 
         // Get layer precision
-        auto layer_prec = layer.getAct_precision();
+        auto layer_prec = layer.getActPrecision();
 
         // Convolution
         for(int n=0; n<batch_size; n++) {
@@ -406,7 +406,7 @@ namespace core {
         uint64_t bit_counter = 0;
 
         // Get layer precision
-        auto layer_prec = layer.getAct_precision();
+        auto layer_prec = layer.getActPrecision();
 
         for (int n = 0; n<batch_size; n++) {
             bit_counter = (uint64_t)computeStripesBitsPE((uint8_t)layer_prec,network_bits) * wgt_channels * num_filters
@@ -438,12 +438,12 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
                 stats.wgt_prec.push_back(0);
                 computePotentialsConvolution(layer,stats,network.getNetwork_bits());
             } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
                 stats.wgt_prec.push_back(0);
                 computePotentialsInnerProduct(layer,stats,network.getNetwork_bits());
             }

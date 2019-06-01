@@ -62,8 +62,8 @@ namespace core {
         long out_y = (Ny - Ky)/stride + 1;
 
         // Get layer precision
-        auto act_layer_prec = layer.getAct_precision();
-        auto wgt_layer_prec = layer.getWgt_precision();
+        auto act_layer_prec = layer.getActPrecision();
+        auto wgt_layer_prec = layer.getWgtPrecision();
 
         uint8_t time_multiplex = 1;
         if(act_layer_prec > 8) {
@@ -113,8 +113,8 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution" || layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
-                stats.wgt_prec.push_back(layer.getWgt_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
+                stats.wgt_prec.push_back(layer.getWgtPrecision());
                 computeLayer(layer, stats);
             }
         }
@@ -162,11 +162,11 @@ namespace core {
         uint64_t bit_counter = 0;
 
         // Get layer precision
-        auto act_layer_prec = layer.getAct_precision();
+        auto act_layer_prec = layer.getActPrecision();
         auto act_rounded_log2 = ceil(log(act_layer_prec)/log(2));
         auto act_rounded_precision = (uint8_t)pow(2,act_rounded_log2);
 
-        auto wgt_layer_prec = layer.getWgt_precision();
+        auto wgt_layer_prec = layer.getWgtPrecision();
         auto wgt_rounded_log2 = ceil(log(wgt_layer_prec)/log(2));
         auto wgt_rounded_precision = (uint8_t)pow(2,wgt_rounded_log2);
 
@@ -215,11 +215,11 @@ namespace core {
         uint64_t bit_counter = 0;
 
         // Get layer precision
-        auto act_layer_prec = layer.getAct_precision();
+        auto act_layer_prec = layer.getActPrecision();
         auto act_rounded_log2 = ceil(log(act_layer_prec)/log(2));
         auto act_rounded_precision = (uint8_t)pow(2,act_rounded_log2);
 
-        auto wgt_layer_prec = layer.getWgt_precision();
+        auto wgt_layer_prec = layer.getWgtPrecision();
         auto wgt_rounded_log2 = ceil(log(wgt_layer_prec)/log(2));
         auto wgt_rounded_precision = (uint8_t)pow(2,wgt_rounded_log2);
 
@@ -253,13 +253,13 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
-                stats.wgt_prec.push_back(layer.getWgt_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
+                stats.wgt_prec.push_back(layer.getWgtPrecision());
                 computePotentialsConvolution(layer,stats,network.getNetwork_bits());
             } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
-                stats.wgt_prec.push_back(layer.getWgt_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
+                stats.wgt_prec.push_back(layer.getWgtPrecision());
                 computePotentialsInnerProduct(layer,stats,network.getNetwork_bits());
             }
         }

@@ -93,9 +93,6 @@ namespace sys {
             std::vector<std::vector<double>> fw_wgt_sparsity;
             std::vector<std::vector<uint64_t>> fw_zero_wgt;
             std::vector<std::vector<uint64_t>> fw_total_wgt;
-            std::vector<std::vector<double>> fw_bias_sparsity;
-            std::vector<std::vector<uint64_t>> fw_zero_bias;
-            std::vector<std::vector<uint64_t>> fw_total_bias;
 
             std::vector<std::vector<double>> bw_in_grad_sparsity;
             std::vector<std::vector<uint64_t>> bw_zero_in_grad;
@@ -103,9 +100,6 @@ namespace sys {
             std::vector<std::vector<double>> bw_wgt_grad_sparsity;
             std::vector<std::vector<uint64_t>> bw_zero_wgt_grad;
             std::vector<std::vector<uint64_t>> bw_total_wgt_grad;
-            std::vector<std::vector<double>> bw_bias_grad_sparsity;
-            std::vector<std::vector<uint64_t>> bw_zero_bias_grad;
-            std::vector<std::vector<uint64_t>> bw_total_bias_grad;
             std::vector<std::vector<double>> bw_out_grad_sparsity;
             std::vector<std::vector<uint64_t>> bw_zero_out_grad;
             std::vector<std::vector<uint64_t>> bw_total_out_grad;
@@ -114,10 +108,8 @@ namespace sys {
             bool mantissa_data;
             std::vector<std::vector<std::vector<uint64_t>>> fw_act_values;
             std::vector<std::vector<std::vector<uint64_t>>> fw_wgt_values;
-            std::vector<std::vector<std::vector<uint64_t>>> fw_bias_values;
             std::vector<std::vector<std::vector<uint64_t>>> bw_in_grad_values;
             std::vector<std::vector<std::vector<uint64_t>>> bw_wgt_grad_values;
-            std::vector<std::vector<std::vector<uint64_t>>> bw_bias_grad_values;
             std::vector<std::vector<std::vector<uint64_t>>> bw_out_grad_values;
 
             /* Stats for average width */

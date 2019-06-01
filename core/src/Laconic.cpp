@@ -85,9 +85,9 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation(layer.getAct_precision());
+        act.powers_of_two_representation(layer.getActPrecision());
         cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation(layer.getWgt_precision());
+        wgt.powers_of_two_representation(layer.getWgtPrecision());
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
         int padding = layer.getPadding();
@@ -169,9 +169,9 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation(layer.getAct_precision());
+        act.powers_of_two_representation(layer.getActPrecision());
         cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation(layer.getWgt_precision());
+        wgt.powers_of_two_representation(layer.getWgtPrecision());
         wgt.reshape_to_4D();
 
         if(layer.getType() == "InnerProduct") {
@@ -293,9 +293,9 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation(layer.getAct_precision());
+        act.powers_of_two_representation(layer.getActPrecision());
         cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation(layer.getWgt_precision());
+        wgt.powers_of_two_representation(layer.getWgtPrecision());
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
         const std::vector<size_t> &act_shape = act.getShape();
@@ -383,10 +383,10 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation(layer.getAct_precision());
+        act.powers_of_two_representation(layer.getActPrecision());
         if(act.getDimensions() == 4) act.reshape_to_2D();
         cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation(layer.getWgt_precision());
+        wgt.powers_of_two_representation(layer.getWgtPrecision());
 
         bool lstm = layer.getType() == "LSTM";
 
@@ -451,13 +451,13 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
-                stats.wgt_prec.push_back(layer.getWgt_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
+                stats.wgt_prec.push_back(layer.getWgtPrecision());
                 computePotentialsConvolution(layer,stats,network.getNetwork_bits());
             } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
-                stats.wgt_prec.push_back(layer.getWgt_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
+                stats.wgt_prec.push_back(layer.getWgtPrecision());
                 computePotentialsInnerProduct(layer,stats,network.getNetwork_bits());
             }
         }

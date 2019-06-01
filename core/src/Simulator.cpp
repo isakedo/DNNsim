@@ -258,9 +258,6 @@ namespace core {
 				stats.fw_wgt_sparsity.emplace_back(std::vector<double>(epochs,0));
         		stats.fw_zero_wgt.emplace_back(std::vector<uint64_t>(epochs,0));
         		stats.fw_total_wgt.emplace_back(std::vector<uint64_t>(epochs,0));
-                stats.fw_bias_sparsity.emplace_back(std::vector<double>(epochs,0));
-                stats.fw_zero_bias.emplace_back(std::vector<uint64_t>(epochs,0));
-                stats.fw_total_bias.emplace_back(std::vector<uint64_t>(epochs,0));
 
 				stats.bw_in_grad_sparsity.emplace_back(std::vector<double>(epochs,0));
         		stats.bw_zero_in_grad.emplace_back(std::vector<uint64_t>(epochs,0));
@@ -268,9 +265,6 @@ namespace core {
 				stats.bw_wgt_grad_sparsity.emplace_back(std::vector<double>(epochs,0));
         		stats.bw_zero_wgt_grad.emplace_back(std::vector<uint64_t>(epochs,0));
         		stats.bw_total_wgt_grad.emplace_back(std::vector<uint64_t>(epochs,0));
-                stats.bw_bias_grad_sparsity.emplace_back(std::vector<double>(epochs,0));
-                stats.bw_zero_bias_grad.emplace_back(std::vector<uint64_t>(epochs,0));
-                stats.bw_total_bias_grad.emplace_back(std::vector<uint64_t>(epochs,0));
                 stats.bw_out_grad_sparsity.emplace_back(std::vector<double>(epochs,0));
                 stats.bw_zero_out_grad.emplace_back(std::vector<uint64_t>(epochs,0));
                 stats.bw_total_out_grad.emplace_back(std::vector<uint64_t>(epochs,0));
@@ -339,34 +333,6 @@ namespace core {
                 stats.bw_total_out_grad[layer_it][epoch] = out_act_grad.getMax_index();
 			}
 
-            if(!layer.getBias().getShape().empty()) {
-
-                uint64_t zero_bias = 0;
-                const auto &bias = layer.getBias();
-                for(uint64_t i = 0; i < bias.getMax_index(); i++) {
-                    const auto data = bias.get(i);
-                    if(data == 0) zero_bias++;
-                }
-
-                stats.fw_bias_sparsity[layer_it][epoch] = zero_bias / (double)bias.getMax_index() * 100.;
-                stats.fw_zero_bias[layer_it][epoch] = zero_bias;
-                stats.fw_total_bias[layer_it][epoch] = bias.getMax_index();
-            }
-
-            if(!layer.getBiasGradients().getShape().empty()) {
-
-                uint64_t zero_bias_grad = 0;
-                const auto &bias_grad = layer.getBiasGradients();
-                for(uint64_t i = 0; i < bias_grad.getMax_index(); i++) {
-                    const auto data = bias_grad.get(i);
-                    if(data == 0) zero_bias_grad++;
-                }
-
-                stats.bw_bias_grad_sparsity[layer_it][epoch] = zero_bias_grad / (double)bias_grad.getMax_index() * 100.;
-                stats.bw_zero_bias_grad[layer_it][epoch] = zero_bias_grad;
-                stats.bw_total_bias_grad[layer_it][epoch] = bias_grad.getMax_index();
-            }
-
         }
 
 	}
@@ -396,9 +362,7 @@ namespace core {
                 stats.fw_wgt_sparsity.emplace_back(std::vector<double>(epochs,0));
                 stats.fw_zero_wgt.emplace_back(std::vector<uint64_t>(epochs,0));
                 stats.fw_total_wgt.emplace_back(std::vector<uint64_t>(epochs,0));
-                stats.fw_bias_sparsity.emplace_back(std::vector<double>(epochs,0));
-                stats.fw_zero_bias.emplace_back(std::vector<uint64_t>(epochs,0));
-                stats.fw_total_bias.emplace_back(std::vector<uint64_t>(epochs,0));
+
 
                 stats.bw_in_grad_sparsity.emplace_back(std::vector<double>(epochs,0));
                 stats.bw_zero_in_grad.emplace_back(std::vector<uint64_t>(epochs,0));
@@ -406,9 +370,6 @@ namespace core {
                 stats.bw_wgt_grad_sparsity.emplace_back(std::vector<double>(epochs,0));
                 stats.bw_zero_wgt_grad.emplace_back(std::vector<uint64_t>(epochs,0));
                 stats.bw_total_wgt_grad.emplace_back(std::vector<uint64_t>(epochs,0));
-                stats.bw_bias_grad_sparsity.emplace_back(std::vector<double>(epochs,0));
-                stats.bw_zero_bias_grad.emplace_back(std::vector<uint64_t>(epochs,0));
-                stats.bw_total_bias_grad.emplace_back(std::vector<uint64_t>(epochs,0));
                 stats.bw_out_grad_sparsity.emplace_back(std::vector<double>(epochs,0));
                 stats.bw_zero_out_grad.emplace_back(std::vector<uint64_t>(epochs,0));
                 stats.bw_total_out_grad.emplace_back(std::vector<uint64_t>(epochs,0));
@@ -494,41 +455,6 @@ namespace core {
                 stats.bw_total_out_grad[layer_it][epoch] = out_act_grad.getMax_index() * MAX_ONES;
             }
 
-            if(!layer.getBias().getShape().empty()) {
-
-                uint64_t zero_bias_bits = 0;
-                const auto &bias = layer.getBias();
-                for(uint64_t i = 0; i < bias.getMax_index(); i++) {
-                    const auto data_float = bias.get(i);
-                    auto data_bfloat = this->split_bfloat16(data_float);
-                    auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                    auto ones = effectualBits(bin_value);
-                    zero_bias_bits += (MAX_ONES - ones);
-                }
-
-                stats.fw_bias_sparsity[layer_it][epoch] = zero_bias_bits / (bias.getMax_index() * MAX_ONES) * 100.;
-                stats.fw_zero_bias[layer_it][epoch] = zero_bias_bits;
-                stats.fw_total_bias[layer_it][epoch] = bias.getMax_index() * MAX_ONES;
-            }
-
-            if(!layer.getBiasGradients().getShape().empty()) {
-
-                uint64_t zero_bias_grad_bits = 0;
-                const auto &bias_grad = layer.getBiasGradients();
-                for(uint64_t i = 0; i < bias_grad.getMax_index(); i++) {
-                    const auto data_float = bias_grad.get(i);
-                    auto data_bfloat = this->split_bfloat16(data_float);
-                    auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                    auto ones = effectualBits(bin_value);
-                    zero_bias_grad_bits += (MAX_ONES - ones);
-                }
-
-                stats.bw_bias_grad_sparsity[layer_it][epoch] = zero_bias_grad_bits /
-                        (bias_grad.getMax_index() * MAX_ONES) * 100.;
-                stats.bw_zero_bias_grad[layer_it][epoch] = zero_bias_grad_bits;
-                stats.bw_total_bias_grad[layer_it][epoch] = bias_grad.getMax_index() * MAX_ONES;
-            }
-
         }
 
     }
@@ -548,10 +474,8 @@ namespace core {
 
             stats.fw_act_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
             stats.fw_wgt_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
-            stats.fw_bias_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
             stats.bw_in_grad_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
             stats.bw_wgt_grad_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
-            stats.bw_bias_grad_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
             stats.bw_out_grad_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
         }
 
@@ -565,10 +489,8 @@ namespace core {
                 for(int i = 0; i < MAX_VALUE; i++) {
                     stats.fw_act_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
                     stats.fw_wgt_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
-                    stats.fw_bias_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
                     stats.bw_in_grad_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
                     stats.bw_wgt_grad_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
-                    stats.bw_bias_grad_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
                     stats.bw_out_grad_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
                 }
             }
@@ -618,28 +540,6 @@ namespace core {
                     auto data_bfloat = this->split_bfloat16(data_float);
                     auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
                     stats.bw_out_grad_values[bin_value][layer_it][epoch]++;
-                }
-            }
-
-            if(!layer.getBias().getShape().empty()) {
-
-                const auto &bias = layer.getBias();
-                for(uint64_t i = 0; i < bias.getMax_index(); i++) {
-                    const auto data_float = bias.get(i);
-                    auto data_bfloat = this->split_bfloat16(data_float);
-                    auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                    stats.fw_bias_values[bin_value][layer_it][epoch]++;
-                }
-            }
-
-            if(!layer.getBiasGradients().getShape().empty()) {
-
-                const auto &bias_grad = layer.getBiasGradients();
-                for(uint64_t i = 0; i < bias_grad.getMax_index(); i++) {
-                    const auto data_float = bias_grad.get(i);
-                    auto data_bfloat = this->split_bfloat16(data_float);
-                    auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                    stats.bw_bias_grad_values[bin_value][layer_it][epoch]++;
                 }
             }
 

@@ -59,6 +59,63 @@ namespace cnpy {
          */
         void set_values(const std::vector<T> &_data, const std::vector<size_t> &_shape);
 
+        /*  Return the value inside the vector given the fourth dimensions
+         * @param i     Index for the first dimension
+         * @param j     Index for the second dimension
+         * @param k     Index for the third dimension
+         * @param l     Index for the fourth dimension
+         *
+         * @return      return the value given by the index
+         */
+        T get(int i, int j, int k, int l) const;
+
+        /*  Return the value inside the vector given the fourth dimensions
+         * @param i     Index for the first dimension
+         * @param j     Index for the second dimension
+         * @param k     Index for the third dimension
+         *
+         * @return      return the value given by the index
+         */
+        T get(int i, int j, int k) const;
+
+        /*  Return the value inside the vector given the two dimensions
+         * @param i     Index for the first dimension
+         * @param j     Index for the second dimension
+         *
+         * @return      return the value given by the index
+         */
+        T get(int i, int j) const;
+
+        /*  Return the value inside the vector given one dimension
+         * @param index Index for the array
+         *
+         * @return      return the value given by the index
+         */
+        T get(unsigned long long index) const;
+
+        /* Return the number of dimensions of the array
+         * @return  Number of dimensions of the array
+         */
+        unsigned long getDimensions() const;
+
+        /* Get shape of the array
+         */
+        const std::vector<size_t> &getShape() const;
+
+        /* Get Maximum index
+         */
+        unsigned long long getMax_index() const;
+
+        /* Return a fixed point array given profiled precisions
+         * @param mag   Magnitude (without sign bit)
+         * @param frac  Fraction
+         */
+        Array<uint16_t> profiled_fixed_point(int mag, int frac) const;
+
+        /* Return a fixed point array for tensorflow 8bits quantization
+         */
+        Array<uint16_t> tensorflow_fixed_point() const;
+
         /* Change fixed point representation to sign-magnitude
          * @param prec   Precision: sign + magnitude + fraction
          */
@@ -107,80 +164,6 @@ namespace cnpy {
          * @param stride    Stride of the layer, must be bigger than 1
          */
         void reshape_first_layer_wgt(uint16_t stride);
-
-        /* Return sub-array of the data given the indices
-         * @param i_begin   First index for first dimension
-         * @param i_end     Last index for first dimension
-         * @param j_begin   First index for second dimension
-         * @param j_end     Last index for second dimension
-         */
-        Array<T> subarray(int i_begin, int i_end, int j_begin, int j_end) const;
-
-        /* Return sub-array of the data given the indices
-         * @param i_begin   First index for first dimension
-         * @param i_end     Last index for first dimension
-         * @param j_begin   First index for second dimension
-         * @param j_end     Last index for second dimension
-         * @param k_begin   First index for third dimension
-         * @param k_end     Last index for third dimension
-         * @param l_begin   First index for fourth dimension
-         * @param l_end     Last index for fourth dimension
-         */
-        Array<T> subarray(int i_begin, int i_end, int j_begin, int j_end, int k_begin, int k_end, int l_begin,
-                int l_end) const;
-
-        /*  Return the value inside the vector given the fourth dimensions
-         * @param i     Index for the first dimension
-         * @param j     Index for the second dimension
-         * @param k     Index for the third dimension
-         * @param l     Index for the fourth dimension
-         *
-         * @return      return the value given by the index
-         */
-        T get(int i, int j, int k, int l) const;
-
-        /*  Return the value inside the vector given the fourth dimensions
-         * @param i     Index for the first dimension
-         * @param j     Index for the second dimension
-         * @param k     Index for the third dimension
-         *
-         * @return      return the value given by the index
-         */
-        T get(int i, int j, int k) const;
-
-        /*  Return the value inside the vector given the two dimensions
-         * @param i     Index for the first dimension
-         * @param j     Index for the second dimension
-         *
-         * @return      return the value given by the index
-         */
-        T get(int i, int j) const;
-
-        /*  Return the value inside the vector given one dimension
-         * @param index Index for the array
-         *
-         * @return      return the value given by the index
-         */
-        T get(unsigned long long index) const;
-
-        /* Return the maximum number
-         * @return  Maximum number
-         */
-        T max() const;
-
-        /* Return the minimum number
-         * @return  Minimum number
-         */
-        T min() const;
-
-        /* Return the number of dimensions of the array
-         * @return  Number of dimensions of the array
-         */
-        unsigned long getDimensions() const;
-
-        /* Getters */
-        const std::vector<size_t> &getShape() const;
-        unsigned long long getMax_index() const;
 
     };
 }

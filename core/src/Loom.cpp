@@ -252,9 +252,9 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.sign_magnitude_representation(layer.getAct_precision());
+        act.sign_magnitude_representation(layer.getActPrecision());
         cnpy::Array<T> wgt = layer.getWeights();
-        wgt.sign_magnitude_representation(layer.getWgt_precision());
+        wgt.sign_magnitude_representation(layer.getWgtPrecision());
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
         int padding = layer.getPadding();
@@ -288,10 +288,10 @@ namespace core {
         int groups = act_channels / wgt_channels;
         int it_per_group = num_filters / groups;
 
-        auto act_prec = layer.getAct_precision();
+        auto act_prec = layer.getActPrecision();
         auto act_mask = (uint16_t)(1 << (act_prec - 1));
 
-        auto wgt_prec = layer.getWgt_precision();
+        auto wgt_prec = layer.getWgtPrecision();
         auto wgt_mask = (uint16_t)(1 << (wgt_prec - 1));
 
         // Stats
@@ -342,9 +342,9 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.sign_magnitude_representation(layer.getAct_precision());
+        act.sign_magnitude_representation(layer.getActPrecision());
         cnpy::Array<T> wgt = layer.getWeights();
-        wgt.sign_magnitude_representation(layer.getWgt_precision());
+        wgt.sign_magnitude_representation(layer.getWgtPrecision());
         wgt.reshape_to_4D();
 
         if(layer.getType() == "InnerProduct") {
@@ -370,10 +370,10 @@ namespace core {
         int num_filters = wgt_shape[0];
         int wgt_channels = wgt_shape[1];
 
-        auto act_prec = layer.getAct_precision();
+        auto act_prec = layer.getActPrecision();
         auto act_mask = (uint16_t)(1 << (act_prec - 1));
 
-        auto wgt_prec = layer.getWgt_precision();
+        auto wgt_prec = layer.getWgtPrecision();
         auto wgt_mask = (uint16_t)(1 << (wgt_prec - 1));
 
         // Stats
@@ -503,8 +503,8 @@ namespace core {
         uint64_t bit_counter = 0;
 
         // Get layer precision
-        auto act_prec = layer.getAct_precision();
-        auto wgt_prec = layer.getWgt_precision();
+        auto act_prec = layer.getActPrecision();
+        auto wgt_prec = layer.getWgtPrecision();
 
         // Convolution
         for(int n=0; n<batch_size; n++) {
@@ -551,8 +551,8 @@ namespace core {
         uint64_t bit_counter = 0;
 
         // Get layer precision
-        auto act_prec = layer.getAct_precision();
-        auto wgt_prec = layer.getWgt_precision();
+        auto act_prec = layer.getActPrecision();
+        auto wgt_prec = layer.getWgtPrecision();
 
         for (int n = 0; n<batch_size; n++) {
             bit_counter = (uint64_t)computeLoomBitsPE((uint8_t)act_prec, (uint8_t)wgt_prec) * wgt_channels *
@@ -585,13 +585,13 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
-                stats.wgt_prec.push_back(layer.getWgt_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
+                stats.wgt_prec.push_back(layer.getWgtPrecision());
                 computePotentialsConvolution(layer,stats,network.getNetwork_bits());
             } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
-                stats.wgt_prec.push_back(layer.getWgt_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
+                stats.wgt_prec.push_back(layer.getWgtPrecision());
                 computePotentialsInnerProduct(layer,stats,network.getNetwork_bits());
             }
         }

@@ -12,54 +12,10 @@ namespace sys {
         return success;
     }
 
-    Batch::Transform Batch::read_transformation(const protobuf::Batch_Transform &transform_proto) {
-        Batch::Transform transform;
-        std::string value;
-        transform.network = transform_proto.network();
-        transform.bias_and_out_act = transform_proto.bias_and_out_act();
-        transform.batch = transform_proto.batch();
-        transform.tensorflow_8b = transform_proto.tensorflow_8b();
-
-        value = transform_proto.inputtype();
-        if(value  != "Caffe" && value != "Trace" && value != "CParams" && value != "Protobuf" && value != "Gzip")
-            throw std::runtime_error("Input type configuration for network " + transform.network +
-                                     " must be <Caffe|Trace|CParams|Protobuf|Gzip>.");
-        else
-            transform.inputType = transform_proto.inputtype();
-
-        value = transform_proto.inputdatatype();
-        if(value  != "Float32" && value != "Fixed16")
-            throw std::runtime_error("Input data type configuration for network " + transform.network +
-                " must be <Float32|Fixed16>.");
-        else
-            transform.inputDataType = transform_proto.inputdatatype();
-
-        value = transform_proto.outputtype();
-        if(value != "Protobuf" && value != "Gzip")
-            throw std::runtime_error("Output type configuration for network " + transform.network +
-                                     " must be <Protobuf|Gzip>.");
-        else
-            transform.outputType = transform_proto.outputtype();
-
-        value = transform_proto.outputdatatype();
-        if(value  != "Float32" && value != "Fixed16")
-            throw std::runtime_error("Output data type configuration for network " + transform.network +
-                                     " must be <Float32|Fixed16>.");
-        else {
-            // Only allow conversion from float32 to fixed16
-            std::string data_conversion = transform_proto.inputdatatype() == "Float32" &&
-                    transform_proto.outputdatatype() == "Fixed16" ? transform_proto.outputdatatype() : "Not";
-            transform.outputDataType = data_conversion;
-        }
-
-        return transform;
-    }
-
     Batch::Simulate Batch::read_training_simulation(const protobuf::Batch_Simulate &simulate_proto) {
         Batch::Simulate simulate;
         std::string value;
         simulate.network = simulate_proto.network();
-        simulate.bias_and_out_act = simulate_proto.bias_and_out_act();
         simulate.batch = simulate_proto.batch();
         simulate.epochs = simulate_proto.epochs() < 1 ? 1 : simulate_proto.epochs();
         simulate.tensorflow_8b = simulate_proto.tensorflow_8b();
@@ -70,20 +26,20 @@ namespace sys {
         simulate.decoder_states = simulate_proto.decoder_states();
         if(simulate.tensorflow_8b) simulate.network_bits = 8;
 
-        value = simulate_proto.inputtype();
+        value = simulate_proto.model();
         if(value != "Trace")
             throw std::runtime_error("Training input type configuration for network " + simulate.network +
                                      " must be <Trace>.");
         else
-            simulate.inputType = simulate_proto.inputtype();
+            simulate.model = simulate_proto.model();
 
-        if(simulate_proto.inputdatatype() != "BFloat16")
+        if(simulate_proto.data_type() != "BFloat16")
             throw std::runtime_error("Training input data type configuration for network " + simulate.network +
                                      " must be <BFloat16>.");
         else
-            simulate.inputDataType = simulate_proto.inputdatatype();
+            simulate.data_type = simulate_proto.data_type();
 
-        if (simulate.inputDataType == "BFloat16") {
+        if (simulate.data_type == "BFloat16") {
             for(const auto &experiment_proto : simulate_proto.experiment()) {
 
                 Batch::Simulate::Experiment experiment;
@@ -126,7 +82,6 @@ namespace sys {
         Batch::Simulate simulate;
         std::string value;
         simulate.network = simulate_proto.network();
-        simulate.bias_and_out_act = simulate_proto.bias_and_out_act();
         simulate.batch = simulate_proto.batch();
         simulate.epochs = simulate_proto.epochs() < 1 ? 1 : simulate_proto.epochs();
         simulate.tensorflow_8b = simulate_proto.tensorflow_8b();
@@ -134,21 +89,21 @@ namespace sys {
 		simulate.training = simulate_proto.training();
         if(simulate.tensorflow_8b) simulate.network_bits = 8;
 
-        value = simulate_proto.inputtype();
-        if(value  != "Caffe" && value != "Trace" && value != "CParams" && value != "Protobuf" && value != "Gzip")
-            throw std::runtime_error("Input type configuration for network " + simulate.network +
-                                     " must be <Caffe|Trace|CParams|Protobuf|Gzip>.");
+        value = simulate_proto.model();
+        if(value  != "Caffe" && value != "Trace" && value != "CParams" && value != "Protobuf")
+            throw std::runtime_error("Model configuration for network " + simulate.network +
+                                     " must be <Caffe|Trace|CParams|Protobuf>.");
         else
-            simulate.inputType = simulate_proto.inputtype();
+            simulate.model = simulate_proto.model();
 
-        value = simulate_proto.inputdatatype();
+        value = simulate_proto.data_type();
         if(value  != "Float32" && value != "Fixed16")
             throw std::runtime_error("Input data type configuration for network " + simulate.network +
                                      " must be <Float32|Fixed16>.");
         else
-            simulate.inputDataType = simulate_proto.inputdatatype();
+            simulate.data_type = simulate_proto.data_type();
 
-        if (simulate.inputDataType == "Fixed16") {
+        if (simulate.data_type == "Fixed16") {
             for(const auto &experiment_proto : simulate_proto.experiment()) {
 
                 Batch::Simulate::Experiment experiment;
@@ -322,19 +277,16 @@ namespace sys {
                 simulate.experiments.emplace_back(experiment);
 
             }
-        } else if (simulate.inputDataType == "Float32") {
+        } else if (simulate.data_type == "Float32") {
             for(const auto &experiment_proto : simulate_proto.experiment()) {
 
                 Batch::Simulate::Experiment experiment;
                 if(experiment_proto.architecture() == "None") {
 
                     value = experiment_proto.task();
-                    if(value  != "Inference" && value != "Sparsity" )
+                    if(experiment_proto.task() != "Sparsity" )
                         throw std::runtime_error("Task for network " + simulate.network + " in Float32 for architecture"
-                                                 " None must be <Inference|Sparsity>.");
-
-                    if(experiment_proto.task() == "Inference" && !simulate_proto.bias_and_out_act())
-                        throw std::runtime_error("Inference task requires flag \"bias_and_out_act\"");
+                                                 " None must be <Sparsity>.");
 
                 } else if (experiment_proto.architecture() == "SCNN") {
                     experiment.Wt = experiment_proto.wt() < 1 ? 8 : experiment_proto.wt();
@@ -363,21 +315,6 @@ namespace sys {
             }
         }
 
-        // Allow fixed point directly from Caffe, Trace and CParams
-        if(simulate.inputDataType == "Fixed16" && (simulate.inputType == "Caffe" || simulate.inputType == "Trace" ||
-                simulate.inputType == "CParams")) {
-            Batch::Transform transform;
-            transform.network = simulate_proto.network();
-            transform.inputType = simulate.inputType;
-            transform.inputDataType = "Float32";
-            transform.outputType = "Protobuf";
-            transform.outputDataType = "Fixed16";
-            transform.batch = simulate.batch;
-            transform.tensorflow_8b = simulate.tensorflow_8b;
-            this->transformations.emplace_back(transform);
-            simulate.inputType = "Protobuf";
-        }
-
         return simulate;
     }
 
@@ -388,17 +325,6 @@ namespace sys {
 
         if (!ReadProtoFromTextFile(this->path.c_str(),&batch)) {
             throw std::runtime_error("Failed to read prototxt");
-        }
-
-        for(const auto &transform : batch.transform()) {
-            try {
-                this->transformations.emplace_back(read_transformation(transform));
-            } catch (std::exception &exception) {
-                std::cerr << "Prototxt transformation error: " << exception.what() << std::endl;
-                #ifdef STOP_AFTER_ERROR
-                exit(1);
-                #endif
-            }
         }
 
         for(const auto &simulate : batch.simulate()) {
@@ -416,7 +342,6 @@ namespace sys {
     }
 
     /* Getters */
-    const std::vector<Batch::Transform> &Batch::getTransformations() const { return transformations; }
     const std::vector<Batch::Simulate> &Batch::getSimulations() const { return simulations; }
 
 }

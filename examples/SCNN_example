@@ -1,7 +1,7 @@
 simulate {
 	network: "bvlc_alexnet"
-	inputType: "Caffe"
-	inputDataType: "Float32"
+	model: "Caffe"
+	data_type: "Float32"
 	experiment {
         architecture: "SCNN"
         task: "Cycles"

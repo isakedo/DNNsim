@@ -475,15 +475,13 @@ namespace interface {
         for (int j = 0; j < stats.fw_act_sparsity.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,"
-                        "%.2f,%lu,%lu,%.2f,%lu,%lu\n", stats.layers[i].c_str(), j, stats.fw_act_sparsity[i][j],
-                        stats.fw_zero_act[i][j], stats.fw_total_act[i][j], stats.fw_wgt_sparsity[i][j],
-                        stats.fw_zero_wgt[i][j], stats.fw_total_wgt[i][j], stats.fw_bias_sparsity[i][j],
-                        stats.fw_zero_bias[i][j], stats.fw_total_bias[i][j], stats.bw_in_grad_sparsity[i][j],
-                        stats.bw_zero_in_grad[i][j], stats.bw_total_in_grad[i][j], stats.bw_wgt_grad_sparsity[i][j],
-                        stats.bw_zero_wgt_grad[i][j], stats.bw_total_wgt_grad[i][j], stats.bw_bias_grad_sparsity[i][j],
-                        stats.bw_zero_bias_grad[i][j], stats.bw_total_bias_grad[i][j], stats.bw_out_grad_sparsity[i][j],
-                        stats.bw_zero_out_grad[i][j], stats.bw_total_out_grad[i][j]);
+                snprintf(line, sizeof(line), "%s,%d,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,\n",
+                        stats.layers[i].c_str(), j, stats.fw_act_sparsity[i][j], stats.fw_zero_act[i][j],
+                        stats.fw_total_act[i][j], stats.fw_wgt_sparsity[i][j], stats.fw_zero_wgt[i][j],
+                        stats.fw_total_wgt[i][j], stats.bw_in_grad_sparsity[i][j], stats.bw_zero_in_grad[i][j],
+                        stats.bw_total_in_grad[i][j], stats.bw_wgt_grad_sparsity[i][j], stats.bw_zero_wgt_grad[i][j],
+                        stats.bw_total_wgt_grad[i][j], stats.bw_out_grad_sparsity[i][j], stats.bw_zero_out_grad[i][j],
+                        stats.bw_total_out_grad[i][j]);
                 o_file << line;
             }
         }
@@ -491,34 +489,28 @@ namespace interface {
 
         for (int i = 0; i < stats.layers.size(); i++) {
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,"
-                    "%.2f,%lu,%lu,%.2f,%lu,%lu\n", stats.layers[i].c_str(), stats.get_average(stats.fw_act_sparsity[i]),
+            snprintf(line, sizeof(line), "%s,AVG,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,\n",
+                    stats.layers[i].c_str(), stats.get_average(stats.fw_act_sparsity[i]),
                     stats.get_average(stats.fw_zero_act[i]), stats.get_average(stats.fw_total_act[i]),
                     stats.get_average(stats.fw_wgt_sparsity[i]), stats.get_average(stats.fw_zero_wgt[i]),
-                    stats.get_average(stats.fw_total_wgt[i]), stats.get_average(stats.fw_bias_sparsity[i]),
-                    stats.get_average(stats.fw_zero_bias[i]), stats.get_average(stats.fw_total_bias[i]),
-                    stats.get_average(stats.bw_in_grad_sparsity[i]), stats.get_average(stats.bw_zero_in_grad[i]),
-                    stats.get_average(stats.bw_total_in_grad[i]), stats.get_average(stats.bw_wgt_grad_sparsity[i]),
-                    stats.get_average(stats.bw_zero_wgt_grad[i]), stats.get_average(stats.bw_total_wgt_grad[i]),
-                    stats.get_average(stats.bw_bias_grad_sparsity[i]), stats.get_average(stats.bw_zero_bias_grad[i]),
-                    stats.get_average(stats.bw_total_bias_grad[i]), stats.get_average(stats.bw_out_grad_sparsity[i]),
+                    stats.get_average(stats.fw_total_wgt[i]), stats.get_average(stats.bw_in_grad_sparsity[i]),
+                    stats.get_average(stats.bw_zero_in_grad[i]), stats.get_average(stats.bw_total_in_grad[i]),
+                    stats.get_average(stats.bw_wgt_grad_sparsity[i]), stats.get_average(stats.bw_zero_wgt_grad[i]),
+                    stats.get_average(stats.bw_total_wgt_grad[i]), stats.get_average(stats.bw_out_grad_sparsity[i]),
                     stats.get_average(stats.bw_zero_out_grad[i]), stats.get_average(stats.bw_total_out_grad[i]));
             o_file << line;
         }
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,"
-                "%.2f,%lu,%lu,%.2f,%lu,%lu\n", stats.get_average(stats.fw_act_sparsity),
-                stats.get_total(stats.fw_zero_act), stats.get_total(stats.fw_total_act),
-                stats.get_average(stats.fw_wgt_sparsity), stats.get_total(stats.fw_zero_wgt),
-                stats.get_total(stats.fw_total_wgt), stats.get_average(stats.fw_bias_sparsity),
-                stats.get_total(stats.fw_zero_bias), stats.get_total(stats.fw_total_bias),
+        snprintf(line, sizeof(line), "TOTAL,AVG,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,%.2f,%lu,%lu,\n",
+                stats.get_average(stats.fw_act_sparsity), stats.get_total(stats.fw_zero_act),
+                stats.get_total(stats.fw_total_act), stats.get_average(stats.fw_wgt_sparsity),
+                stats.get_total(stats.fw_zero_wgt), stats.get_total(stats.fw_total_wgt),
                 stats.get_average(stats.bw_in_grad_sparsity), stats.get_total(stats.bw_zero_in_grad),
                 stats.get_total(stats.bw_total_in_grad), stats.get_average(stats.bw_wgt_grad_sparsity),
                 stats.get_total(stats.bw_zero_wgt_grad), stats.get_total(stats.bw_total_wgt_grad),
-                stats.get_average(stats.bw_bias_grad_sparsity), stats.get_total(stats.bw_zero_bias_grad),
-                stats.get_total(stats.bw_total_bias_grad), stats.get_average(stats.bw_out_grad_sparsity),
-                stats.get_total(stats.bw_zero_out_grad), stats.get_total(stats.bw_total_out_grad));
+                stats.get_average(stats.bw_out_grad_sparsity), stats.get_total(stats.bw_zero_out_grad),
+                stats.get_total(stats.bw_total_out_grad));
         o_file << line;
     }
 
@@ -748,20 +740,12 @@ namespace interface {
         dump_line_training_distribution(o_file,stats,stats.fw_wgt_values);
         o_file << std::endl;
 
-        o_file << std::endl << "Forward Bias" << std::endl;
-        dump_line_training_distribution(o_file,stats,stats.fw_bias_values);
-        o_file << std::endl;
-
         o_file << std::endl << "Backward Input Gradients" << std::endl;
         dump_line_training_distribution(o_file,stats,stats.bw_in_grad_values);
         o_file << std::endl;
 
         o_file << std::endl << "Backward Weight Gradients" << std::endl;
         dump_line_training_distribution(o_file,stats,stats.bw_wgt_grad_values);
-        o_file << std::endl;
-
-        o_file << std::endl << "Backward Bias Gradients" << std::endl;
-        dump_line_training_distribution(o_file,stats,stats.bw_bias_grad_values);
         o_file << std::endl;
 
         o_file << std::endl << "Backward Output Gradients" << std::endl;

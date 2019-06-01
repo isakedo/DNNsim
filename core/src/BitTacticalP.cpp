@@ -167,7 +167,7 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.sign_magnitude_representation(layer.getAct_precision());
+        act.sign_magnitude_representation(layer.getActPrecision());
         cnpy::Array<T> wgt = layer.getWeights();
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
@@ -197,7 +197,7 @@ namespace core {
         long out_x = (Nx - Kx)/stride + 1;
         long out_y = (Ny - Ky)/stride + 1;
 
-        auto act_prec = layer.getAct_precision();
+        auto act_prec = layer.getActPrecision();
         auto act_mask = (uint16_t)(1 << (act_prec - 1));
 
         // Stats
@@ -248,7 +248,7 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.sign_magnitude_representation(layer.getAct_precision());
+        act.sign_magnitude_representation(layer.getActPrecision());
         cnpy::Array<T> wgt = layer.getWeights();
         wgt.reshape_to_4D();
 
@@ -274,7 +274,7 @@ namespace core {
         }
         if(this->FAST_MODE) batch_size = 1;
 
-        auto act_prec = layer.getAct_precision();
+        auto act_prec = layer.getActPrecision();
         auto act_mask = (uint16_t)(1 << (act_prec - 1));
 
         // Stats
@@ -360,11 +360,11 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
                 computeConvolution(layer, stats, schedule());
             } else if(layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
                 computeInnerProduct(layer, stats, schedule());
             }
         }
@@ -392,13 +392,13 @@ namespace core {
             if(layer.getType() == "Convolution") {
                 const schedule &proto_dense_schedule = schedules[sch_index];
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
                 computeConvolution(layer, stats, proto_dense_schedule);
                 sch_index++;
             } else if(layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 const schedule &proto_dense_schedule = schedules[sch_index];
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
                 computeInnerProduct(layer, stats, proto_dense_schedule);
                 sch_index++;
             }
@@ -448,7 +448,7 @@ namespace core {
         int n;
 
         // Get layer precision
-        auto act_layer_prec = layer.getAct_precision();
+        auto act_layer_prec = layer.getActPrecision();
 
         // Convolution
         #ifdef OPENMP
@@ -512,7 +512,7 @@ namespace core {
         int n;
 
         // Get layer precision
-        auto act_layer_prec = layer.getAct_precision();
+        auto act_layer_prec = layer.getActPrecision();
 
         #ifdef OPENMP
         auto max_threads = omp_get_max_threads();
@@ -555,12 +555,12 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
                 stats.wgt_prec.push_back(0);
                 computePotentialsConvolution(layer,stats,network.getNetwork_bits());
             } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
                 stats.wgt_prec.push_back(0);
                 computePotentialsInnerProduct(layer,stats,network.getNetwork_bits());
             }

@@ -2,14 +2,9 @@
 
 Example batch files are given in this folder. These are the following:
 
-   * **transform_example**: Example file showing how to convert from FP32 Numpy traces into: 
-       1. Quantized fixed point Protobuf
-       2. Gzip Protobuf in Float32 including Bias and Output Activations
-       3. Quantized fixed point Gzip
-   * **inference_example**: Run inference for AlexNet and GoogleNet (Require Bias and Output Activations)      
    * **simulator_example**: Example file for launching simulations:
-       * GoogLeNet read from Caffe Prototxt model (It is internally converted into Quantized Fixed point Protobuf):
-           1. Laconic timing simulation for a 16x8 tile configuration
+       * GoogLeNet read from Caffe Prototxt model:
+           1. Laconic timing simulation for a 16x16 tile configuration
            2. BitPragmatic potential/work reduction
            3. Laconic potential/work reduction
        * AlexNet read from Caffe Prototxt model (It is internally converted into Quantized Fixed point Protobuf):
