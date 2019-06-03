@@ -750,7 +750,21 @@ namespace interface {
 
         for(const sys::Statistics::Stats &stats : sys::Statistics::getAll_stats()) {
             std::ofstream o_file;
-            check_path("results/" + stats.net_name);
+
+            try {
+                check_path("results");
+            } catch (std::exception &exception) {
+                if (mkdir("results", 0775) == -1)
+                    throw std::runtime_error("Error creating folder results");
+            }
+
+            try {
+                check_path("results/" + stats.net_name);
+            } catch (std::exception &exception) {
+                if (mkdir(("results/" + stats.net_name).c_str(), 0775) == -1)
+                    throw std::runtime_error("Error creating folder results/" + stats.net_name);
+            }
+
             std::string path = "results/" + stats.net_name + "/" + stats.arch + "_" + stats.task_name;
             path += stats.tensorflow_8b ? "-TF.csv" : ".csv";
             o_file.open (path);

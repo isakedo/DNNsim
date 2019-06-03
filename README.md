@@ -70,9 +70,7 @@ In the case of **training** simulation, every network must include in subdirecto
    * outGrad/$LAYER-$EPOCH-$BATCH-wGrad.npy
    * outGrad/$LAYER-$EPOCH-$BATCH-inGrad.npy
    * outGrad/$LAYER-$EPOCH-$BATCH-wGrad.npy
-   
-Create folder **results** including a folder for each network. The corresponding results will appear in this subfolders.
-    
+       
 ### Test
 
 Print help:

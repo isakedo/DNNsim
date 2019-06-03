@@ -3,9 +3,10 @@
 
 #include "Interface.h"
 #include <sys/Statistics.h>
+#include <sys/stat.h>
 
 //#define PER_IMAGE_RESULTS
-#define PER_EPOCH_RESULTS
+//#define PER_EPOCH_RESULTS
 
 namespace interface {
 
@@ -16,7 +17,7 @@ namespace interface {
             /* Constructor
              * @param _QUIET    Remove stdout messages
              */
-            StatsWriter(bool _QUIET) : Interface(_QUIET) {}
+            explicit StatsWriter(bool _QUIET) : Interface(_QUIET) {}
 
             /* Dump the statistics in a csv file */
             void dump_csv();
