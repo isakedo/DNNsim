@@ -90,6 +90,7 @@ average results for all batches. Finally, the last line corresponds to the total
 
 * Option **--threads <positive_num>** indicates the number of simultaneous threads that can be executed. The code is 
 parallelized per batch using OpenMP library
+* Option **--quiet** remove stdout messages from simulations.
 * Option **--fast_mode** makes the simulation execute only one batch per network, the first one.
 * Option **--store_fixed_point_protobuf** store the fixed point network in a intermediate Protobuf file.
 
