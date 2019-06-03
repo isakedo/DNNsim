@@ -3,13 +3,6 @@
 
 namespace interface {
 
-    void StatsWriter::check_path(const std::string &path) {
-        std::ifstream file(path);
-        if(!file.good()) {
-            throw std::runtime_error("The path " + path + " does not exist.");
-        }
-    }
-
     void dump_csv_BitPragmatic_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
         o_file << "layer,batch,cycles,baseline_cycles,speedup,stall_cycles,time(s)" << std::endl;
 
@@ -782,6 +775,8 @@ namespace interface {
             else if(!stats.act_avg_width.empty()) dump_csv_average_width(o_file,stats);
             else if(!stats.fw_act_avg_width.empty()) dump_csv_training_average_width(o_file,stats);
             else if(!stats.fw_act_values.empty()) dump_csv_training_distribution(o_file,stats);
+
+            if(!QUIET) std::cout << "Results stored in: " << path << std::endl;
 
             o_file.close();
         }

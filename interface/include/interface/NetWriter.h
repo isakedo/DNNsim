@@ -1,26 +1,17 @@
 #ifndef DNNSIM_NETWRITER_H
 #define DNNSIM_NETWRITER_H
 
-#include <sys/common.h>
-#include <core/Network.h>
-#include <core/BitTactical.h>
-#include <network.pb.h>
-#include <schedule.pb.h>
+#include "Interface.h"
 
 namespace interface {
 
     template <typename T>
-    class NetWriter {
+    class NetWriter : public Interface {
 
     private:
 
         /* Name of the network */
         std::string name;
-
-        /* Check if the path exists
-         * @param path  Path we want to check
-         */
-        void check_path(const std::string &path);
 
         /* Store a layer of the network into a protobuf layer
          * @param layer_proto   Pointer to a protobuf layer
@@ -38,9 +29,10 @@ namespace interface {
     public:
 
         /* Constructor
-         * @param _name                 The name of the network
+         * @param _name     The name of the network
+         * @param _QUIET    Remove stdout messages
          */
-        explicit NetWriter(const std::string &_name) {
+        NetWriter(const std::string &_name, bool _QUIET) : Interface(_QUIET) {
             this->name = _name;
         }
 

@@ -13,14 +13,6 @@ namespace interface {
     }
 
     template <typename T>
-    void NetReader<T>::check_path(const std::string &path) {
-        std::ifstream file(path);
-        if(!file.good()) {
-            throw std::runtime_error("The path " + path + " does not exist.");
-        }
-    }
-
-    template <typename T>
     core::Layer<T> NetReader<T>::read_layer_caffe(const caffe::LayerParameter &layer_caffe) {
         int Nn = -1, Kx = -1, Ky = -1, stride = -1, padding = -1;
 
@@ -66,6 +58,8 @@ namespace interface {
                layers.emplace_back(read_layer_caffe(layer));
            }
         }
+
+        if(!QUIET) std::cout << "Network loaded from Caffe prototxt model definition" << std::endl;
 
         return core::Network<T>(this->name,layers);
     }
@@ -118,6 +112,8 @@ namespace interface {
             myfile.close();
         }
 
+        if(!QUIET) std::cout << "Network loaded from trace params model definition" << std::endl;
+
         return core::Network<T>(this->name,layers);
     }
 
@@ -160,6 +156,8 @@ namespace interface {
             }
             myfile.close();
         }
+
+        if(!QUIET) std::cout << "Network loaded from convolutional params model definition" << std::endl;
 
         return core::Network<T>(this->name,layers);
     }
@@ -228,6 +226,8 @@ namespace interface {
         for(const protobuf::Network_Layer &layer_proto : network_proto.layers())
             layers.emplace_back(read_layer_proto(layer_proto));
 
+        if(!QUIET) std::cout << "Network and traces loaded from protobuf model" << std::endl;
+
         return core::Network<T>(this->name,layers);
     }
 
@@ -265,6 +265,8 @@ namespace interface {
             network_schedule.push_back(dense_schedule);
         }
 
+        if(!QUIET) std::cout << "Scheduled loaded from protobuf file" << std::endl;
+
         return network_schedule;
     }
 
@@ -276,6 +278,9 @@ namespace interface {
             cnpy::Array<T> weights; weights.set_values("net_traces/" + this->name + file);
             layer.setWeights(weights);
         }
+
+        if(!QUIET) std::cout << "Weight traces loaded from numpy arrays" << std::endl;
+
     }
 
     template <typename T>
@@ -286,6 +291,9 @@ namespace interface {
             cnpy::Array<T> activations; activations.set_values("net_traces/" + this->name + file);
             layer.setActivations(activations);
         }
+
+        if(!QUIET) std::cout << "Activation traces loaded from numpy arrays" << std::endl;
+
     }
 
     template <typename T>
@@ -303,6 +311,9 @@ namespace interface {
             cnpy::Array<T> weights; weights.set_values("net_traces/" + this->name + file);
             layer.setWeights(weights);
         }
+
+        if(!QUIET) std::cout << "Forward weight traces loaded from numpy arrays" << std::endl;
+
     }
 
     template <typename T>
@@ -315,6 +326,9 @@ namespace interface {
             cnpy::Array<T> activations; activations.set_values("net_traces/" + this->name + file);
             layer.setActivations(activations);
         }
+
+        if(!QUIET) std::cout << "Forward activation traces loaded from numpy arrays" << std::endl;
+
     }
 
     template <typename T>
@@ -327,6 +341,9 @@ namespace interface {
             cnpy::Array<T> weight_gradients; weight_gradients.set_values("net_traces/" + this->name + file);
             layer.setWeightGradients(weight_gradients);
         }
+
+        if(!QUIET) std::cout << "Backward weight gradient traces loaded from numpy arrays" << std::endl;
+
     }
 
     template <typename T>
@@ -341,6 +358,9 @@ namespace interface {
             cnpy::Array<T> input_gradients; input_gradients.set_values("net_traces/" + this->name + file);
             layer.setInputGradients(input_gradients);
         }
+
+        if(!QUIET) std::cout << "Backward input gradient traces loaded from numpy arrays" << std::endl;
+
     }
 
     template <typename T>
@@ -353,6 +373,9 @@ namespace interface {
             cnpy::Array<T> output_gradients; output_gradients.set_values("net_traces/" + this->name + file);
             layer.setOutputGradients(output_gradients);
         }
+
+        if(!QUIET) std::cout << "Backward output gradient traces loaded from numpy arrays" << std::endl;
+
     }
 
     template <typename T>
@@ -365,6 +388,9 @@ namespace interface {
                 layer.setWgt_precision(8,7,0);
                 i++;
             }
+
+            if(!QUIET) std::cout << "Using generic precisions for Tensorflow 8b quantization" << std::endl;
+
             return;
         }
 
@@ -410,6 +436,8 @@ namespace interface {
                 i++;
             }
 
+            if(!QUIET) std::cout << "Profiled precisions read from file" << std::endl;
+
         } else {
             // Generic precision
             int i = 0;
@@ -418,6 +446,9 @@ namespace interface {
                 layer.setWgt_precision(16,0,15);
                 i++;
             }
+
+            if(!QUIET) std::cout << "No profiled precisions: Using generic precisions" << std::endl;
+
         }
     }
 

@@ -1,20 +1,16 @@
 #ifndef DNNSIM_NETREADER_H
 #define DNNSIM_NETREADER_H
 
-#include <sys/common.h>
-#include <core/Network.h>
+#include "Interface.h"
 #include <core/Layer.h>
-#include <core/BitTactical.h>
-#include <network.pb.h>
 #include <caffe.pb.h>
-#include <schedule.pb.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/text_format.h>
 
 namespace interface {
 
     template <typename T>
-    class NetReader {
+    class NetReader : public Interface {
 
     private:
 
@@ -30,11 +26,6 @@ namespace interface {
         /* Numpy activations epoch to read from */
         int epoch;
 
-        /* Check if the path exists
-         * @param path  Path we want to check
-         */
-        void check_path(const std::string &path);
-
         /* Return the layer parsed from the caffe prototxt file
          * @param layer_caffe   prototxt layer
          */
@@ -48,11 +39,13 @@ namespace interface {
     public:
 
         /* Constructor
-         * @param _name                 The name of the network
-         * @param _batch                Numpy batch of the activations
-         * @param _epoch                Numpy epoch of the training traces
+         * @param _name     The name of the network
+         * @param _batch    Numpy batch of the activations
+         * @param _epoch    Numpy epoch of the training traces
+         * @param _QUIET    Remove stdout messages
          */
-        NetReader(const std::string &_name, int _batch, int _epoch) : batch(_batch), epoch(_epoch) {
+        NetReader(const std::string &_name, int _batch, int _epoch, bool _QUIET) : Interface(_QUIET), batch(_batch),
+                epoch(_epoch) {
             this->name = _name;
         }
 

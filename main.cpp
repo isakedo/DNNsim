@@ -41,11 +41,11 @@ THE SOFTWARE.
 
 template <typename T>
 core::Network<T> read_training(const std::string &network_name, int batch, int epoch, int decoder_states,
-        int traces_mode) {
+        int traces_mode, bool QUIET) {
 
     // Read the network
     core::Network<T> network;
-    interface::NetReader<T> reader = interface::NetReader<T>(network_name, batch, epoch);
+    interface::NetReader<T> reader = interface::NetReader<T>(network_name, batch, epoch, QUIET);
 	network = reader.read_network_trace_params();
 	if(decoder_states > 0) network.duplicate_decoder_layers(decoder_states);
 
@@ -71,11 +71,11 @@ core::Network<T> read_training(const std::string &network_name, int batch, int e
 }
 
 template <typename T>
-core::Network<T> read(const std::string &input_type, const std::string &network_name, int batch) {
+core::Network<T> read(const std::string &input_type, const std::string &network_name, int batch, bool QUIET) {
 
     // Read the network
     core::Network<T> network;
-    interface::NetReader<T> reader = interface::NetReader<T>(network_name, batch, 0);
+    interface::NetReader<T> reader = interface::NetReader<T>(network_name, batch, 0, QUIET);
     if (input_type == "Caffe") {
         network = reader.read_network_caffe();
         reader.read_precision(network);
@@ -104,19 +104,19 @@ core::Network<T> read(const std::string &input_type, const std::string &network_
 }
 
 template <typename T>
-void write(const core::Network<T> &network) {
+void write(const core::Network<T> &network, bool QUIET) {
 
     // Write network
-    interface::NetWriter<T> writer = interface::NetWriter<T>(network.getName());
+    interface::NetWriter<T> writer = interface::NetWriter<T>(network.getName(),QUIET);
     writer.write_network_protobuf(network);
 
 }
 
 template <typename T>
 std::vector<schedule> read_schedule(const std::string &network_name, const std::string &arch,
-        const sys::Batch::Simulate::Experiment &experiment) {
+        const sys::Batch::Simulate::Experiment &experiment, bool QUIET) {
 
-    interface::NetReader<T> reader = interface::NetReader<T>(network_name,0,0);
+    interface::NetReader<T> reader = interface::NetReader<T>(network_name, 0, 0, QUIET);
     int mux_entries = experiment.lookahead_h + experiment.lookaside_d + 1;
     std::string schedule_type = arch + "_" + experiment.search_shape + std::to_string(mux_entries) + "("
             + std::to_string(experiment.lookahead_h) + "-" + std::to_string(experiment.lookaside_d) + ")";
@@ -125,9 +125,9 @@ std::vector<schedule> read_schedule(const std::string &network_name, const std::
 
 template <typename T>
 void write_schedule(const core::Network<T> &network, core::BitTactical<T> &DNNsim, const std::string &arch,
-        const sys::Batch::Simulate::Experiment &experiment) {
+        const sys::Batch::Simulate::Experiment &experiment, bool QUIET) {
     const auto &network_schedule = DNNsim.network_scheduler(network);
-    interface::NetWriter<uint16_t> writer = interface::NetWriter<uint16_t>(network.getName());
+    interface::NetWriter<uint16_t> writer = interface::NetWriter<uint16_t>(network.getName(),QUIET);
     int mux_entries = experiment.lookahead_h + experiment.lookaside_d + 1;
     std::string schedule_type = arch + "_" + experiment.search_shape + std::to_string(mux_entries) + "("
             + std::to_string(experiment.lookahead_h) + "-" + std::to_string(experiment.lookaside_d) + ")";
@@ -164,6 +164,7 @@ cxxopts::Options parse_options(int argc, char *argv[]) {
 
     options.add_options("simulation")
     ("t,threads", "Specify the number of threads",cxxopts::value<uint16_t>(),"<Positive number>")
+    ("q,quiet", "Don't show stdout progress messages",cxxopts::value<bool>(),"<Boolean>")
     ("fast_mode", "Enable fast mode: simulate only one image",cxxopts::value<bool>(),"<Boolean>")
     ("store_fixed_point_protobuf", "Store the fixed point network in an intermediate Protobuf file",
     		cxxopts::value<bool>(),"<Boolean>");
@@ -188,6 +189,7 @@ int main(int argc, char *argv[]) {
         check_options(options);
 
         uint8_t N_THREADS = options.count("threads") == 0 ? (uint8_t)1 : (uint8_t)options["threads"].as<uint16_t>();
+        bool QUIET = options.count("quiet") == 0 ? false : options["quiet"].as<bool>();
         bool FAST_MODE = options.count("fast_mode") == 0 ? false : options["fast_mode"].as<bool>();
         bool STORE_PROTOBUF = options.count("store_fixed_point_protobuf") == 0 ? false :
         		options["store_fixed_point_protobuf"].as<bool>();
@@ -196,6 +198,9 @@ int main(int argc, char *argv[]) {
         batch.read_batch();
 
         for(const auto &simulate : batch.getSimulations()) {
+
+            if(!QUIET) std::cout << "Network: " << simulate.network << std::endl;
+
             try {
 				// Training traces
 				if(simulate.training) {
@@ -215,7 +220,7 @@ int main(int argc, char *argv[]) {
 						for (int epoch = 0; epoch < epochs; epoch++) {
 							core::Network<float> network;
 							network = read_training<float>(simulate.network, simulate.batch, epoch,
-							        simulate.decoder_states, traces_mode);
+							        simulate.decoder_states, traces_mode, QUIET);
 
 				        	if(experiment.architecture == "None") {
 				        		core::Simulator<float> DNNsim(N_THREADS,FAST_MODE);
@@ -245,7 +250,7 @@ int main(int argc, char *argv[]) {
 
 		            if (simulate.data_type == "Float32") {
 		                core::Network<float> network;
-		                network = read<float>(simulate.model, simulate.network, simulate.batch);
+		                network = read<float>(simulate.model, simulate.network, simulate.batch, QUIET);
 		                network.setNetwork_bits(simulate.network_bits);
 		                for(const auto &experiment : simulate.experiments) {
 		                    if(experiment.architecture == "None") {
@@ -262,19 +267,23 @@ int main(int argc, char *argv[]) {
 		                core::Network<uint16_t> network;
                         if (simulate.model != "Protobuf") {
                             core::Network<float> tmp_network;
-                            tmp_network = read<float>(simulate.model, simulate.network, simulate.batch);
+                            tmp_network = read<float>(simulate.model, simulate.network, simulate.batch, QUIET);
                             tmp_network.setTensorflow_8b(simulate.tensorflow_8b);
                             network = tmp_network.fixed_point();
                         } else {
-                            network = read<uint16_t>(simulate.model, simulate.network, simulate.batch);
+                            network = read<uint16_t>(simulate.model, simulate.network, simulate.batch, QUIET);
 						}
 		                network.setNetwork_bits(simulate.network_bits);
 						network.setTensorflow_8b(simulate.tensorflow_8b);
 
-						if(STORE_PROTOBUF) write(network);
+						if(STORE_PROTOBUF) write(network,QUIET);
 
 						for(const auto &experiment : simulate.experiments) {
-		                    if(experiment.architecture == "None") {
+
+                            if(!QUIET) std::cout << "Starting simulation " << experiment.task << " for architecture "
+                                    << experiment.architecture << std::endl;
+
+                            if(experiment.architecture == "None") {
 		                        core::Simulator<uint16_t> DNNsim(N_THREADS,FAST_MODE);
 		                        if(experiment.task == "Sparsity") DNNsim.sparsity(network);
 		                        else if(experiment.task == "BitSparsity") DNNsim.bit_sparsity(network);
@@ -321,11 +330,11 @@ int main(int argc, char *argv[]) {
 		                                experiment.leading_bit, N_THREADS, FAST_MODE);
 		                        if(experiment.task == "Cycles" && experiment.read_schedule_from_proto) {
 		                            auto dense_schedule = read_schedule<uint16_t>(network.getName(),"BitTactical",
-		                                    experiment);
+		                                    experiment,QUIET);
 		                            DNNsim.run(network, dense_schedule);
 		                        }
 		                        else if (experiment.task == "Schedule")
-		                            write_schedule<uint16_t>(network,DNNsim,"BitTactical",experiment);
+		                            write_schedule<uint16_t>(network,DNNsim,"BitTactical",experiment,QUIET);
 		                        else if (experiment.task == "Cycles") DNNsim.run(network);
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
@@ -335,11 +344,11 @@ int main(int argc, char *argv[]) {
 		                                experiment.lookaside_d, experiment.search_shape,N_THREADS,FAST_MODE);
 		                        if(experiment.task == "Cycles" && experiment.read_schedule_from_proto) {
 		                            auto dense_schedule = read_schedule<uint16_t>(network.getName(),"BitTactical",
-		                                    experiment);
+		                                    experiment,QUIET);
 		                            DNNsim.run(network, dense_schedule);
 		                        }
 		                        else if (experiment.task == "Schedule")
-		                            write_schedule<uint16_t>(network,DNNsim,"BitTactical",experiment);
+		                            write_schedule<uint16_t>(network,DNNsim,"BitTactical",experiment,QUIET);
 		                        else if (experiment.task == "Cycles") DNNsim.run(network);
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
@@ -382,7 +391,8 @@ int main(int argc, char *argv[]) {
         }
 
         //Dump statistics
-        interface::StatsWriter::dump_csv();
+        auto writer = interface::StatsWriter(QUIET);
+        writer.dump_csv();
 
     } catch (std::exception &exception) {
         std::cerr << "Error: " << exception.what() << std::endl;

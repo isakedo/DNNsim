@@ -4,14 +4,6 @@
 namespace interface {
 
     template <typename T>
-    void NetWriter<T>::check_path(const std::string &path) {
-        std::ifstream file(path);
-        if(!file.good()) {
-            throw std::runtime_error("The path " + path + " does not exist.");
-        }
-    }
-
-    template <typename T>
     void NetWriter<T>::fill_layer(protobuf::Network_Layer* layer_proto, const core::Layer<T> &layer) {
         layer_proto->set_type(layer.getType());
         layer_proto->set_name(layer.getName());
@@ -63,9 +55,8 @@ namespace interface {
                 throw std::runtime_error("Failed to write protobuf");
             }
 
-            #ifdef DEBUG
-            std::cout << "Protobuf written in: " << path << std::endl;
-            #endif
+            if(!QUIET) std::cout << "Fixed-Point Protobuf stored in: " << path << std::endl;
+
         }
 
     }
@@ -105,9 +96,8 @@ namespace interface {
                 throw std::runtime_error("Failed to write protobuf");
             }
 
-            #ifdef DEBUG
-            std::cout << "Schedule written in: " << path << std::endl;
-            #endif
+            if(!QUIET) std::cout << "Schedule stored in: " << path << std::endl;
+
         }
     }
 

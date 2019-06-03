@@ -289,6 +289,7 @@ Experiments for the simulation tool can contain the following parameters.
     *   SCNNe: class for the SCNNp accelerator
     *   BitFusion: class for the BitFusion accelerator
 *   **interface**: Folder to interface with input/output operations
+    *   Interface: common class for the reader and writer classes
     *   NetReader: class to read and load a network using different formats
     *   NetWriter: class to write and dump a network using different formats
     *   StatsWriter: class to dump simulation statistics in different formats
