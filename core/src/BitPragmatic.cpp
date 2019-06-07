@@ -278,6 +278,11 @@ namespace core {
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.weight_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.accumulator_updates.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.scheduled_PEs.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.idle_PEs.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         int n;
 
@@ -287,12 +292,17 @@ namespace core {
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n)
         #endif
-        for(n=0; n<batch_size; n++) {
+        for(n = 0; n < batch_size; n++) {
 
             std::vector<int> list_x, list_y;
             int x_counter = 0, y_counter = 0;
             std::vector<uint32_t> end_previous_pallet = std::vector<uint32_t>(COLUMN_REGISTERS, 0);
             std::vector<uint32_t> cycles_per_col = std::vector<uint32_t>(N_COLUMNS, 0);
+            uint64_t weight_buff_reads = 0;
+            uint64_t act_buff_reads = 0;
+            uint64_t accumulator_updates = 0;
+            uint64_t scheduled_PEs = 0;
+            uint64_t idle_PEs = 0;
 
             while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter, y_counter, N_COLUMNS)) {
                 for (int i = 0; i < Kx; i++) {
@@ -300,13 +310,26 @@ namespace core {
                         for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
                             computePragmaticTile(n,list_x, list_y, i, j, k, stride, act, act_mask, act_channels,
                                     cycles_per_col, end_previous_pallet, stats);
+
+                            act_buff_reads++;
+                            weight_buff_reads++;
+                            scheduled_PEs += list_x.size() * N_ROWS;
+                            idle_PEs += (N_COLUMNS - list_x.size()) * N_ROWS;
                         }
                     }
                 }
+                accumulator_updates++;
             }
+
             auto batch_cycles = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
-            stats.cycles.back()[n] = batch_cycles*num_filters_sets;
+            stats.cycles.back()[n] = batch_cycles * num_filters_sets;
             stats.stall_cycles.back()[n] *= num_filters_sets;
+            stats.weight_buff_reads.back()[n] = weight_buff_reads * num_filters_sets;
+            stats.act_buff_reads.back()[n] = act_buff_reads * num_filters_sets;
+            stats.accumulator_updates.back()[n] = accumulator_updates * num_filters_sets;
+            stats.scheduled_PEs.back()[n] = scheduled_PEs * num_filters_sets;
+            stats.idle_PEs.back()[n] = idle_PEs * num_filters_sets;
+
         }
 
         auto base_cycles = (uint64_t)(out_x * out_y * ceil(act_channels/(double)WEIGHT_LANES) * Kx * Ky *
@@ -354,6 +377,11 @@ namespace core {
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.weight_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.accumulator_updates.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.scheduled_PEs.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.idle_PEs.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         int n;
 
@@ -363,26 +391,44 @@ namespace core {
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n)
         #endif
-        for(n=0; n<batch_size; n++) {
+        for(n = 0; n < batch_size; n++) {
 
             std::vector<int> list_x, list_y;
             int x_counter = 0, y_counter = 0;
             std::vector<uint32_t> end_previous_pallet = std::vector<uint32_t>(COLUMN_REGISTERS, 0);
             std::vector<uint32_t> cycles_per_col = std::vector<uint32_t>(N_COLUMNS, 0);
+            uint64_t weight_buff_reads = 0;
+            uint64_t act_buff_reads = 0;
+            uint64_t accumulator_updates = 0;
+            uint64_t scheduled_PEs = 0;
+            uint64_t idle_PEs = 0;
 
-            for(int m=0; m<num_filters; m+=N_ROWS) {
+            for(int m = 0; m < num_filters; m+=N_ROWS) {
                 while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
                             for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
                                 computePragmatic2DTile(n,list_x, list_y, i, j, k, m, stride, act, wgt, num_filters,
                                         cycles_per_col, end_previous_pallet, stats);
+
+                                act_buff_reads++;
+                                weight_buff_reads++;
+                                scheduled_PEs += list_x.size() * N_ROWS;
+                                idle_PEs += (N_COLUMNS - list_x.size()) * N_ROWS;
                             }
                         }
                     }
+                    accumulator_updates++;
                 }
             }
+
             stats.cycles.back()[n] = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
+            stats.weight_buff_reads.back()[n] = weight_buff_reads;
+            stats.act_buff_reads.back()[n] = act_buff_reads;
+            stats.accumulator_updates.back()[n] = accumulator_updates;
+            stats.scheduled_PEs.back()[n] = scheduled_PEs;
+            stats.idle_PEs.back()[n] = idle_PEs;
+
         }
 
         auto base_cycles = (uint64_t)(out_x * out_y * ceil(wgt_channels/(double)WEIGHT_LANES) * Kx * Ky *
@@ -434,6 +480,11 @@ namespace core {
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.weight_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.accumulator_updates.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.scheduled_PEs.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.idle_PEs.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         int n;
 
@@ -445,13 +496,28 @@ namespace core {
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n)
         #endif
-        for (n = 0; n<batch_size; n++) {
+        for (n = 0; n < batch_size; n++) {
+
+            uint64_t weight_buff_reads = 0;
+            uint64_t act_buff_reads = 0;
+            uint64_t accumulator_updates = 0;
+
             for (int r = 0; r < R; r++) {
-                for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
+                for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
                     stats.cycles.back()[n] += computePragmaticColumn(n,r,0,0,0,0,k,0,act,act_channels,lstm);
+                    act_buff_reads++;
+                    weight_buff_reads++;
                 }
+                accumulator_updates++;
             }
+
             stats.cycles.back()[n] *= num_filters_sets;
+            stats.weight_buff_reads.back()[n] = weight_buff_reads * num_filters_sets;
+            stats.act_buff_reads.back()[n] = act_buff_reads * num_filters_sets;
+            stats.accumulator_updates.back()[n] = accumulator_updates * num_filters_sets;
+            stats.scheduled_PEs.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)WEIGHT_LANES);
+            auto idle_rows = N_ROWS - (num_filters % N_ROWS);
+            stats.idle_PEs.back()[n] = idle_rows * ceil(act_channels/(double)WEIGHT_LANES);
         }
 
         #else
@@ -461,12 +527,16 @@ namespace core {
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n)
         #endif
-        for (n = 0; n<batch_size; n++) {
+        for (n = 0; n < batch_size; n++) {
 
             int column_index = 0;
             std::vector<int> column_end = std::vector<int>(N_COLUMNS, 0);
+            uint64_t weight_buff_reads = 0;
+            uint64_t act_buff_reads = 0;
+            uint64_t accumulator_updates = 0;
+
             for (int r = 0; r < R; r++) {
-                for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
+                for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
                     if(stats.cycles.back()[n] < column_end[column_index])
                         stats.cycles.back()[n] = column_end[column_index];
                     auto column_cycles = computePragmaticColumn(n,r,0,0,0,0,k,0,act,act_channels,lstm);
@@ -474,13 +544,26 @@ namespace core {
                     stats.cycles.back()[n]++;
                     column_index++;
                     if(column_index >= N_COLUMNS) column_index = 0;
+
+                    act_buff_reads++;
+                    weight_buff_reads++;
                 }
+                accumulator_updates++;
             }
+
             uint64_t last_column_end = *std::max_element(column_end.begin(), column_end.end());
             uint64_t last_column_rem_cycles = last_column_end - stats.cycles.back()[n];
             stats.cycles.back()[n] *= num_filters_sets;
             stats.cycles.back()[n] += last_column_rem_cycles;
             stats.stall_cycles.back()[n] *= num_filters_sets;
+            stats.weight_buff_reads.back()[n] = weight_buff_reads * num_filters_sets;
+            stats.act_buff_reads.back()[n] = act_buff_reads * num_filters_sets;
+            stats.accumulator_updates.back()[n] = accumulator_updates * num_filters_sets;
+            stats.scheduled_PEs.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)WEIGHT_LANES);
+            auto idle_rows = N_ROWS - (num_filters % N_ROWS);
+            idle_rows = idle_rows == 16 ? 0 : idle_rows;
+            stats.idle_PEs.back()[n] = idle_rows * ceil(act_channels/(double)WEIGHT_LANES);
+
         }
 
         #endif

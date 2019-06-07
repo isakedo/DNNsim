@@ -12,47 +12,38 @@ namespace sys {
         /* Make public to be easier to operate */
         struct Stats {
 
-            /* Name of the task done */
-            std::string task_name;
-
-            /* Name of the network */
-            std::string net_name;
-
-            /* Simulator architecture */
-            std::string arch;
-
-            /* Tensforflow flag */
-            bool tensorflow_8b;
-
-            /* Layer vector */
-            std::vector<std::string> layers;
-
-            /* Activations precision */
-            std::vector<int> act_prec;
-
-            /* Weights precision */
-            std::vector<int> wgt_prec;
+            /* Simulation stats */
+            std::string task_name;                                          //Name of the task done
+            std::string net_name;                                           //Name of the network
+            std::string arch;                                               //Simulator architecture
+            bool tensorflow_8b;                                             //Tensforflow flag
+            std::vector<std::string> layers;                                //Layers name
+            std::vector<int> act_prec;                                      //Activations precision
+            std::vector<int> wgt_prec;                                      //Weights precision
 
             /* Computation time per layer */
-            std::vector<std::chrono::duration<double>> time;
-            std::vector<std::vector<std::chrono::duration<double>>> training_time;
+            std::vector<std::chrono::duration<double>> time;                //Execution time
+            std::vector<std::vector<std::chrono::duration<double>>> training_time;  //Execution time for training traces
 
             /* Stats for cycles */
-            std::vector<std::vector<uint64_t>> cycles;
-            std::vector<uint64_t> baseline_cycles;
-
-            /* Stats for column stalls */
-            std::vector<std::vector<uint64_t>> stall_cycles;
+            std::vector<std::vector<uint64_t>> cycles;                      //Number of cycles
+            std::vector<uint64_t> baseline_cycles;                          //Number of cycles of DaDianNao
+            std::vector<std::vector<uint64_t>> weight_buff_reads;           //On-Chip Weight Buffer Reads
+            std::vector<std::vector<uint64_t>> act_buff_reads;              //On-Chip Activation Buffer Reads
+            std::vector<std::vector<uint64_t>> accumulator_updates;         //On-Chip Output Buffer Writes
+            std::vector<std::vector<uint64_t>> scheduled_PEs;               //Total scheduled Processing Engines
+            std::vector<std::vector<uint64_t>> idle_PEs;                    //Number of idle PEs in the whole simulation
+            std::vector<std::vector<uint64_t>> stall_cycles;                //Column stalls due to synchronization
 
             /* Stats for 8bits PEs */
-            std::vector<uint64_t> idle_columns;
-            std::vector<uint64_t> idle_rows;
-            std::vector<uint64_t> columns_per_act;
-            std::vector<uint64_t> rows_per_wgt;
+            std::vector<uint64_t> idle_columns;                             //Idle columns due to spatial composition
+            std::vector<uint64_t> idle_rows;                                //Idle rows due to spatial composition
+            std::vector<uint64_t> columns_per_act;                          //Number of columns per activation window
+            std::vector<uint64_t> rows_per_wgt;                             //Number of rows per weight filter
 
             /* SCNN */
-            std::vector<std::vector<uint64_t>> dense_cycles;
-            std::vector<std::vector<uint64_t>> mults;
+            std::vector<std::vector<uint64_t>> dense_cycles;                //Number of cycles without zero skipping
+            std::vector<std::vector<uint64_t>> mults;                       //Number of multiplications in total
             std::vector<std::vector<uint64_t>> idle_bricks;
             std::vector<std::vector<uint64_t>> idle_conflicts;
             std::vector<std::vector<uint64_t>> idle_column_cycles;
@@ -61,9 +52,6 @@ namespace sys {
             std::vector<std::vector<uint64_t>> idle_halo;
             std::vector<std::vector<uint64_t>> total_mult_cycles;
             std::vector<std::vector<uint64_t>> halo_transfers;
-            std::vector<std::vector<uint64_t>> weight_buff_reads;
-            std::vector<std::vector<uint64_t>> act_buff_reads;
-            std::vector<std::vector<uint64_t>> accumulator_updates;
             std::vector<std::vector<uint64_t>> i_loop;
             std::vector<std::vector<uint64_t>> f_loop;
             std::vector<std::vector<uint64_t>> offchip_weight_reads;
