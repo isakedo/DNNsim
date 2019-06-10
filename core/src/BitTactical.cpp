@@ -251,8 +251,8 @@ namespace core {
     schedule BitTactical<T>::scheduler(const cnpy::Array<T> &wgt, int act_channels) {
         std::vector<int> max_time;
         const auto &sparse_schedule = sparse_scheduler(wgt,act_channels,max_time);
-        //const auto &dense_schedule = dense_scheduler(sparse_schedule,max_time);
-        return sparse_schedule;
+        const auto &dense_schedule = dense_scheduler(sparse_schedule,max_time);
+        return dense_schedule;
     }
 
     template <typename T>
