@@ -31,9 +31,9 @@ namespace sys {
             std::vector<std::vector<uint64_t>> weight_buff_reads;           //On-Chip Weight Buffer Reads
             std::vector<std::vector<uint64_t>> act_buff_reads;              //On-Chip Activation Buffer Reads
             std::vector<std::vector<uint64_t>> accumulator_updates;         //On-Chip Output Buffer Writes
-            std::vector<std::vector<uint64_t>> scheduled_PEs;               //Total scheduled Processing Engines
-            std::vector<std::vector<uint64_t>> idle_PEs;                    //Number of idle PEs in the whole simulation
-            std::vector<std::vector<uint64_t>> stall_cycles;                //Column stalls due to synchronization
+            std::vector<std::vector<uint64_t>> scheduled_pe;                //Total scheduled Processing Engines
+            std::vector<std::vector<uint64_t>> idle_pe;                     //Number of idle PEs in the whole simulation
+            std::vector<std::vector<uint64_t>> stall_cycles;                //Column stall cyckes due to synchronization
 
             /* Stats for 8bits PEs */
             std::vector<uint64_t> idle_columns;                             //Idle columns due to spatial composition
@@ -48,7 +48,6 @@ namespace sys {
             std::vector<std::vector<uint64_t>> idle_conflicts;
             std::vector<std::vector<uint64_t>> idle_column_cycles;
             std::vector<std::vector<uint64_t>> column_stalls;
-            std::vector<std::vector<uint64_t>> idle_pe;
             std::vector<std::vector<uint64_t>> idle_halo;
             std::vector<std::vector<uint64_t>> total_mult_cycles;
             std::vector<std::vector<uint64_t>> halo_transfers;

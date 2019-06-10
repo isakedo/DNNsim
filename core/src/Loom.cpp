@@ -507,7 +507,7 @@ namespace core {
         auto wgt_prec = layer.getWgtPrecision();
 
         // Convolution
-        for(int n=0; n<batch_size; n++) {
+        for(int n=0; n < batch_size; n++) {
             bit_counter = (uint64_t)computeLoomBitsPE((uint8_t)act_prec, (uint8_t)wgt_prec) * out_x * out_y * Kx * Ky *
                           wgt_channels * num_filters;
             double MAX_BITS = network_bits * network_bits;
@@ -554,7 +554,7 @@ namespace core {
         auto act_prec = layer.getActPrecision();
         auto wgt_prec = layer.getWgtPrecision();
 
-        for (int n = 0; n<batch_size; n++) {
+        for (int n = 0; n < batch_size; n++) {
             bit_counter = (uint64_t)computeLoomBitsPE((uint8_t)act_prec, (uint8_t)wgt_prec) * wgt_channels *
                     num_filters * R;
             double MAX_BITS = network_bits * network_bits;

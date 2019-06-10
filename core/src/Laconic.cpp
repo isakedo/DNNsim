@@ -349,8 +349,8 @@ namespace core {
                 if(wgt_channels == 1)
                     start_group = m;
 
-                for(int x=0; x<out_x; x++) {
-                    for(int y=0; y<out_y; y++) {
+                for(int x = 0; x < out_x; x++) {
+                    for(int y = 0; y < out_y; y++) {
                         for (int i = 0; i < Kx; i++) {
                             for (int j = 0; j < Ky; j++) {
                                 for (int k = 0; k < wgt_channels; k++) {
@@ -413,7 +413,7 @@ namespace core {
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n)
         #endif
-        for (n = 0; n<batch_size; n++) {
+        for (n = 0; n < batch_size; n++) {
             uint64_t bit_counter = 0;
             for (int r = 0; r < R; r++) {
                 for (int m = 0; m < num_filters; m++) {

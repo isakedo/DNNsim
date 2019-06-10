@@ -4,15 +4,18 @@
 namespace interface {
 
     void dump_csv_BitPragmatic_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,batch,cycles,baseline_cycles,speedup,stall_cycles,time(s)" << std::endl;
+        o_file << "layer,batch,cycles,baseline_cycles,speedup,stall_cycles,weight_buff_reads,act_buff_reads,"
+                  "accumulator_updates,scheduled_pe,idle_pe,time(s)" << std::endl;
 
         #ifdef PER_IMAGE_RESULTS
         for (int j = 0; j < stats.cycles.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%.2f,%lu,0\n", stats.layers[i].c_str(),j,stats.cycles[i][j],
-                        stats.baseline_cycles[i], (double)stats.baseline_cycles[i]/stats.cycles[i][j], 
-                        stats.stall_cycles[i][j]);
+                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,%lu,%lu,0\n", stats.layers[i].c_str(),
+                        j,stats.cycles[i][j], stats.baseline_cycles[i], stats.baseline_cycles[i] /
+                        (double)stats.cycles[i][j], stats.stall_cycles[i][j], stats.weight_buff_reads[i][j],
+                        stats.act_buff_reads[i][j], stats.accumulator_updates[i][j], stats.scheduled_pe[i][j],
+                        stats.idle_pe[i][j]);
                 o_file << line;
             }
         }
@@ -22,30 +25,39 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%.2f,%lu,%.2f\n", stats.layers[i].c_str(),
-                    stats.get_average(stats.cycles[i]), stats.baseline_cycles[i], (double)stats.baseline_cycles[i] /
-                    stats.get_average(stats.cycles[i]), stats.get_average(stats.stall_cycles[i]),stats.time[i].count());
+            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n", stats.layers[i].c_str(),
+                    stats.get_average(stats.cycles[i]), stats.baseline_cycles[i], stats.baseline_cycles[i] /
+                    (double)stats.get_average(stats.cycles[i]), stats.get_average(stats.stall_cycles[i]),
+                    stats.get_average(stats.weight_buff_reads[i]), stats.get_average(stats.act_buff_reads[i]),
+                    stats.get_average(stats.accumulator_updates[i]), stats.get_average(stats.scheduled_pe[i]),
+                    stats.get_average(stats.idle_pe[i]), stats.time[i].count());
             o_file << line;
         }
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%.2f,%lu,%.2f\n", stats.get_total(stats.cycles),
-                stats.get_total(stats.baseline_cycles),stats.get_total(stats.baseline_cycles)/
-                (double)stats.get_total(stats.cycles),stats.get_total(stats.stall_cycles),total_time);
+        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n",
+                stats.get_total(stats.cycles), stats.get_total(stats.baseline_cycles),
+                stats.get_total(stats.baseline_cycles) / (double)stats.get_total(stats.cycles),
+                stats.get_total(stats.stall_cycles), stats.get_total(stats.weight_buff_reads),
+                stats.get_total(stats.act_buff_reads), stats.get_total(stats.accumulator_updates),
+                stats.get_total(stats.scheduled_pe), stats.get_total(stats.idle_pe), total_time);
         o_file << line;
     }
 
     void dump_csv_Stripes_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,batch,cycles,baseline_cycles,speedup,columns_per_act,rows_per_wgt,idle_columns,idle_rows,"
-                  "act_precision,wgt_precision,time(s)" << std::endl;
+        o_file << "layer,batch,cycles,baseline_cycles,speedup,weight_buff_reads,act_buff_reads,accumulator_updates,"
+                  "scheduled_pe,idle_pe,columns_per_act,rows_per_wgt,idle_columns,idle_rows,act_precision,"
+                  "wgt_precision,time(s)" << std::endl;
 
         #ifdef PER_IMAGE_RESULTS
         for (int j = 0; j < stats.cycles.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,%d,%d,0\n", stats.layers[i].c_str(), j,
-                        stats.cycles[i][j], stats.baseline_cycles[i], (double)stats.baseline_cycles[i]/
-                        stats.cycles[i][j], stats.columns_per_act[i], stats.rows_per_wgt[i], stats.idle_columns[i],
+                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%d,%d,0\n",
+                        stats.layers[i].c_str(), j, stats.cycles[i][j], stats.baseline_cycles[i],
+                        stats.baseline_cycles[i] / (double)stats.cycles[i][j], stats.weight_buff_reads[i][j],
+                        stats.act_buff_reads[i][j], stats.accumulator_updates[i][j], stats.scheduled_pe[i][j],
+                        stats.idle_pe[i][j], stats.columns_per_act[i], stats.rows_per_wgt[i], stats.idle_columns[i],
                         stats.idle_rows[i], stats.act_prec[i], stats.wgt_prec[i]);
                 o_file << line;
             }
@@ -56,34 +68,43 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,%d,%d,%.2f\n", stats.layers[i].c_str(),
-                    stats.get_average(stats.cycles[i]), stats.baseline_cycles[i], (double)stats.baseline_cycles[i]/
-                    stats.get_average(stats.cycles[i]), stats.columns_per_act[i], stats.rows_per_wgt[i],
+            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%d,%d,%.2f\n",
+                    stats.layers[i].c_str(), stats.get_average(stats.cycles[i]), stats.baseline_cycles[i],
+                    stats.baseline_cycles[i] / (double)stats.get_average(stats.cycles[i]),
+                    stats.get_average(stats.weight_buff_reads[i]), stats.get_average(stats.act_buff_reads[i]),
+                    stats.get_average(stats.accumulator_updates[i]), stats.get_average(stats.scheduled_pe[i]),
+                    stats.get_average(stats.idle_pe[i]), stats.columns_per_act[i], stats.rows_per_wgt[i],
                     stats.idle_columns[i], stats.idle_rows[i], stats.act_prec[i], stats.wgt_prec[i],
                     stats.time[i].count());
             o_file << line;
         }
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,-,-,%.2f\n", stats.get_total(stats.cycles),
-                stats.get_total(stats.baseline_cycles),stats.get_total(stats.baseline_cycles)/
-                (double)stats.get_total(stats.cycles), stats.get_average(stats.columns_per_act),
+        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,-,-,%.2f\n",
+                stats.get_total(stats.cycles), stats.get_total(stats.baseline_cycles),
+                stats.get_total(stats.baseline_cycles) / (double)stats.get_total(stats.cycles),
+                stats.get_total(stats.weight_buff_reads), stats.get_total(stats.act_buff_reads),
+                stats.get_total(stats.accumulator_updates), stats.get_total(stats.scheduled_pe),
+                stats.get_total(stats.idle_pe), stats.get_average(stats.columns_per_act),
                 stats.get_average(stats.rows_per_wgt), stats.get_average(stats.idle_columns),
                 stats.get_average(stats.idle_rows),total_time);
         o_file << line;
     }
 
     void dump_csv_DynamicStripes_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,batch,cycles,baseline_cycles,speedup,stall_cycles,rows_per_wgt,idle_rows,act_precision,"
-                  "wgt_precision,time(s)" << std::endl;
+        o_file << "layer,batch,cycles,baseline_cycles,speedup,stall_cycles,weight_buff_reads,act_buff_reads,"
+                  "accumulator_updates,scheduled_pe,idle_pe,rows_per_wgt,idle_rows,act_precision,wgt_precision,time(s)"
+                  << std::endl;
 
         #ifdef PER_IMAGE_RESULTS
         for (int j = 0; j < stats.cycles.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%.2f,%lu,%lu,%lu,%d,%d,0\n", stats.layers[i].c_str(), j,
-                        stats.cycles[i][j], stats.baseline_cycles[i], (double)stats.baseline_cycles[i]/
-                        stats.cycles[i][j], stats.stall_cycles[i][j], stats.rows_per_wgt[i], stats.idle_rows[i],
+                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%d,%d,0\n",
+                        stats.layers[i].c_str(), j, stats.cycles[i][j], stats.baseline_cycles[i],
+                        stats.baseline_cycles[i] / (double)stats.cycles[i][j], stats.stall_cycles[i][j],
+                        stats.weight_buff_reads[i][j], stats.act_buff_reads[i][j], stats.accumulator_updates[i][j],
+                        stats.scheduled_pe[i][j], stats.idle_pe[i][j], stats.rows_per_wgt[i], stats.idle_rows[i],
                         stats.act_prec[i], stats.wgt_prec[i]);
                 o_file << line;
             }
@@ -94,17 +115,23 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%.2f,%lu,%lu,%lu,%d,%d,%.2f\n", stats.layers[i].c_str(),
-                    stats.get_average(stats.cycles[i]), stats.baseline_cycles[i], (double)stats.baseline_cycles[i]/
-                    stats.get_average(stats.cycles[i]), stats.get_average(stats.stall_cycles[i]), stats.rows_per_wgt[i],
+            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%d,%d,%.2f\n",
+                    stats.layers[i].c_str(), stats.get_average(stats.cycles[i]), stats.baseline_cycles[i],
+                    stats.baseline_cycles[i] / (double)stats.get_average(stats.cycles[i]),
+                    stats.get_average(stats.stall_cycles[i]), stats.get_average(stats.weight_buff_reads[i]),
+                    stats.get_average(stats.act_buff_reads[i]), stats.get_average(stats.accumulator_updates[i]),
+                    stats.get_average(stats.scheduled_pe[i]), stats.get_average(stats.idle_pe[i]),stats.rows_per_wgt[i],
                     stats.idle_rows[i], stats.act_prec[i], stats.wgt_prec[i], stats.time[i].count());
             o_file << line;
         }
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%.2f,%lu,%lu,%lu,-,-,%.2f\n", stats.get_total(stats.cycles),
-                stats.get_total(stats.baseline_cycles),stats.get_total(stats.baseline_cycles)/
-                (double)stats.get_total(stats.cycles), stats.get_total(stats.stall_cycles),
+        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,-,-,%.2f\n",
+                stats.get_total(stats.cycles), stats.get_total(stats.baseline_cycles),
+                stats.get_total(stats.baseline_cycles) / (double)stats.get_total(stats.cycles),
+                stats.get_total(stats.stall_cycles), stats.get_total(stats.weight_buff_reads),
+                stats.get_total(stats.act_buff_reads), stats.get_total(stats.accumulator_updates),
+                stats.get_total(stats.scheduled_pe), stats.get_total(stats.idle_pe),
                 stats.get_average(stats.rows_per_wgt), stats.get_average(stats.idle_rows), total_time);
         o_file << line;
     }
@@ -164,15 +191,18 @@ namespace interface {
     }
 
     void dump_csv_BitTacticalE_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,batch,cycles,stall_cycles,time(s)" << std::endl;
+        o_file << "layer,batch,cycles,stall_cycles,weight_buff_reads,act_buff_reads,accumulator_updates,"
+                  "scheduled_pe,idle_pe,time(s)" << std::endl;
 
 
         #ifdef PER_IMAGE_RESULTS
         for (int j = 0; j < stats.cycles.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,0\n", stats.layers[i].c_str(), j, stats.cycles[i][j],
-                        stats.stall_cycles[i][j]);
+                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,0\n", stats.layers[i].c_str(), j,
+                        stats.cycles[i][j], stats.stall_cycles[i][j], stats.get_average(stats.weight_buff_reads[i]),
+                         stats.get_average(stats.act_buff_reads[i]), stats.get_average(stats.accumulator_updates[i]),
+                         stats.get_average(stats.scheduled_pe[i]), stats.get_average(stats.idle_pe[i]));
                 o_file << line;
             }
         }
@@ -182,26 +212,35 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%.2f\n", stats.layers[i].c_str(),
-                    stats.get_average(stats.cycles[i]), stats.get_average(stats.stall_cycles[i]),stats.time[i].count());
+            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n", stats.layers[i].c_str(),
+                    stats.get_average(stats.cycles[i]), stats.get_average(stats.stall_cycles[i]),
+                    stats.get_average(stats.weight_buff_reads[i]), stats.get_average(stats.act_buff_reads[i]),
+                    stats.get_average(stats.accumulator_updates[i]), stats.get_average(stats.scheduled_pe[i]),
+                    stats.get_average(stats.idle_pe[i]), stats.time[i].count());
             o_file << line;
         }
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%.2f\n", stats.get_total(stats.cycles),
-                stats.get_total(stats.stall_cycles), total_time);
+        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n", stats.get_total(stats.cycles),
+                stats.get_total(stats.stall_cycles), stats.get_total(stats.weight_buff_reads),
+                stats.get_total(stats.act_buff_reads), stats.get_total(stats.accumulator_updates),
+                stats.get_total(stats.scheduled_pe), stats.get_total(stats.idle_pe), total_time);
         o_file << line;
     }
 
     void dump_csv_BitTacticalP_cycles(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,batch,cycles,stall_cycles,act_precision,time(s)" << std::endl;
+        o_file << "layer,batch,cycles,stall_cycles,weight_buff_reads,act_buff_reads,accumulator_updates,"
+                  "scheduled_pe,idle_pe,act_precision,time(s)" << std::endl;
 
         #ifdef PER_IMAGE_RESULTS
         for (int j = 0; j < stats.cycles.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%d,0\n", stats.layers[i].c_str(), j, stats.cycles[i][j],
-                        stats.stall_cycles[i][j], stats.act_prec[i]);
+                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%d,0\n", stats.layers[i].c_str(), j,
+                        stats.cycles[i][j], stats.stall_cycles[i][j], stats.get_average(stats.weight_buff_reads[i]),
+                        stats.get_average(stats.act_buff_reads[i]), stats.get_average(stats.accumulator_updates[i]),
+                        stats.get_average(stats.scheduled_pe[i]), stats.get_average(stats.idle_pe[i]),
+                        stats.act_prec[i]);
                 o_file << line;
             }
         }
@@ -211,15 +250,19 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%d,%.2f\n", stats.layers[i].c_str(),
-                    stats.get_average(stats.cycles[i]), stats.get_average(stats.stall_cycles[i]), stats.act_prec[i],
-                    stats.time[i].count());
+            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%d,%.2f\n", stats.layers[i].c_str(),
+                    stats.get_average(stats.cycles[i]), stats.get_average(stats.stall_cycles[i]),
+                    stats.get_average(stats.weight_buff_reads[i]), stats.get_average(stats.act_buff_reads[i]),
+                    stats.get_average(stats.accumulator_updates[i]), stats.get_average(stats.scheduled_pe[i]),
+                    stats.get_average(stats.idle_pe[i]), stats.act_prec[i], stats.time[i].count());
             o_file << line;
         }
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,-,%.2f\n", stats.get_total(stats.cycles),
-                stats.get_total(stats.stall_cycles), total_time);
+        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,-,%.2f\n", stats.get_total(stats.cycles),
+                stats.get_total(stats.stall_cycles), stats.get_total(stats.weight_buff_reads),
+                stats.get_total(stats.act_buff_reads), stats.get_total(stats.accumulator_updates),
+                stats.get_total(stats.scheduled_pe), stats.get_total(stats.idle_pe), total_time);
         o_file << line;
     }
 

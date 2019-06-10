@@ -70,8 +70,8 @@ namespace core {
         stats.weight_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.act_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.accumulator_updates.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.scheduled_PEs.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.idle_PEs.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.scheduled_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.idle_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         // Convolution
         for(int n = 0; n < batch_size; n++) {
@@ -83,8 +83,8 @@ namespace core {
             uint64_t weight_buff_reads = 0;
             uint64_t act_buff_reads = 0;
             uint64_t accumulator_updates = 0;
-            uint64_t scheduled_PEs = 0;
-            uint64_t idle_PEs = 0;
+            uint64_t scheduled_pe = 0;
+            uint64_t idle_pe = 0;
 
             while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter, y_counter, windows_per_tile)) {
                 for (int i = 0; i < Kx; i++) {
@@ -93,8 +93,8 @@ namespace core {
                             cycles += precision_cycles;
                             act_buff_reads++;
                             weight_buff_reads++;
-                            scheduled_PEs += list_x.size() * N_ROWS;
-                            idle_PEs += (N_COLUMNS - list_x.size()) * N_ROWS;
+                            scheduled_pe += list_x.size() * N_ROWS;
+                            idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
                         }
                     }
                 }
@@ -105,8 +105,8 @@ namespace core {
             stats.weight_buff_reads.back()[n] = weight_buff_reads * num_filters_sets;
             stats.act_buff_reads.back()[n] = act_buff_reads * num_filters_sets;
             stats.accumulator_updates.back()[n] = accumulator_updates * num_filters_sets;
-            stats.scheduled_PEs.back()[n] = scheduled_PEs * num_filters_sets;
-            stats.idle_PEs.back()[n] = idle_PEs * num_filters_sets;
+            stats.scheduled_pe.back()[n] = scheduled_pe * num_filters_sets;
+            stats.idle_pe.back()[n] = idle_pe * num_filters_sets;
 
         }
 
@@ -174,8 +174,8 @@ namespace core {
         stats.weight_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.act_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.accumulator_updates.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.scheduled_PEs.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.idle_PEs.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.scheduled_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.idle_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         int n;
 
@@ -194,8 +194,8 @@ namespace core {
             uint64_t weight_buff_reads = 0;
             uint64_t act_buff_reads = 0;
             uint64_t accumulator_updates = 0;
-            uint64_t scheduled_PEs = 0;
-            uint64_t idle_PEs = 0;
+            uint64_t scheduled_pe = 0;
+            uint64_t idle_pe = 0;
 
             for(int m = 0; m < num_filters; m += filters_per_tile) {
                 while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,windows_per_tile)) {
@@ -205,8 +205,8 @@ namespace core {
                                 cycles += precision_cycles;
                                 act_buff_reads++;
                                 weight_buff_reads++;
-                                scheduled_PEs += list_x.size() * N_ROWS;
-                                idle_PEs += (N_COLUMNS - list_x.size()) * N_ROWS;
+                                scheduled_pe += list_x.size() * N_ROWS;
+                                idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
                             }
                         }
                     }
@@ -218,8 +218,8 @@ namespace core {
             stats.weight_buff_reads.back()[n] = weight_buff_reads;
             stats.act_buff_reads.back()[n] = act_buff_reads;
             stats.accumulator_updates.back()[n] = accumulator_updates;
-            stats.scheduled_PEs.back()[n] = scheduled_PEs;
-            stats.idle_PEs.back()[n] = idle_PEs;
+            stats.scheduled_pe.back()[n] = scheduled_pe;
+            stats.idle_pe.back()[n] = idle_pe;
         }
 
         auto base_cycles = (uint64_t)(out_x * out_y * ceil(wgt_channels/(double)WEIGHT_LANES) * Kx * Ky *
@@ -286,8 +286,8 @@ namespace core {
         stats.weight_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.act_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.accumulator_updates.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.scheduled_PEs.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.idle_PEs.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.scheduled_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.idle_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         #ifndef FC_MULTIPLEX_COLUMNS
 
@@ -313,10 +313,10 @@ namespace core {
             stats.weight_buff_reads.back()[n] = weight_buff_reads * num_filters_sets;
             stats.act_buff_reads.back()[n] = act_buff_reads * num_filters_sets;
             stats.accumulator_updates.back()[n] = accumulator_updates * num_filters_sets;
-            stats.scheduled_PEs.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)WEIGHT_LANES);
+            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)WEIGHT_LANES);
             auto idle_rows = N_ROWS - (num_filters % N_ROWS);
             idle_rows = idle_rows == 16 ? 0 : idle_rows;
-            stats.idle_PEs.back()[n] = idle_rows * ceil(act_channels/(double)WEIGHT_LANES);
+            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)WEIGHT_LANES);
 
         }
 
@@ -327,17 +327,21 @@ namespace core {
             int column_index = 0;
             std::vector<int> column_end = std::vector<int>(windows_per_tile, 0);
             auto precision_cycles = (columns_per_act == 1 && rows_per_wgt == 1) ? act_layer_prec : BITS_PE;
+            uint64_t cycles = 0;
+            uint64_t stall_cycles = 0;
             uint64_t weight_buff_reads = 0;
             uint64_t act_buff_reads = 0;
             uint64_t accumulator_updates = 0;
 
             for (int r = 0; r < R; r++) {
                 for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
-                    if (stats.cycles.back()[n] < column_end[column_index])
-                        stats.cycles.back()[n] = column_end[column_index];
+                    if(cycles < column_end[column_index]) {
+                        stall_cycles = column_end[column_index] - cycles;
+                        cycles = column_end[column_index];
+                    }
                     auto column_cycles = precision_cycles;
-                    column_end[column_index] = stats.cycles.back()[n] + column_cycles;
-                    stats.cycles.back()[n]++;
+                    column_end[column_index] = cycles + column_cycles;
+                    cycles++;
                     column_index++;
                     if (column_index >= windows_per_tile) column_index = 0;
 
@@ -349,15 +353,16 @@ namespace core {
 
             uint64_t last_column_end = *std::max_element(column_end.begin(), column_end.end());
             uint64_t last_column_rem_cycles = last_column_end - stats.cycles.back()[n];
-            stats.cycles.back()[n] *= num_filters_sets;
+            stats.cycles.back()[n] = cycles * num_filters_sets;
             stats.cycles.back()[n] += last_column_rem_cycles;
+            stats.stall_cycles.back()[n] = stall_cycles * num_filters_sets;
             stats.weight_buff_reads.back()[n] = weight_buff_reads * num_filters_sets;
             stats.act_buff_reads.back()[n] = act_buff_reads * num_filters_sets;
             stats.accumulator_updates.back()[n] = accumulator_updates * num_filters_sets;
-            stats.scheduled_PEs.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)WEIGHT_LANES);
+            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)WEIGHT_LANES);
             auto idle_rows = N_ROWS - (num_filters % N_ROWS);
             idle_rows = idle_rows == 16 ? 0 : idle_rows;
-            stats.idle_PEs.back()[n] = idle_rows * ceil(act_channels/(double)WEIGHT_LANES);
+            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)WEIGHT_LANES);
 
         }
 
