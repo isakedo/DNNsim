@@ -76,12 +76,13 @@ namespace core {
          * @param max_channel   Maximum number of channels
          * @param max_filter    Maximum number of filters
          * @param wgt_prec      Profiled weight precision
+         * @param stats     Statistics to fill
          * @return              Number of cycles
          */
         uint8_t computeLoomTile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
                 int kernel_x, int kernel_y, int init_channel, int init_filter, int stride,
                 const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group, int max_channel,
-                int max_filter, int act_mask, int wgt_mask, int wgt_prec);
+                int max_filter, int act_mask, int wgt_mask, int wgt_prec, sys::Statistics::Stats &stats);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs

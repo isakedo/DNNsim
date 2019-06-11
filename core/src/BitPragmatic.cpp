@@ -519,6 +519,7 @@ namespace core {
             stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)WEIGHT_LANES);
             auto idle_rows = N_ROWS - (num_filters % N_ROWS);
             stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)WEIGHT_LANES);
+
         }
 
         #else

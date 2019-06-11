@@ -53,28 +53,28 @@ namespace sys {
             std::vector<std::vector<uint64_t>> halo_transfers;
             std::vector<std::vector<uint64_t>> i_loop;
             std::vector<std::vector<uint64_t>> f_loop;
-            std::vector<std::vector<uint64_t>> offchip_weight_reads;
+            std::vector<std::vector<uint64_t>> offchip_weight_reads;        //Number of off-chip weight readings
 
             /* Bit Fusion */
-            std::vector<uint64_t> perf_factor;
-            std::vector<uint64_t> time_multiplex;
+            std::vector<uint64_t> perf_factor;                              //Speedup over a Fusion Unit operating at 8b
+            std::vector<uint64_t> time_multiplex;                           //Nº time multiplexing (precisions over 8b)
 
             /* Stats for potentials */
-            std::vector<std::vector<double>> work_reduction;
-            std::vector<std::vector<double>> speedup;
-            std::vector<std::vector<uint64_t>> bit_multiplications;
-            std::vector<uint64_t> parallel_multiplications;
+            std::vector<std::vector<double>> work_reduction;                //Work over parallel multiplications
+            std::vector<std::vector<double>> speedup;                       //Speedup over parallel multiplications
+            std::vector<std::vector<uint64_t>> bit_multiplications;         //Number of 1bit multiplications
+            std::vector<uint64_t> parallel_multiplications;                 //Number of parallel multiplications
 
-            /* Stats for sparsity */
-            std::vector<double> act_sparsity;
-            std::vector<uint64_t> zero_act;
-            std::vector<uint64_t> total_act;
-            std::vector<double> wgt_sparsity;
-            std::vector<uint64_t> zero_wgt;
-            std::vector<uint64_t> total_wgt;
+            /* Stats for sparsity */                                        //For BitSparsity this is zero bits
+            std::vector<double> act_sparsity;                               //Activations sparsity
+            std::vector<uint64_t> zero_act;                                 //Number of zero activations
+            std::vector<uint64_t> total_act;                                //Total number of activations
+            std::vector<double> wgt_sparsity;                               //Weights sparsity
+            std::vector<uint64_t> zero_wgt;                                 //Number of zero weights
+            std::vector<uint64_t> total_wgt;                                //Total number of weights
 
 			/* Stats for training sparsity */
-            std::vector<std::vector<double>> fw_act_sparsity;
+            std::vector<std::vector<double>> fw_act_sparsity;               //Forward activations sparsity
             std::vector<std::vector<uint64_t>> fw_zero_act;
             std::vector<std::vector<uint64_t>> fw_total_act;
             std::vector<std::vector<double>> fw_wgt_sparsity;

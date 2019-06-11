@@ -344,9 +344,7 @@ namespace core {
 
             for (int r = 0; r < R; r++) {
                 for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                   cycles += computeTacticalPColumn(n,r,0,0,0,act,dense_schedule,schedule_time,
-                            act_mask,lstm);
-
+                   cycles += computeTacticalPColumn(n,r,0,0,0,act,dense_schedule,schedule_time,act_mask,lstm);
                     weight_buff_reads++;
                     act_buff_reads++;
                 }
