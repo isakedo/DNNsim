@@ -328,7 +328,7 @@ int main(int argc, char *argv[]) {
 		                                experiment.precision_granularity, experiment.column_registers,
 		                                experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape,
 		                                experiment.leading_bit, N_THREADS, FAST_MODE);
-		                        if(experiment.task == "Cycles" && experiment.read_schedule_from_proto) {
+		                        if(experiment.task == "Cycles" && experiment.read_schedule) {
 		                            auto dense_schedule = read_schedule<uint16_t>(network.getName(),"BitTactical",
 		                                    experiment,QUIET);
 		                            DNNsim.run(network, dense_schedule);
@@ -342,7 +342,7 @@ int main(int argc, char *argv[]) {
 		                        core::BitTacticalE<uint16_t> DNNsim(experiment.n_columns,experiment.n_rows,
 		                                experiment.bits_first_stage, experiment.column_registers, experiment.lookahead_h,
 		                                experiment.lookaside_d, experiment.search_shape,N_THREADS,FAST_MODE);
-		                        if(experiment.task == "Cycles" && experiment.read_schedule_from_proto) {
+		                        if(experiment.task == "Cycles" && experiment.read_schedule) {
 		                            auto dense_schedule = read_schedule<uint16_t>(network.getName(),"BitTactical",
 		                                    experiment,QUIET);
 		                            DNNsim.run(network, dense_schedule);

@@ -207,7 +207,7 @@ namespace core {
         schedule sparse_schedule = schedule((unsigned)total_time, time_schedule((unsigned)N_ROWS*WEIGHT_LANES,
                 schedule_tuple(-1,-1,-1,0)));
 
-        for(int m=0; m<num_filters; m++) {
+        for(int m = 0; m < num_filters; m++) {
 
             // Two towers alexnet
             int start_group = 0;
@@ -276,7 +276,7 @@ namespace core {
                 const auto &dense_schedule = scheduler(wgt, act.getShape()[1]);
                 network_schedule.push_back(dense_schedule);
 
-            } else if(layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
+            } else if(layer.getType() == "InnerProduct") {
 
                 cnpy::Array<T> wgt = layer.getWeights();
                 wgt.reshape_to_4D();

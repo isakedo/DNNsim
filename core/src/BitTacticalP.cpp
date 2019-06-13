@@ -462,7 +462,7 @@ namespace core {
         stats.arch = "BitTacticalP_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS) + "_PG_" +
                 std::to_string(PRECISION_GRANULARITY) + "_CR" + std::to_string(this->COLUMN_REGISTERS) + "_" +
                 this->SEARCH_SHAPE + std::to_string(mux_entries) + "(" + std::to_string(this->LOOKAHEAD_H) + "-" +
-                std::to_string(this->LOOKASIDE_D) + ")";
+                std::to_string(this->LOOKASIDE_D) + ")" + (LEADING_BIT ? "_LB" : "");
 
         int sch_index = 0;
         for(const Layer<T> &layer : network.getLayers()) {

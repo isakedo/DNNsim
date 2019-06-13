@@ -30,7 +30,7 @@ namespace sys {
                 int lookahead_h = 0;
                 int lookaside_d = 0;
                 char search_shape = 'X';
-                bool read_schedule_from_proto = false;
+                bool read_schedule = false;
                 int Wt = 0;
                 int Ht = 0;
                 int I = 0;

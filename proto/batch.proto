@@ -31,7 +31,7 @@ message Batch {
             uint32 lookahead_h = 11;
             uint32 lookaside_d = 12;
             string search_shape = 13;
-            bool read_schedule_from_proto = 14;
+            bool read_schedule = 14;
 
             // SCNN
             uint32 Wt = 15;

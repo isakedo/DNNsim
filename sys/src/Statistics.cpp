@@ -18,7 +18,8 @@ namespace sys {
     }
 
     void Statistics::updateFlagsLastStat(bool TENSORFLOW_8b) {
-        Statistics::all_stats.back().tensorflow_8b = TENSORFLOW_8b;
+        if(!Statistics::all_stats.empty())
+            Statistics::all_stats.back().tensorflow_8b = TENSORFLOW_8b;
     }
 
 

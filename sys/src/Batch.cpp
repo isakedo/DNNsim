@@ -172,7 +172,7 @@ namespace sys {
                     experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();
                     experiment.search_shape = experiment_proto.search_shape().empty() ? 'L' :
                             experiment_proto.search_shape().c_str()[0];
-                    experiment.read_schedule_from_proto = experiment_proto.read_schedule_from_proto();
+                    experiment.read_schedule = experiment_proto.read_schedule();
                     experiment.leading_bit = experiment_proto.leading_bit();
                     value = experiment.search_shape;
                     if(value != "L" && value != "T")
@@ -195,7 +195,7 @@ namespace sys {
                     experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();
                     experiment.search_shape = experiment_proto.search_shape().empty() ? 'L' :
                                               experiment_proto.search_shape().c_str()[0];
-                    experiment.read_schedule_from_proto = experiment_proto.read_schedule_from_proto();
+                    experiment.read_schedule = experiment_proto.read_schedule();
                     value = experiment.search_shape;
                     if(value != "L" && value != "T")
                         throw std::runtime_error("BitTactical search shape for network " + simulate.network +
