@@ -152,8 +152,8 @@ namespace core {
 
     template <typename T>
     void DynamicStripes<T>::computeDynamicStripes2DTile(int batch, const std::vector<int> &list_act_x,
-            const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int init_filter,
-            int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int act_mask, int max_filter,
+            const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_filter, int stride,
+            const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int act_mask, int max_filter,
             std::vector<uint32_t> &cycles_per_group, std::vector<uint32_t> &end_previous_pallet,
             sys::Statistics::Stats &stats) {
 
@@ -175,7 +175,7 @@ namespace core {
 
             for (int filter = init_filter; filter < std::min(init_filter + N_ROWS, max_filter); filter++) {
 
-                auto act_bits = padded_act.get(batch, filter + init_channel, stride * list_act_x[window] + kernel_x,
+                auto act_bits = padded_act.get(batch, filter, stride * list_act_x[window] + kernel_x,
                         stride * list_act_y[window] + kernel_y);
 
                 bool neg = false;
@@ -435,15 +435,13 @@ namespace core {
                 while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
-                            for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
-                                computeDynamicStripes2DTile(n,list_x, list_y, i, j, k, m, stride, act, wgt, act_mask,
-                                        num_filters, cycles_per_col, end_previous_pallet, stats);
+                            computeDynamicStripes2DTile(n,list_x, list_y, i, j, m, stride, act, wgt, act_mask,
+                                    num_filters, cycles_per_col, end_previous_pallet, stats);
 
-                                act_buff_reads++;
-                                weight_buff_reads++;
-                                scheduled_pe += list_x.size() * N_ROWS;
-                                idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
-                            }
+                            act_buff_reads++;
+                            weight_buff_reads++;
+                            scheduled_pe += list_x.size() * N_ROWS;
+                            idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
                         }
                     }
                     accumulator_updates++;
@@ -595,7 +593,7 @@ namespace core {
             }
 
             uint64_t last_column_end = *std::max_element(column_end.begin(), column_end.end());
-            uint64_t last_column_rem_cycles = last_column_end - stats.cycles.back()[n];
+            uint64_t last_column_rem_cycles = last_column_end - cycles;
             stats.cycles.back()[n] = cycles * num_filters_sets;
             stats.cycles.back()[n] += last_column_rem_cycles;
             stats.stall_cycles.back()[n] = stall_cycles * num_filters_sets;

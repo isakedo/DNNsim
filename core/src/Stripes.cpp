@@ -201,13 +201,11 @@ namespace core {
                 while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,windows_per_tile)) {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
-                            for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
-                                cycles += precision_cycles;
-                                act_buff_reads++;
-                                weight_buff_reads++;
-                                scheduled_pe += list_x.size() * N_ROWS;
-                                idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
-                            }
+                            cycles += precision_cycles;
+                            act_buff_reads++;
+                            weight_buff_reads++;
+                            scheduled_pe += list_x.size() * N_ROWS;
+                            idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
                         }
                     }
                     accumulator_updates++;

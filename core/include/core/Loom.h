@@ -62,27 +62,29 @@ namespace core {
                 int wgt_prec, bool lstm);
 
         /* Compute cycles for laconic tile
-         * @param batch         Current number of batch
-         * @param list_act_x    X position for the set of input windows
-         * @param list_act_y    Y position for the set of input windows
-         * @param kernel_x      X position in the kernel window
-         * @param kernel_y      Y position in the kernel window
-         * @param init_channel  Starting index for the channel
-         * @param init_filter   Starting index for the filter
-         * @param stride        Stride of the current layer
-         * @param padded_act    Set of padded input activations
-         * @param wgt           Set of weights
-         * @param start_group   Starting channel of the group
-         * @param max_channel   Maximum number of channels
-         * @param max_filter    Maximum number of filters
-         * @param wgt_prec      Profiled weight precision
-         * @param stats     Statistics to fill
-         * @return              Number of cycles
+         * @param batch             Current number of batch
+         * @param list_act_x        X position for the set of input windows
+         * @param list_act_y        Y position for the set of input windows
+         * @param kernel_x          X position in the kernel window
+         * @param kernel_y          Y position in the kernel window
+         * @param init_channel      Starting index for the channel
+         * @param init_filter       Starting index for the filter
+         * @param stride            Stride of the current layer
+         * @param padded_act        Set of padded input activations
+         * @param wgt               Set of weights
+         * @param start_group       Starting channel of the group
+         * @param max_act_channel   Maximum number of activation channels
+         * @param max_wgt_channel   Maximum number of weight channels
+         * @param max_filter        Maximum number of filters
+         * @param wgt_prec          Profiled weight precision
+         * @param stats             Statistics to fill
+         * @return                  Number of cycles
          */
         uint8_t computeLoomTile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
                 int kernel_x, int kernel_y, int init_channel, int init_filter, int stride,
-                const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group, int max_channel,
-                int max_filter, int act_mask, int wgt_mask, int wgt_prec, sys::Statistics::Stats &stats);
+                const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group, int max_act_channel,
+                int max_wgt_channel, int max_filter, int act_mask, int wgt_mask, int wgt_prec,
+                sys::Statistics::Stats &stats);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs

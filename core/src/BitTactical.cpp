@@ -215,13 +215,13 @@ namespace core {
                 start_group = wgt_channels;
 
             // Fix for MobileNet
-            if(wgt_channels == 1)
+            if(wgt_channels == 1 && act_channels != 1)
                 start_group = m;
 
             int time = max_time.empty() ? 0 : *std::max_element(max_time.begin(),max_time.end());
             for (int i = 0; i < Kx; i++) {
                 for (int j = 0; j < Ky; j++) {
-                    for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
+                    for (int k = 0; k < wgt_channels; k += WEIGHT_LANES) {
                         int index = 0;
                         for(int channel = k; channel < std::min(k + WEIGHT_LANES,wgt_channels); channel++) {
                             auto wgt_bits = wgt.get(m,channel,i,j);

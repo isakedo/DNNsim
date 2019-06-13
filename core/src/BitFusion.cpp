@@ -223,7 +223,7 @@ namespace core {
         auto wgt_rounded_log2 = ceil(log(wgt_layer_prec)/log(2));
         auto wgt_rounded_precision = (uint8_t)pow(2,wgt_rounded_log2);
 
-        for (int n = 0; n<batch_size; n++) {
+        for (int n = 0; n < batch_size; n++) {
             double MAX_BITS = network_bits * network_bits;
             bit_counter = (uint64_t)computeBitFusionBitsPE(act_rounded_precision,wgt_rounded_precision) *
                     wgt_channels * num_filters * R;

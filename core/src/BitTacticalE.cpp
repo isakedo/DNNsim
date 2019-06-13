@@ -518,7 +518,7 @@ namespace core {
         #endif
         for(n = 0; n < batch_size; n++) {
             uint64_t bit_counter = 0;
-            for(int m=0; m<num_filters; m++) {
+            for(int m = 0; m < num_filters; m++) {
 
                 // Two towers alexnet
                 int start_group = 0;
@@ -526,7 +526,7 @@ namespace core {
                     start_group = wgt_channels;
 
                 // Fix for MobileNet
-                if(wgt_channels == 1)
+                if(wgt_channels == 1 && act_channels != 1)
                     start_group = m;
 
                 for(int x = 0; x < out_x; x++) {

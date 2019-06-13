@@ -43,11 +43,12 @@ namespace core {
          * @param max_channel   Maximum number of channels
          * @param max_filter    Maximum number of filters
          * @param lstm          True if it is LSTM layer
+         * @param conv2D        True if 2D convolution
          * @return              Number of cycles
          */
         uint8_t computeLaconicColumn(int batch, int recursion, int act_x, int act_y, int kernel_x, int kernel_y,
                 int init_channel, int init_filter, int stride, const cnpy::Array<T> &padded_act,
-                const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter, bool lstm);
+                const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter, bool lstm, bool conv2D);
 
         /* Compute cycles for laconic tile
          * @param batch         Current number of batch
@@ -63,13 +64,14 @@ namespace core {
          * @param start_group   Starting channel of the group
          * @param max_channel   Maximum number of channels
          * @param max_filter    Maximum number of filters
+         * @param conv2D        True if 2D convolution
          * @param stats         Statistics to fill
          * @return              Number of cycles
          */
         uint8_t computeLaconicTile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
                 int kernel_x, int kernel_y, int init_channel, int init_filter, int stride,
                 const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group, int max_channel,
-                int max_filter, sys::Statistics::Stats &stats);
+                int max_filter, bool conv2D, sys::Statistics::Stats &stats);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs

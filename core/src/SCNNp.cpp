@@ -276,7 +276,7 @@ namespace core {
         auto Kc = (int)floor(this->out_acc_size/(double)(th*tw));
 
         // Fix for MobileNet
-        if(Ck == 1) Kc = 1;
+        if(Ck == 1 && C != 1) Kc = 1;
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(N,0));
@@ -312,14 +312,14 @@ namespace core {
         #pragma omp parallel for private(n)
         #endif
         for(n = 0; n < N; n++) {
-            for(int kc = 0; kc < K; kc+=Kc) {
+            for(int kc = 0; kc < K; kc += Kc) {
 
                 // Two towers alexnet
                 int ct = 0;
                 if(kc >= Kg) ct = Ck;
 
                 // Fix for MobileNet
-                if(Ck == 1) ct = kc;
+                if(Ck == 1 && C != 1) ct = kc;
 
                 for(int ck = 0; ck < Ck; ck++) {
                     computeSCNNpTile(n,ct,ck,kc,tw,th,X,Y,Kc,K,W,H,R,S,stride,padding,act,wgt,stats);
@@ -440,9 +440,9 @@ namespace core {
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n)
         #endif
-        for(n=0; n<batch_size; n++) {
+        for(n = 0; n < batch_size; n++) {
             uint64_t bit_counter = 0;
-            for(int m=0; m<num_filters; m++) {
+            for(int m = 0; m < num_filters; m++) {
 
                 // Two towers alexnet
                 int start_group = 0;
@@ -450,7 +450,7 @@ namespace core {
                     start_group = wgt_channels;
 
                 // Fix for MobileNet
-                if(wgt_channels == 1)
+                if(wgt_channels == 1 && act_channels != 1)
                     start_group = m;
 
                 for(int x=0; x<out_x; x++) {
@@ -519,7 +519,7 @@ namespace core {
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n)
         #endif
-        for (n = 0; n<batch_size; n++) {
+        for (n = 0; n < batch_size; n++) {
             uint64_t bit_counter = 0;
             for (int r = 0; r < R; r++) {
                 for (int m = 0; m < num_filters; m++) {

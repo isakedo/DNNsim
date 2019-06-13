@@ -86,7 +86,6 @@ namespace core {
          * @param list_act_y            Y position for the set of input windows
          * @param kernel_x              X position in the kernel window
          * @param kernel_y              Y position in the kernel window
-         * @param init_channel          Starting index for the channel
          * @param init_filter           Starting index for the filter
          * @param stride                Stride of the current layer
          * @param padded_act            Set of padded input activations
@@ -96,10 +95,9 @@ namespace core {
          * @param stats                 Statistics to fill
          */
         void computePragmatic2DTile(int batch, const std::vector<int> &list_act_x,const std::vector<int> &list_act_y,
-                int kernel_x, int kernel_y, int init_channel, int init_filter, int stride,
-                const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_filter,
-                std::vector<uint32_t> &cycles_per_col, std::vector<uint32_t> &end_previous_pallet,
-                sys::Statistics::Stats &stats);
+                int kernel_x, int kernel_y, int init_filter, int stride, const cnpy::Array<T> &padded_act,
+                const cnpy::Array<T> &wgt, int max_filter, std::vector<uint32_t> &cycles_per_col,
+                std::vector<uint32_t> &end_previous_pallet, sys::Statistics::Stats &stats);
 
         /* Compute the timing for a convolutional layer
          * @param layer     Layer for which we want to calculate the outputs

@@ -30,7 +30,7 @@ namespace core {
     template <typename T>
     uint8_t Laconic<T>::computeLaconicColumn(int batch, int recursion, int act_x, int act_y, int kernel_x, int kernel_y,
             int init_channel, int init_filter, int stride, const cnpy::Array<T> &padded_act,
-            const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter, bool lstm) {
+            const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter, bool lstm, bool conv2D) {
 
         //Get the slowest PE
         std::vector<uint8_t> cycles;
@@ -38,7 +38,7 @@ namespace core {
             for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_channel); channel++) {
 
                 // Fix for MobileNet
-                if(max_channel == 1)
+                if(conv2D)
                     start_group = filter;
 
                 T act_bits;
@@ -63,13 +63,13 @@ namespace core {
     uint8_t Laconic<T>::computeLaconicTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int init_filter,
             int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group, int max_channel,
-            int max_filter, sys::Statistics::Stats &stats) {
+            int max_filter, bool conv2D, sys::Statistics::Stats &stats) {
 
         //Get the slowest column
         std::vector<uint8_t> cycles;
         for(int window = 0; window < list_act_x.size(); window++) {
             uint8_t PE_cycles = computeLaconicColumn(batch,0,list_act_x[window],list_act_y[window],kernel_x,kernel_y,
-                    init_channel,init_filter,stride,padded_act,wgt,start_group,max_channel,max_filter,false);
+                    init_channel,init_filter,stride,padded_act,wgt,start_group,max_channel,max_filter,false,conv2D);
             cycles.push_back(PE_cycles);
         }
 
@@ -157,12 +157,16 @@ namespace core {
                 if(m >= it_per_group)
                     start_group = wgt_channels;
 
+                bool conv2D = false;
+                if(wgt_channels == 1 && act_channels != 1)
+                    conv2D = true;
+
                 while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
                             for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
                                 cycles += computeLaconicTile(n,list_x, list_y, i, j, k, m, stride, act,
-                                        wgt, start_group, wgt_channels, num_filters, stats);
+                                        wgt, start_group, wgt_channels, num_filters, conv2D, stats);
 
                                 act_buff_reads++;
                                 weight_buff_reads++;
@@ -299,7 +303,7 @@ namespace core {
                             cycles = column_end[column_index];
                         }
                         auto column_cycles = computeLaconicColumn(n,r,0,0,0,0,k,m,0,act,wgt,0,wgt_channels,num_filters,
-                                lstm);
+                                lstm, false);
                         column_end[column_index] = cycles + column_cycles;
                         cycles++;
                         column_index++;
@@ -420,7 +424,7 @@ namespace core {
                     start_group = wgt_channels;
 
                 // Fix for MobileNet
-                if(wgt_channels == 1)
+                if(wgt_channels == 1 && act_channels != 1)
                     start_group = m;
 
                 for(int x = 0; x < out_x; x++) {

@@ -168,18 +168,17 @@ namespace core {
 
     template <typename T>
     void BitPragmatic<T>::computePragmatic2DTile(int batch, const std::vector<int> &list_act_x,
-            const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int init_filter,
-            int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_filter,
+            const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_filter, int stride,
+            const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_filter,
             std::vector<uint32_t> &cycles_per_col, std::vector<uint32_t> &end_previous_pallet,
             sys::Statistics::Stats &stats) {
 
         //Get the slowest column
         for(int window = 0; window < list_act_x.size(); window++) {
-            std::vector<uint8_t> cycles;
+            std::vector<std::queue<uint8_t>> offsets;
             for (int filter = init_filter; filter < std::min(init_filter + N_ROWS, max_filter); filter++) {
 
-                std::vector<std::queue<uint8_t>> offsets;
-                auto act_bits = padded_act.get(batch, filter + init_channel, stride * list_act_x[window] + kernel_x,
+                auto act_bits = padded_act.get(batch, filter, stride * list_act_x[window] + kernel_x,
 	            	    stride * list_act_y[window] + kernel_y);
 
                 #ifdef BOOTH_ENCODING
@@ -197,10 +196,9 @@ namespace core {
 
                 offsets.push_back(act_offsets);
 
-	            cycles.push_back(computePragmaticPE(offsets));
-	       
 	        }
-	        cycles_per_col[window] += *std::max_element(cycles.begin(), cycles.end());
+            uint8_t column_cycles = computePragmaticPE(offsets);
+            cycles_per_col[window] += column_cycles;
         }
 
         // Column registers
@@ -403,19 +401,17 @@ namespace core {
             uint64_t scheduled_pe = 0;
             uint64_t idle_pe = 0;
 
-            for(int m = 0; m < num_filters; m+=N_ROWS) {
+            for(int m = 0; m < num_filters; m += N_ROWS) {
                 while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
-                            for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
-                                computePragmatic2DTile(n,list_x, list_y, i, j, k, m, stride, act, wgt, num_filters,
-                                        cycles_per_col, end_previous_pallet, stats);
+                            computePragmatic2DTile(n,list_x, list_y, i, j, m, stride, act, wgt, num_filters,
+                                    cycles_per_col, end_previous_pallet, stats);
 
-                                act_buff_reads++;
-                                weight_buff_reads++;
-                                scheduled_pe += list_x.size() * N_ROWS;
-                                idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
-                            }
+                            act_buff_reads++;
+                            weight_buff_reads++;
+                            scheduled_pe += list_x.size() * N_ROWS;
+                            idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
                         }
                     }
                     accumulator_updates++;
@@ -666,10 +662,10 @@ namespace core {
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n)
         #endif
-        for(n=0; n<batch_size; n++) {
+        for(n = 0; n < batch_size; n++) {
             uint64_t bit_counter = 0;
-            for(int x=0; x<out_x; x++) {
-                for(int y=0; y<out_y; y++) {
+            for(int x = 0; x < out_x; x++) {
+                for(int y = 0; y < out_y; y++) {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
                             for (int k = 0; k < act_channels; k ++) {
@@ -731,7 +727,7 @@ namespace core {
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n)
         #endif
-        for (n = 0; n<batch_size; n++) {
+        for (n = 0; n < batch_size; n++) {
             uint64_t bit_counter = 0;
             for(int r = 0; r < R; r++) {
                 for (int k = 0; k < wgt_channels; k++) {

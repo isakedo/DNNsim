@@ -113,8 +113,9 @@ namespace core {
     template <typename T>
     uint8_t Loom<T>::computeLoomTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int init_filter,
-            int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group, int max_channel,
-            int max_filter, int act_mask, int wgt_mask, int wgt_prec, sys::Statistics::Stats &stats) {
+            int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group,
+            int max_act_channel, int max_wgt_channel, int max_filter, int act_mask, int wgt_mask, int wgt_prec,
+            sys::Statistics::Stats &stats) {
 
         int ACT_N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
         int WINDOWS_PER_GROUP = N_COLUMNS / ACT_N_GROUPS;
@@ -132,7 +133,7 @@ namespace core {
                 group_index++;
             }
 
-            for (int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES, max_channel); channel++) {
+            for (int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES, max_act_channel); channel++) {
 
                 auto act_bits = padded_act.get(batch, start_group + channel, stride * list_act_x[window] + kernel_x,
                         stride * list_act_y[window] + kernel_y);
@@ -186,7 +187,7 @@ namespace core {
                 group_index++;
             }
 
-            for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_channel); channel++) {
+            for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_wgt_channel); channel++){
 
                 // Dynamic weight precisions
                 auto wgt_bits = wgt.get(filter, channel, kernel_x, kernel_y);
@@ -304,7 +305,7 @@ namespace core {
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n)
         #endif
-        for(n=0; n<batch_size; n++) {
+        for(n = 0; n < batch_size; n++) {
 
             std::vector<int> list_x, list_y;
             int x_counter = 0, y_counter = 0;
@@ -317,16 +318,21 @@ namespace core {
 
             for(int m = 0; m < num_filters; m += N_ROWS) {
 
+                // Two towers alexnet
                 int start_group = 0;
                 if(m >= it_per_group)
                     start_group = wgt_channels;
 
+                // Fix for MobileNet
+                if(wgt_channels == 1 && act_channels != 1)
+                    start_group = m;
+
                 while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
-                            for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
+                            for (int k = 0; k < wgt_channels; k += WEIGHT_LANES) {
                                 cycles += computeLoomTile(n,list_x, list_y, i, j, k, m, stride, act, wgt, start_group,
-                                        wgt_channels, num_filters, act_mask, wgt_mask, wgt_prec, stats);
+                                        act_channels, wgt_channels, num_filters, act_mask, wgt_mask, wgt_prec, stats);
 
                                 act_buff_reads++;
                                 weight_buff_reads++;
@@ -577,7 +583,7 @@ namespace core {
         auto wgt_prec = layer.getWgtPrecision();
 
         // Convolution
-        for(int n=0; n < batch_size; n++) {
+        for(int n = 0; n < batch_size; n++) {
             bit_counter = (uint64_t)computeLoomBitsPE((uint8_t)act_prec, (uint8_t)wgt_prec) * out_x * out_y * Kx * Ky *
                           wgt_channels * num_filters;
             double MAX_BITS = network_bits * network_bits;
