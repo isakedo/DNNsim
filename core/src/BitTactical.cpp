@@ -1,6 +1,7 @@
 
 #include <core/BitTactical.h>
 #include <iomanip>
+
 namespace core {
 
     /* SCHEDULER */
@@ -206,7 +207,7 @@ namespace core {
         schedule sparse_schedule = schedule((unsigned)total_time, time_schedule((unsigned)N_ROWS*WEIGHT_LANES,
                 schedule_tuple(-1,-1,-1,0)));
 
-        for(int m=0; m<num_filters; m++) {
+        for(int m = 0; m < num_filters; m++) {
 
             // Two towers alexnet
             int start_group = 0;
@@ -214,13 +215,13 @@ namespace core {
                 start_group = wgt_channels;
 
             // Fix for MobileNet
-            if(wgt_channels == 1)
+            if(wgt_channels == 1 && act_channels != 1)
                 start_group = m;
 
             int time = max_time.empty() ? 0 : *std::max_element(max_time.begin(),max_time.end());
             for (int i = 0; i < Kx; i++) {
                 for (int j = 0; j < Ky; j++) {
-                    for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
+                    for (int k = 0; k < wgt_channels; k += WEIGHT_LANES) {
                         int index = 0;
                         for(int channel = k; channel < std::min(k + WEIGHT_LANES,wgt_channels); channel++) {
                             auto wgt_bits = wgt.get(m,channel,i,j);
@@ -275,7 +276,7 @@ namespace core {
                 const auto &dense_schedule = scheduler(wgt, act.getShape()[1]);
                 network_schedule.push_back(dense_schedule);
 
-            } else if(layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
+            } else if(layer.getType() == "InnerProduct") {
 
                 cnpy::Array<T> wgt = layer.getWeights();
                 wgt.reshape_to_4D();

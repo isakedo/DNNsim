@@ -13,22 +13,6 @@ namespace interface {
     }
 
     template <typename T>
-    void NetReader<T>::check_path(const std::string &path) {
-        std::ifstream file(path);
-        if(!file.good()) {
-            throw std::runtime_error("The path " + path + " does not exist.");
-        }
-    }
-
-    template <typename T>
-    std::string NetReader<T>::inputName() {
-        std::string output_name = this->name;
-        std::string type = typeid(T).name() + std::to_string(sizeof(T));// Get template type in run-time
-        output_name += "-" + type;
-        return output_name;
-    }
-
-    template <typename T>
     core::Layer<T> NetReader<T>::read_layer_caffe(const caffe::LayerParameter &layer_caffe) {
         int Nn = -1, Kx = -1, Ky = -1, stride = -1, padding = -1;
 
@@ -70,12 +54,12 @@ namespace interface {
         }
 
         for(const auto &layer : network.layer()) {
-            if(bias_and_out_act && this->layers_allowed.find(layer.type()) != this->layers_allowed.end()) {
-                layers.emplace_back(read_layer_caffe(layer));
-            } else if(this->layers_data.find(layer.type()) != this->layers_data.end()) {
-                layers.emplace_back(read_layer_caffe(layer));
-            }
+           if(this->allowed_layers.find(layer.type()) != this->allowed_layers.end()) {
+               layers.emplace_back(read_layer_caffe(layer));
+           }
         }
+
+        if(!QUIET) std::cout << "Network loaded from Caffe prototxt model definition" << std::endl;
 
         return core::Network<T>(this->name,layers);
     }
@@ -128,6 +112,8 @@ namespace interface {
             myfile.close();
         }
 
+        if(!QUIET) std::cout << "Network loaded from trace params model definition" << std::endl;
+
         return core::Network<T>(this->name,layers);
     }
 
@@ -171,6 +157,8 @@ namespace interface {
             myfile.close();
         }
 
+        if(!QUIET) std::cout << "Network loaded from convolutional params model definition" << std::endl;
+
         return core::Network<T>(this->name,layers);
     }
 
@@ -182,7 +170,7 @@ namespace interface {
         layer.setWgt_precision(layer_proto.wgt_prec(),layer_proto.wgt_mag(),layer_proto.wgt_frac());
 
         // Read weights, activations, and output activations only to the desired layers
-        if(this->layers_data.find(layer_proto.type()) != this->layers_data.end()) {
+        if(this->allowed_layers.find(layer_proto.type()) != this->allowed_layers.end()) {
 
             std::string type = typeid(T).name() + std::to_string(sizeof(T));// Get template type in run-time
 
@@ -194,61 +182,21 @@ namespace interface {
             for (const int value : layer_proto.act_shape())
                 activations_shape.push_back((size_t) value);
 
-            std::vector<size_t> biases_shape;
-            std::vector<size_t> out_activations_shape;
-            if (this->bias_and_out_act) {
-                for (const int value : layer_proto.bias_shape())
-                    biases_shape.push_back((size_t) value);
-                for (const int value : layer_proto.out_act_shape())
-                    out_activations_shape.push_back((size_t) value);
-            }
-
             std::vector<T> weights_data;
-            std::vector<T> biases_data;
             std::vector<T> activations_data;
-            std::vector<T> out_activations_data;
 
 
-            if (type == "f4") {
-                for (const auto &value : layer_proto.wgt_data_flt())
-                    weights_data.push_back(value);
+            for (const auto &value : layer_proto.wgt_data_fxd())
+                weights_data.push_back(value);
 
-                for (const auto value : layer_proto.act_data_flt())
-                    activations_data.push_back(value);
-
-                if (this->bias_and_out_act) {
-                    for (const auto value : layer_proto.bias_data_flt())
-                        biases_data.push_back(value);
-                    for (const auto value : layer_proto.out_act_data_flt())
-                        out_activations_data.push_back(value);
-                }
-            } else if (type == "t2") {
-                for (const auto &value : layer_proto.wgt_data_fxd())
-                    weights_data.push_back(value);
-
-                for (const auto value : layer_proto.act_data_fxd())
-                    activations_data.push_back(value);
-
-                if (this->bias_and_out_act) {
-                    for (const auto value : layer_proto.bias_data_fxd())
-                        biases_data.push_back(value);
-                    for (const auto value : layer_proto.out_act_data_fxd())
-                        out_activations_data.push_back(value);
-                }
-            }
+            for (const auto value : layer_proto.act_data_fxd())
+                activations_data.push_back(value);
 
             cnpy::Array<T> weights; weights.set_values(weights_data,weights_shape);
             layer.setWeights(weights);
 
             cnpy::Array<T> activations; activations.set_values(activations_data,activations_shape);
             layer.setActivations(activations);
-
-            if (this->bias_and_out_act) {
-                cnpy::Array<T> biases; biases.set_values(biases_data,biases_shape);
-                layer.setBias(biases);
-                cnpy::Array<T> out_activations; out_activations.set_values(out_activations_data,out_activations_shape);
-                layer.setOutputActivations(out_activations);
-            }
 
         }
 
@@ -265,8 +213,7 @@ namespace interface {
         {
             // Read the existing network.
             check_path("net_traces/" + this->name);
-            std::string name = TENSORFLOW_8b ? inputName() + "-TF" : inputName();
-            std::string path = "net_traces/" + this->name + '/' + name + ".proto";
+            std::string path = "net_traces/" + this->name + "/model.proto";
             check_path(path);
             std::fstream input(path,std::ios::in | std::ios::binary);
             if (!network_proto.ParseFromIstream(&input)) {
@@ -279,33 +226,7 @@ namespace interface {
         for(const protobuf::Network_Layer &layer_proto : network_proto.layers())
             layers.emplace_back(read_layer_proto(layer_proto));
 
-        return core::Network<T>(this->name,layers);
-    }
-
-
-    template <typename T>
-    core::Network<T> NetReader<T>::read_network_gzip() {
-        GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-        std::vector<core::Layer<T>> layers;
-        protobuf::Network network_proto;
-
-        // Read the existing network.
-        check_path("net_traces/" + this->name);
-        std::string name = TENSORFLOW_8b ? inputName() + "-TF" : inputName();
-        std::string path = "net_traces/" + this->name + '/' + name + ".gz";
-        check_path(path);
-        std::fstream input(path, std::ios::in | std::ios::binary);
-
-        google::protobuf::io::IstreamInputStream inputFileStream(&input);
-        google::protobuf::io::GzipInputStream gzipInputStream(&inputFileStream);
-
-        if (!network_proto.ParseFromZeroCopyStream(&gzipInputStream)) {
-            throw std::runtime_error("Failed to read Gzip protobuf");
-        }
-
-        for(const protobuf::Network_Layer &layer_proto : network_proto.layers())
-            layers.emplace_back(read_layer_proto(layer_proto));
+        if(!QUIET) std::cout << "Network and traces loaded from protobuf model" << std::endl;
 
         return core::Network<T>(this->name,layers);
     }
@@ -319,7 +240,7 @@ namespace interface {
         {
             // Read the existing network.
             check_path("net_traces/" + this->name);
-            std::string path = "net_traces/" + this->name + '/' + inputName() + "_" + schedule_type + "_schedule.proto";
+            std::string path = "net_traces/" + this->name + "/schedule_" + schedule_type + ".proto";
             check_path(path);
             std::fstream input(path, std::ios::in | std::ios::binary);
             if (!network_schedule_proto.ParseFromIstream(&input)) {
@@ -344,6 +265,8 @@ namespace interface {
             network_schedule.push_back(dense_schedule);
         }
 
+        if(!QUIET) std::cout << "Scheduled loaded from protobuf file" << std::endl;
+
         return network_schedule;
     }
 
@@ -351,48 +274,26 @@ namespace interface {
     void NetReader<T>::read_weights_npy(core::Network<T> &network) {
         check_path("net_traces/" + this->name);
         for(core::Layer<T> &layer : network.updateLayers()) {
-            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                std::string file = "/wgt-" + layer.getName() + ".npy" ;
-                cnpy::Array<T> weights; weights.set_values("net_traces/" + this->name + file);
-                layer.setWeights(weights);
-            }
+            std::string file = "/wgt-" + layer.getName() + ".npy" ;
+            cnpy::Array<T> weights; weights.set_values("net_traces/" + this->name + file);
+            layer.setWeights(weights);
         }
-    }
 
-    template <typename T>
-    void NetReader<T>::read_bias_npy(core::Network<T> &network) {
-        check_path("net_traces/" + this->name);
-        for(core::Layer<T> &layer : network.updateLayers()) {
-            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                std::string file = "/bias-" + layer.getName() + ".npy" ;
-                cnpy::Array<T> bias; bias.set_values("net_traces/" + this->name + file);
-                layer.setBias(bias);
-            }
-        }
+        if(!QUIET) std::cout << "Weight traces loaded from numpy arrays" << std::endl;
+
     }
 
     template <typename T>
     void NetReader<T>::read_activations_npy(core::Network<T> &network) {
         check_path("net_traces/" + this->name);
         for(core::Layer<T> &layer : network.updateLayers()) {
-            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                std::string file = "/act-" + layer.getName() + "-" + std::to_string(batch) + ".npy";
-                cnpy::Array<T> activations; activations.set_values("net_traces/" + this->name + file);
-                layer.setActivations(activations);
-            }
+            std::string file = "/act-" + layer.getName() + "-" + std::to_string(batch) + ".npy";
+            cnpy::Array<T> activations; activations.set_values("net_traces/" + this->name + file);
+            layer.setActivations(activations);
         }
-    }
 
-    template <typename T>
-    void NetReader<T>::read_output_activations_npy(core::Network<T> &network) {
-        check_path("net_traces/" + this->name);
-        for(core::Layer<T> &layer : network.updateLayers()) {
-            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                std::string file = "/act-" + layer.getName() + "-" + std::to_string(batch) + "-out.npy" ;
-                cnpy::Array<T> activations; activations.set_values("net_traces/" + this->name + file);
-                layer.setOutputActivations(activations);
-            }
-        }
+        if(!QUIET) std::cout << "Activation traces loaded from numpy arrays" << std::endl;
+
     }
 
     template <typename T>
@@ -400,41 +301,19 @@ namespace interface {
         check_path("net_traces/" + this->name);
 		check_path("net_traces/" + this->name + "/weights");
         for(core::Layer<T> &layer : network.updateLayers()) {
-            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                std::string layer_name = layer.getName();
-                if(layer.getType() == "Decoder") {
-                    auto pos = layer_name.find_last_of('_');
-                    layer_name = layer_name.substr(0, pos);
-                }
-                std::string file = "/weights/" + layer_name + "-" + std::to_string(epoch) + "-" +
-                        std::to_string(batch) + "-w.npy" ;
-                cnpy::Array<T> weights; weights.set_values("net_traces/" + this->name + file);
-                layer.setWeights(weights);
+            std::string layer_name = layer.getName();
+            if(layer.getType() == "Decoder") {
+                auto pos = layer_name.find_last_of('_');
+                layer_name = layer_name.substr(0, pos);
             }
+            std::string file = "/weights/" + layer_name + "-" + std::to_string(epoch) + "-" +
+                   std::to_string(batch) + "-w.npy" ;
+            cnpy::Array<T> weights; weights.set_values("net_traces/" + this->name + file);
+            layer.setWeights(weights);
         }
-    }
 
-	template <typename T>
-    void NetReader<T>::read_training_bias_npy(core::Network<T> &network) {
-        check_path("net_traces/" + this->name);
-		check_path("net_traces/" + this->name + "/bias");
-        for(core::Layer<T> &layer : network.updateLayers()) {
-            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                std::string layer_name = layer.getName();
-                if(layer.getType() == "Decoder") {
-                    auto pos = layer_name.find_last_of('_');
-                    layer_name = layer_name.substr(0, pos);
-                }
-                std::string file = "/bias/" + layer_name + "-" + std::to_string(epoch) + "-" +
-                        std::to_string(batch) + "-b.npy" ;
-                try {
-                    cnpy::Array<T> bias; bias.set_values("net_traces/" + this->name + file);
-                    layer.setBias(bias);
-                } catch(std::exception &exception) {
-                    continue;
-                }
-            }
-        }
+        if(!QUIET) std::cout << "Forward weight traces loaded from numpy arrays" << std::endl;
+
     }
 
     template <typename T>
@@ -442,13 +321,14 @@ namespace interface {
         check_path("net_traces/" + this->name);
 		check_path("net_traces/" + this->name + "/input");
         for(core::Layer<T> &layer : network.updateLayers()) {
-            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                std::string file = "/input/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
-                        std::to_string(batch) + "-in.npy" ;
-                cnpy::Array<T> activations; activations.set_values("net_traces/" + this->name + file);
-                layer.setActivations(activations);
-            }
+            std::string file = "/input/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
+                    std::to_string(batch) + "-in.npy" ;
+            cnpy::Array<T> activations; activations.set_values("net_traces/" + this->name + file);
+            layer.setActivations(activations);
         }
+
+        if(!QUIET) std::cout << "Forward activation traces loaded from numpy arrays" << std::endl;
+
     }
 
     template <typename T>
@@ -456,47 +336,31 @@ namespace interface {
         check_path("net_traces/" + this->name);
 		check_path("net_traces/" + this->name + "/outGrad");
         for(core::Layer<T> &layer : network.updateLayers()) {
-            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                std::string file = "/outGrad/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
-                        std::to_string(batch) + "-wGrad.npy" ;
-                cnpy::Array<T> weight_gradients; weight_gradients.set_values("net_traces/" + this->name + file);
-                layer.setWeightGradients(weight_gradients);
-            }
+            std::string file = "/outGrad/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
+                    std::to_string(batch) + "-wGrad.npy" ;
+            cnpy::Array<T> weight_gradients; weight_gradients.set_values("net_traces/" + this->name + file);
+            layer.setWeightGradients(weight_gradients);
         }
+
+        if(!QUIET) std::cout << "Backward weight gradient traces loaded from numpy arrays" << std::endl;
+
     }
 
     template <typename T>
-    void NetReader<T>::read_training_bias_gradients_npy(core::Network<T> &network) {
-        check_path("net_traces/" + this->name);
-		check_path("net_traces/" + this->name + "/outGrad");
-        for(core::Layer<T> &layer : network.updateLayers()) {
-            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                std::string file = "/outGrad/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
-                        std::to_string(batch) + "-bGrad.npy" ;
-                try {
-                    cnpy::Array<T> bias_gradients; bias_gradients.set_values("net_traces/" + this->name + file);
-                    layer.setBiasGradients(bias_gradients);
-                } catch(std::exception &exception) {
-                    continue;
-                }
-            }
-        }
-    }
-
-    template <typename T>
-    void NetReader<T>::read_training_activation_gradients_npy(core::Network<T> &network) {
+    void NetReader<T>::read_training_input_gradients_npy(core::Network<T> &network) {
         check_path("net_traces/" + this->name);
 		check_path("net_traces/" + this->name + "/outGrad");
 		bool first_layer= true;
         for(core::Layer<T> &layer : network.updateLayers()) {
-            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                if(first_layer) {first_layer = false; continue;}
-                std::string file = "/outGrad/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
-                        std::to_string(batch) + "-inGrad.npy" ;
-                cnpy::Array<T> input_gradients; input_gradients.set_values("net_traces/" + this->name + file);
-                layer.setInputGradients(input_gradients);
-            }
+            if(first_layer) {first_layer = false; continue;}
+            std::string file = "/outGrad/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
+                    std::to_string(batch) + "-inGrad.npy" ;
+            cnpy::Array<T> input_gradients; input_gradients.set_values("net_traces/" + this->name + file);
+            layer.setInputGradients(input_gradients);
         }
+
+        if(!QUIET) std::cout << "Backward input gradient traces loaded from numpy arrays" << std::endl;
+
     }
 
     template <typename T>
@@ -504,30 +368,29 @@ namespace interface {
         check_path("net_traces/" + this->name);
 		check_path("net_traces/" + this->name + "/outGrad");
         for(core::Layer<T> &layer : network.updateLayers()) {
-            if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                std::string file = "/outGrad/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
-                        std::to_string(batch) + "-outGrad.npy" ;
-                cnpy::Array<T> output_gradients; output_gradients.set_values("net_traces/" + this->name + file);
-                layer.setOutputGradients(output_gradients);
-            }
+            std::string file = "/outGrad/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
+                    std::to_string(batch) + "-outGrad.npy" ;
+            cnpy::Array<T> output_gradients; output_gradients.set_values("net_traces/" + this->name + file);
+            layer.setOutputGradients(output_gradients);
         }
+
+        if(!QUIET) std::cout << "Backward output gradient traces loaded from numpy arrays" << std::endl;
+
     }
 
     template <typename T>
     void NetReader<T>::read_precision(core::Network<T> &network) {
 
-        if(TENSORFLOW_8b) {
+        if(network.isTensorflow_8b()) {
             int i = 0;
             for(core::Layer<T> &layer : network.updateLayers()) {
-                if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                    layer.setAct_precision(8,7,0);
-                    layer.setWgt_precision(8,7,0);
-                    i++;
-                } else {
-                    layer.setAct_precision(-1,-1,-1);
-                    layer.setWgt_precision(-1,-1,-1);
-                }
+                layer.setAct_precision(8,7,0);
+                layer.setWgt_precision(8,7,0);
+                i++;
             }
+
+            if(!QUIET) std::cout << "Using generic precisions for Tensorflow 8b quantization" << std::endl;
+
             return;
         }
 
@@ -568,29 +431,24 @@ namespace interface {
 
             int i = 0;
             for(core::Layer<T> &layer : network.updateLayers()) {
-                if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                    layer.setAct_precision(act_mag[i] + act_frac[i],act_mag[i] - 1,act_frac[i]);
-                    layer.setWgt_precision(wgt_mag[i] + wgt_frac[i],wgt_mag[i] - 1,wgt_frac[i]);
-                    i++;
-                } else {
-                    layer.setAct_precision(-1,-1,-1);
-                    layer.setWgt_precision(-1,-1,-1);
-                }
+                layer.setAct_precision(act_mag[i] + act_frac[i],act_mag[i] - 1,act_frac[i]);
+                layer.setWgt_precision(wgt_mag[i] + wgt_frac[i],wgt_mag[i] - 1,wgt_frac[i]);
+                i++;
             }
+
+            if(!QUIET) std::cout << "Profiled precisions read from file" << std::endl;
 
         } else {
             // Generic precision
             int i = 0;
             for(core::Layer<T> &layer : network.updateLayers()) {
-                if(this->layers_data.find(layer.getType()) != this->layers_data.end()) {
-                    layer.setAct_precision(16,13,2);
-                    layer.setWgt_precision(16,0,15);
-                    i++;
-                } else {
-                    layer.setAct_precision(-1,-1,-1);
-                    layer.setWgt_precision(-1,-1,-1);
-                }
+                layer.setAct_precision(16,13,2);
+                layer.setWgt_precision(16,0,15);
+                i++;
             }
+
+            if(!QUIET) std::cout << "No profiled precisions: Using generic precisions" << std::endl;
+
         }
     }
 

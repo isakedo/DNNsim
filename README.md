@@ -13,14 +13,7 @@
 *   The architecture of the net in a conv_params.csv file (without weights and activations)
 *   Weights, Bias, Inputs and outputs activations in a *.npy file using the following format
 *   Full network in a Google protobuf format file
-*   Full network in a Gzip Google protobuf format
-*   Tactical schedule in a protobuf format
-
-### Allowed output files
-
-*   Full network in a Google protobuf format file
-*   Full network in a Gzip Google protobuf format
-*   Tactical schedule in a protobuf format
+*   Tactical schedule in a protobuf format file
 
 ### Installation in the aenao cluster
 Must use 10.0.0.136 machine (It has protobuf and a newer version of gcc installed). First allow access to internet:
@@ -69,21 +62,15 @@ Create folder **models** including a folder for each network. Every network must
 Create folder **net_traces** including a folder for each network. 
 In the case of **inference** simulation, every network must include:
    * wgt-$LAYER.npy
-   * bias-$LAYER.npy (Optional, only for inference)
    * act-$LAYER-$BATCH.npy
-   * act-$LAYER-$BATCH-out.npy (Optional, only for inference)   
-   
+
 In the case of **training** simulation, every network must include in subdirectories:
    * weights/$LAYER-$EPOCH-$BATCH-w.npy
-   * bias/$LAYER-$EPOCH-$BATCH-b.npy
    * input/$LAYER-$EPOCH-$BATCH-in.npy
    * outGrad/$LAYER-$EPOCH-$BATCH-wGrad.npy
-   * outGrad/$LAYER-$EPOCH-$BATCH-bGrad.npy
    * outGrad/$LAYER-$EPOCH-$BATCH-inGrad.npy
    * outGrad/$LAYER-$EPOCH-$BATCH-wGrad.npy
-   
-Create folder **results** including a folder for each network. The corresponding results will appear in this subfolders.
-    
+       
 ### Test
 
 Print help:
@@ -101,24 +88,20 @@ average results for all batches. Finally, the last line corresponds to the total
 
 * Option **--threads <positive_num>** indicates the number of simultaneous threads that can be executed. The code is 
 parallelized per batch using OpenMP library
+* Option **--quiet** remove stdout messages from simulations.
 * Option **--fast_mode** makes the simulation execute only one batch per network, the first one.
-* Option **--overwrite** forces the simulator to overwrite the intermediate files: Protobuf, Gzip, and Schedule. 
-This is necessary after changing the precisions, etc.
-### Notes about simulations
-    
-*   Missing support for LSTM layers in the SCNN-like accelerators (Prontico)
+* Option **--store_fixed_point_protobuf** store the fixed point network in a intermediate Protobuf file.
 
 ### Allowed Inference simulations
 
-*  Allowed input types for the simulations:
+*  Allowed model types for the simulations:
 
-| inputType | Description | 
+| model | Description |
 |:---:|:---:|
 | Caffe | Load network model from *train_val.prototxt*, precisions from *precision.txt*, and traces from numpy arrays |
 | Trace | Load network model from *trace_params.csv*, precisions from *precision.txt*, and traces from numpy arrays | 
 | CParams | Load network model and precisions from *conv_params.csv*, and traces from numpy arrays | 
 | Protobuf | Load network model, precisions, and traces from a protobuf file |
-| Gzip | Load network model, precisions, and traces from a gzip file |
 
 *  Allowed architectures for the experiments:
 
@@ -171,7 +154,6 @@ Float32 for 4bytes floating point, and Fixed16 for 2bytes quantized integer
 
 | Task | Description | Data type |
 |:---:|:---:|:---:|
-| Inference | Calculate output activations for the forward pass | Float32 |
 | Sparsity | Calculate sparsity for actiations and weights, number of zero values | Fixed16, Float32 |
 | BitSparsity | Calculate bit sparsity for activations and weights, number of zero bits | Fixed16 |
 
@@ -224,24 +206,11 @@ truncated floating point
 | BOOTH_ENCODING | bool | Activate booth encoding | True-False | True |
 | ZERO_COUNT | bool | Zero values count as one cycle | True-False | True | 
 | FC_MULTIPLEX_COLUMNS | bool | Fully connected layers are time-multiplexed in the columns | True-False | True |
-| WEIGHT_LANES | uint32 | Data type of the input traces | Float32-Fixed16 | 16 |
+| WEIGHT_LANES | uint32 | Number of weights per PE | Float32-Fixed16 | 16 |
    
 ### Input Parameters Description   
 
-The batch file can be constructed as follows for the **transform** tool:
-
-| Name | Data Type | Description | Valid Options | Default |
-|:---:|:---:|:---:|:---:|:---:|
-| network | string | Name of the network as in the folder models | Valid path | N/A |
-| batch | uint32 | Corresponding batch for the Numpy traces | Positive numbers | 0 | 
-| inputType | string | Format of the input model definition and traces | Trace-Caffe-CParams-Protobuf-Gzip | N/A |
-| inputDataType | string | Data type of the input traces | Float32-Fixed16 | N/A |
-| outputType | string | Format of the output model definition and traces | Protobuf-Gzip | N/A |
-| outputDataType | string | Data type of the output traces | Float32-Fixed16 | N/A | 
-| bias_and_out_act | bool | Read and store bias and output activations too | True-False| False | 
-| tensorflow_8b | bool | Use tensorflow 8bits quantization | True-False | False |
-
-The batch file can be constructed as follows for the simualtion tool:
+The batch file can be constructed as follows for the simulation tool:
 
 | Name | Data Type | Description | Valid Options | Default |
 |:---:|:---:|:---:|:---:|:---:|
@@ -251,7 +220,6 @@ The batch file can be constructed as follows for the simualtion tool:
 | inputType | string | Format of the input model definition and traces | Trace-Caffe-CParams-Protobuf-Gzip | N/A |
 | inputDataType | string | Data type of the input traces | Float32-Fixed16-BFloat16 | N/A |
 | network_bits | uint32 | Number of baseline bits of the network | Positive Number | 16 |
-| bias_and_out_act | bool | Read and store bias and output activations too | True-False| False | 
 | tensorflow_8b | bool | Use tensorflow 8bits quantization | True-False | False |
 | training | bool | Change mode to training simulations | True-False | False |
 | only_forward | bool | Only forward traces in the training simulations | True-False | False |
@@ -320,6 +288,7 @@ Experiments for the simulation tool can contain the following parameters.
     *   SCNNe: class for the SCNNp accelerator
     *   BitFusion: class for the BitFusion accelerator
 *   **interface**: Folder to interface with input/output operations
+    *   Interface: common class for the reader and writer classes
     *   NetReader: class to read and load a network using different formats
     *   NetWriter: class to write and dump a network using different formats
     *   StatsWriter: class to dump simulation statistics in different formats

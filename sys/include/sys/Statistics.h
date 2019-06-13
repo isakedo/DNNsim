@@ -12,90 +12,74 @@ namespace sys {
         /* Make public to be easier to operate */
         struct Stats {
 
-            /* Name of the task done */
-            std::string task_name;
-
-            /* Name of the network */
-            std::string net_name;
-
-            /* Simulator architecture */
-            std::string arch;
-
-            /* Tensforflow flag */
-            bool tensorflow_8b;
-
-            /* Layer vector */
-            std::vector<std::string> layers;
-
-            /* Activations precision */
-            std::vector<int> act_prec;
-
-            /* Weights precision */
-            std::vector<int> wgt_prec;
+            /* Simulation stats */
+            std::string task_name;                                          //Name of the task done
+            std::string net_name;                                           //Name of the network
+            std::string arch;                                               //Simulator architecture
+            bool tensorflow_8b;                                             //Tensforflow flag
+            std::vector<std::string> layers;                                //Layers name
+            std::vector<int> act_prec;                                      //Activations precision
+            std::vector<int> wgt_prec;                                      //Weights precision
 
             /* Computation time per layer */
-            std::vector<std::chrono::duration<double>> time;
-            std::vector<std::vector<std::chrono::duration<double>>> training_time;
+            std::vector<std::chrono::duration<double>> time;                //Execution time
+            std::vector<std::vector<std::chrono::duration<double>>> training_time;  //Execution time for training traces
 
             /* Stats for cycles */
-            std::vector<std::vector<uint64_t>> cycles;
-            std::vector<uint64_t> baseline_cycles;
-
-            /* Stats for column stalls */
-            std::vector<std::vector<uint64_t>> stall_cycles;
+            std::vector<std::vector<uint64_t>> cycles;                      //Number of cycles
+            std::vector<uint64_t> baseline_cycles;                          //Number of cycles of DaDianNao
+            std::vector<std::vector<uint64_t>> weight_buff_reads;           //On-Chip Weight Buffer Reads
+            std::vector<std::vector<uint64_t>> act_buff_reads;              //On-Chip Activation Buffer Reads
+            std::vector<std::vector<uint64_t>> accumulator_updates;         //On-Chip Output Buffer Writes
+            std::vector<std::vector<uint64_t>> scheduled_pe;                //Total scheduled Processing Engines
+            std::vector<std::vector<uint64_t>> idle_pe;                     //Number of idle PEs in the whole simulation
+            std::vector<std::vector<uint64_t>> stall_cycles;                //Column stall cyckes due to synchronization
 
             /* Stats for 8bits PEs */
-            std::vector<uint64_t> idle_columns;
-            std::vector<uint64_t> idle_rows;
-            std::vector<uint64_t> columns_per_act;
-            std::vector<uint64_t> rows_per_wgt;
+            std::vector<uint64_t> idle_columns;                             //Idle columns due to spatial composition
+            std::vector<uint64_t> idle_rows;                                //Idle rows due to spatial composition
+            std::vector<uint64_t> columns_per_act;                          //Number of columns per activation window
+            std::vector<uint64_t> rows_per_wgt;                             //Number of rows per weight filter
 
             /* SCNN */
-            std::vector<std::vector<uint64_t>> dense_cycles;
-            std::vector<std::vector<uint64_t>> mults;
+            std::vector<std::vector<uint64_t>> dense_cycles;                //Number of cycles without zero skipping
+            std::vector<std::vector<uint64_t>> mults;                       //Number of multiplications in total
             std::vector<std::vector<uint64_t>> idle_bricks;
             std::vector<std::vector<uint64_t>> idle_conflicts;
             std::vector<std::vector<uint64_t>> idle_column_cycles;
             std::vector<std::vector<uint64_t>> column_stalls;
-            std::vector<std::vector<uint64_t>> idle_pe;
             std::vector<std::vector<uint64_t>> idle_halo;
             std::vector<std::vector<uint64_t>> total_mult_cycles;
             std::vector<std::vector<uint64_t>> halo_transfers;
-            std::vector<std::vector<uint64_t>> weight_buff_reads;
-            std::vector<std::vector<uint64_t>> act_buff_reads;
-            std::vector<std::vector<uint64_t>> accumulator_updates;
             std::vector<std::vector<uint64_t>> i_loop;
             std::vector<std::vector<uint64_t>> f_loop;
-            std::vector<std::vector<uint64_t>> offchip_weight_reads;
+            std::vector<std::vector<uint64_t>> offchip_weight_reads;        //Number of off-chip weight readings
 
             /* Bit Fusion */
-            std::vector<uint64_t> perf_factor;
-            std::vector<uint64_t> time_multiplex;
+            std::vector<uint64_t> perf_factor;                              //Speedup over a Fusion Unit operating at 8b
+            std::vector<uint64_t> time_multiplex;                           //Nº time multiplexing (precisions over 8b)
 
             /* Stats for potentials */
-            std::vector<std::vector<double>> work_reduction;
-            std::vector<std::vector<double>> speedup;
-            std::vector<std::vector<uint64_t>> bit_multiplications;
-            std::vector<uint64_t> parallel_multiplications;
+            std::vector<std::vector<double>> work_reduction;                //Work over parallel multiplications
+            std::vector<std::vector<double>> speedup;                       //Speedup over parallel multiplications
+            std::vector<std::vector<uint64_t>> bit_multiplications;         //Number of 1bit multiplications
+            std::vector<uint64_t> parallel_multiplications;                 //Number of parallel multiplications
 
-            /* Stats for sparsity */
-            std::vector<double> act_sparsity;
-            std::vector<uint64_t> zero_act;
-            std::vector<uint64_t> total_act;
-            std::vector<double> wgt_sparsity;
-            std::vector<uint64_t> zero_wgt;
-            std::vector<uint64_t> total_wgt;
+            /* Stats for sparsity */                                        //For BitSparsity this is zero bits
+            std::vector<double> act_sparsity;                               //Activations sparsity
+            std::vector<uint64_t> zero_act;                                 //Number of zero activations
+            std::vector<uint64_t> total_act;                                //Total number of activations
+            std::vector<double> wgt_sparsity;                               //Weights sparsity
+            std::vector<uint64_t> zero_wgt;                                 //Number of zero weights
+            std::vector<uint64_t> total_wgt;                                //Total number of weights
 
 			/* Stats for training sparsity */
-            std::vector<std::vector<double>> fw_act_sparsity;
+            std::vector<std::vector<double>> fw_act_sparsity;               //Forward activations sparsity
             std::vector<std::vector<uint64_t>> fw_zero_act;
             std::vector<std::vector<uint64_t>> fw_total_act;
             std::vector<std::vector<double>> fw_wgt_sparsity;
             std::vector<std::vector<uint64_t>> fw_zero_wgt;
             std::vector<std::vector<uint64_t>> fw_total_wgt;
-            std::vector<std::vector<double>> fw_bias_sparsity;
-            std::vector<std::vector<uint64_t>> fw_zero_bias;
-            std::vector<std::vector<uint64_t>> fw_total_bias;
 
             std::vector<std::vector<double>> bw_in_grad_sparsity;
             std::vector<std::vector<uint64_t>> bw_zero_in_grad;
@@ -103,9 +87,6 @@ namespace sys {
             std::vector<std::vector<double>> bw_wgt_grad_sparsity;
             std::vector<std::vector<uint64_t>> bw_zero_wgt_grad;
             std::vector<std::vector<uint64_t>> bw_total_wgt_grad;
-            std::vector<std::vector<double>> bw_bias_grad_sparsity;
-            std::vector<std::vector<uint64_t>> bw_zero_bias_grad;
-            std::vector<std::vector<uint64_t>> bw_total_bias_grad;
             std::vector<std::vector<double>> bw_out_grad_sparsity;
             std::vector<std::vector<uint64_t>> bw_zero_out_grad;
             std::vector<std::vector<uint64_t>> bw_total_out_grad;
@@ -114,10 +95,8 @@ namespace sys {
             bool mantissa_data;
             std::vector<std::vector<std::vector<uint64_t>>> fw_act_values;
             std::vector<std::vector<std::vector<uint64_t>>> fw_wgt_values;
-            std::vector<std::vector<std::vector<uint64_t>>> fw_bias_values;
             std::vector<std::vector<std::vector<uint64_t>>> bw_in_grad_values;
             std::vector<std::vector<std::vector<uint64_t>>> bw_wgt_grad_values;
-            std::vector<std::vector<std::vector<uint64_t>>> bw_bias_grad_values;
             std::vector<std::vector<std::vector<uint64_t>>> bw_out_grad_values;
 
             /* Stats for average width */

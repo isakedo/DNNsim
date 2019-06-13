@@ -49,8 +49,8 @@ namespace core {
         long out_y = (Ny - Ky)/stride + 1;
 
         // Get layer precision
-        auto act_layer_prec = layer.getAct_precision();
-        auto wgt_layer_prec = layer.getWgt_precision();
+        auto act_layer_prec = layer.getActPrecision();
+        auto wgt_layer_prec = layer.getWgtPrecision();
 
         auto columns_per_act = (int)ceil(act_layer_prec / (double)BITS_PE);
         auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
@@ -67,24 +67,47 @@ namespace core {
         stats.idle_rows.push_back((uint64_t)(N_ROWS - filters_per_tile*rows_per_wgt));
         stats.columns_per_act.push_back((uint64_t)columns_per_act);
         stats.rows_per_wgt.push_back((uint64_t)rows_per_wgt);
+        stats.weight_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.accumulator_updates.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.scheduled_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.idle_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         // Convolution
-        for(int n=0; n<batch_size; n++) {
+        for(int n = 0; n < batch_size; n++) {
 
             std::vector<int> list_x, list_y;
             int x_counter = 0, y_counter = 0;
             auto precision_cycles = (columns_per_act == 1 && rows_per_wgt == 1) ? act_layer_prec : BITS_PE;
+            uint64_t cycles = 0;
+            uint64_t weight_buff_reads = 0;
+            uint64_t act_buff_reads = 0;
+            uint64_t accumulator_updates = 0;
+            uint64_t scheduled_pe = 0;
+            uint64_t idle_pe = 0;
 
             while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter, y_counter, windows_per_tile)) {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
                         for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
-                            stats.cycles.back()[n] += precision_cycles;
+                            cycles += precision_cycles;
+                            act_buff_reads++;
+                            weight_buff_reads++;
+                            scheduled_pe += list_x.size() * N_ROWS;
+                            idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
                         }
                     }
                 }
+                accumulator_updates++;
             }
-            stats.cycles.back()[n] *= num_filters_sets;
+
+            stats.cycles.back()[n] = cycles * num_filters_sets;
+            stats.weight_buff_reads.back()[n] = weight_buff_reads * num_filters_sets;
+            stats.act_buff_reads.back()[n] = act_buff_reads * num_filters_sets;
+            stats.accumulator_updates.back()[n] = accumulator_updates * num_filters_sets;
+            stats.scheduled_pe.back()[n] = scheduled_pe * num_filters_sets;
+            stats.idle_pe.back()[n] = idle_pe * num_filters_sets;
+
         }
 
         auto base_cycles = (uint64_t)(out_x * out_y * ceil(act_channels/(double)WEIGHT_LANES) * Kx * Ky *
@@ -129,8 +152,8 @@ namespace core {
         long out_y = (Ny - Ky)/stride + 1;
 
         // Get layer precision
-        auto act_layer_prec = layer.getAct_precision();
-        auto wgt_layer_prec = layer.getWgt_precision();
+        auto act_layer_prec = layer.getActPrecision();
+        auto wgt_layer_prec = layer.getWgtPrecision();
 
         auto columns_per_act = (int)ceil(act_layer_prec / (double)BITS_PE);
         auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
@@ -148,6 +171,11 @@ namespace core {
         stats.idle_rows.push_back((uint64_t)(N_ROWS - filters_per_tile*rows_per_wgt));
         stats.columns_per_act.push_back((uint64_t)columns_per_act);
         stats.rows_per_wgt.push_back((uint64_t)rows_per_wgt);
+        stats.weight_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.accumulator_updates.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.scheduled_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.idle_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         int n;
 
@@ -157,23 +185,39 @@ namespace core {
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n)
         #endif
-        for(n=0; n<batch_size; n++) {
+        for(n = 0; n < batch_size; n++) {
 
             std::vector<int> list_x, list_y;
             int x_counter = 0, y_counter = 0;
             auto precision_cycles = (columns_per_act == 1 && rows_per_wgt == 1) ? act_layer_prec : BITS_PE;
+            uint64_t cycles = 0;
+            uint64_t weight_buff_reads = 0;
+            uint64_t act_buff_reads = 0;
+            uint64_t accumulator_updates = 0;
+            uint64_t scheduled_pe = 0;
+            uint64_t idle_pe = 0;
 
-            for(int m=0; m<num_filters; m+=filters_per_tile) {
+            for(int m = 0; m < num_filters; m += filters_per_tile) {
                 while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,windows_per_tile)) {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
-                            for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
-                                stats.cycles.back()[n] += precision_cycles;
-                            }
+                            cycles += precision_cycles;
+                            act_buff_reads++;
+                            weight_buff_reads++;
+                            scheduled_pe += list_x.size() * N_ROWS;
+                            idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
                         }
                     }
+                    accumulator_updates++;
                 }
             }
+
+            stats.cycles.back()[n] = cycles;
+            stats.weight_buff_reads.back()[n] = weight_buff_reads;
+            stats.act_buff_reads.back()[n] = act_buff_reads;
+            stats.accumulator_updates.back()[n] = accumulator_updates;
+            stats.scheduled_pe.back()[n] = scheduled_pe;
+            stats.idle_pe.back()[n] = idle_pe;
         }
 
         auto base_cycles = (uint64_t)(out_x * out_y * ceil(wgt_channels/(double)WEIGHT_LANES) * Kx * Ky *
@@ -215,8 +259,8 @@ namespace core {
         int num_filters = wgt_shape[0];
 
         // Get layer precision
-        auto act_layer_prec = layer.getAct_precision();
-        auto wgt_layer_prec = layer.getWgt_precision();
+        auto act_layer_prec = layer.getActPrecision();
+        auto wgt_layer_prec = layer.getWgtPrecision();
 
         auto columns_per_act = (int)ceil(act_layer_prec / (double)BITS_PE);
         auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
@@ -237,43 +281,87 @@ namespace core {
         stats.idle_rows.push_back((uint64_t)(N_ROWS - filters_per_tile*rows_per_wgt));
         stats.columns_per_act.push_back((uint64_t)columns_per_act);
         stats.rows_per_wgt.push_back((uint64_t)rows_per_wgt);
+        stats.weight_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.accumulator_updates.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.scheduled_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.idle_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         #ifndef FC_MULTIPLEX_COLUMNS
 
         // All FC in one column
-        for (int n = 0; n<batch_size; n++) {
+        for (int n = 0; n < batch_size; n++) {
+
+            uint64_t cycles = 0;
+            uint64_t weight_buff_reads = 0;
+            uint64_t act_buff_reads = 0;
+            uint64_t accumulator_updates = 0;
+
             auto precision_cycles = (columns_per_act == 1 && rows_per_wgt == 1) ? act_layer_prec : BITS_PE;
             for (int r = 0; r < R; r++) {
-                for (int k = 0; k<act_channels; k += WEIGHT_LANES) {
-                    stats.cycles.back()[n] += precision_cycles;
+                for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
+                    cycles += precision_cycles;
+                    act_buff_reads++;
+                    weight_buff_reads++;
                 }
+                accumulator_updates++;
             }
-            stats.cycles.back()[n] *= num_filters_sets;
+
+            stats.cycles.back()[n] = cycles * num_filters_sets;
+            stats.weight_buff_reads.back()[n] = weight_buff_reads * num_filters_sets;
+            stats.act_buff_reads.back()[n] = act_buff_reads * num_filters_sets;
+            stats.accumulator_updates.back()[n] = accumulator_updates * num_filters_sets;
+            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)WEIGHT_LANES);
+            auto idle_rows = N_ROWS - (num_filters % N_ROWS);
+            idle_rows = idle_rows == 16 ? 0 : idle_rows;
+            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)WEIGHT_LANES);
+
         }
 
         #else
 
-        for (int n = 0; n<batch_size; n++) {
+        for (int n = 0; n < batch_size; n++) {
 
             int column_index = 0;
             std::vector<int> column_end = std::vector<int>(windows_per_tile, 0);
             auto precision_cycles = (columns_per_act == 1 && rows_per_wgt == 1) ? act_layer_prec : BITS_PE;
+            uint64_t cycles = 0;
+            uint64_t stall_cycles = 0;
+            uint64_t weight_buff_reads = 0;
+            uint64_t act_buff_reads = 0;
+            uint64_t accumulator_updates = 0;
 
             for (int r = 0; r < R; r++) {
                 for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
-                    if (stats.cycles.back()[n] < column_end[column_index])
-                        stats.cycles.back()[n] = column_end[column_index];
+                    if(cycles < column_end[column_index]) {
+                        stall_cycles = column_end[column_index] - cycles;
+                        cycles = column_end[column_index];
+                    }
                     auto column_cycles = precision_cycles;
-                    column_end[column_index] = stats.cycles.back()[n] + column_cycles;
-                    stats.cycles.back()[n]++;
+                    column_end[column_index] = cycles + column_cycles;
+                    cycles++;
                     column_index++;
                     if (column_index >= windows_per_tile) column_index = 0;
+
+                    act_buff_reads++;
+                    weight_buff_reads++;
                 }
+                accumulator_updates++;
             }
+
             uint64_t last_column_end = *std::max_element(column_end.begin(), column_end.end());
             uint64_t last_column_rem_cycles = last_column_end - stats.cycles.back()[n];
-            stats.cycles.back()[n] *= num_filters_sets;
+            stats.cycles.back()[n] = cycles * num_filters_sets;
             stats.cycles.back()[n] += last_column_rem_cycles;
+            stats.stall_cycles.back()[n] = stall_cycles * num_filters_sets;
+            stats.weight_buff_reads.back()[n] = weight_buff_reads * num_filters_sets;
+            stats.act_buff_reads.back()[n] = act_buff_reads * num_filters_sets;
+            stats.accumulator_updates.back()[n] = accumulator_updates * num_filters_sets;
+            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)WEIGHT_LANES);
+            auto idle_rows = N_ROWS - (num_filters % N_ROWS);
+            idle_rows = idle_rows == 16 ? 0 : idle_rows;
+            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)WEIGHT_LANES);
+
         }
 
         #endif
@@ -302,16 +390,16 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
-                stats.wgt_prec.push_back(layer.getWgt_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
+                stats.wgt_prec.push_back(layer.getWgtPrecision());
                 if(layer.getWeights().getShape()[1] == 1 && layer.getActivations().getShape()[1] != 1)
                     computeConvolution2D(layer, stats);
                 else
                     computeConvolution(layer, stats);
             } else if(layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
-                stats.wgt_prec.push_back(layer.getWgt_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
+                stats.wgt_prec.push_back(layer.getWgtPrecision());
                 computeInnerProduct(layer, stats);
             }
         }
@@ -359,7 +447,7 @@ namespace core {
         uint64_t bit_counter = 0;
 
         // Get layer precision
-        auto layer_prec = layer.getAct_precision();
+        auto layer_prec = layer.getActPrecision();
 
         // Convolution
         for(int n=0; n<batch_size; n++) {
@@ -406,7 +494,7 @@ namespace core {
         uint64_t bit_counter = 0;
 
         // Get layer precision
-        auto layer_prec = layer.getAct_precision();
+        auto layer_prec = layer.getActPrecision();
 
         for (int n = 0; n<batch_size; n++) {
             bit_counter = (uint64_t)computeStripesBitsPE((uint8_t)layer_prec,network_bits) * wgt_channels * num_filters
@@ -438,12 +526,12 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
                 stats.wgt_prec.push_back(0);
                 computePotentialsConvolution(layer,stats,network.getNetwork_bits());
             } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
                 stats.wgt_prec.push_back(0);
                 computePotentialsInnerProduct(layer,stats,network.getNetwork_bits());
             }

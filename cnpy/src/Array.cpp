@@ -3,6 +3,8 @@
 
 namespace cnpy {
 
+    /* SETTERS */
+
     template <typename T>
     void Array<T>::set_values(const std::string &path) {
         cnpy::NpyArray data_npy;
@@ -78,6 +80,282 @@ namespace cnpy {
                 }
             }
         } else throw std::runtime_error("Array dimensions error");
+    }
+
+    /* GETTERS */
+
+    template <typename T>
+    T Array<T>::get (int i, int j, int k, int l) const {
+        #ifdef DEBUG
+        if(getDimensions() != 4)
+            throw std::runtime_error("4D Array dimensions error");
+        #endif
+        return this->data4D[i][j][k][l];
+    }
+
+    template <typename T>
+    T Array<T>::get (int i, int j, int k) const {
+        #ifdef DEBUG
+        if(getDimensions() != 3)
+            throw std::runtime_error("3D Array dimensions error");
+        #endif
+        return this->data3D[i][j][k];
+    }
+
+    template <typename T>
+    T Array<T>::get (int i, int j) const {
+        #ifdef DEBUG
+        if(getDimensions() != 2)
+            throw std::runtime_error("2D Array dimensions error");
+        #endif
+        return this->data2D[i][j];
+    }
+
+    template <typename T>
+    T max_1D(const std::vector<T> &vector) {
+        return *std::max_element(vector.begin(), vector.end());
+    }
+
+    template <typename T>
+    T max_2D(const std::vector<std::vector<T>> &vector) {
+        std::vector<T> maximums = std::vector<T>(vector.size(),0);
+        for(int i = 0; i < vector.size(); i++) {
+            maximums[i] = max_1D(vector[i]);
+        }
+        return max_1D(maximums);
+    }
+
+    template <typename T>
+    T max_3D(const std::vector<std::vector<std::vector<T>>> &vector) {
+        std::vector<T> maximums = std::vector<T>(vector.size(),0);
+        for(int i = 0; i < vector.size(); i++) {
+            maximums[i] = max_2D(vector[i]);
+        }
+        return max_1D(maximums);
+    }
+
+    template <typename T>
+    T max_4D(const std::vector<std::vector<std::vector<std::vector<T>>>> &vector) {
+        std::vector<T> maximums = std::vector<T>(vector.size(),0);
+        for(int i = 0; i < vector.size(); i++) {
+            maximums[i] = max_3D(vector[i]);
+        }
+        return max_1D(maximums);
+    }
+
+    template <typename T>
+    T min_1D(const std::vector<T> &vector) {
+        return *std::min_element(vector.begin(), vector.end());
+    }
+
+    template <typename T>
+    T min_2D(const std::vector<std::vector<T>> &vector) {
+        std::vector<T> minimums = std::vector<T>(vector.size(),0);
+        for(int i = 0; i < vector.size(); i++) {
+            minimums[i] = min_1D(vector[i]);
+        }
+        return min_1D(minimums);
+    }
+
+    template <typename T>
+    T min_3D(const std::vector<std::vector<std::vector<T>>> &vector) {
+        std::vector<T> minimums = std::vector<T>(vector.size(),0);
+        for(int i = 0; i < vector.size(); i++) {
+            minimums[i] = min_2D(vector[i]);
+        }
+        return min_1D(minimums);
+    }
+
+    template <typename T>
+    T min_4D(const std::vector<std::vector<std::vector<std::vector<T>>>> &vector) {
+        std::vector<T> minimums = std::vector<T>(vector.size(),0);
+        for(int i = 0; i < vector.size(); i++) {
+            minimums[i] = min_3D(vector[i]);
+        }
+        return min_1D(minimums);
+    }
+
+    template <typename T>
+    T Array<T>::get(unsigned long long index) const {
+        if(this->getDimensions() == 4) {
+            auto i = index / (this->shape[1]*this->shape[2]*this->shape[3]);
+            auto rem = index % (this->shape[1]*this->shape[2]*this->shape[3]);
+            auto j = rem / (this->shape[2]*this->shape[3]);
+            rem %= (this->shape[2]*this->shape[3]);
+            auto k = rem / this->shape[3];
+            auto l = rem % this->shape[3];
+            return this->data4D[i][j][k][l];
+        } else if(this->getDimensions() == 3) {
+            auto i = index / (this->shape[1]*this->shape[2]);
+            auto rem = index % (this->shape[1]*this->shape[2]);
+            auto j = rem / this->shape[2];
+            auto k = rem % this->shape[2];
+            return this->data3D[i][j][k];
+        } else if (this->getDimensions() == 2) {
+            auto i = index / this->shape[1];
+            auto j = index % this->shape[1];
+            return this->data2D[i][j];
+        } else if (this->getDimensions() == 1) return this->data1D[index];
+        else throw std::runtime_error("Array dimensions error");
+    }
+
+    template <typename T>
+    unsigned long Array<T>::getDimensions() const {
+        if(this->force4D) return 4;
+        else if(shape.size() == 4 && shape[2] == 1 && shape[3] == 1) return 2;
+        else return shape.size();
+    }
+
+    template <typename T>
+    const std::vector<size_t> &Array<T>::getShape() const {
+        return shape;
+    }
+
+    template <typename T>
+    unsigned long long Array<T>::getMax_index() const {
+        if (this->getDimensions() == 1) return this->shape[0];
+        else if (this->getDimensions() == 2) return this->shape[0]*this->shape[1];
+        else if (this->getDimensions() == 3) return this->shape[0]*this->shape[1]*this->shape[2];
+        else if (this->getDimensions() == 4) return this->shape[0]*this->shape[1]*this->shape[2]*this->shape[3];
+        else throw std::runtime_error("Array dimensions error");
+    }
+
+    /* DATA TRANSFORMATION */
+
+    /* Return value in two complement */
+    static inline
+    uint16_t profiled_value(float num, int mag, int frac) {
+        double scale = pow(2.,(double)frac);
+        double intmax = (1 << (mag + frac)) - 1;
+        double intmin = -1 * intmax;
+        double ds = num * scale;
+        if (ds > intmax) ds = intmax;
+        if (ds < intmin) ds = intmin;
+        auto two_comp = (int)round(ds);
+        return (uint16_t)two_comp;
+    }
+
+    template <typename T>
+    Array<uint16_t> Array<T>::profiled_fixed_point(int mag, int frac) const {
+        std::vector<uint16_t> fixed_point_vector;
+        if (this->getDimensions() == 1) {
+            for(int i = 0; i < this->shape[0]; i++) {
+                auto float_value = this->data1D[i];
+                fixed_point_vector.push_back(profiled_value(float_value,mag,frac));
+            }
+        } else if(this->getDimensions() == 2){
+            for(int i = 0; i < this->shape[0]; i++) {
+                for(int j = 0; j < this->shape[1]; j++) {
+                    auto float_value = this->data2D[i][j];
+                    fixed_point_vector.push_back(profiled_value(float_value,mag,frac));
+                }
+            }
+        } else if (this->getDimensions() == 3) {
+            for(int i = 0; i < this->shape[0]; i++) {
+                for(int j = 0; j < this->shape[1]; j++) {
+                    for(int k = 0; k < this->shape[2]; k++) {
+                        auto float_value = this->data3D[i][j][k];
+                        fixed_point_vector.push_back(profiled_value(float_value,mag,frac));
+                    }
+                }
+            }
+        } else if (this->getDimensions() == 4) {
+            for(int i = 0; i < this->shape[0]; i++) {
+                for(int j = 0; j < this->shape[1]; j++) {
+                    for(int k = 0; k < this->shape[2]; k++) {
+                        for(int l = 0; l < this->shape[3]; l++) {
+                            auto float_value = this->data4D[i][j][k][l];
+                            fixed_point_vector.push_back(profiled_value(float_value,mag,frac));
+                        }
+                    }
+                }
+            }
+        } else throw std::runtime_error("Array dimensions error");
+
+        Array<uint16_t> fixed_point_array;
+        fixed_point_array.set_values(fixed_point_vector,this->shape);
+        return fixed_point_array;
+    }
+
+    static inline
+    uint16_t tensorflow_value(float num, double scale, float min_value, int max_fixed, int min_fixed) {
+        auto sign_mag = (int)(round(num * scale) - round(min_value * scale) + min_fixed);
+        sign_mag = std::max(sign_mag, min_fixed);
+        sign_mag = std::min(sign_mag, max_fixed);
+        return (uint16_t)sign_mag;
+    }
+
+    template <typename T>
+    Array<uint16_t> Array<T>::tensorflow_fixed_point() const {
+        const int NUM_BITS = 8;
+        const int max_fixed = 127;
+        const int min_fixed = -128;
+        const int num_discrete_values = 1 << NUM_BITS;
+        const auto range_adjust = num_discrete_values / (num_discrete_values - 1.0);
+
+        std::vector<uint16_t> fixed_point_vector;
+        if (this->getDimensions() == 1) {
+
+            auto min_value = min_1D(this->data1D);
+            auto max_value = max_1D(this->data1D);
+            auto range = (max_value - min_value) * range_adjust;
+            auto scale = num_discrete_values / range;
+
+            for(int i = 0; i < this->shape[0]; i++) {
+                auto float_value = this->data1D[i];
+                fixed_point_vector.push_back(tensorflow_value(float_value,scale,min_value,max_value,min_fixed));
+            }
+        } else if(this->getDimensions() == 2){
+
+            auto min_value = min_2D(this->data2D);
+            auto max_value = max_2D(this->data2D);
+            auto range = (max_value - min_value) * range_adjust;
+            auto scale = num_discrete_values / range;
+
+            for(int i = 0; i < this->shape[0]; i++) {
+                for(int j = 0; j < this->shape[1]; j++) {
+                    auto float_value = this->data2D[i][j];
+                    fixed_point_vector.push_back(tensorflow_value(float_value,scale,min_value,max_value,min_fixed));
+                }
+            }
+        } else if (this->getDimensions() == 3) {
+
+            auto min_value = min_3D(this->data3D);
+            auto max_value = max_3D(this->data3D);
+            auto range = (max_value - min_value) * range_adjust;
+            auto scale = num_discrete_values / range;
+
+            for(int i = 0; i < this->shape[0]; i++) {
+                for(int j = 0; j < this->shape[1]; j++) {
+                    for(int k = 0; k < this->shape[2]; k++) {
+                        auto float_value = this->data3D[i][j][k];
+                        fixed_point_vector.push_back(tensorflow_value(float_value,scale,min_value,max_value,min_fixed));
+                    }
+                }
+            }
+        } else if (this->getDimensions() == 4) {
+
+            auto min_value = min_4D(this->data4D);
+            auto max_value = max_4D(this->data4D);
+            auto range = (max_value - min_value) * range_adjust;
+            auto scale = num_discrete_values / range;
+
+            for(int i = 0; i < this->shape[0]; i++) {
+                for(int j = 0; j < this->shape[1]; j++) {
+                    for(int k = 0; k < this->shape[2]; k++) {
+                        for(int l = 0; l < this->shape[3]; l++) {
+                            auto float_value = this->data4D[i][j][k][l];
+                            fixed_point_vector.push_back(tensorflow_value(float_value,scale,min_value,max_value,
+                                    min_fixed));
+                        }
+                    }
+                }
+            }
+        } else throw std::runtime_error("Array dimensions error");
+
+        Array<uint16_t> fixed_point_array;
+        fixed_point_array.set_values(fixed_point_vector,this->shape);
+        return fixed_point_array;
     }
 
     template <typename T>
@@ -174,6 +452,8 @@ namespace cnpy {
         } else throw std::runtime_error("Array dimensions error");
     }
 
+    /* PADDING */
+
     template <typename T>
     void Array<T>::zero_pad(int padding) {
         auto batch_size = this->shape[0];
@@ -264,6 +544,7 @@ namespace cnpy {
         this->shape.push_back(Y);
     }
 
+    /* RESHAPE */
 
     template <typename T>
     void Array<T>::reshape_to_4D() {
@@ -407,213 +688,6 @@ namespace cnpy {
         this->shape.push_back(new_wgt_channels);
         this->shape.push_back(new_Kx);
         this->shape.push_back(new_Ky);
-    }
-
-    template <typename T>
-    Array<T> Array<T>::subarray(int i_begin, int i_end, int j_begin, int j_end) const {
-
-        auto i_dim = (unsigned)(i_end - i_begin);
-        auto j_dim = (unsigned)(j_end - j_begin);
-
-        auto out_data = std::vector<std::vector<T>>(i_dim, std::vector<T>(j_dim,0));
-
-        for(int i = 0; i < i_dim; i++)
-            for(int j = 0; j < j_dim; j++)
-                        out_data[i][j] = this->data2D[i+i_begin][j+j_begin];
-
-        std::vector<size_t> out_shape;
-        out_shape.push_back(i_dim);
-        out_shape.push_back(j_dim);
-        return Array(out_data,out_shape);
-
-    }
-
-
-    template <typename T>
-    Array<T> Array<T>::subarray(int i_begin, int i_end, int j_begin, int j_end, int k_begin, int k_end, int l_begin,
-            int l_end) const {
-
-        auto i_dim = (unsigned)(i_end - i_begin);
-        auto j_dim = (unsigned)(j_end - j_begin);
-        auto k_dim = (unsigned)(k_end - k_begin);
-        auto l_dim = (unsigned)(l_end - l_begin);
-
-        auto out_data = std::vector<std::vector<std::vector<std::vector<T>>>>(i_dim,
-                std::vector<std::vector<std::vector<T>>>(j_dim,std::vector<std::vector<T>>(k_dim, std::vector<T>
-                (l_dim,0))));
-
-        for(int i = 0; i < i_dim; i++)
-            for(int j = 0; j < j_dim; j++)
-                for(int k = 0; k < k_dim; k++)
-                    for(int l = 0; l < l_dim; l++)
-                        out_data[i][j][k][l] = this->data4D[i+i_begin][j+j_begin][k+k_begin][l+l_begin];
-
-        std::vector<size_t> out_shape;
-        out_shape.push_back(i_dim);
-        out_shape.push_back(j_dim);
-        out_shape.push_back(k_dim);
-        out_shape.push_back(l_dim);
-        return Array(out_data,out_shape);
-
-    }
-
-    template <typename T>
-    T Array<T>::get (int i, int j, int k, int l) const {
-        #ifdef DEBUG
-        if(getDimensions() != 4)
-            throw std::runtime_error("Array dimensions error");
-        #endif
-        return this->data4D[i][j][k][l];
-    }
-
-    template <typename T>
-    T Array<T>::get (int i, int j, int k) const {
-        #ifdef DEBUG
-        if(getDimensions() != 3)
-            throw std::runtime_error("Array dimensions error");
-        #endif
-        return this->data3D[i][j][k];
-    }
-
-    template <typename T>
-    T Array<T>::get (int i, int j) const {
-        #ifdef DEBUG
-        if(getDimensions() != 2)
-            throw std::runtime_error("Array dimensions error");
-        #endif
-        return this->data2D[i][j];
-    }
-
-    template <typename T>
-    T max_1D(const std::vector<T> &vector) {
-        return *std::max_element(vector.begin(), vector.end());
-    }
-
-    template <typename T>
-    T max_2D(const std::vector<std::vector<T>> &vector) {
-        std::vector<T> maximums = std::vector<T>(vector.size(),0);
-        for(int i = 0; i < vector.size(); i++) {
-            maximums[i] = max_1D(vector[i]);
-        }
-        return max_1D(maximums);
-    }
-
-    template <typename T>
-    T max_3D(const std::vector<std::vector<std::vector<T>>> &vector) {
-        std::vector<T> maximums = std::vector<T>(vector.size(),0);
-        for(int i = 0; i < vector.size(); i++) {
-            maximums[i] = max_2D(vector[i]);
-        }
-        return max_1D(maximums);
-    }
-
-    template <typename T>
-    T max_4D(const std::vector<std::vector<std::vector<std::vector<T>>>> &vector) {
-        std::vector<T> maximums = std::vector<T>(vector.size(),0);
-        for(int i = 0; i < vector.size(); i++) {
-            maximums[i] = max_3D(vector[i]);
-        }
-        return max_1D(maximums);
-    }
-
-    template <typename T>
-    T Array<T>::max() const {
-        if (this->getDimensions() == 1)
-            return max_1D(this->data1D);
-        else if(this->getDimensions() == 2)
-            return max_2D(this->data2D);
-        else if (this->getDimensions() == 3)
-            return max_3D(this->data3D);
-        else if (this->getDimensions() == 4)
-            return max_4D(this->data4D);
-        else throw std::runtime_error("Array dimensions error");
-    }
-
-
-    template <typename T>
-    T min_1D(const std::vector<T> &vector) {
-        return *std::min_element(vector.begin(), vector.end());
-    }
-
-    template <typename T>
-    T min_2D(const std::vector<std::vector<T>> &vector) {
-        std::vector<T> minimums = std::vector<T>(vector.size(),0);
-        for(int i = 0; i < vector.size(); i++) {
-            minimums[i] = min_1D(vector[i]);
-        }
-        return min_1D(minimums);
-    }
-
-    template <typename T>
-    T min_3D(const std::vector<std::vector<std::vector<T>>> &vector) {
-        std::vector<T> minimums = std::vector<T>(vector.size(),0);
-        for(int i = 0; i < vector.size(); i++) {
-            minimums[i] = min_2D(vector[i]);
-        }
-        return min_1D(minimums);
-    }
-
-    template <typename T>
-    T min_4D(const std::vector<std::vector<std::vector<std::vector<T>>>> &vector) {
-        std::vector<T> minimums = std::vector<T>(vector.size(),0);
-        for(int i = 0; i < vector.size(); i++) {
-            minimums[i] = min_3D(vector[i]);
-        }
-        return min_1D(minimums);
-    }
-
-    template <typename T>
-    T Array<T>::min() const {
-        if (this->getDimensions() == 1)
-            return min_1D(this->data1D);
-        else if(this->getDimensions() == 2)
-            return min_2D(this->data2D);
-        else if (this->getDimensions() == 3)
-            return min_3D(this->data3D);
-        else if (this->getDimensions() == 4)
-            return min_4D(this->data4D);
-        else throw std::runtime_error("Array dimensions error");
-    }
-
-    template <typename T>
-    T Array<T>::get(unsigned long long index) const {
-        if(this->getDimensions() == 4) {
-            auto i = index / (this->shape[1]*this->shape[2]*this->shape[3]);
-            auto rem = index % (this->shape[1]*this->shape[2]*this->shape[3]);
-            auto j = rem / (this->shape[2]*this->shape[3]);
-            rem %= (this->shape[2]*this->shape[3]);
-            auto k = rem / this->shape[3];
-            auto l = rem % this->shape[3];
-            return this->data4D[i][j][k][l];
-        } else if(this->getDimensions() == 3) {
-            auto i = index / (this->shape[1]*this->shape[2]);
-            auto rem = index % (this->shape[1]*this->shape[2]);
-            auto j = rem / this->shape[2];
-            auto k = rem % this->shape[2];
-            return this->data3D[i][j][k];
-        } else if (this->getDimensions() == 2) {
-            auto i = index / this->shape[1];
-            auto j = index % this->shape[1];
-            return this->data2D[i][j];
-        } else if (this->getDimensions() == 1) return this->data1D[index];
-        else throw std::runtime_error("Array dimensions error");
-    }
-
-    template <typename T>
-    unsigned long Array<T>::getDimensions() const {
-        if(this->force4D) return 4;
-        else if(shape.size() == 4 && shape[2] == 1 && shape[3] == 1) return 2;
-        else return shape.size();
-    }
-
-    /* Getters */
-    template <typename T> const std::vector<size_t> &Array<T>::getShape() const { return shape; }
-    template <typename T> unsigned long long Array<T>::getMax_index() const {
-        if (this->getDimensions() == 1) return this->shape[0];
-        else if (this->getDimensions() == 2) return this->shape[0]*this->shape[1];
-        else if (this->getDimensions() == 3) return this->shape[0]*this->shape[1]*this->shape[2];
-        else if (this->getDimensions() == 4) return this->shape[0]*this->shape[1]*this->shape[2]*this->shape[3];
-        else throw std::runtime_error("Array dimensions error");
     }
 
     INITIALISE_DATA_TYPES(Array);

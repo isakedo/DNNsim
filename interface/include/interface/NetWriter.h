@@ -1,49 +1,17 @@
 #ifndef DNNSIM_NETWRITER_H
 #define DNNSIM_NETWRITER_H
 
-#include <sys/common.h>
-#include <core/Network.h>
-#include <core/BitTactical.h>
-#include <network.pb.h>
-#include <schedule.pb.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <google/protobuf/io/gzip_stream.h>
+#include "Interface.h"
 
 namespace interface {
 
     template <typename T>
-    class NetWriter {
+    class NetWriter : public Interface {
 
     private:
 
-        /* Layers that we want weights, activations, and output activations */
-        const std::set<std::string> layers_data = {"Convolution","InnerProduct","LSTM"};
-
         /* Name of the network */
         std::string name;
-
-        /* Specify if transform the data when writing the network */
-        /* Allowed values: Not, Fixed16 */
-        std::string data_conversion;
-
-        /* Also write bias and output activations */
-        bool bias_and_out_act;
-
-        /* Force the writer to overwrite the output files */
-        bool OVERWRITE;
-
-        /* Tensorflow 8 bit quantization */
-        bool TENSORFLOW_8b;
-
-        /* Check if the path exists
-         * @param path  Path we want to check
-         */
-        void check_path(const std::string &path);
-
-        /* Return the name of the file depending on current type and conversion
-         * @return Name of output file
-         */
-        std::string outputName();
 
         /* Store a layer of the network into a protobuf layer
          * @param layer_proto   Pointer to a protobuf layer
@@ -61,28 +29,17 @@ namespace interface {
     public:
 
         /* Constructor
-         * @param _path                         Path containing the files with the network architecture
-         * @param _data_conversion              Specification of the data transformation when writing the network
-         * @param _bias_and_out_act             Also write bias and output activations
-         * @param _OVERWRITE                    Force the writer to overwrite the output files
-         * @param _TENSORFLOW_8b                Activate Tensorflow 8b quantization
+         * @param _name     The name of the network
+         * @param _QUIET    Remove stdout messages
          */
-        NetWriter(const std::string &_name, const std::string &_data_conversion, bool _bias_and_out_act,
-                bool _OVERWRITE, bool _TENSORFLOW_8b) : bias_and_out_act(_bias_and_out_act), OVERWRITE(_OVERWRITE),
-                TENSORFLOW_8b(_TENSORFLOW_8b) {
+        NetWriter(const std::string &_name, bool _QUIET) : Interface(_QUIET) {
             this->name = _name;
-            this->data_conversion = _data_conversion;
         }
 
         /* Store the network in protobuf format
          * @param network       Network that want to be stored
          */
         void write_network_protobuf(const core::Network<T> &network);
-
-        /* Store the network in Gzip protobuf format
-         * @param network       Network that want to be stored
-         */
-        void write_network_gzip(const core::Network<T> &network);
 
         /* Store the scheduler in protobuf format
          * @param network_schedule  Network schedule that want to be stored

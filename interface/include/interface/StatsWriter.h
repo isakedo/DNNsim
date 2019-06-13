@@ -1,31 +1,29 @@
 #ifndef DNNSIM_STATSWRITER_H
 #define DNNSIM_STATSWRITER_H
 
-#include <sys/common.h>
+#include "Interface.h"
 #include <sys/Statistics.h>
+#include <sys/stat.h>
 
 //#define PER_IMAGE_RESULTS
-#define PER_EPOCH_RESULTS
+//#define PER_EPOCH_RESULTS
 
 namespace interface {
 
-        class StatsWriter {
-
-        private:
-
-            /* Check if the path exists
-             * @param path  Path we want to check
-             */
-            static void check_path(const std::string &path);
+        class StatsWriter : public Interface {
 
         public:
 
+            /* Constructor
+             * @param _QUIET    Remove stdout messages
+             */
+            explicit StatsWriter(bool _QUIET) : Interface(_QUIET) {}
+
             /* Dump the statistics in a csv file */
-            static void dump_csv();
+            void dump_csv();
 
         };
 
 }
-
 
 #endif //DNNSIM_STATSWRITER_H

@@ -226,7 +226,7 @@ namespace core {
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
         cnpy::Array<T> act = layer.getActivations();
-        act.sign_magnitude_representation(layer.getAct_precision());
+        act.sign_magnitude_representation(layer.getActPrecision());
         cnpy::Array<T> wgt = layer.getWeights();
         if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
@@ -276,7 +276,7 @@ namespace core {
         auto Kc = (int)floor(this->out_acc_size/(double)(th*tw));
 
         // Fix for MobileNet
-        if(Ck == 1) Kc = 1;
+        if(Ck == 1 && C != 1) Kc = 1;
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(N,0));
@@ -312,14 +312,14 @@ namespace core {
         #pragma omp parallel for private(n)
         #endif
         for(n = 0; n < N; n++) {
-            for(int kc = 0; kc < K; kc+=Kc) {
+            for(int kc = 0; kc < K; kc += Kc) {
 
                 // Two towers alexnet
                 int ct = 0;
                 if(kc >= Kg) ct = Ck;
 
                 // Fix for MobileNet
-                if(Ck == 1) ct = kc;
+                if(Ck == 1 && C != 1) ct = kc;
 
                 for(int ck = 0; ck < Ck; ck++) {
                     computeSCNNpTile(n,ct,ck,kc,tw,th,X,Y,Kc,K,W,H,R,S,stride,padding,act,wgt,stats);
@@ -424,7 +424,7 @@ namespace core {
         int it_per_group = num_filters / groups;
 
         // Get layer precision
-        auto act_layer_prec = layer.getAct_precision();
+        auto act_layer_prec = layer.getActPrecision();
 
         // Operations
         const auto parallel_mult = (uint64_t)(num_filters * out_x * out_y * Kx * Ky * wgt_channels);
@@ -440,9 +440,9 @@ namespace core {
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n)
         #endif
-        for(n=0; n<batch_size; n++) {
+        for(n = 0; n < batch_size; n++) {
             uint64_t bit_counter = 0;
-            for(int m=0; m<num_filters; m++) {
+            for(int m = 0; m < num_filters; m++) {
 
                 // Two towers alexnet
                 int start_group = 0;
@@ -450,7 +450,7 @@ namespace core {
                     start_group = wgt_channels;
 
                 // Fix for MobileNet
-                if(wgt_channels == 1)
+                if(wgt_channels == 1 && act_channels != 1)
                     start_group = m;
 
                 for(int x=0; x<out_x; x++) {
@@ -504,7 +504,7 @@ namespace core {
         if(this->FAST_MODE) batch_size = 1;
 
         // Get layer precision
-        auto act_layer_prec = layer.getAct_precision();
+        auto act_layer_prec = layer.getActPrecision();
 
         // Operations
         const auto parallel_mult = (uint64_t)num_filters * wgt_channels * R;
@@ -519,7 +519,7 @@ namespace core {
         omp_set_num_threads(std::min(max_threads,this->N_THREADS));
         #pragma omp parallel for private(n)
         #endif
-        for (n = 0; n<batch_size; n++) {
+        for (n = 0; n < batch_size; n++) {
             uint64_t bit_counter = 0;
             for (int r = 0; r < R; r++) {
                 for (int m = 0; m < num_filters; m++) {
@@ -558,12 +558,12 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
                 stats.wgt_prec.push_back(0);
                 computePotentialsConvolution(layer,stats,network.getNetwork_bits());
             } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
                 stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getAct_precision());
+                stats.act_prec.push_back(layer.getActPrecision());
                 stats.wgt_prec.push_back(0);
                 computePotentialsInnerProduct(layer,stats,network.getNetwork_bits());
             }
