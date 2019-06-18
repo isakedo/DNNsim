@@ -1,0 +1,22 @@
+simulate {
+	network: "bvlc_googlenet"
+	model: "Caffe"
+	data_type: "Fixed16"
+	experiment {
+        architecture: "Laconic"
+        task: "Cycles"
+        n_lanes: 16
+        n_columns: 16
+        n_rows: 256
+	}
+}
+
+simulate {
+	network: "bvlc_googlenet"
+	model: "Caffe"
+	data_type: "Fixed16"
+	experiment {
+        architecture: "Laconic"
+        task: "Potentials"
+	}
+}

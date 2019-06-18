@@ -1,0 +1,27 @@
+simulate {
+	network: "bvlc_googlenet"
+	model: "Caffe"
+	data_type: "Fixed16"
+	experiment {
+        architecture: "BitTacticalE"
+        task: "Cycles"
+        n_lanes: 16
+        n_columns: 16
+        n_rows: 256
+        lookahead_h: 2
+        lookaside_d: 5
+        search_shape: "L"
+        column_registers: 1
+        bits_first_stage: 2
+	}
+}
+
+simulate {
+	network: "bvlc_googlenet"
+	model: "Caffe"
+	data_type: "Fixed16"
+	experiment {
+        architecture: "BitTacticalE"
+        task: "Potentials"
+	}
+}
