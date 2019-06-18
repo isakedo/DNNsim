@@ -16,5 +16,6 @@ The following parameters are valid for this architecture:
 | out_acc_size | uint32 | Size of the output accumulator per PE | Positive number | 1024 |
 | banks | uint32 | Number of banks in the output accumulator per PE | Positive number | 32 |
 
-Example batch files in this folder are the following:
+Example batch files:
 
+*   SCNN_example: Performs SCNN simulation and calculates potentials 

@@ -3,11 +3,23 @@ simulate {
 	model: "Caffe"
 	data_type: "Fixed16"
 	experiment {
-        architecture: "BitFusion"
+        architecture: "BitPragmatic"
         task: "Cycles"
-        M: 32
-        N: 16
-        PMAX: 8
-        PMIN: 2
+        n_lanes: 16
+        n_columns: 16
+        n_rows: 256
+        bits_first_stage: 2
+        column_registers: 1
+        diffy: false
+	}
+}
+
+simulate {
+	network: "bvlc_googlenet"
+	model: "Caffe"
+	data_type: "Fixed16"
+	experiment {
+        architecture: "BitPragmatic"
+        task: "Potentials"
 	}
 }

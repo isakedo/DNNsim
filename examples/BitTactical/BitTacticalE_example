@@ -8,9 +8,11 @@ simulate {
         n_lanes: 16
         n_columns: 16
         n_rows: 256
-        bits_first_stage: 2
+        lookahead_h: 2
+        lookaside_d: 5
+        search_shape: "L"
         column_registers: 1
-        diffy: false
+        bits_first_stage: 2
 	}
 }
 
@@ -19,7 +21,7 @@ simulate {
 	model: "Caffe"
 	data_type: "Fixed16"
 	experiment {
-        architecture: "BitPragmatic"
+        architecture: "BitTacticalE"
         task: "Potentials"
 	}
 }

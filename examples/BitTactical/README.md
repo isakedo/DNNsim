@@ -23,7 +23,7 @@ The following parameters are valid for this architecture:
 
 | Name | Data Type | Description | Valid Options | Default |
 |:---:|:---:|:---:|:---:|:---:|
-| weight_lanes | uint32 | Number of concurrent weights per PE | Positive Numbers | 16 |
+| n_lanes | uint32 | Number of concurrent multiplications per PE | Positive Number | 16 |
 | n_columns | uint32 | Number of columns/windows in the tile | Positive number | 16 |
 | n_rows | uint32 | Number of rows/filters in the tile | Positive number | 16 |
 | column_registers | uint32 | Number of registers per column to run-ahead | Positive number | 0 |
@@ -35,5 +35,9 @@ The following parameters are valid for this architecture:
 | search_shape | string | Shape of the scheduler search | L-T | L |
 | read_schedule | bool | Read the scheduled weights from a Protobuf file | True-False | False |
 
-Example batch files in this folder are the following:
 
+Example batch files:
+
+*   Schedule_example: Schedules weights statically, and performs simulation for BitTacticalE reading previous schedule
+*   BitTacticalE: Performs BitTacticalE schedule/simulation, and calculates potentials 
+*   BitTacticalP: Performs BitTacticalP schedule/simulation, and calculates potentials 

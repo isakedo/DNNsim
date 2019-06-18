@@ -18,13 +18,14 @@ The following parameters are valid for this architecture:
 
 | Name | Data Type | Description | Valid Options | Default |
 |:---:|:---:|:---:|:---:|:---:|
+| n_lanes | uint32 | Number of concurrent multiplications per PE | Positive Number | 16 |
 | n_columns | uint32 | Number of columns/windows in the tile | Positive number | 16 |
 | n_rows | uint32 | Number of rows/filters in the tile | Positive number | 16 |
 | precision_granularity | uint32 | Size of the group of values | Positive number | 16 |
 | leading bit | bool | Only the leading bit for dynamic precisions | True-False | False |
-| lookahead_h |uint32 | Lookahead window size | Positive number | 2 |
 | pe_serial_bits | uint32 | Number of serial bits per PE | Positive Number | 1 |
 | dynamic_weights | bool | Use dynamic precision for the weights | True-False | False |
 
-Example batch files in this folder are the following:
+Example batch files:
 
+*   Loom_example: Performs Loom simulation and calculates potentials 

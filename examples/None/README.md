@@ -1,4 +1,6 @@
 ### None Example
 
-Example batch files in this folder are the following:
+Example batch files:
+
+*   None_example: Calculates value sparsity and bit sparsity
 

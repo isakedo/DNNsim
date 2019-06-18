@@ -14,5 +14,6 @@ The following parameters are valid for this architecture:
 | PMAX | uint32 | Maximum precision allowed per PE | Positive number | 8 |
 | PMIN | uint32 | Minimum precision allowed per PE | Positive number | 2 |
 
-Example batch files in this folder are the following:
+Example batch files:
 
+*   BitFusion_example: Performs BitFusion simulation and calculates potentials 

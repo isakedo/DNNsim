@@ -3,11 +3,14 @@ simulate {
 	model: "Caffe"
 	data_type: "Fixed16"
 	experiment {
-        architecture: "Laconic"
+        architecture: "Loom"
         task: "Cycles"
         n_lanes: 16
         n_columns: 16
         n_rows: 256
+        precision_granularity: 16
+        pe_serial_bits: 1
+        dynamic_weights: false
 	}
 }
 
@@ -16,7 +19,7 @@ simulate {
 	model: "Caffe"
 	data_type: "Fixed16"
 	experiment {
-        architecture: "Laconic"
+        architecture: "Loom"
         task: "Potentials"
 	}
 }

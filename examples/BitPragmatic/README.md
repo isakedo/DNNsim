@@ -19,12 +19,13 @@ The following parameters are valid for this architecture:
 
 | Name | Data Type | Description | Valid Options | Default |
 |:---:|:---:|:---:|:---:|:---:|
-| weight_lanes | uint32 | Number of concurrent weights per PE | Positive Number | 16 |
+| n_lanes | uint32 | Number of concurrent multiplications per PE | Positive Number | 16 |
 | n_columns | uint32 | Number of columns/windows in the tile | Positive number | 16 |
 | n_rows | uint32 | Number of rows/filters in the tile | Positive number | 16 |
 | column_registers | uint32 | Number of registers per column to run-ahead | Positive number | 0 |
 | bits_first_stage | uint32 | Number of bits of the first stage shifter | Positive number | 0 |
 | diffy | bool | Simulate Diffy in top of the architecture | True-False | False |
 
-Example batch files in this folder are the following:
+Example batch files:
 
+*   BitPragmatic_example: Performs BitPragmatic simulation and calculates potentials 

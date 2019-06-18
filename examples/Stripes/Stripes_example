@@ -3,11 +3,12 @@ simulate {
 	model: "Caffe"
 	data_type: "Fixed16"
 	experiment {
-        architecture: "Laconic"
+        architecture: "Stripes"
         task: "Cycles"
         n_lanes: 16
         n_columns: 16
         n_rows: 256
+        bits_pe: 16
 	}
 }
 
@@ -16,7 +17,7 @@ simulate {
 	model: "Caffe"
 	data_type: "Fixed16"
 	experiment {
-        architecture: "Laconic"
+        architecture: "Stripes"
         task: "Potentials"
 	}
 }

@@ -1,0 +1,23 @@
+simulate {
+	network: "bvlc_googlenet"
+	model: "Caffe"
+	data_type: "Fixed16"
+	experiment {
+        architecture: "BitFusion"
+        task: "Cycles"
+        M: 32
+        N: 16
+        PMAX: 8
+        PMIN: 2
+	}
+}
+
+simulate {
+	network: "bvlc_googlenet"
+	model: "Caffe"
+	data_type: "Fixed16"
+	experiment {
+        architecture: "BitFusion"
+        task: "Potentials"
+	}
+}

@@ -17,10 +17,11 @@ The following parameters are valid for this architecture:
 
 | Name | Data Type | Description | Valid Options | Default |
 |:---:|:---:|:---:|:---:|:---:|
-| weight_lanes | uint32 | Number of concurrent weights per PE | Positive Number | 16 |
+| n_lanes | uint32 | Number of concurrent multiplications per PE | Positive Number | 16 |
 | n_columns | uint32 | Number of columns/windows in the tile | Positive number | 16 |
 | n_rows | uint32 | Number of rows/filters in the tile | Positive number | 16 |
 | bits_pe | uint32 | Number of bits per PE | Positive number | 16 |
 
-Example batch files in this folder are the following:
+Example batch files:
 
+*   Stripes_example: Performs Stripes simulation and calculates potentials 
