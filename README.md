@@ -1,17 +1,16 @@
 # DNNsim 
 
 ### Requeriments
-*   Cmake posterior to version 3.10
-*   GNU C++ compiler posterior to version 5.1
+*   Cmake version >= 3.10
+*   GNU C++ compiler version >= 5.1
 *   Google Protobuf for C++. Installation link:
     *   https://github.com/protocolbuffers/protobuf/blob/master/src/README.md
-
 ### Allowed input files
 
 *   The architecture of the net in a train_val.prototxt file (without weights and activations)
 *   The architecture of the net in a trace_params.csv file (without weights and activations)
 *   The architecture of the net in a conv_params.csv file (without weights and activations)
-*   Weights, Bias, Inputs and outputs activations in a *.npy file using the following format
+*   Weights, and Inputs activations in a *.npy file using the following format
 *   Full network in a Google protobuf format file
 *   Tactical schedule in a protobuf format file
 
@@ -75,7 +74,7 @@ In the case of **training** simulation, every network must include in subdirecto
 
 Print help:
 
-    ./cmake-build-release/bin/DNNsim -h
+    ./DNNsim -h
     
 The simulator instructions are defined in prototxt files. Example files can be found [here](examples/README.md).
 
@@ -105,41 +104,20 @@ parallelized per batch using OpenMP library
 
 *  Allowed architectures for the experiments:
 
-| Architecture | Description | 
-|:---:|:---:|
+| Architecture | Description | Details | 
+|:---:|:---:|:---:|
 | None | Special generic architecture |
-| BitPragmatic | **Ae**: Exploits bit-level sparsity of activations |
-| Stripes | **Ap**: Exploits precision requirements of activations |
-| DynamicStripes | **Ap**: Exploits dynamic precision requirements of a group of activations | 
-| Loom | **Wp + Ap**: Exploits precision requirements of weights and dynamic group of activations |
-| Laconic | **We + Ae**: Exploits bit-level sparsity of both weights and activations |
-| BitTacticalP | **W + Ap**: Skips zero weights and exploits precision requirements of activations | 
-| BitTacticalE | **W + Ae**: Skips zero weights and exploits bit-level sparsity of activations | 
-| SCNN | **W + A**: Skips zero weights and zero activations |
-| SCNNp | **W + A + Ap**: Skips zero weights, zero activations, and exploits precision requirements of activations |
-| SCNNe | **W + A + Ae**: Skips zero weights, zero activations, and exploits bit-level sparsity of activations |
-| BitFusion | **Wp + Ap**: Exploits precision requirements of activations and weights for powers of two |
-
-Input parameters are the parameters that can be changed for each architecture in the prototxt batch file.
-Default parameters are defined in the header of each architecture, they can be changed in the specific file.
-Data type indicates the possible data types allowed: 
-Float32 for 4bytes floating point, and Fixed16 for 2bytes quantized integer   
-
-| Architecture | Input Parameters | Default Parameters\* | Data type |
-|:---:|:---:|:---:|:---:|
-| BitPragmatic | N_COLUMNS, N_ROWS, BITS_FIRST_STAGE, COLUMN_REGISTERS, DIFFY | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES | Fixed16 |
-| Stripes | N_COLUMNS, N_ROWS, BITS_PE | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES | Fixed16 |
-| DynamicStripes | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY, COLUMN_REGISTERS, LEADING_BIT, MINOR_BIT, DIFFY | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES | Fixed16 |
-| Loom | N_COLUMNS, N_ROWS, PRECISION_GRANULARITY, PE_SERIAL_BITS, LEADING_BIT, MINOR_BIT, DYNAMIC_WEIGHTS | FC_MULTIPLEX_COLUMNS, WEIGHT_LANES | Fixed16 |
-| Laconic | N_COLUMNS, N_ROWS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES | Fixed16 |
-| BitTacticalP | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, PRECISION_GRANULARITY, COLUMN_REGISTERS, LEADING_BIT, MINOR_BIT | ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES | Fixed16 |
-| BitTacticalE | N_COLUMNS, N_ROWS, LOOKAHEAD_H, LOOKASIDE_D, SEARCH_SHAPE, BITS_FIRST_STAGE, COLUMN_REGISTERS | BOOTH_ENCODING, ZERO_COUNT, FC_MULTIPLEX_COLUMNS, WEIGHT_LANES | Fixed16 |
-| SCNN | Wt, Ht, I, F, out_acc_size, BANKS | ZERO_COUNT | Fixed16, Float32 |
-| SCNNp | Wt, Ht, I, F, out_acc_size, BANKS, PE_SERIAL_BITS | ZERO_COUNT | Fixed16 |
-| SCNNe | Wt, Ht, I, F, out_acc_size, BANKS, PE_SERIAL_BITS | BOOTH_ENCODING, ZERO_COUNT | Fixed16 |
-| BitFusion | M, N, PMAX, PMIN | - | Fixed16 |
-
-*\*Default features can be removed in their specific header file*
+| BitPragmatic | **Ae**: Exploits bit-level sparsity of activations | [BitPragmatic](examples/BitPragmatic/README.md) |
+| Stripes | **Ap**: Exploits precision requirements of activations | [Stripes](examples/Stripes/README.md) |
+| DynamicStripes | **Ap**: Exploits dynamic precision requirements of a group of activations | [DynamicStripes](examples/DynamicStripes/README.md) |
+| Loom | **Wp + Ap**: Exploits precision requirements of weights and dynamic group of activations | [Loom](examples/Loom/README.md) |
+| Laconic | **We + Ae**: Exploits bit-level sparsity of both weights and activations | [Laconic](examples/Laconic/README.md) |
+| BitTacticalP | **W + Ap**: Skips zero weights and exploits precision requirements of activations | [BitTactical](examples/BitTactical/README.md) |
+| BitTacticalE | **W + Ae**: Skips zero weights and exploits bit-level sparsity of activations | [BitTactical](examples/BitTactical/README.md) |
+| SCNN | **W + A**: Skips zero weights and zero activations | [SCNN](examples/SCNN/README.md) |
+| SCNNp | **W + A + Ap**: Skips zero weights, zero activations, and exploits precision requirements of activations | [SCNNp](examples/SCNNp/README.md) | 
+| SCNNe | **W + A + Ae**: Skips zero weights, zero activations, and exploits bit-level sparsity of activations | [SCNNe](examples/SCNNe/README.md) |
+| BitFusion | **Wp + Ap**: Exploits precision requirements of activations and weights for powers of two | [BitFusion](examples/BitFusion/README.md) |
 
 *  Allowed tasks for these architectures:
 
@@ -167,10 +145,10 @@ Float32 for 4bytes floating point, and Fixed16 for 2bytes quantized integer
 
 *  Allowed architectures:
 
-| Architecture | Description | 
-|:---:|:---:|
-| None | Special generic architecture |
-| DynamicStripesFP | **Ap**: Exploits dynamic precision requirements of a group of activations | 
+| Architecture | Description | Details | 
+|:---:|:---:|:---:|
+| None | Special generic architecture | [None](examples/None/README.md) |
+| DynamicStripesFP | **Ap**: Exploits dynamic precision requirements of a group of activations | [DynamicStripesFP](examples/DynamicStripesFP/README.md) |
 
 Input parameters are the parameters that can be changed for each architecture in the prototxt batch file.
 Default parameters are defined in the header of each architecture, they can be changed in the specific file. 
@@ -199,15 +177,6 @@ truncated floating point
 | ExpDistr | Print exponent data distribution for forward and backward | BFloat16 |
 | MantDistr | Print mantissa data distribution for forward and backward | BFloat16 |
 
-### Default Parameters Description   
-
-| Name | Data Type | Description | Valid Options | Default |
-|:---:|:---:|:---:|:---:|:---:|
-| BOOTH_ENCODING | bool | Activate booth encoding | True-False | True |
-| ZERO_COUNT | bool | Zero values count as one cycle | True-False | True | 
-| FC_MULTIPLEX_COLUMNS | bool | Fully connected layers are time-multiplexed in the columns | True-False | True |
-| WEIGHT_LANES | uint32 | Number of weights per PE | Float32-Fixed16 | 16 |
-   
 ### Input Parameters Description   
 
 The batch file can be constructed as follows for the simulation tool:
@@ -232,34 +201,7 @@ Experiments for the simulation tool can contain the following parameters.
 |:---:|:---:|:---:|:---:|:---:|
 | architecture | string | Name of the architecture to simulate | Allowed architectures | N/A |
 | task | string | Name of the architecture to simulate | Allowed tasks | N/A |
-| | | | | |
-| n_columns | uint32 | Number of columns/windows in the tile | Positive number | 16 |
-| n_rows | uint32 | Number of rows/filters in the tile | Positive number | 16 |
-| column_registers | uint32 | Number of registers per column to run-ahead | Positive number | 0 |
-| precision_granularity | uint32 | Size of the group of values | Positive number | 16 |
-| leading bit | bool | Only the leading bit for dynamic precisions | True-False | False |
-| minor bit | bool | Only the minor bit for dynamic precisions | True-False | False |
-| bits_first_stage | uint32 | Number of bits of the first stage shifter | Positive number | 0 |
-| bits_pe | uint32 | Number of bits per PE | Positive number | 16 |
-| lookahead_h |uint32 | Lookahead window size | Positive number | 2 |
-| lookaside_d |uint32 | Lookaside window size | Positive number | 5 | 
-| search_shape | string | Shape of the scheduler search | L-T | L |
-| read_schedule_from_proto | bool | Read the scheduled weights from a Protobuf file | True-False | False |
-| diffy | bool | Simulate Diffy in top of the architecture | True-False | False |
-| pe_serial_bits | uint32 | Number of serial bits per PE | Positive Number | 1 |
-| dynamic_weights | bool | Use dynamic precision for the weights | True-False | False |
-| | | | | |
-| Wt | uint32 | Number of PE columns | Positive number | 8 |
-| Ht | uint32 | Number of PE rows | Positive number | 8 |
-| I | uint32 | Column multipliers per PE | Positive number | 4 |
-| F | uint32 | Number of PE columns | Positive number | 4 |
-| out_acc_size | uint32 | Size of the output accumulator per PE | Positive number | 1024 |
-| banks | uint32 | Number of banks in the output accumulator per PE | Positive number | 32 |
-| | | | | |
-| M | uint32 | Systolic array width (Parallel filters)| Positive number | 32 |
-| N | uint32 | Systolic array height (Parallel windows)| Positive number | 16 |
-| PMAX | uint32 | Maximum precision allowed per PE | Positive number | 8 |
-| PMIN | uint32 | Minimum precision allowed per PE | Positive number | 2 |
+| | | List of Parameters per Architecture | | |
 
 ### Structure:
 *   **sys**: Folder for system libraries

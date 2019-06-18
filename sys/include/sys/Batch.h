@@ -19,6 +19,7 @@ namespace sys {
             struct Experiment {
                 std::string architecture = "";
                 std::string task = "";
+                int n_lanes = 0;
                 int n_columns = 0;
                 int n_rows = 0;
                 int bits_pe = 0;

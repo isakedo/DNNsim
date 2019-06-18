@@ -21,7 +21,7 @@ namespace core {
 
         auto time = std::get<0>(wgt_idx);
         auto lane = std::get<1>(wgt_idx);
-        auto upper_bound = (lane/WEIGHT_LANES)*WEIGHT_LANES;
+        auto upper_bound = (lane/N_LANES)*N_LANES;
         weights_set effectual_candidates;
         auto next_time = time + 1;
         if(next_time >= max_time) return effectual_candidates;
@@ -38,7 +38,7 @@ namespace core {
         // Up
         for(int h = 1; h <= LOOKASIDE_D; h++) {
             auto lane_h = lane - h;
-            lane_h = (lane_h) < upper_bound ? WEIGHT_LANES + lane_h : lane_h; // Wrap around
+            lane_h = (lane_h) < upper_bound ? N_LANES + lane_h : lane_h; // Wrap around
             auto wgt_tuple = dense_schedule[next_time][lane_h];
             auto wgt_bits = std::get<3>(wgt_tuple);
             if(wgt_bits != 0) effectual_candidates.push_back(std::make_tuple(next_time,lane_h));
@@ -53,8 +53,8 @@ namespace core {
 
         auto time = std::get<0>(wgt_idx);
         auto lane = std::get<1>(wgt_idx);
-        auto upper_bound = (lane/WEIGHT_LANES)*WEIGHT_LANES;
-        auto lower_bound = ((lane/WEIGHT_LANES)+1)*WEIGHT_LANES;
+        auto upper_bound = (lane/N_LANES)*N_LANES;
+        auto lower_bound = ((lane/N_LANES)+1)*N_LANES;
         weights_set effectual_candidates;
         auto next_time = time + 1;
         if(next_time >= max_time) return effectual_candidates;
@@ -73,7 +73,7 @@ namespace core {
             auto lane_h = lane - h;
             auto time_h = time + h;
             if(time_h >= max_time) break;
-            lane_h = (lane_h) < upper_bound ? WEIGHT_LANES + lane_h : lane_h; // Wrap around
+            lane_h = (lane_h) < upper_bound ? N_LANES + lane_h : lane_h; // Wrap around
             auto wgt_tuple = dense_schedule[time_h][lane_h];
             auto wgt_bits = std::get<3>(wgt_tuple);
             if(wgt_bits != 0) effectual_candidates.push_back(std::make_tuple(time_h,lane_h));
@@ -84,7 +84,7 @@ namespace core {
             auto lane_h = lane + h;
             auto time_h = time + h;
             if(time_h >= max_time) break;
-            lane_h = (lane_h) >= lower_bound ? lane_h - WEIGHT_LANES : lane_h; // Wrap around
+            lane_h = (lane_h) >= lower_bound ? lane_h - N_LANES : lane_h; // Wrap around
             auto wgt_tuple = dense_schedule[time_h][lane_h];
             auto wgt_bits = std::get<3>(wgt_tuple);
             if(wgt_bits != 0) effectual_candidates.push_back(std::make_tuple(time_h,lane_h));
@@ -92,7 +92,7 @@ namespace core {
 
         //For free
         auto lane_h = lane - LOOKAHEAD_H - 1;
-        lane_h = (lane_h) < upper_bound ? WEIGHT_LANES + lane_h : lane_h; // Wrap around
+        lane_h = (lane_h) < upper_bound ? N_LANES + lane_h : lane_h; // Wrap around
         auto wgt_tuple = dense_schedule[next_time][lane_h];
         auto wgt_bits = std::get<3>(wgt_tuple);
         if(wgt_bits != 0) effectual_candidates.push_back(std::make_tuple(next_time,lane_h));
@@ -108,20 +108,20 @@ namespace core {
         int overlap = 1;
         while(overlap > 0) {
 
-            std::vector<int> num_candidates ((unsigned)N_ROWS*WEIGHT_LANES, 0);
+            std::vector<int> num_candidates ((unsigned)N_ROWS*N_LANES, 0);
             std::vector<int> min_num_candidates;
 
             // Get ineffectual weights
-            int init_lane = row*WEIGHT_LANES;
+            int init_lane = row*N_LANES;
             weights_set ineffectual_weights;
-            for(int lane = init_lane; lane < init_lane + WEIGHT_LANES; lane++) {
+            for(int lane = init_lane; lane < init_lane + N_LANES; lane++) {
                 auto wgt_tuple = dense_schedule[time][lane];
                 auto wgt_bits = std::get<3>(wgt_tuple);
                 if(wgt_bits == 0) ineffectual_weights.push_back(std::make_tuple(time,lane));
             }
 
             // Num of candidates for each ineffectual weight
-            std::vector<weights_set> effectual_candidates ((unsigned)N_ROWS*WEIGHT_LANES, weights_set());
+            std::vector<weights_set> effectual_candidates ((unsigned)N_ROWS*N_LANES, weights_set());
             for(auto wgt_idx : ineffectual_weights) {
                 auto lane = std::get<1>(wgt_idx);
                 effectual_candidates[lane] = (this->*search)(dense_schedule,wgt_idx,max_time);
@@ -198,13 +198,13 @@ namespace core {
 
         int groups = act_channels / wgt_channels;
         int it_per_group = num_filters / groups;
-        int round_wgt_channels = (int)ceil(wgt_channels/(double)WEIGHT_LANES)*WEIGHT_LANES;
+        int round_wgt_channels = (int)ceil(wgt_channels/(double)N_LANES)*N_LANES;
 
         int num_filter_sets = (int)ceil(num_filters/(double)N_ROWS);
-        int time_per_filter = (int)ceil(round_wgt_channels*Kx*Ky/(double)WEIGHT_LANES);
+        int time_per_filter = (int)ceil(round_wgt_channels*Kx*Ky/(double)N_LANES);
         int total_time = num_filter_sets * time_per_filter;
 
-        schedule sparse_schedule = schedule((unsigned)total_time, time_schedule((unsigned)N_ROWS*WEIGHT_LANES,
+        schedule sparse_schedule = schedule((unsigned)total_time, time_schedule((unsigned)N_ROWS*N_LANES,
                 schedule_tuple(-1,-1,-1,0)));
 
         for(int m = 0; m < num_filters; m++) {
@@ -221,14 +221,14 @@ namespace core {
             int time = max_time.empty() ? 0 : *std::max_element(max_time.begin(),max_time.end());
             for (int i = 0; i < Kx; i++) {
                 for (int j = 0; j < Ky; j++) {
-                    for (int k = 0; k < wgt_channels; k += WEIGHT_LANES) {
+                    for (int k = 0; k < wgt_channels; k += N_LANES) {
                         int index = 0;
-                        for(int channel = k; channel < std::min(k + WEIGHT_LANES,wgt_channels); channel++) {
+                        for(int channel = k; channel < std::min(k + N_LANES,wgt_channels); channel++) {
                             auto wgt_bits = wgt.get(m,channel,i,j);
-                            int pos = (m % N_ROWS) * WEIGHT_LANES + index;
+                            int pos = (m % N_ROWS) * N_LANES + index;
                             sparse_schedule[time][pos] = std::make_tuple(start_group + channel,i,j,wgt_bits);
                             index++;
-                            if(index == WEIGHT_LANES) {
+                            if(index == N_LANES) {
                                 time++;
                                 index = 0;
                             }

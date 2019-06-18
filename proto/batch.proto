@@ -12,46 +12,47 @@ message Batch {
             string task = 2;
 
             // For grid accelerators
-            uint32 n_columns = 3;
-            uint32 n_rows = 4;
-            uint32 column_registers = 5;
+            uint32 n_lanes = 3;
+            uint32 n_columns = 4;
+            uint32 n_rows = 5;
+            uint32 column_registers = 6;
 
             // For Dynamic Stripes
-            uint32 precision_granularity = 6;
-            bool leading_bit = 7;
-            bool minor_bit = 8;
+            uint32 precision_granularity = 7;
+            bool leading_bit = 8;
+            bool minor_bit = 9;
 
             // For pragmatic
-            uint32 bits_first_stage = 9;
+            uint32 bits_first_stage = 10;
 
             // For stripes
-            uint32 bits_pe = 10;
+            uint32 bits_pe = 11;
 
             // For tactical
-            uint32 lookahead_h = 11;
-            uint32 lookaside_d = 12;
-            string search_shape = 13;
-            bool read_schedule = 14;
+            uint32 lookahead_h = 12;
+            uint32 lookaside_d = 13;
+            string search_shape = 14;
+            bool read_schedule = 15;
 
             // SCNN
-            uint32 Wt = 15;
-            uint32 Ht = 16;
-            uint32 I = 17;
-            uint32 F = 18;
-            uint32 out_acc_size = 19;
-            uint32 banks = 20;
-            uint32 pe_serial_bits = 21;
+            uint32 Wt = 16;
+            uint32 Ht = 17;
+            uint32 I = 18;
+            uint32 F = 19;
+            uint32 out_acc_size = 20;
+            uint32 banks = 21;
+            uint32 pe_serial_bits = 22;
 
             // BitFusion
-            uint32 M = 22;
-            uint32 N = 23;
-            uint32 PMAX = 24;
-            uint32 PMIN = 25;
+            uint32 M = 23;
+            uint32 N = 24;
+            uint32 PMAX = 25;
+            uint32 PMIN = 26;
 
             // On top architectures
-            bool diffy = 26;
+            bool diffy = 27;
 
-            bool dynamic_weights = 27;
+            bool dynamic_weights = 28;
         }
 
         uint32 batch = 1;

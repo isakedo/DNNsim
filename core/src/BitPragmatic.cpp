@@ -65,7 +65,7 @@ namespace core {
             int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, bool lstm) {
 
         std::vector<std::queue<uint8_t>> offsets;
-        for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_channel); channel++) {
+        for(int channel = init_channel; channel < std::min(init_channel + N_LANES,max_channel); channel++) {
 
             T act_bits;
             if(lstm)
@@ -102,7 +102,7 @@ namespace core {
         for(int window = 0; window < list_act_x.size(); window++) {
 
             std::vector<std::queue<uint8_t>> offsets;
-            for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_channel); channel++) {
+            for(int channel = init_channel; channel < std::min(init_channel + N_LANES,max_channel); channel++) {
 
                 // Computation cycles
                 uint16_t act_bits;
@@ -305,7 +305,7 @@ namespace core {
             while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter, y_counter, N_COLUMNS)) {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
-                        for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
+                        for (int k = 0; k < act_channels; k += N_LANES) {
                             computePragmaticTile(n,list_x, list_y, i, j, k, stride, act, act_mask, act_channels,
                                     cycles_per_col, end_previous_pallet, stats);
 
@@ -330,7 +330,7 @@ namespace core {
 
         }
 
-        auto base_cycles = (uint64_t)(out_x * out_y * ceil(act_channels/(double)WEIGHT_LANES) * Kx * Ky *
+        auto base_cycles = (uint64_t)(out_x * out_y * ceil(act_channels/(double)N_LANES) * Kx * Ky *
                 baseline_filters_sets);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
@@ -427,7 +427,7 @@ namespace core {
 
         }
 
-        auto base_cycles = (uint64_t)(out_x * out_y * ceil(wgt_channels/(double)WEIGHT_LANES) * Kx * Ky *
+        auto base_cycles = (uint64_t)(out_x * out_y * ceil(wgt_channels/(double)N_LANES) * Kx * Ky *
                 ceil(num_filters/(double)N_ROWS));
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
@@ -536,7 +536,7 @@ namespace core {
             uint64_t accumulator_updates = 0;
 
             for (int r = 0; r < R; r++) {
-                for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
+                for (int k = 0; k < act_channels; k += N_LANES) {
                     if(cycles < column_end[column_index]) {
                         stall_cycles = column_end[column_index] - cycles;
                         cycles = column_end[column_index];
@@ -561,16 +561,16 @@ namespace core {
             stats.weight_buff_reads.back()[n] = weight_buff_reads * num_filters_sets;
             stats.act_buff_reads.back()[n] = act_buff_reads * num_filters_sets;
             stats.accumulator_updates.back()[n] = accumulator_updates * num_filters_sets;
-            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)WEIGHT_LANES);
+            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)N_LANES);
             auto idle_rows = N_ROWS - (num_filters % N_ROWS);
             idle_rows = idle_rows == 16 ? 0 : idle_rows;
-            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)WEIGHT_LANES);
+            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)N_LANES);
 
         }
 
         #endif
 
-        auto base_cycles = (uint64_t)(ceil(act_channels/(double)WEIGHT_LANES) * baseline_filters_sets * R);
+        auto base_cycles = (uint64_t)(ceil(act_channels/(double)N_LANES) * baseline_filters_sets * R);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);

@@ -115,6 +115,7 @@ namespace sys {
                                                  " None must be <Sparsity|BitSparsity>.");
 
                 } else if(experiment_proto.architecture() == "BitPragmatic") {
+                    experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.column_registers = experiment_proto.column_registers();
@@ -122,11 +123,13 @@ namespace sys {
                     experiment.diffy = experiment_proto.diffy();
 
                 } else if(experiment_proto.architecture() == "Stripes") {
+                    experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.bits_pe = experiment_proto.bits_pe() < 1 ? 16 : experiment_proto.bits_pe();
 
                 } else if(experiment_proto.architecture() == "DynamicStripes") {
+                    experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.column_registers = experiment_proto.column_registers();
@@ -141,6 +144,7 @@ namespace sys {
                                                + " must be multiple of 16 and divisible by the columns.");
 
                 } else if(experiment_proto.architecture() == "Loom") {
+                    experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 256 :
@@ -159,10 +163,12 @@ namespace sys {
                                                  + " must be multiple of 16 and divisible by the rows.");
 
                 } else if (experiment_proto.architecture() == "Laconic") {
+                    experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
 
                 } else if (experiment_proto.architecture() == "BitTacticalP") {
+                    experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.column_registers = experiment_proto.column_registers();
@@ -187,6 +193,7 @@ namespace sys {
                                                + " must be multiple of 16 and divisible by the columns.");
 
                 } else if (experiment_proto.architecture() == "BitTacticalE") {
+                    experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.column_registers = experiment_proto.column_registers();

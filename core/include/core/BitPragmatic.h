@@ -6,7 +6,6 @@
 #define ZERO_COUNT // Count zeroes as 1 cycle
 #define BOOTH_ENCODING // Activate booth-like encoding
 #define FC_MULTIPLEX_COLUMNS // Execute each mult-add in a different column
-#define WEIGHT_LANES 16 // Number of weight lanes
 
 namespace core {
 
@@ -14,6 +13,9 @@ namespace core {
     class BitPragmatic : public Simulator<T> {
 
     private:
+
+        /* Number of concurrent multiplications per PE */
+        const int N_LANES;
 
         /* Number of columns */
         const int N_COLUMNS;
@@ -134,6 +136,7 @@ namespace core {
     public:
 
         /* Constructor
+         * @param _N_LANES              Number of concurrent multiplications per PE
          * @param _N_COLUMNS            Number of columns
          * @param _N_ROWS               Number of rows
          * @param _BITS_FIRST_STAGE     Bits of the first stage in the two stages shifting
@@ -142,10 +145,10 @@ namespace core {
          * @param _N_THREADS            Number of parallel threads for multi-threading execution
          * @param _FAST_MODE            Enable fast mode to simulate only one image
          */
-        BitPragmatic(int _N_COLUMNS, int _N_ROWS, int _BITS_FIRST_STAGE, int _COLUMN_REGISTERS, bool _DIFFY,
-                uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE), N_COLUMNS(_N_COLUMNS),
-                N_ROWS(_N_ROWS), BITS_FIRST_STAGE(_BITS_FIRST_STAGE), COLUMN_REGISTERS(_COLUMN_REGISTERS),
-                DIFFY(_DIFFY) {}
+        BitPragmatic(int _N_LANES, int _N_COLUMNS, int _N_ROWS, int _BITS_FIRST_STAGE, int _COLUMN_REGISTERS,
+                bool _DIFFY, uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE),
+                N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), BITS_FIRST_STAGE(_BITS_FIRST_STAGE),
+                COLUMN_REGISTERS(_COLUMN_REGISTERS), DIFFY(_DIFFY) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

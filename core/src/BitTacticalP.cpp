@@ -21,9 +21,9 @@ namespace core {
 
         uint8_t max_bit = 0, min_bit = 16;
         for (int row = 0; row < this->N_ROWS; row++) {
-            for (int wgt_idx = 0; wgt_idx < WEIGHT_LANES; wgt_idx++) {
+            for (int wgt_idx = 0; wgt_idx < this->N_LANES; wgt_idx++) {
 
-                int pos = row * WEIGHT_LANES + wgt_idx;
+                int pos = row * this->N_LANES + wgt_idx;
                 auto wgt_tuple = dense_schedule[schedule_time][pos];
                 int channel = std::get<0>(wgt_tuple);
                 int kernel_x = std::get<1>(wgt_tuple);
@@ -84,9 +84,9 @@ namespace core {
             }
 
             for (int row = 0; row < this->N_ROWS; row++) {
-                for (int wgt_idx = 0; wgt_idx < WEIGHT_LANES; wgt_idx++) {
+                for (int wgt_idx = 0; wgt_idx < this->N_LANES; wgt_idx++) {
 
-                    int pos = row * WEIGHT_LANES + wgt_idx;
+                    int pos = row * this->N_LANES + wgt_idx;
                     auto wgt_tuple = dense_schedule[schedule_time][pos];
                     int channel = std::get<0>(wgt_tuple);
                     int kernel_x = std::get<1>(wgt_tuple);
@@ -404,10 +404,10 @@ namespace core {
             stats.weight_buff_reads.back()[n] = weight_buff_reads;
             stats.act_buff_reads.back()[n] = act_buff_reads;
             stats.accumulator_updates.back()[n] = accumulator_updates * num_filters_sets;
-            stats.scheduled_pe.back()[n] = num_filters * this->N_ROWS * ceil(act_channels/(double)WEIGHT_LANES);
+            stats.scheduled_pe.back()[n] = num_filters * this->N_ROWS * ceil(act_channels/(double)this->N_LANES);
             auto idle_rows = this->N_ROWS - (num_filters % this->N_ROWS);
             idle_rows = idle_rows == 16 ? 0 : idle_rows;
-            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)WEIGHT_LANES);
+            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)this->N_LANES);
 
         }
 

@@ -89,7 +89,7 @@ namespace core {
             while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter, y_counter, windows_per_tile)) {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
-                        for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
+                        for (int k = 0; k < act_channels; k += N_LANES) {
                             cycles += precision_cycles;
                             act_buff_reads++;
                             weight_buff_reads++;
@@ -110,7 +110,7 @@ namespace core {
 
         }
 
-        auto base_cycles = (uint64_t)(out_x * out_y * ceil(act_channels/(double)WEIGHT_LANES) * Kx * Ky *
+        auto base_cycles = (uint64_t)(out_x * out_y * ceil(act_channels/(double)N_LANES) * Kx * Ky *
                 baseline_filters_sets);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
@@ -220,7 +220,7 @@ namespace core {
             stats.idle_pe.back()[n] = idle_pe;
         }
 
-        auto base_cycles = (uint64_t)(out_x * out_y * ceil(wgt_channels/(double)WEIGHT_LANES) * Kx * Ky *
+        auto base_cycles = (uint64_t)(out_x * out_y * ceil(wgt_channels/(double)N_LANES) * Kx * Ky *
                 ceil(num_filters/(double)N_ROWS));
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
@@ -332,7 +332,7 @@ namespace core {
             uint64_t accumulator_updates = 0;
 
             for (int r = 0; r < R; r++) {
-                for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
+                for (int k = 0; k < act_channels; k += N_LANES) {
                     if(cycles < column_end[column_index]) {
                         stall_cycles = column_end[column_index] - cycles;
                         cycles = column_end[column_index];
@@ -357,16 +357,16 @@ namespace core {
             stats.weight_buff_reads.back()[n] = weight_buff_reads * num_filters_sets;
             stats.act_buff_reads.back()[n] = act_buff_reads * num_filters_sets;
             stats.accumulator_updates.back()[n] = accumulator_updates * num_filters_sets;
-            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)WEIGHT_LANES);
+            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)N_LANES);
             auto idle_rows = N_ROWS - (num_filters % N_ROWS);
             idle_rows = idle_rows == 16 ? 0 : idle_rows;
-            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)WEIGHT_LANES);
+            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)N_LANES);
 
         }
 
         #endif
 
-        auto base_cycles = (uint64_t)(ceil(act_channels/(double)WEIGHT_LANES) * baseline_filters_sets * R);
+        auto base_cycles = (uint64_t)(ceil(act_channels/(double)N_LANES) * baseline_filters_sets * R);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);

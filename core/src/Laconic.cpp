@@ -35,7 +35,7 @@ namespace core {
         //Get the slowest PE
         std::vector<uint8_t> cycles;
         for (int filter = init_filter; filter < std::min(init_filter + N_ROWS, max_filter); filter++) {
-            for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_channel); channel++) {
+            for(int channel = init_channel; channel < std::min(init_channel + N_LANES,max_channel); channel++) {
 
                 // Fix for MobileNet
                 if(conv2D)
@@ -164,7 +164,7 @@ namespace core {
                 while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
-                            for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
+                            for (int k = 0; k < wgt_channels; k += N_LANES) {
                                 cycles += computeLaconicTile(n,list_x, list_y, i, j, k, m, stride, act,
                                         wgt, start_group, wgt_channels, num_filters, conv2D, stats);
 
@@ -297,7 +297,7 @@ namespace core {
 
             for (int r = 0; r < R; r++) {
                 for (int m = 0; m < num_filters; m += N_ROWS) {
-                    for (int k = 0; k < wgt_channels; k += WEIGHT_LANES) {
+                    for (int k = 0; k < wgt_channels; k += N_LANES) {
                         if(cycles < column_end[column_index]) {
                             stall_cycles = column_end[column_index] - cycles;
                             cycles = column_end[column_index];
@@ -322,10 +322,10 @@ namespace core {
             stats.weight_buff_reads.back()[n] = weight_buff_reads;
             stats.act_buff_reads.back()[n] = act_buff_reads;
             stats.accumulator_updates.back()[n] = accumulator_updates;
-            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)WEIGHT_LANES);
+            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)N_LANES);
             auto idle_rows = N_ROWS - (num_filters % N_ROWS);
             idle_rows = idle_rows == 16 ? 0 : idle_rows;
-            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)WEIGHT_LANES);
+            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)N_LANES);
 
         }
 

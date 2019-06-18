@@ -35,6 +35,7 @@
 # Build Directories
 build
 cmake-*
+DNNsim
 
 # Models directory
 models

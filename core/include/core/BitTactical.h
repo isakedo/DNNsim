@@ -3,8 +3,6 @@
 
 #include "Simulator.h"
 
-#define WEIGHT_LANES 16 // Number of weight lanes
-
 typedef std::vector<std::vector<std::tuple<int,int,int,uint16_t>>> schedule;
 typedef std::vector<std::tuple<int,int,int,uint16_t>> time_schedule;
 typedef std::tuple<int,int,int,uint16_t> schedule_tuple;
@@ -58,6 +56,9 @@ namespace core {
         schedule sparse_scheduler(const cnpy::Array<T> &wgt, int act_channels, std::vector<int> &max_time);
 
     protected:
+
+        /* Number of concurrent multiplications per PE */
+        const int N_LANES;
 
         /* Number of columns */
         const int N_COLUMNS;
@@ -133,6 +134,7 @@ namespace core {
         virtual void potentials(const Network<T> &network) = 0;
 
         /* Constructor
+         * @param _N_LANES          Number of concurrent multiplications per PE
          * @param _N_COLUMNS        Number of columns
          * @param _N_ROWS           Number of rows
          * @param _COLUMN_REGISTERS Number of registers per SIP
@@ -142,10 +144,11 @@ namespace core {
          * @param _N_THREADS        Number of parallel threads for multi-threading execution
          * @param _FAST_MODE        Enable fast mode to simulate only one image
          */
-        BitTactical(int _N_COLUMNS, int _N_ROWS, int _COLUMN_REGISTERS, int _LOOKAHEAD_H, int _LOOKASIDE_D,
-                const char _SEARCH_SHAPE, uint8_t _N_THREADS, bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE),
-                N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), COLUMN_REGISTERS(_COLUMN_REGISTERS), LOOKAHEAD_H(_LOOKAHEAD_H),
-                LOOKASIDE_D(_LOOKASIDE_D), SEARCH_SHAPE(_SEARCH_SHAPE) {}
+        BitTactical(int _N_LANES, int _N_COLUMNS, int _N_ROWS, int _COLUMN_REGISTERS, int _LOOKAHEAD_H,
+                int _LOOKASIDE_D, const char _SEARCH_SHAPE, uint8_t _N_THREADS, bool _FAST_MODE) :
+                Simulator<T>(_N_THREADS,_FAST_MODE), N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), \
+                COLUMN_REGISTERS(_COLUMN_REGISTERS), LOOKAHEAD_H(_LOOKAHEAD_H), LOOKASIDE_D(_LOOKASIDE_D),
+                SEARCH_SHAPE(_SEARCH_SHAPE) {}
 
     public:
 

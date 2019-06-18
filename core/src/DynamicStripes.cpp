@@ -16,7 +16,7 @@ namespace core {
             bool lstm) {
 
         uint8_t max_bit = 0, min_bit = 16;
-        for (int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES, max_channel); channel++) {
+        for (int channel = init_channel; channel < std::min(init_channel + N_LANES, max_channel); channel++) {
 
             // Computation cycles
             T act_bits;
@@ -71,7 +71,7 @@ namespace core {
                 group_index++;
             }
 
-            for (int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES, max_channel); channel++) {
+            for (int channel = init_channel; channel < std::min(init_channel + N_LANES, max_channel); channel++) {
 
                 // Computation cycles
                 uint16_t act_bits;
@@ -325,7 +325,7 @@ namespace core {
             while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter, y_counter, N_COLUMNS)) {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
-                        for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
+                        for (int k = 0; k < act_channels; k += N_LANES) {
                             computeDynamicStripesTile(n, list_x, list_y, i, j, k, stride, act, act_mask, act_channels,
                                     cycles_per_group, end_previous_pallet, stats);
 
@@ -350,7 +350,7 @@ namespace core {
 
         }
 
-        auto base_cycles = (uint64_t)(out_x * out_y * ceil(act_channels/(double)WEIGHT_LANES) * Kx * Ky *
+        auto base_cycles = (uint64_t)(out_x * out_y * ceil(act_channels/(double)N_LANES) * Kx * Ky *
                 baseline_filters_sets);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
@@ -457,7 +457,7 @@ namespace core {
 
         }
 
-        auto base_cycles = (uint64_t)(out_x * out_y * ceil(wgt_channels/(double)WEIGHT_LANES) * Kx * Ky *
+        auto base_cycles = (uint64_t)(out_x * out_y * ceil(wgt_channels/(double)N_LANES) * Kx * Ky *
                 ceil(num_filters/(double)N_ROWS));
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
@@ -575,7 +575,7 @@ namespace core {
             uint64_t accumulator_updates = 0;
 
             for (int r = 0; r < R; r++) {
-                for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
+                for (int k = 0; k < act_channels; k += N_LANES) {
                     if(cycles < column_end[column_index]) {
                         stall_cycles = column_end[column_index] - cycles;
                         cycles = column_end[column_index];
@@ -600,16 +600,16 @@ namespace core {
             stats.weight_buff_reads.back()[n] = weight_buff_reads * num_filters_sets;
             stats.act_buff_reads.back()[n] = act_buff_reads * num_filters_sets;
             stats.accumulator_updates.back()[n] = accumulator_updates * num_filters_sets;
-            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)WEIGHT_LANES);
+            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)N_LANES);
             auto idle_rows = N_ROWS - (num_filters % N_ROWS);
             idle_rows = idle_rows == 16 ? 0 : idle_rows;
-            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)WEIGHT_LANES);
+            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)N_LANES);
 
         }
 
         #endif
 
-        auto base_cycles = (uint64_t)(ceil(act_channels/(double)WEIGHT_LANES) * baseline_filters_sets * R);
+        auto base_cycles = (uint64_t)(ceil(act_channels/(double)N_LANES) * baseline_filters_sets * R);
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
@@ -812,7 +812,7 @@ namespace core {
                 group_index++;
             }
 
-            for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_channel); channel++) {
+            for(int channel = init_channel; channel < std::min(init_channel + N_LANES,max_channel); channel++) {
 
                 T act_bits;
                 if(lstm)
@@ -877,7 +877,7 @@ namespace core {
                 group_index++;
             }
 
-            for(int channel = init_channel; channel < std::min(init_channel + WEIGHT_LANES,max_channel); channel++) {
+            for(int channel = init_channel; channel < std::min(init_channel + N_LANES,max_channel); channel++) {
 
                 auto wgt_bits = wgt.get(filter, channel, kernel_x, kernel_y);
 
@@ -1009,7 +1009,7 @@ namespace core {
                 while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, N_COLUMNS)) {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
-                            for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
+                            for (int k = 0; k < act_channels; k += N_LANES) {
                                 auto tile_act_width = computeAvgWidthDynamicStripesActTile(n, r, list_x, list_y, i, j,
                                         k, stride, act, act_channels, act_mask, lstm);
                                 act_width.insert(act_width.end(), tile_act_width.begin(), tile_act_width.end());
@@ -1042,11 +1042,11 @@ namespace core {
 
             uint64_t act_bits_datawidth = 0;
             for(int r = 0; r < R; r++) {
-                for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
+                for (int k = 0; k < act_channels; k += N_LANES) {
                     for (int j = 0; j < Ny; j++) {
                         for (int i = 0; i < Nx; i++) {
                             uint8_t max_bit = 0, min_bit = 16, non_zeroes = 0;
-                            for(int channel = k; channel < std::min(k + WEIGHT_LANES,act_channels); channel++) {
+                            for(int channel = k; channel < std::min(k + N_LANES,act_channels); channel++) {
                                 T act_bits;
                                 if(lstm)
                                     act_bits = act.get(r, n, channel);
@@ -1096,7 +1096,7 @@ namespace core {
 
             for (int i = 0; i < Kx; i++) {
                 for (int j = 0; j < Ky; j++) {
-                    for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
+                    for (int k = 0; k < wgt_channels; k += N_LANES) {
                         auto tile_wgt_width = computeAvgWidthDynamicStripesWgtTile(i,j,k,m,wgt,wgt_channels,num_filters,
                                 wgt_mask);
                         wgt_width.insert(wgt_width.end(),tile_wgt_width.begin(),tile_wgt_width.end());
@@ -1109,11 +1109,11 @@ namespace core {
 
         uint64_t wgt_bits_datawidth = 0;
         for(int m=0; m<num_filters; m++) {
-            for (int k = 0; k < wgt_channels; k+=WEIGHT_LANES) {
+            for (int k = 0; k < wgt_channels; k += N_LANES) {
                 for (int j = 0; j < Ky; j++) {
                     for (int i = 0; i < Kx; i++) {
                         uint8_t max_bit = 0, min_bit = 16, non_zeroes = 0;
-                        for(int channel = k; channel < std::min(k + WEIGHT_LANES,wgt_channels); channel++) {
+                        for(int channel = k; channel < std::min(k + N_LANES,wgt_channels); channel++) {
 
                             auto wgt_bits = wgt.get(m, channel, i, j);
 
