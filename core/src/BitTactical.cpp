@@ -21,7 +21,7 @@ namespace core {
 
         auto time = std::get<0>(wgt_idx);
         auto lane = std::get<1>(wgt_idx);
-        auto upper_bound = (lane/N_LANES)*N_LANES;
+        auto upper_bound = (lane/(int)N_LANES)*(int)N_LANES;
         weights_set effectual_candidates;
         auto next_time = time + 1;
         if(next_time >= max_time) return effectual_candidates;
@@ -53,8 +53,8 @@ namespace core {
 
         auto time = std::get<0>(wgt_idx);
         auto lane = std::get<1>(wgt_idx);
-        auto upper_bound = (lane/N_LANES)*N_LANES;
-        auto lower_bound = ((lane/N_LANES)+1)*N_LANES;
+        auto upper_bound = (lane/(int)N_LANES)*(int)N_LANES;
+        auto lower_bound = ((lane/(int)N_LANES)+1)*(int)N_LANES;
         weights_set effectual_candidates;
         auto next_time = time + 1;
         if(next_time >= max_time) return effectual_candidates;
@@ -108,7 +108,7 @@ namespace core {
         int overlap = 1;
         while(overlap > 0) {
 
-            std::vector<int> num_candidates ((unsigned)N_ROWS*N_LANES, 0);
+            std::vector<int> num_candidates (N_ROWS*N_LANES, 0);
             std::vector<int> min_num_candidates;
 
             // Get ineffectual weights
@@ -121,7 +121,7 @@ namespace core {
             }
 
             // Num of candidates for each ineffectual weight
-            std::vector<weights_set> effectual_candidates ((unsigned)N_ROWS*N_LANES, weights_set());
+            std::vector<weights_set> effectual_candidates (N_ROWS*N_LANES, weights_set());
             for(auto wgt_idx : ineffectual_weights) {
                 auto lane = std::get<1>(wgt_idx);
                 effectual_candidates[lane] = (this->*search)(dense_schedule,wgt_idx,max_time);
