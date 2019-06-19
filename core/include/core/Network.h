@@ -18,7 +18,7 @@ namespace core {
         std::vector<Layer<T>> layers;
 
         /* Max number of bits for the network*/
-        int network_bits;
+        uint32_t network_bits;
 
         /* Active forward traces */
         bool forward;
@@ -41,9 +41,9 @@ namespace core {
          * @param _backward         Active backward traces
          * @param _tensorflow_8b    Active tensorflow 8b quantization
          */
-        Network(const std::string &_name, int _network_bits = 16, bool _forward = false, bool _backward = false,
-                bool _tensorflow_8b = false) : network_bits(_network_bits), forward(_forward), backward(_backward),
-                tensorflow_8b(_tensorflow_8b) {
+        explicit Network(const std::string &_name, uint32_t _network_bits = 16, bool _forward = false,
+                bool _backward = false, bool _tensorflow_8b = false) : network_bits(_network_bits), forward(_forward),
+                backward(_backward), tensorflow_8b(_tensorflow_8b) {
             name = _name;
         }
 
@@ -55,7 +55,7 @@ namespace core {
          * @param _backward         Active backward traces
          * @param _tensorflow_8b    Active tensorflow 8b quantization
          */
-        Network(const std::string &_name, const std::vector<Layer<T>> &_layers, int _network_bits = 16,
+        Network(const std::string &_name, const std::vector<Layer<T>> &_layers, uint32_t _network_bits = 16,
                 bool _forward = false, bool _backward = false, bool _tensorflow_8b = false) :
                 network_bits(_network_bits), forward(_forward), backward(_backward), tensorflow_8b(_tensorflow_8b) {
             name = _name; layers = _layers;
@@ -64,14 +64,14 @@ namespace core {
         /* Getters */
         const std::string &getName() const { return name; }
         const std::vector<Layer<T>> &getLayers() const { return layers; }
-        int getNetwork_bits() const { return network_bits; }
+        uint32_t getNetwork_bits() const { return network_bits; }
         bool getForward() const { return forward; }
         bool getBackward() const { return backward; }
         bool isTensorflow_8b() const { return tensorflow_8b; }
 
         /* Setters */
         std::vector<Layer<T>> &updateLayers() { return layers; }
-        void setNetwork_bits(int network_bits) { Network::network_bits = network_bits; }
+        void setNetwork_bits(uint32_t network_bits) { Network::network_bits = network_bits; }
         void setForkward(bool forward) { Network::forward = forward; }
         void setBackward(bool backward) { Network::backward = backward; }
         void setTensorflow_8b(bool tensorflow_8b) { Network::tensorflow_8b = tensorflow_8b; }

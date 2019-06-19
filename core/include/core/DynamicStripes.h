@@ -13,22 +13,22 @@ namespace core {
     private:
 
         /* Number of concurrent multiplications per PE */
-        const int N_LANES;
+        const uint32_t N_LANES;
 
         /* Number of columns */
-        const int N_COLUMNS;
+        const uint32_t N_COLUMNS;
 
         /* Number of rows */
-        const int N_ROWS;
+        const uint32_t N_ROWS;
 
         /* Number of activations per group */
-        const int PRECISION_GRANULARITY;
+        const uint32_t PRECISION_GRANULARITY;
 
         /* Number of registers per SIP */
-        const int COLUMN_REGISTERS;
+        const uint32_t COLUMN_REGISTERS;
 
         /* Bits per PE */
-        const int BITS_PE;
+        const uint32_t BITS_PE;
 
         /* Calculate only the leading bit for dynamic precisions */
         const bool LEADING_BIT;
@@ -60,7 +60,7 @@ namespace core {
          * @return              Number of cycles
          */
         uint8_t computeDynamicStripesColumn(int batch, int recursion, int act_x, int act_y, int kernel_x, int kernel_y,
-                int init_channel, int stride, const cnpy::Array<T> &padded_act, int act_mask, int max_channel,
+                int init_channel, int stride, const cnpy::Array<T> &padded_act, uint16_t act_mask, int max_channel,
                 bool lstm);
 
         /* Compute cycles for dynamic stripes tile
@@ -81,7 +81,7 @@ namespace core {
          */
         void computeDynamicStripesTile(int batch, const std::vector<int> &list_act_x, const std::vector<int>
                 &list_act_y, int kernel_x, int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act,
-                int act_mask, int max_channel, std::vector<uint32_t> &cycles_per_group,
+                uint16_t act_mask, int max_channel, std::vector<uint32_t> &cycles_per_group,
                 std::vector<uint32_t> &end_previous_pallet, sys::Statistics::Stats &stats);
 
 
@@ -102,7 +102,7 @@ namespace core {
          */
         void computeDynamicStripes2DTile(int batch, const std::vector<int> &list_act_x,
                 const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_filter, int stride,
-                const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int act_mask, int max_filter,
+                const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, uint16_t act_mask, int max_filter,
                 std::vector<uint32_t> &cycles_per_group, std::vector<uint32_t> &end_previous_pallet,
                 sys::Statistics::Stats &stats);
 
@@ -156,7 +156,7 @@ namespace core {
          */
         std::vector<double> computeAvgWidthDynamicStripesActTile(int batch, int recursion,
                 const std::vector<int> &list_act_x, const std::vector<int> &list_act_y, int kernel_x, int kernel_y,
-                int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, int act_mask,
+                int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, uint16_t act_mask,
                 bool lstm);
 
         /* Compute average width for weights for laconic tile
@@ -171,7 +171,7 @@ namespace core {
          * @return              Average width per group
          */
         std::vector<double> computeAvgWidthDynamicStripesWgtTile(int kernel_x, int kernel_y, int init_channel,
-                int init_filter, const cnpy::Array<T> &wgt, int max_channel, int max_filter, int wgt_mask);
+                int init_filter, const cnpy::Array<T> &wgt, int max_channel, int max_filter, uint16_t wgt_mask);
 
         /* Compute the average width for a layer
          * @param layer         Layer for which we want to calculate the outputs
@@ -194,8 +194,8 @@ namespace core {
          * @param _N_THREADS                Number of parallel threads for multi-threading execution
          * @param _FAST_MODE                Enable fast mode to simulate only one image
          */
-        DynamicStripes(int _N_LANES, int _N_COLUMNS, int _N_ROWS, const int &_PRECISION_GRANULARITY,
-                int _COLUMN_REGISTERS, int _BITS_PE, bool _LEADING_BIT, bool _DIFFY, uint8_t _N_THREADS,
+        DynamicStripes(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _PRECISION_GRANULARITY,
+                uint32_t _COLUMN_REGISTERS, uint32_t _BITS_PE, bool _LEADING_BIT, bool _DIFFY, uint8_t _N_THREADS,
                 bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE), N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS),
                 N_ROWS(_N_ROWS), PRECISION_GRANULARITY(_PRECISION_GRANULARITY), COLUMN_REGISTERS(_COLUMN_REGISTERS),
                 BITS_PE(_BITS_PE), LEADING_BIT(_LEADING_BIT), DIFFY(_DIFFY) {}

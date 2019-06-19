@@ -40,8 +40,8 @@ THE SOFTWARE.
 #include <core/BitFusion.h>
 
 template <typename T>
-core::Network<T> read_training(const std::string &network_name, int batch, int epoch, int decoder_states,
-        int traces_mode, bool QUIET) {
+core::Network<T> read_training(const std::string &network_name, uint32_t batch, uint32_t epoch, uint32_t decoder_states,
+        uint32_t traces_mode, bool QUIET) {
 
     // Read the network
     core::Network<T> network;
@@ -49,8 +49,8 @@ core::Network<T> read_training(const std::string &network_name, int batch, int e
 	network = reader.read_network_trace_params();
 	if(decoder_states > 0) network.duplicate_decoder_layers(decoder_states);
 
-	bool forward = (traces_mode & 0x1) != 0;
-	bool backward = (traces_mode & 0x2) != 0;
+	bool forward = (traces_mode & 0x1u) != 0;
+	bool backward = (traces_mode & 0x2u) != 0;
 	network.setForkward(forward);
 	network.setBackward(backward);
 
@@ -71,7 +71,7 @@ core::Network<T> read_training(const std::string &network_name, int batch, int e
 }
 
 template <typename T>
-core::Network<T> read(const std::string &input_type, const std::string &network_name, int batch, bool QUIET) {
+core::Network<T> read(const std::string &input_type, const std::string &network_name, uint32_t batch, bool QUIET) {
 
     // Read the network
     core::Network<T> network;
@@ -205,19 +205,19 @@ int main(int argc, char *argv[]) {
 				// Training traces
 				if(simulate.training) {
 
-					int traces_mode = 0;
+                    uint32_t traces_mode = 0;
 					if(simulate.only_forward) traces_mode = 1;
 					else if(simulate.only_backward) traces_mode = 2;
 					else traces_mode = 3;
-						
-					int epochs = simulate.epochs;
+
+                    uint32_t epochs = simulate.epochs;
 					for(const auto &experiment : simulate.experiments) {
 
 						// Initialize statistics
 						sys::Statistics::Stats stats;
 						sys::Statistics::initialize(stats);
 
-						for (int epoch = 0; epoch < epochs; epoch++) {
+						for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 							core::Network<float> network;
 							network = read_training<float>(simulate.network, simulate.batch, epoch,
 							        simulate.decoder_states, traces_mode, QUIET);

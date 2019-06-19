@@ -13,19 +13,19 @@ namespace core {
     private:
 
         /* Number of concurrent multiplications per PE */
-        const int N_LANES;
+        const uint32_t N_LANES;
 
         /* Number of columns */
-        const int N_COLUMNS;
+        const uint32_t N_COLUMNS;
 
         /* Number of rows */
-        const int N_ROWS;
+        const uint32_t N_ROWS;
 
         /* Number of activations per group */
-        const int PRECISION_GRANULARITY;
+        const uint32_t PRECISION_GRANULARITY;
 
         /* Number of bits in series that the PE process */
-        const int PE_SERIAL_BITS;
+        const uint32_t PE_SERIAL_BITS;
 
         /* Calculate only the leading bit for dynamic precisions */
         const bool LEADING_BIT;
@@ -60,8 +60,8 @@ namespace core {
          */
         uint8_t computeLoomColumn(int batch, int recursion, int act_x, int act_y, int kernel_x, int kernel_y,
                 int init_channel, int init_filter, int stride, const cnpy::Array<T> &padded_act,
-                const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter, int act_mask, int wgt_mask,
-                int wgt_prec, bool lstm);
+                const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter, uint16_t act_mask,
+                uint16_t wgt_mask, int wgt_prec, bool lstm);
 
         /* Compute cycles for laconic tile
          * @param batch             Current number of batch
@@ -85,7 +85,7 @@ namespace core {
         uint8_t computeLoomTile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
                 int kernel_x, int kernel_y, int init_channel, int init_filter, int stride,
                 const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group, int max_act_channel,
-                int max_wgt_channel, int max_filter, int act_mask, int wgt_mask, int wgt_prec,
+                int max_wgt_channel, int max_filter, uint16_t act_mask, uint16_t wgt_mask, int wgt_prec,
                 sys::Statistics::Stats &stats);
 
         /* Compute the timing for a convolutional layer
@@ -127,10 +127,10 @@ namespace core {
          * @param _N_THREADS                Number of parallel threads for multi-threading execution
          * @param _FAST_MODE                Enable fast mode to simulate only one image
          */
-        Loom(int _N_LANES,int _N_COLUMNS, int _N_ROWS, int _PRECISION_GRANULARITY, int _PE_SERIAL_BITS,
-                bool _LEADING_BIT, bool _DYNAMIC_WEIGHTS, uint8_t _N_THREADS, bool _FAST_MODE) :
-                Simulator<T>(_N_THREADS,_FAST_MODE), N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS),
-                PRECISION_GRANULARITY(_PRECISION_GRANULARITY), PE_SERIAL_BITS(_PE_SERIAL_BITS),
+        Loom(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _PRECISION_GRANULARITY,
+                uint32_t _PE_SERIAL_BITS, bool _LEADING_BIT, bool _DYNAMIC_WEIGHTS, uint8_t _N_THREADS,
+                bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE), N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS),
+                N_ROWS(_N_ROWS), PRECISION_GRANULARITY(_PRECISION_GRANULARITY), PE_SERIAL_BITS(_PE_SERIAL_BITS),
                 LEADING_BIT(_LEADING_BIT), DYNAMIC_WEIGHTS(_DYNAMIC_WEIGHTS) {}
 
         /* Run the timing simulator of the architecture

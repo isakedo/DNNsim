@@ -11,16 +11,16 @@ namespace core {
     private:
 
         /* Systolic array width */
-        const int M;
+        const uint32_t M;
 
         /* Systolic array height */
-        const int N;
+        const uint32_t N;
 
         /* Maximum precision */
-        const int PMAX;
+        const uint32_t PMAX;
 
         /* Maximum precision */
-        const int PMIN;
+        const uint32_t PMIN;
 
         /* Compute number of one bit multiplications
          * @param act_rounded_precision Rounded precision for the activations to the next power of two
@@ -59,7 +59,7 @@ namespace core {
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          */
-        BitFusion(int _M, int _N, int _PMAX, int _PMIN, uint8_t _N_THREADS, bool _FAST_MODE) :
+        BitFusion(uint32_t _M, uint32_t _N, uint32_t _PMAX, uint32_t _PMIN, uint8_t _N_THREADS, bool _FAST_MODE) :
             Simulator<T>(_N_THREADS,_FAST_MODE), M(_M), N(_N), PMAX(_PMAX), PMIN(_PMIN) {}
 
         /* Run the timing simulator of the architecture

@@ -13,18 +13,18 @@ namespace core {
     template <typename T>
     uint8_t Loom<T>::computeLoomColumn(int batch, int recursion, int act_x, int act_y, int kernel_x, int kernel_y,
             int init_channel, int init_filter, int stride, const cnpy::Array<T> &padded_act,
-            const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter, int act_mask, int wgt_mask,
-            int wgt_prec, bool lstm) {
+            const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter, uint16_t act_mask,
+            uint16_t wgt_mask, int wgt_prec, bool lstm) {
 
-        int N_GROUPS = N_ROWS * 16 / PRECISION_GRANULARITY;
-        int FILTERS_PER_GROUP = N_ROWS / N_GROUPS;
+        uint32_t N_GROUPS = N_ROWS * 16 / PRECISION_GRANULARITY;
+        uint32_t FILTERS_PER_GROUP = N_ROWS / N_GROUPS;
 
         std::vector<uint8_t> per_group_cycles (N_GROUPS, 0);
         uint16_t group_counter = 0;
         uint16_t group_index = 0;
         uint8_t max_act_group_bit = 0, min_act_group_bit = 16;
         uint8_t max_wgt_group_bit = 0, min_wgt_group_bit = 16;
-        for (int filter = init_filter; filter < std::min(init_filter + N_ROWS, max_filter); filter++) {
+        for (int filter = init_filter; filter < std::min(init_filter + (int)N_ROWS, max_filter); filter++) {
 
             if(group_counter == FILTERS_PER_GROUP)  {
                 max_wgt_group_bit = 0, min_wgt_group_bit = 16;
@@ -32,11 +32,11 @@ namespace core {
                 group_index++;
             }
 
-            for(int channel = init_channel; channel < std::min(init_channel + N_LANES,max_channel); channel++) {
+            for(int channel = init_channel; channel < std::min(init_channel + (int)N_LANES,max_channel); channel++) {
 
                 // Dynamic activation precision
                 if(filter == init_channel) {
-                    T act_bits;
+                    uint16_t act_bits;
                     if (lstm)
                         act_bits = padded_act.get(recursion, batch, channel);
                     else
@@ -45,7 +45,7 @@ namespace core {
 
                     bool act_neg = false;
                     if ((act_bits & act_mask) != 0) {
-                        act_bits = act_bits & ~(uint16_t) act_mask;
+                        act_bits = act_bits & ~act_mask;
                         act_neg = true;
                     }
 
@@ -61,11 +61,11 @@ namespace core {
                 }
 
                 // Dynamic weight precisions
-                auto wgt_bits = wgt.get(filter, channel, kernel_x, kernel_y);
+                uint16_t wgt_bits = wgt.get(filter, channel, kernel_x, kernel_y);
 
                 bool wgt_neg = false;
                 if((wgt_bits & wgt_mask) != 0) {
-                    wgt_bits = wgt_bits & ~(uint16_t)wgt_mask;
+                    wgt_bits = wgt_bits & ~wgt_mask;
                     wgt_neg = true;
                 }
 
@@ -114,11 +114,11 @@ namespace core {
     uint8_t Loom<T>::computeLoomTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int init_filter,
             int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group,
-            int max_act_channel, int max_wgt_channel, int max_filter, int act_mask, int wgt_mask, int wgt_prec,
-            sys::Statistics::Stats &stats) {
+            int max_act_channel, int max_wgt_channel, int max_filter, uint16_t act_mask, uint16_t wgt_mask,
+            int wgt_prec, sys::Statistics::Stats &stats) {
 
-        int ACT_N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
-        int WINDOWS_PER_GROUP = N_COLUMNS / ACT_N_GROUPS;
+        uint32_t ACT_N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
+        uint32_t WINDOWS_PER_GROUP = N_COLUMNS / ACT_N_GROUPS;
 
         // Dynamic activation precisions
         std::vector<uint8_t> act_per_group_cycles (ACT_N_GROUPS, 0);
@@ -133,14 +133,14 @@ namespace core {
                 group_index++;
             }
 
-            for (int channel = init_channel; channel < std::min(init_channel + N_LANES, max_act_channel); channel++) {
+            for (int channel = init_channel; channel < std::min(init_channel + (int)N_LANES, max_act_channel); channel++) {
 
-                auto act_bits = padded_act.get(batch, start_group + channel, stride * list_act_x[window] + kernel_x,
+                uint16_t act_bits = padded_act.get(batch, start_group + channel, stride * list_act_x[window] + kernel_x,
                         stride * list_act_y[window] + kernel_y);
 
                 bool neg = false;
                 if((act_bits & act_mask) != 0) {
-                    act_bits = act_bits & ~(uint16_t)act_mask;
+                    act_bits = act_bits & ~act_mask;
                     neg = true;
                 }
 
@@ -171,15 +171,15 @@ namespace core {
             else act_per_group_cycles[group_index] = (uint8_t)(max_act_group_bit + 1);
         }
 
-        int WGT_N_GROUPS = N_ROWS * 16 / PRECISION_GRANULARITY;
-        int FILTERS_PER_GROUP = N_ROWS / WGT_N_GROUPS;
+        uint32_t WGT_N_GROUPS = N_ROWS * 16 / PRECISION_GRANULARITY;
+        uint32_t FILTERS_PER_GROUP = N_ROWS / WGT_N_GROUPS;
 
         // Dynamic weight precisions
         std::vector<uint8_t> wgt_per_group_cycles (WGT_N_GROUPS, 0);
         group_counter = 0;
         group_index = 0;
         uint8_t max_wgt_group_bit = 0, min_wgt_group_bit = 16;
-        for (int filter = init_filter; filter < std::min(init_filter + N_ROWS, max_filter); filter++) {
+        for (int filter = init_filter; filter < std::min(init_filter + (int)N_ROWS, max_filter); filter++) {
 
             if(group_counter == FILTERS_PER_GROUP)  {
                 max_wgt_group_bit = 0, min_wgt_group_bit = 16;
@@ -187,14 +187,14 @@ namespace core {
                 group_index++;
             }
 
-            for(int channel = init_channel; channel < std::min(init_channel + N_LANES,max_wgt_channel); channel++){
+            for(int channel = init_channel; channel < std::min(init_channel + (int)N_LANES,max_wgt_channel); channel++){
 
                 // Dynamic weight precisions
-                auto wgt_bits = wgt.get(filter, channel, kernel_x, kernel_y);
+                uint16_t wgt_bits = wgt.get(filter, channel, kernel_x, kernel_y);
 
                 bool wgt_neg = false;
                 if((wgt_bits & wgt_mask) != 0) {
-                    wgt_bits = wgt_bits & ~(uint16_t)wgt_mask;
+                    wgt_bits = wgt_bits & ~wgt_mask;
                     wgt_neg = true;
                 }
 
@@ -265,28 +265,28 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size = act_shape[0];
-        int act_channels = act_shape[1];
-        int Nx = act_shape[2];
-        int Ny = act_shape[3];
+        auto batch_size = act_shape[0];
+        auto act_channels = act_shape[1];
+        auto Nx = act_shape[2];
+        auto Ny = act_shape[3];
         if(this->FAST_MODE) batch_size = 1;
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
-        int Kx = wgt_shape[2];
-        int Ky = wgt_shape[3];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
 
         long out_x = (Nx - Kx)/stride + 1;
         long out_y = (Ny - Ky)/stride + 1;
 
-        int groups = act_channels / wgt_channels;
-        int it_per_group = num_filters / groups;
+        auto groups = act_channels / wgt_channels;
+        auto it_per_group = num_filters / groups;
 
         auto act_prec = layer.getActPrecision();
-        auto act_mask = (uint16_t)(1 << (act_prec - 1));
+        auto act_mask = (uint16_t)(1u << (act_prec - 1));
 
         auto wgt_prec = layer.getWgtPrecision();
-        auto wgt_mask = (uint16_t)(1 << (wgt_prec - 1));
+        auto wgt_mask = (uint16_t)(1u << (wgt_prec - 1));
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
@@ -321,7 +321,7 @@ namespace core {
                 // Two towers alexnet
                 int start_group = 0;
                 if(m >= it_per_group)
-                    start_group = wgt_channels;
+                    start_group = (int)wgt_channels;
 
                 // Fix for MobileNet
                 if(wgt_channels == 1 && act_channels != 1)
@@ -332,7 +332,8 @@ namespace core {
                         for (int j = 0; j < Ky; j++) {
                             for (int k = 0; k < wgt_channels; k += N_LANES) {
                                 cycles += computeLoomTile(n,list_x, list_y, i, j, k, m, stride, act, wgt, start_group,
-                                        act_channels, wgt_channels, num_filters, act_mask, wgt_mask, wgt_prec, stats);
+                                        (int)act_channels, (int)wgt_channels, (int)num_filters, act_mask, wgt_mask,
+                                        wgt_prec, stats);
 
                                 act_buff_reads++;
                                 weight_buff_reads++;
@@ -382,7 +383,7 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size, act_channels, R;
+        uint64_t batch_size, act_channels, R;
         if(lstm) {
             R = act_shape[0];
             batch_size = act_shape[1];
@@ -394,14 +395,14 @@ namespace core {
         }
         if(this->FAST_MODE) batch_size = 1;
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
 
         auto act_prec = layer.getActPrecision();
-        auto act_mask = (uint16_t)(1 << (act_prec - 1));
+        auto act_mask = (uint16_t)(1u << (act_prec - 1));
 
         auto wgt_prec = layer.getWgtPrecision();
-        auto wgt_mask = (uint16_t)(1 << (wgt_prec - 1));
+        auto wgt_mask = (uint16_t)(1u << (wgt_prec - 1));
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
@@ -461,7 +462,7 @@ namespace core {
         for (n = 0; n < batch_size; n++) {
 
             int column_index = 0;
-            std::vector<int>column_end = std::vector<int>(N_COLUMNS, 0);
+            std::vector<uint64_t>column_end = std::vector<uint64_t>(N_COLUMNS, 0);
             uint64_t cycles = 0;
             uint64_t stall_cycles = 0;
             uint64_t weight_buff_reads = 0;
@@ -475,8 +476,8 @@ namespace core {
                             stall_cycles = column_end[column_index] - cycles;
                             cycles = column_end[column_index];
                         }
-                        auto column_cycles = computeLoomColumn(n,r,0,0,0,0,k,m,0,act,wgt,0,wgt_channels,num_filters,
-                                act_mask,wgt_mask,wgt_prec,lstm);
+                        auto column_cycles = computeLoomColumn(n,r,0,0,0,0,k,m,0,act,wgt,0,(int)wgt_channels,
+                                (int)num_filters,act_mask,wgt_mask,wgt_prec,lstm);
                         column_end[column_index] = cycles + column_cycles;
                         cycles++;
                         column_index++;
@@ -495,10 +496,10 @@ namespace core {
             stats.weight_buff_reads.back()[n] = weight_buff_reads;
             stats.act_buff_reads.back()[n] = act_buff_reads;
             stats.accumulator_updates.back()[n] = accumulator_updates;
-            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)N_LANES);
+            stats.scheduled_pe.back()[n] = (uint64_t)(num_filters * N_ROWS * ceil(act_channels/(double)N_LANES));
             auto idle_rows = N_ROWS - (num_filters % N_ROWS);
             idle_rows = idle_rows == 16 ? 0 : idle_rows;
-            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)N_LANES);
+            stats.idle_pe.back()[n] = (uint64_t)(idle_rows * ceil(act_channels/(double)N_LANES));
 
         }
 
@@ -557,13 +558,13 @@ namespace core {
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = 1;
-        int Nx = act_shape[2];
-        int Ny = act_shape[3];
+        auto Nx = act_shape[2];
+        auto Ny = act_shape[3];
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
-        int Kx = wgt_shape[2];
-        int Ky = wgt_shape[3];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
 
         int padding = layer.getPadding();
         int stride = layer.getStride();
@@ -585,7 +586,7 @@ namespace core {
         // Convolution
         for(int n = 0; n < batch_size; n++) {
             bit_counter = (uint64_t)computeLoomBitsPE((uint8_t)act_prec, (uint8_t)wgt_prec) * out_x * out_y * Kx * Ky *
-                          wgt_channels * num_filters;
+                    wgt_channels * num_filters;
             double MAX_BITS = network_bits * network_bits;
             stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
             stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
@@ -614,10 +615,10 @@ namespace core {
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = 1;
-        int R = (layer.getType() == "LSTM") ? act_shape[0] : 1;
+        auto R = (layer.getType() == "LSTM") ? act_shape[0] : 1;
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
 
         // Operations
         const auto parallel_mult = (uint64_t)num_filters * wgt_channels * R;

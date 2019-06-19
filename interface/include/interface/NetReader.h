@@ -21,10 +21,10 @@ namespace interface {
         std::string name;
 
         /* Numpy activations batch to read from */
-        int batch;
+        uint32_t batch;
 
         /* Numpy activations epoch to read from */
-        int epoch;
+        uint32_t epoch;
 
         /* Return the layer parsed from the caffe prototxt file
          * @param layer_caffe   prototxt layer
@@ -44,8 +44,8 @@ namespace interface {
          * @param _epoch    Numpy epoch of the training traces
          * @param _QUIET    Remove stdout messages
          */
-        NetReader(const std::string &_name, int _batch, int _epoch, bool _QUIET) : Interface(_QUIET), batch(_batch),
-                epoch(_epoch) {
+        NetReader(const std::string &_name, uint32_t _batch, uint32_t _epoch, bool _QUIET) : Interface(_QUIET),
+                batch(_batch), epoch(_epoch) {
             this->name = _name;
         }
 

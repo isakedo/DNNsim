@@ -14,7 +14,7 @@ namespace core {
     private:
 
         /* Number of activations per group */
-        const int PRECISION_GRANULARITY;
+        const uint32_t PRECISION_GRANULARITY;
 
         /* Calculate only the leading bit for dynamic precisions */
         const bool LEADING_BIT;
@@ -41,7 +41,7 @@ namespace core {
          * @return                  Number of cycles
          */
         uint8_t computeTacticalPColumn(int batch, int recursion, int act_x, int act_y, int stride,
-                const cnpy::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time, int act_mask,
+                const cnpy::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time, uint16_t act_mask,
                 bool lstm);
 
         /* Compute cycles for Bit-Tactical P tile
@@ -59,7 +59,7 @@ namespace core {
          */
         void computeTacticalPTile(int batch, const std::vector<int> &list_act_x, const std::vector<int>
                 &list_act_y, int stride, const cnpy::Array<T> &padded_act, const schedule &dense_schedule,
-                int schedule_time, int act_mask, std::vector<uint32_t> &cycles_per_col,
+                int schedule_time, uint16_t act_mask, std::vector<uint32_t> &cycles_per_col,
                 std::vector<uint32_t> &end_previous_pallet, sys::Statistics::Stats &stats);
 
         /* Compute the timing for a convolutional layer
@@ -109,11 +109,11 @@ namespace core {
          * @param _N_THREADS                Number of parallel threads for multi-threading execution
          * @param _FAST_MODE                Enable fast mode to simulate only one image
          */
-        BitTacticalP(int _N_LANES, int _N_COLUMNS, int _N_ROWS, int _PRECISION_GRANULARITY, int _COLUMN_REGISTERS,
-                int _LOOKAHEAD_H, int _LOOKASIDE_D, const char _SEARCH_SHAPE, bool _LEADING_BIT, uint8_t _N_THREADS,
-                bool _FAST_MODE) : BitTactical<T>(_N_ROWS,_N_COLUMNS,_N_ROWS,_COLUMN_REGISTERS,_LOOKAHEAD_H,
-                _LOOKASIDE_D,_SEARCH_SHAPE,_N_THREADS,_FAST_MODE), PRECISION_GRANULARITY(_PRECISION_GRANULARITY),
-                LEADING_BIT(_LEADING_BIT) {}
+        BitTacticalP(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _PRECISION_GRANULARITY,
+                uint32_t _COLUMN_REGISTERS, uint32_t _LOOKAHEAD_H, uint32_t _LOOKASIDE_D, const char _SEARCH_SHAPE,
+                bool _LEADING_BIT, uint8_t _N_THREADS, bool _FAST_MODE) : BitTactical<T>(_N_ROWS,_N_COLUMNS,_N_ROWS,
+                _COLUMN_REGISTERS,_LOOKAHEAD_H,_LOOKASIDE_D,_SEARCH_SHAPE,_N_THREADS,_FAST_MODE),
+                PRECISION_GRANULARITY(_PRECISION_GRANULARITY), LEADING_BIT(_LEADING_BIT) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

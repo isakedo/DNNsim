@@ -110,7 +110,7 @@ namespace core {
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          */
-        Laconic(int _N_LANES, int _N_COLUMNS, int _N_ROWS, uint8_t _N_THREADS, bool _FAST_MODE) :
+        Laconic(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint8_t _N_THREADS, bool _FAST_MODE) :
                 Simulator<T>(_N_THREADS,_FAST_MODE), N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS) {}
 
         /* Run the timing simulator of the architecture

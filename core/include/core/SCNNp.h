@@ -13,7 +13,7 @@ namespace core {
         typedef std::vector<std::tuple<int,int,uint8_t>> act_idxMap;
 
         /* Number of bits in series that the PE process */
-        const int PE_SERIAL_BITS;
+        const uint32_t PE_SERIAL_BITS;
 
         struct PE_stats {
             uint32_t cycles = 0;
@@ -42,7 +42,7 @@ namespace core {
          * @param wgt       1D weights queue with linearized activations indexes to be processed
          * @return          Return stats for the given PE
          */
-        PE_stats computeSCNNpPE(int W, int H, int stride, const act_idxMap &act, const wgt_idxMap &wgt);
+        PE_stats computeSCNNpPE(uint64_t W, uint64_t H, int stride, const act_idxMap &act, const wgt_idxMap &wgt);
 
         /* Compute SCNNp tile
          * @param n         Number of batch
@@ -65,9 +65,9 @@ namespace core {
          * @param wgt       Weights for the layer
          * @param stats     Statistics to fill
          */
-        void computeSCNNpTile(int n, int ct, int ck, int kc, int tw, int th, int X, int Y, int Kc, int K, int W, int H,
-                int R, int S, int stride, int padding, const cnpy::Array<T> &act, const cnpy::Array<T> &wgt,
-                sys::Statistics::Stats &stats);
+        void computeSCNNpTile(int n, int ct, int ck, int kc, int tw, int th, uint64_t X, uint64_t Y, int Kc, uint64_t K,
+                uint64_t W, uint64_t H, uint64_t R, uint64_t S, int stride, int padding, const cnpy::Array<T> &act,
+                const cnpy::Array<T> &wgt, sys::Statistics::Stats &stats);
 
         /* Compute the timing for a layer
          * @param layer     Layer for which we want to calculate the outputs
@@ -104,9 +104,9 @@ namespace core {
          * @param _N_THREADS        Number of parallel threads for multi-threading execution
          * @param _FAST_MODE        Enable fast mode to simulate only one image
          */
-        SCNNp(int _Wt, int _Ht, int _I, int _F, int _out_acc_size, int _BANKS, int _PE_SERIAL_BITS, uint8_t _N_THREADS,
-                bool _FAST_MODE) : SCNN<T>(_Wt,_Ht,_I,_F,_out_acc_size,_BANKS,_N_THREADS,_FAST_MODE),
-                PE_SERIAL_BITS(_PE_SERIAL_BITS) {}
+        SCNNp(uint32_t _Wt, uint32_t _Ht, uint32_t _I, uint32_t _F, uint32_t _out_acc_size, uint32_t _BANKS,
+                uint32_t _PE_SERIAL_BITS, uint8_t _N_THREADS, bool _FAST_MODE) : SCNN<T>(_Wt,_Ht,_I,_F,_out_acc_size,
+                _BANKS,_N_THREADS,_FAST_MODE), PE_SERIAL_BITS(_PE_SERIAL_BITS) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

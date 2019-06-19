@@ -224,9 +224,9 @@ namespace cnpy {
 
     /* Return value in two complement */
     static inline
-    uint16_t profiled_value(float num, int mag, int frac) {
+    uint16_t profiled_value(float num, uint16_t mag, uint16_t frac) {
         double scale = pow(2.,(double)frac);
-        double intmax = (1 << (mag + frac)) - 1;
+        double intmax = (1u << (mag + frac)) - 1;
         double intmin = -1 * intmax;
         double ds = num * scale;
         if (ds > intmax) ds = intmax;
@@ -288,9 +288,9 @@ namespace cnpy {
     template <typename T>
     Array<uint16_t> Array<T>::tensorflow_fixed_point() const {
         const int NUM_BITS = 8;
-        const int max_fixed = 127;
+        //const int max_fixed = 127;
         const int min_fixed = -128;
-        const int num_discrete_values = 1 << NUM_BITS;
+        const int num_discrete_values = 1u << NUM_BITS;
         const auto range_adjust = num_discrete_values / (num_discrete_values - 1.0);
 
         std::vector<uint16_t> fixed_point_vector;
@@ -360,8 +360,8 @@ namespace cnpy {
 
     template <typename T>
     void Array<T>::sign_magnitude_representation(int prec) {
-        double intmax = (1 << (prec - 1)) - 1;
-        auto mask = (uint16_t)intmax + 1;
+        double intmax = (1u << (prec - 1)) - 1;
+        auto mask = (uint16_t)(intmax + 1);
         if (this->getDimensions() == 1) {
             for(int i = 0; i < this->shape[0]; i++) {
                 auto two_comp = (short)this->data1D[i];
@@ -408,7 +408,7 @@ namespace cnpy {
     template <typename T>
     void Array<T>::powers_of_two_representation(int prec) {
         double intmax = (1 << (prec - 1)) - 1;
-        auto mask = (uint16_t)intmax + 1;
+        auto mask = (uint16_t)(intmax + 1);
         if (this->getDimensions() == 1) {
             for(int i = 0; i < this->shape[0]; i++) {
                 auto two_comp = (short)this->data1D[i];
@@ -485,15 +485,15 @@ namespace cnpy {
     }
 
     template <typename T>
-    void Array<T>::grid_zero_pad(int X, int Y) {
+    void Array<T>::grid_zero_pad(uint64_t X, uint64_t Y) {
         auto batch_size = this->shape[0];
         auto act_channels = this->shape[1];
         auto Nx = this->shape[2];
         auto Ny = this->shape[3];
 
         auto tmp_data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(batch_size,
-                std::vector<std::vector<std::vector<T>>>(act_channels,std::vector<std::vector<T>>((unsigned)X,
-                        std::vector<T>((unsigned)Y,0))));
+                std::vector<std::vector<std::vector<T>>>(act_channels,std::vector<std::vector<T>>(X,
+                        std::vector<T>(Y,0))));
 
         for(int n = 0; n < batch_size; n++) {
             for (int k = 0; k < act_channels; k++) {

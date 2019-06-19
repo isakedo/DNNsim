@@ -106,22 +106,22 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size = act_shape[0];
-        int act_channels = act_shape[1];
-        int Nx = act_shape[2];
-        int Ny = act_shape[3];
+        auto batch_size = act_shape[0];
+        auto act_channels = act_shape[1];
+        auto Nx = act_shape[2];
+        auto Ny = act_shape[3];
         if(this->FAST_MODE) batch_size = 1;
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
-        int Kx = wgt_shape[2];
-        int Ky = wgt_shape[3];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
 
         long out_x = (Nx - Kx)/stride + 1;
         long out_y = (Ny - Ky)/stride + 1;
 
-        int groups = act_channels / wgt_channels;
-        int it_per_group = num_filters / groups;
+        auto groups = act_channels / wgt_channels;
+        auto it_per_group = num_filters / groups;
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
@@ -155,7 +155,7 @@ namespace core {
 
                 int start_group = 0;
                 if(m >= it_per_group)
-                    start_group = wgt_channels;
+                    start_group = (int)wgt_channels;
 
                 bool conv2D = false;
                 if(wgt_channels == 1 && act_channels != 1)
@@ -166,7 +166,7 @@ namespace core {
                         for (int j = 0; j < Ky; j++) {
                             for (int k = 0; k < wgt_channels; k += N_LANES) {
                                 cycles += computeLaconicTile(n,list_x, list_y, i, j, k, m, stride, act,
-                                        wgt, start_group, wgt_channels, num_filters, conv2D, stats);
+                                        wgt, start_group, (int)wgt_channels, (int)num_filters, conv2D, stats);
 
                                 act_buff_reads++;
                                 weight_buff_reads++;
@@ -216,7 +216,7 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size, act_channels, R;
+        uint64_t batch_size, act_channels, R;
         if(lstm) {
             R = act_shape[0];
             batch_size = act_shape[1];
@@ -228,8 +228,8 @@ namespace core {
         }
         if(this->FAST_MODE) batch_size = 1;
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
@@ -288,7 +288,7 @@ namespace core {
         for (n = 0; n < batch_size; n++) {
 
             int column_index = 0;
-            std::vector<int>column_end = std::vector<int>(N_COLUMNS, 0);
+            std::vector<uint64_t>column_end = std::vector<uint64_t>(N_COLUMNS, 0);
             uint64_t cycles = 0;
             uint64_t stall_cycles = 0;
             uint64_t weight_buff_reads = 0;
@@ -302,8 +302,8 @@ namespace core {
                             stall_cycles = column_end[column_index] - cycles;
                             cycles = column_end[column_index];
                         }
-                        auto column_cycles = computeLaconicColumn(n,r,0,0,0,0,k,m,0,act,wgt,0,wgt_channels,num_filters,
-                                lstm, false);
+                        auto column_cycles = computeLaconicColumn(n,r,0,0,0,0,k,m,0,act,wgt,0,(int)wgt_channels,
+                                (int)num_filters,lstm, false);
                         column_end[column_index] = cycles + column_cycles;
                         cycles++;
                         column_index++;
@@ -322,10 +322,10 @@ namespace core {
             stats.weight_buff_reads.back()[n] = weight_buff_reads;
             stats.act_buff_reads.back()[n] = act_buff_reads;
             stats.accumulator_updates.back()[n] = accumulator_updates;
-            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)N_LANES);
+            stats.scheduled_pe.back()[n] = (uint64_t)(num_filters * N_ROWS * ceil(act_channels/(double)N_LANES));
             auto idle_rows = N_ROWS - (num_filters % N_ROWS);
             idle_rows = idle_rows == 16 ? 0 : idle_rows;
-            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)N_LANES);
+            stats.idle_pe.back()[n] = (uint64_t)(idle_rows * ceil(act_channels/(double)N_LANES));
 
         }
 
@@ -379,16 +379,16 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size = act_shape[0];
-        int act_channels = act_shape[1];
-        int Nx = act_shape[2];
-        int Ny = act_shape[3];
+        auto batch_size = act_shape[0];
+        auto act_channels = act_shape[1];
+        auto Nx = act_shape[2];
+        auto Ny = act_shape[3];
         if(this->FAST_MODE) batch_size = 1;
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
-        int Kx = wgt_shape[2];
-        int Ky = wgt_shape[3];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
 
         int padding = layer.getPadding();
         int stride = layer.getStride();
@@ -397,8 +397,8 @@ namespace core {
         long out_x = (Nx - Kx + 2*padding)/stride + 1;
         long out_y = (Ny - Ky + 2*padding)/stride + 1;
 
-        int groups = act_channels / wgt_channels;
-        int it_per_group = num_filters / groups;
+        auto groups = act_channels / wgt_channels;
+        auto it_per_group = num_filters / groups;
 
         // Operations
         const auto parallel_mult = (uint64_t)(num_filters * out_x * out_y * Kx * Ky * wgt_channels);
@@ -421,7 +421,7 @@ namespace core {
                 // Two towers alexnet
                 int start_group = 0;
                 if(m >= it_per_group)
-                    start_group = wgt_channels;
+                    start_group = (int)wgt_channels;
 
                 // Fix for MobileNet
                 if(wgt_channels == 1 && act_channels != 1)
@@ -471,11 +471,11 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size = act_shape[0];
-        int R = lstm ? act_shape[0] : 1;
+        auto batch_size = act_shape[0];
+        auto R = lstm ? act_shape[0] : 1;
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
         if(this->FAST_MODE) batch_size = 1;
 
         // Operations

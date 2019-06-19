@@ -36,14 +36,14 @@ namespace core {
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = 1;
-        int act_channels = act_shape[1];
-        int Nx = act_shape[2];
-        int Ny = act_shape[3];
+        auto act_channels = act_shape[1];
+        auto Nx = act_shape[2];
+        auto Ny = act_shape[3];
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
-        int Kx = wgt_shape[2];
-        int Ky = wgt_shape[3];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
 
         long out_x = (Nx - Kx)/stride + 1;
         long out_y = (Ny - Ky)/stride + 1;
@@ -57,7 +57,7 @@ namespace core {
         auto windows_per_tile = N_COLUMNS/columns_per_act;
         auto filters_per_tile = N_ROWS/rows_per_wgt;
 
-        int groups = act_channels / wgt_channels;
+        auto groups = act_channels / wgt_channels;
         auto num_filters_sets = (uint32_t)ceil(num_filters/(double)filters_per_tile/groups);
         auto baseline_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS/groups);
 
@@ -138,15 +138,15 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size = act_shape[0];
-        int Nx = act_shape[2];
-        int Ny = act_shape[3];
+        auto batch_size = act_shape[0];
+        auto Nx = act_shape[2];
+        auto Ny = act_shape[3];
         if(this->FAST_MODE) batch_size = 1;
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
-        int Kx = wgt_shape[2];
-        int Ky = wgt_shape[3];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
 
         long out_x = (Nx - Kx)/stride + 1;
         long out_y = (Ny - Ky)/stride + 1;
@@ -248,7 +248,7 @@ namespace core {
         const std::vector<size_t> &wgt_shape = layer.getWeights().getShape();
 
         int batch_size = 1;
-        int act_channels, R;
+        uint64_t act_channels, R;
         if(layer.getType() == "LSTM") {
             R = act_shape[0];
             act_channels = act_shape[2];
@@ -256,7 +256,7 @@ namespace core {
             R = 1;
             act_channels = act_shape[1];
         }
-        int num_filters = wgt_shape[0];
+        auto num_filters = wgt_shape[0];
 
         // Get layer precision
         auto act_layer_prec = layer.getActPrecision();
@@ -323,7 +323,7 @@ namespace core {
         for (int n = 0; n < batch_size; n++) {
 
             int column_index = 0;
-            std::vector<int> column_end = std::vector<int>(windows_per_tile, 0);
+            std::vector<uint64_t> column_end = std::vector<uint64_t>(windows_per_tile, 0);
             auto precision_cycles = (columns_per_act == 1 && rows_per_wgt == 1) ? act_layer_prec : BITS_PE;
             uint64_t cycles = 0;
             uint64_t stall_cycles = 0;
@@ -357,10 +357,10 @@ namespace core {
             stats.weight_buff_reads.back()[n] = weight_buff_reads * num_filters_sets;
             stats.act_buff_reads.back()[n] = act_buff_reads * num_filters_sets;
             stats.accumulator_updates.back()[n] = accumulator_updates * num_filters_sets;
-            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)N_LANES);
+            stats.scheduled_pe.back()[n] = (uint64_t)(num_filters * N_ROWS * ceil(act_channels/(double)N_LANES));
             auto idle_rows = N_ROWS - (num_filters % N_ROWS);
             idle_rows = idle_rows == 16 ? 0 : idle_rows;
-            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)N_LANES);
+            stats.idle_pe.back()[n] = (uint64_t)(idle_rows * ceil(act_channels/(double)N_LANES));
 
         }
 
@@ -425,13 +425,13 @@ namespace core {
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = 1;
-        int Nx = act_shape[2];
-        int Ny = act_shape[3];
+        auto Nx = act_shape[2];
+        auto Ny = act_shape[3];
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
-        int Kx = wgt_shape[2];
-        int Ky = wgt_shape[3];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
 
         int padding = layer.getPadding();
         int stride = layer.getStride();
@@ -481,10 +481,10 @@ namespace core {
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = 1;
-        int R = (layer.getType() == "LSTM") ? act_shape[0] : 1;
+        auto R = (layer.getType() == "LSTM") ? act_shape[0] : 1;
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
 
         // Operations
         const auto parallel_mult = (uint64_t)num_filters * wgt_channels * R;

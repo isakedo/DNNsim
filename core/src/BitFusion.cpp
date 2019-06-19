@@ -42,7 +42,7 @@ namespace core {
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = 1;
-        int Nx, Ny, R;
+        uint64_t Nx, Ny, R;
         if(layer.getType() == "LSTM") {
             R = act_shape[0];
             Nx = 1;
@@ -53,10 +53,10 @@ namespace core {
             Ny = act_shape[3];
         }
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
-        int Kx = wgt_shape[2];
-        int Ky = wgt_shape[3];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
 
         long out_x = (Nx - Kx)/stride + 1;
         long out_y = (Ny - Ky)/stride + 1;
@@ -75,8 +75,8 @@ namespace core {
             time_multiplex *= 2;
         }
 
-        act_layer_prec = std::max(act_layer_prec, PMIN);
-        wgt_layer_prec = std::max(wgt_layer_prec, PMIN);
+        act_layer_prec = std::max(act_layer_prec, (int)PMIN);
+        wgt_layer_prec = std::max(wgt_layer_prec, (int)PMIN);
         auto perf_factor = (PMAX/act_layer_prec) * (PMAX/wgt_layer_prec);
 
         auto filter_sets = (int)ceil(num_filters / (double)M);
@@ -140,13 +140,13 @@ namespace core {
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = 1;
-        int Nx = act_shape[2];
-        int Ny = act_shape[3];
+        auto Nx = act_shape[2];
+        auto Ny = act_shape[3];
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
-        int Kx = wgt_shape[2];
-        int Ky = wgt_shape[3];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
 
         int padding = layer.getPadding();
         int stride = layer.getStride();
@@ -202,10 +202,10 @@ namespace core {
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = 1;
-        int R = (layer.getType() == "LSTM") ? act_shape[0] : 1;
+        auto R = (layer.getType() == "LSTM") ? act_shape[0] : 1;
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
 
         // Operations
         const auto parallel_mult = (uint64_t)num_filters * wgt_channels * R;

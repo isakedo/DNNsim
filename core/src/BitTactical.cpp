@@ -126,8 +126,8 @@ namespace core {
                 auto lane = std::get<1>(wgt_idx);
                 effectual_candidates[lane] = (this->*search)(dense_schedule,wgt_idx,max_time);
                 if(!effectual_candidates[lane].empty()) {
-                    num_candidates[lane] = effectual_candidates[lane].size();
-                    min_num_candidates.push_back(effectual_candidates[lane].size());
+                    num_candidates[lane] = (int)effectual_candidates[lane].size();
+                    min_num_candidates.push_back((int)effectual_candidates[lane].size());
                 }
             }
 
@@ -187,21 +187,22 @@ namespace core {
     }
 
     template <typename T>
-    schedule BitTactical<T>::sparse_scheduler(const cnpy::Array<T> &wgt, int act_channels, std::vector<int> &max_time) {
+    schedule BitTactical<T>::sparse_scheduler(const cnpy::Array<T> &wgt, uint64_t act_channels,
+            std::vector<int> &max_time) {
 
         const auto &wgt_shape = wgt.getShape();
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
-        int Kx = wgt_shape[2];
-        int Ky = wgt_shape[3];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
 
-        int groups = act_channels / wgt_channels;
-        int it_per_group = num_filters / groups;
+        auto groups = act_channels / wgt_channels;
+        auto it_per_group = num_filters / groups;
         int round_wgt_channels = (int)ceil(wgt_channels/(double)N_LANES)*N_LANES;
 
-        int num_filter_sets = (int)ceil(num_filters/(double)N_ROWS);
-        int time_per_filter = (int)ceil(round_wgt_channels*Kx*Ky/(double)N_LANES);
+        auto num_filter_sets = (int)ceil(num_filters/(double)N_ROWS);
+        auto time_per_filter = (int)ceil(round_wgt_channels*Kx*Ky/(double)N_LANES);
         int total_time = num_filter_sets * time_per_filter;
 
         schedule sparse_schedule = schedule((unsigned)total_time, time_schedule((unsigned)N_ROWS*N_LANES,
@@ -212,7 +213,7 @@ namespace core {
             // Two towers alexnet
             int start_group = 0;
             if(m >= it_per_group)
-                start_group = wgt_channels;
+                start_group = (int)wgt_channels;
 
             // Fix for MobileNet
             if(wgt_channels == 1 && act_channels != 1)
@@ -223,7 +224,7 @@ namespace core {
                 for (int j = 0; j < Ky; j++) {
                     for (int k = 0; k < wgt_channels; k += N_LANES) {
                         int index = 0;
-                        for(int channel = k; channel < std::min(k + N_LANES,wgt_channels); channel++) {
+                        for(int channel = k; channel < std::min(k + (int)N_LANES,(int)wgt_channels); channel++) {
                             auto wgt_bits = wgt.get(m,channel,i,j);
                             int pos = (m % N_ROWS) * N_LANES + index;
                             sparse_schedule[time][pos] = std::make_tuple(start_group + channel,i,j,wgt_bits);
@@ -248,7 +249,7 @@ namespace core {
     }
 
     template <typename T>
-    schedule BitTactical<T>::scheduler(const cnpy::Array<T> &wgt, int act_channels) {
+    schedule BitTactical<T>::scheduler(const cnpy::Array<T> &wgt, uint64_t act_channels) {
         std::vector<int> max_time;
         const auto &sparse_schedule = sparse_scheduler(wgt,act_channels,max_time);
         const auto &dense_schedule = dense_scheduler(sparse_schedule,max_time);

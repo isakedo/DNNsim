@@ -6,8 +6,9 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    int SCNN<T>::map_accumulator(int k, int x, int y) {
-        return ((((k & 4) << 2) ^ ((x & 2) << 3) ^ ((y & 2) << 3)) + ((x & 1) << 3) + ((y & 1) << 2) + (k & 3)) % BANKS;
+    int SCNN<T>::map_accumulator(uint32_t k, uint32_t x, uint32_t y) {
+        return ((((k & 4u) << 2u) ^ ((x & 2u) << 3u) ^ ((y & 2u) << 3u)) + ((x & 1u) << 3u) + ((y & 1u) << 2u) +
+                (k & 3u)) % BANKS;
     }
 
     template <typename T>
@@ -24,7 +25,7 @@ namespace core {
     }
 
     template <typename T>
-    typename SCNN<T>::PE_stats SCNN<T>::computeSCNNPE(int W, int H, int stride, const act_idxMap &act,
+    typename SCNN<T>::PE_stats SCNN<T>::computeSCNNPE(uint64_t W, uint64_t H, int stride, const act_idxMap &act,
             const wgt_idxMap &wgt) {
 
         PE_stats pe_stats;
@@ -40,8 +41,8 @@ namespace core {
             for(int f = 0; f < wgt.size(); f+=F) {
                 pe_stats.f_loop += 1;
                 std::vector<uint8_t> acc(2 * F * I, 0);
-                for(int ii = i; ii < std::min(i + I, (int)act.size()); ii++) {
-                    for(int ff = f; ff < std::min(f + F, (int)wgt.size()); ff++) {
+                for(int ii = i; ii < std::min(i + (int)I, (int)act.size()); ii++) {
+                    for(int ff = f; ff < std::min(f + (int)F, (int)wgt.size()); ff++) {
                         const auto &act_index = act[ii];
                         const auto &wgt_index = wgt[ff];
 
@@ -75,9 +76,9 @@ namespace core {
     }
 
     template <typename T>
-    void SCNN<T>::computeSCNNTile(int n, int ct, int ck, int kc, int tw, int th, int X, int Y, int Kc, int K, int W,
-            int H, int R, int S, int stride, int padding, const cnpy::Array<T> &act, const cnpy::Array<T> &wgt,
-            sys::Statistics::Stats &stats) {
+    void SCNN<T>::computeSCNNTile(int n, int ct, int ck, int kc, int tw, int th, uint64_t X, uint64_t Y, int Kc,
+            uint64_t K, uint64_t W, uint64_t H, uint64_t R, uint64_t S, int stride, int padding,
+            const cnpy::Array<T> &act, const cnpy::Array<T> &wgt, sys::Statistics::Stats &stats) {
 
         std::vector<uint32_t> tile_cycles;
         std::vector<uint32_t> tile_dense_cycles;
@@ -87,7 +88,8 @@ namespace core {
         for(int pex = 0; pex < Wt; pex++) {
             for(int pey = 0; pey < Ht; pey++) {
                 int x_begin = pex * tw, y_begin = pey * th, k_begin = kc;
-                int x_end = std::min(x_begin + tw, X), y_end = std::min(y_begin + th, Y), k_end = std::min(kc + Kc, K);
+                int x_end = std::min(x_begin + tw, (int)X), y_end = std::min(y_begin + th, (int)Y),
+                        k_end = std::min(kc + Kc, (int)K);
 
                 std::vector<std::vector<act_idxMap>> act_queue = std::vector<std::vector<act_idxMap>>((unsigned)stride,
                         std::vector<act_idxMap>((unsigned)stride,act_idxMap()));
@@ -192,12 +194,12 @@ namespace core {
         if(layer.getType() == "InnerProduct" || act.getDimensions() == 2) {
             if(act.getDimensions() == 4) act.reshape_to_2D();
             act.reshape_to_4D();
-            auto C = act.getShape()[1];
+            auto C = (int)act.getShape()[1];
             C = (int)(ceil(C/(double)256))*256;
             act.channel_zero_pad(C);
             act.split_4D(C / 256, 16, 16);
 
-            auto Ck = wgt.getShape()[1];
+            auto Ck = (int)wgt.getShape()[1];
             Ck = (int)(ceil(Ck/(double)256))*256;
             wgt.channel_zero_pad(Ck);
             wgt.split_4D(Ck / 256, 16, 16);
@@ -211,22 +213,22 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int N = act_shape[0];
-        int C = act_shape[1];
-        int X = act_shape[2];
-        int Y = act_shape[3];
+        auto N = act_shape[0];
+        auto C = act_shape[1];
+        auto X = act_shape[2];
+        auto Y = act_shape[3];
         if(this->FAST_MODE) N = 1;
 
-        int K = wgt_shape[0];
-        int Ck = wgt_shape[1];
-        int R = wgt_shape[2];
-        int S = wgt_shape[3];
+        auto K = wgt_shape[0];
+        auto Ck = wgt_shape[1];
+        auto R = wgt_shape[2];
+        auto S = wgt_shape[3];
 
-        int W = (X - R)/stride + 1;
-        int H = (Y - S)/stride + 1;
+        auto W = (X - R)/stride + 1;
+        auto H = (Y - S)/stride + 1;
 
-        int groups = C / Ck;
-        int Kg = K / groups;
+        auto groups = C / Ck;
+        auto Kg = K / groups;
 
         auto W_round = (int)(ceil(W/(double)Wt))*Wt;
         auto H_round = (int)(ceil(H/(double)Ht))*Ht;
@@ -256,8 +258,8 @@ namespace core {
 
         X = (int)(ceil(X/(double)Wt))*Wt;
         Y = (int)(ceil(Y/(double)Ht))*Ht;
-        tw = X/Wt;
-        th = Y/Wt;
+        tw = (uint32_t)X/Wt;
+        th = (uint32_t)Y/Wt;
 
         act.grid_zero_pad(X ,Y);
 
@@ -269,11 +271,11 @@ namespace core {
         #pragma omp parallel for private(n)
         #endif
         for(n = 0; n < N; n++) {
-            for(int kc = 0; kc < K; kc+=Kc) {
+            for(int kc = 0; kc < K; kc += Kc) {
 
                 // Two towers alexnet
                 int ct = 0;
-                if(kc >= Kg) ct = Ck;
+                if(kc >= Kg) ct = (int)Ck;
 
                 // Fix for MobileNet
                 if(Ck == 1 && C != 1) ct = kc;
@@ -287,8 +289,8 @@ namespace core {
                 // that is, how many psums need to get transferred
 
                 const int DIM = 3;
-                int x_vec[] = {R - 1 - padding, tw, padding};
-                int y_vec[] = {S - 1 - padding, th, padding};
+                int x_vec[] = {(int)R - 1 - padding, (int)tw, padding};
+                int y_vec[] = {(int)S - 1 - padding, (int)th, padding};
                 int max_psum = 0;
                 uint32_t halo_transfers = 0;
 
@@ -302,7 +304,7 @@ namespace core {
                         }
                     }
                 }
-                auto max_psums = max_psum * std::min(Kc, K - kc);
+                auto max_psums = max_psum * std::min(Kc, (int)K - kc);
 
                 stats.cycles.back()[n] += max_psums;
                 stats.dense_cycles.back()[n] += max_psums;
@@ -357,16 +359,16 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size = act_shape[0];
-        int act_channels = act_shape[1];
-        int Nx = act_shape[2];
-        int Ny = act_shape[3];
+        auto batch_size = act_shape[0];
+        auto act_channels = act_shape[1];
+        auto Nx = act_shape[2];
+        auto Ny = act_shape[3];
         if(this->FAST_MODE) batch_size = 1;
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
-        int Kx = wgt_shape[2];
-        int Ky = wgt_shape[3];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
 
         int padding = layer.getPadding();
         int stride = layer.getStride();
@@ -375,8 +377,8 @@ namespace core {
         long out_x = (Nx - Kx + 2*padding)/stride + 1;
         long out_y = (Ny - Ky + 2*padding)/stride + 1;
 
-        int groups = act_channels / wgt_channels;
-        int it_per_group = num_filters / groups;
+        auto groups = act_channels / wgt_channels;
+        auto it_per_group = num_filters / groups;
 
         // Operations
         const auto parallel_mult = (uint64_t)(num_filters * out_x * out_y * Kx * Ky * wgt_channels);
@@ -399,7 +401,7 @@ namespace core {
                 // Two towers alexnet
                 int start_group = 0;
                 if(m >= it_per_group)
-                    start_group = wgt_channels;
+                    start_group = (int)wgt_channels;
 
                 // Fix for MobileNet
                 if(wgt_channels == 1 && act_channels != 1)
@@ -447,11 +449,11 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size = act_shape[0];
-        int R = lstm ? act_shape[0] : 1;
+        auto batch_size = act_shape[0];
+        auto R = lstm ? act_shape[0] : 1;
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
         if(this->FAST_MODE) batch_size = 1;
 
         // Operations

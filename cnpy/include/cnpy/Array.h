@@ -135,7 +135,7 @@ namespace cnpy {
          * @param X   New X dimension for the activations
          * @param Y   New Y dimension for the activations
          */
-        void grid_zero_pad(int X, int Y);
+        void grid_zero_pad(uint64_t X, uint64_t Y);
 
         /* zero pad the channel
          * @param K   New K dimension for the channels

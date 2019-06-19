@@ -9,14 +9,14 @@ namespace core {
     void DynamicStripesFP<T>::computeAvgWidthDataFirstDim(const cnpy::Array<T> &data, double &avg_width,
             uint64_t &bits_baseline, uint64_t &bits_datawidth) {
 
-        const int mask = 0x80;
+        const uint16_t mask = 0x80;
 
         const std::vector<size_t> &data_shape = data.getShape();
         
-        int first_dim = data_shape[0];
-        int second_dim = data_shape[1];
-        int third_dim = data_shape[2];
-        int fourth_dim = data_shape[3];
+        auto first_dim = data_shape[0];
+        auto second_dim = data_shape[1];
+        auto third_dim = data_shape[2];
+        auto fourth_dim = data_shape[3];
 
         std::vector<double> data_width;
         uint64_t data_bits_datawidth = 0;
@@ -26,7 +26,7 @@ namespace core {
                     for (int l = 0; l < fourth_dim; l++) {
 
                         uint8_t max_bit = 0, min_bit = 16, non_zeroes = 0;
-                        for(int dstr = i; dstr < std::min(i + 16,first_dim); dstr++) {
+                        for(int dstr = i; dstr < std::min(i + 16,(int)first_dim); dstr++) {
                             
                             auto data_float = data.get(dstr, j, k, l);
 
@@ -36,11 +36,11 @@ namespace core {
                             auto biased_exponent = std::get<1>(data_bfloat);
 
                             int unbiased_exponent = biased_exponent - 127;
-                            auto exponent = this->sign_magnitude((short)unbiased_exponent, mask);
+                            uint16_t exponent = this->sign_magnitude((short)unbiased_exponent, mask);
 
                             bool neg = false;
                             if((exponent & mask) != 0) {
-                                exponent = exponent & ~(uint16_t)mask;
+                                exponent = exponent & ~mask;
                                 neg = true;
                             }
 
@@ -83,14 +83,14 @@ namespace core {
     void DynamicStripesFP<T>::computeAvgWidthDataSecondDim(const cnpy::Array<T> &data, double &avg_width,
             uint64_t &bits_baseline, uint64_t &bits_datawidth) {
 
-        const int mask = 0x80;
+        const uint16_t mask = 0x80;
 
         const std::vector<size_t> &data_shape = data.getShape();
 
-        int first_dim = data_shape[0];
-        int second_dim = data_shape[1];
-        int third_dim = data_shape[2];
-        int fourth_dim = data_shape[3];
+        auto first_dim = data_shape[0];
+        auto second_dim = data_shape[1];
+        auto third_dim = data_shape[2];
+        auto fourth_dim = data_shape[3];
 
         std::vector<double> data_width;
         uint64_t data_bits_datawidth = 0;
@@ -100,7 +100,7 @@ namespace core {
                     for (int l = 0; l < fourth_dim; l++) {
 
                         uint8_t max_bit = 0, min_bit = 16, non_zeroes = 0;
-                        for(int dstr = j; dstr < std::min(j + 16,second_dim); dstr++) {
+                        for(int dstr = j; dstr < std::min(j + 16,(int)second_dim); dstr++) {
 
                             auto data_float = data.get(i, dstr, k, l);
 
@@ -110,11 +110,11 @@ namespace core {
                             auto biased_exponent = std::get<1>(data_bfloat);
 
                             int unbiased_exponent = biased_exponent - 127;
-                            auto exponent = this->sign_magnitude((short)unbiased_exponent, mask);
+                            uint16_t exponent = this->sign_magnitude((short)unbiased_exponent, mask);
 
                             bool neg = false;
                             if((exponent & mask) != 0) {
-                                exponent = exponent & ~(uint16_t)mask;
+                                exponent = exponent & ~mask;
                                 neg = true;
                             }
 
@@ -157,13 +157,13 @@ namespace core {
     void DynamicStripesFP<T>::computeAvgWidthDataSeq2Seq(const cnpy::Array<T> &data, double &avg_width,
             uint64_t &bits_baseline, uint64_t &bits_datawidth) {
 
-        const int mask = 0x80;
+        const uint16_t mask = 0x80;
 
         const std::vector<size_t> &data_shape = data.getShape();
 
-        int first_dim = data_shape[0];
-        int second_dim = data_shape[1];
-        int third_dim = data_shape[2];
+        auto first_dim = data_shape[0];
+        auto second_dim = data_shape[1];
+        auto third_dim = data_shape[2];
 
         std::vector<double> data_width;
         uint64_t data_bits_datawidth = 0;
@@ -172,7 +172,7 @@ namespace core {
                 for (int k = 0; k < third_dim; k += 16) {
 
                     uint8_t max_bit = 0, min_bit = 16, non_zeroes = 0;
-                    for(int dstr = k; dstr < std::min(k + 16,third_dim); dstr++) {
+                    for(int dstr = k; dstr < std::min(k + 16,(int)third_dim); dstr++) {
 
                         auto data_float = data.get(i, j, dstr);
 
@@ -182,11 +182,11 @@ namespace core {
                         auto biased_exponent = std::get<1>(data_bfloat);
 
                         int unbiased_exponent = biased_exponent - 127;
-                        auto exponent = this->sign_magnitude((short)unbiased_exponent, mask);
+                        uint16_t exponent = this->sign_magnitude((short)unbiased_exponent, mask);
 
                         bool neg = false;
                         if((exponent & mask) != 0) {
-                            exponent = exponent & ~(uint16_t)mask;
+                            exponent = exponent & ~mask;
                             neg = true;
                         }
 

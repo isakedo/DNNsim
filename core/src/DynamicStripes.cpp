@@ -12,14 +12,14 @@ namespace core {
 
     template <typename T>
     uint8_t DynamicStripes<T>::computeDynamicStripesColumn(int batch, int recursion, int act_x, int act_y, int kernel_x,
-            int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act, int act_mask, int max_channel,
-            bool lstm) {
+            int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act, uint16_t act_mask,
+            int max_channel, bool lstm) {
 
         uint8_t max_bit = 0, min_bit = 16;
-        for (int channel = init_channel; channel < std::min(init_channel + N_LANES, max_channel); channel++) {
+        for (int channel = init_channel; channel < std::min(init_channel + (int)N_LANES, max_channel); channel++) {
 
             // Computation cycles
-            T act_bits;
+            uint16_t act_bits;
             if(lstm)
                 act_bits = padded_act.get(recursion, batch, channel);
             else
@@ -27,7 +27,7 @@ namespace core {
 
             bool neg = false;
             if((act_bits & act_mask) != 0) {
-                act_bits = act_bits & ~(uint16_t)act_mask;
+                act_bits = act_bits & ~act_mask;
                 neg = true;
             }
 
@@ -53,11 +53,12 @@ namespace core {
     template <typename T>
     void DynamicStripes<T>::computeDynamicStripesTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int stride,
-            const cnpy::Array<T> &padded_act, int act_mask, int max_channel, std::vector<uint32_t> &cycles_per_group,
-            std::vector<uint32_t> &end_previous_pallet, sys::Statistics::Stats &stats) {
+            const cnpy::Array<T> &padded_act, uint16_t act_mask, int max_channel,
+            std::vector<uint32_t> &cycles_per_group, std::vector<uint32_t> &end_previous_pallet,
+            sys::Statistics::Stats &stats) {
 
-        int N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
-        int WINDOWS_PER_GROUP = N_COLUMNS / N_GROUPS;
+        uint32_t N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
+        uint32_t WINDOWS_PER_GROUP = N_COLUMNS / N_GROUPS;
 
         std::vector<uint8_t> per_group_cycles (N_GROUPS, 0);
         uint16_t group_counter = 0;
@@ -71,7 +72,7 @@ namespace core {
                 group_index++;
             }
 
-            for (int channel = init_channel; channel < std::min(init_channel + N_LANES, max_channel); channel++) {
+            for (int channel = init_channel; channel < std::min(init_channel + (int)N_LANES, max_channel); channel++) {
 
                 // Computation cycles
                 uint16_t act_bits;
@@ -84,7 +85,7 @@ namespace core {
 
                     raw_act_bits = raw_act_bits - prev_act_bits;
 
-                    act_bits = this->sign_magnitude(raw_act_bits,(uint16_t)act_mask);
+                    act_bits = this->sign_magnitude(raw_act_bits,act_mask);
                 } else {
                     act_bits = padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
                             stride * list_act_y[window] + kernel_y);
@@ -92,7 +93,7 @@ namespace core {
 
                 bool neg = false;
                 if((act_bits & act_mask) != 0) {
-                    act_bits = act_bits & ~(uint16_t)act_mask;
+                    act_bits = act_bits & ~act_mask;
                     neg = true;
                 }
 
@@ -153,13 +154,13 @@ namespace core {
     template <typename T>
     void DynamicStripes<T>::computeDynamicStripes2DTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_filter, int stride,
-            const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int act_mask, int max_filter,
+            const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, uint16_t act_mask, int max_filter,
             std::vector<uint32_t> &cycles_per_group, std::vector<uint32_t> &end_previous_pallet,
             sys::Statistics::Stats &stats) {
 
         //Get the slowest column
-        int N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
-        int WINDOWS_PER_GROUP = N_COLUMNS / N_GROUPS;
+        uint32_t N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
+        uint32_t WINDOWS_PER_GROUP = N_COLUMNS / N_GROUPS;
 
         std::vector<uint8_t> per_group_cycles (N_GROUPS, 0);
         uint16_t group_counter = 0;
@@ -173,14 +174,14 @@ namespace core {
                 group_index++;
             }
 
-            for (int filter = init_filter; filter < std::min(init_filter + N_ROWS, max_filter); filter++) {
+            for (int filter = init_filter; filter < std::min(init_filter + (int)N_ROWS, max_filter); filter++) {
 
-                auto act_bits = padded_act.get(batch, filter, stride * list_act_x[window] + kernel_x,
+                uint16_t act_bits = padded_act.get(batch, filter, stride * list_act_x[window] + kernel_x,
                         stride * list_act_y[window] + kernel_y);
 
                 bool neg = false;
                 if((act_bits & act_mask) != 0) {
-                    act_bits = act_bits & ~(uint16_t)act_mask;
+                    act_bits = act_bits & ~act_mask;
                     neg = true;
                 }
 
@@ -198,16 +199,17 @@ namespace core {
 
             group_counter++;
             if(group_counter == WINDOWS_PER_GROUP) {
-                if(!LEADING_BIT) per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
-                else per_group_cycles[group_index] = max_bit + 1;
+                if(!LEADING_BIT) per_group_cycles[group_index] = (uint8_t)((min_bit > max_bit) ? 1 :
+                        max_bit - min_bit + 1);
+                else per_group_cycles[group_index] = (uint8_t)(max_bit + 1);
 
             }
 
         }
 
         if(group_counter < WINDOWS_PER_GROUP) {
-            if(!LEADING_BIT) per_group_cycles[group_index] = (min_bit > max_bit) ? 1 : max_bit - min_bit + 1;
-            else per_group_cycles[group_index] = max_bit + 1;
+            if(!LEADING_BIT) per_group_cycles[group_index] = (uint8_t)((min_bit > max_bit) ? 1 : max_bit - min_bit + 1);
+            else per_group_cycles[group_index] = (uint8_t)(max_bit + 1);
 
         }
 
@@ -266,28 +268,28 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size = act_shape[0];
-        int act_channels = act_shape[1];
-        int Nx = act_shape[2];
-        int Ny = act_shape[3];
+        auto batch_size = act_shape[0];
+        auto act_channels = act_shape[1];
+        auto Nx = act_shape[2];
+        auto Ny = act_shape[3];
         if(this->FAST_MODE) batch_size = 1;
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
-        int Kx = wgt_shape[2];
-        int Ky = wgt_shape[3];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
 
         long out_x = (Nx - Kx)/stride + 1;
         long out_y = (Ny - Ky)/stride + 1;
 
         auto act_prec = layer.getActPrecision();
-        auto act_mask = (uint16_t)(1 << (act_prec - 1));
+        auto act_mask = (uint16_t)(1u << (act_prec - 1));
 
         auto wgt_layer_prec = layer.getWgtPrecision();
         auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
         auto filters_per_tile = N_ROWS/rows_per_wgt;
 
-        int groups = act_channels / wgt_channels;
+        auto groups = act_channels / wgt_channels;
         auto num_filters_sets = (uint32_t)ceil(num_filters/(double)filters_per_tile/groups);
         auto baseline_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS/groups);
 
@@ -326,8 +328,8 @@ namespace core {
                 for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
                         for (int k = 0; k < act_channels; k += N_LANES) {
-                            computeDynamicStripesTile(n, list_x, list_y, i, j, k, stride, act, act_mask, act_channels,
-                                    cycles_per_group, end_previous_pallet, stats);
+                            computeDynamicStripesTile(n, list_x, list_y, i, j, k, stride, act, act_mask,
+                                    (int)act_channels, cycles_per_group, end_previous_pallet, stats);
 
                             act_buff_reads++;
                             weight_buff_reads++;
@@ -379,21 +381,21 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size = act_shape[0];
-        int Nx = act_shape[2];
-        int Ny = act_shape[3];
+        auto batch_size = act_shape[0];
+        auto Nx = act_shape[2];
+        auto Ny = act_shape[3];
         if(this->FAST_MODE) batch_size = 1;
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
-        int Kx = wgt_shape[2];
-        int Ky = wgt_shape[3];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
 
         long out_x = (Nx - Kx)/stride + 1;
         long out_y = (Ny - Ky)/stride + 1;
 
         auto act_prec = layer.getActPrecision();
-        auto act_mask = (uint16_t)(1 << (act_prec - 1));
+        auto act_mask = (uint16_t)(1u << (act_prec - 1));
 
         auto wgt_layer_prec = layer.getWgtPrecision();
         auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
@@ -436,7 +438,7 @@ namespace core {
                     for (int i = 0; i < Kx; i++) {
                         for (int j = 0; j < Ky; j++) {
                             computeDynamicStripes2DTile(n,list_x, list_y, i, j, m, stride, act, wgt, act_mask,
-                                    num_filters, cycles_per_col, end_previous_pallet, stats);
+                                    (int)num_filters, cycles_per_col, end_previous_pallet, stats);
 
                             act_buff_reads++;
                             weight_buff_reads++;
@@ -486,7 +488,7 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = layer.getWeights().getShape();
 
-        int batch_size, act_channels, R;
+        uint64_t batch_size, act_channels, R;
         if(lstm) {
             R = act_shape[0];
             batch_size = act_shape[1];
@@ -498,10 +500,10 @@ namespace core {
         }
         if(this->FAST_MODE) batch_size = 1;
 
-        int num_filters = wgt_shape[0];
+        auto num_filters = wgt_shape[0];
 
         auto act_prec = layer.getActPrecision();
-        auto act_mask = (uint16_t)(1 << (act_prec - 1));
+        auto act_mask = (uint16_t)(1u << (act_prec - 1));
 
         auto wgt_layer_prec = layer.getWgtPrecision();
         auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
@@ -567,7 +569,7 @@ namespace core {
         for (n = 0; n < batch_size; n++) {
 
             int column_index = 0;
-            std::vector<int> column_end = std::vector<int>(N_COLUMNS, 0);
+            std::vector<uint64_t> column_end = std::vector<uint64_t>(N_COLUMNS, 0);
             uint64_t cycles = 0;
             uint64_t stall_cycles = 0;
             uint64_t weight_buff_reads = 0;
@@ -580,7 +582,7 @@ namespace core {
                         stall_cycles = column_end[column_index] - cycles;
                         cycles = column_end[column_index];
                     }
-                    auto column_cycles = computeDynamicStripesColumn(n,r,0,0,0,0,k,0,act,act_mask,act_channels,lstm);
+                    auto column_cycles = computeDynamicStripesColumn(n,r,0,0,0,0,k,0,act,act_mask,(int)act_channels,lstm);
                     column_end[column_index] = cycles + column_cycles;
                     cycles++;
                     column_index++;
@@ -600,10 +602,10 @@ namespace core {
             stats.weight_buff_reads.back()[n] = weight_buff_reads * num_filters_sets;
             stats.act_buff_reads.back()[n] = act_buff_reads * num_filters_sets;
             stats.accumulator_updates.back()[n] = accumulator_updates * num_filters_sets;
-            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)N_LANES);
+            stats.scheduled_pe.back()[n] = (uint64_t)(num_filters * N_ROWS * ceil(act_channels/(double)N_LANES));
             auto idle_rows = N_ROWS - (num_filters % N_ROWS);
             idle_rows = idle_rows == 16 ? 0 : idle_rows;
-            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)N_LANES);
+            stats.idle_pe.back()[n] = (uint64_t)(idle_rows * ceil(act_channels/(double)N_LANES));
 
         }
 
@@ -671,13 +673,13 @@ namespace core {
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = 1;
-        int Nx = act_shape[2];
-        int Ny = act_shape[3];
+        auto Nx = act_shape[2];
+        auto Ny = act_shape[3];
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
-        int Kx = wgt_shape[2];
-        int Ky = wgt_shape[3];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
 
         int padding = layer.getPadding();
         int stride = layer.getStride();
@@ -727,10 +729,10 @@ namespace core {
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
         int batch_size = 1;
-        int R = (layer.getType() == "LSTM") ? act_shape[0] : 1;
+        auto R = (layer.getType() == "LSTM") ? act_shape[0] : 1;
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
 
         // Operations
         const auto parallel_mult = (uint64_t)num_filters * wgt_channels * R;
@@ -792,7 +794,8 @@ namespace core {
     template <typename T>
     std::vector<double> DynamicStripes<T>::computeAvgWidthDynamicStripesActTile(int batch, int recursion,
             const std::vector<int> &list_act_x, const std::vector<int> &list_act_y, int kernel_x, int kernel_y,
-            int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, int act_mask, bool lstm) {
+            int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, uint16_t act_mask,
+            bool lstm) {
 
         int N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
         int WINDOWS_PER_GROUP = N_COLUMNS / N_GROUPS;
@@ -812,9 +815,9 @@ namespace core {
                 group_index++;
             }
 
-            for(int channel = init_channel; channel < std::min(init_channel + N_LANES,max_channel); channel++) {
+            for(int channel = init_channel; channel < std::min(init_channel + (int)N_LANES,max_channel); channel++) {
 
-                T act_bits;
+                uint16_t act_bits;
                 if(lstm)
                     act_bits = padded_act.get(recursion, batch, channel);
                 else
@@ -859,7 +862,7 @@ namespace core {
     template <typename T>
     std::vector<double> DynamicStripes<T>::computeAvgWidthDynamicStripesWgtTile(int kernel_x, int kernel_y,
             int init_channel, int init_filter, const cnpy::Array<T> &wgt, int max_channel, int max_filter,
-            int wgt_mask) {
+            uint16_t wgt_mask) {
 
         int N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
         int WINDOWS_PER_GROUP = N_COLUMNS / N_GROUPS;
@@ -869,7 +872,7 @@ namespace core {
         uint16_t group_counter = 0;
         uint16_t group_index = 0;
         uint8_t max_bit = 0, min_bit = 16;
-        for (int filter = init_filter; filter < std::min(init_filter + N_ROWS, max_filter); filter++) {
+        for (int filter = init_filter; filter < std::min(init_filter + (int)N_ROWS, max_filter); filter++) {
 
             if(group_counter == WINDOWS_PER_GROUP)  {
                 max_bit = 0, min_bit = 16;
@@ -877,9 +880,9 @@ namespace core {
                 group_index++;
             }
 
-            for(int channel = init_channel; channel < std::min(init_channel + N_LANES,max_channel); channel++) {
+            for(int channel = init_channel; channel < std::min(init_channel + (int)N_LANES,max_channel); channel++) {
 
-                auto wgt_bits = wgt.get(filter, channel, kernel_x, kernel_y);
+                uint16_t wgt_bits = wgt.get(filter, channel, kernel_x, kernel_y);
 
                 bool neg = false;
                 if((wgt_bits & wgt_mask) != 0) {
@@ -949,7 +952,7 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int batch_size, act_channels, Nx, Ny, R;
+        uint64_t batch_size, act_channels, Nx, Ny, R;
         if(lstm) {
             R = act_shape[0];
             batch_size = act_shape[1];
@@ -965,19 +968,19 @@ namespace core {
         }
         if(this->FAST_MODE) batch_size = 1;
 
-        int num_filters = wgt_shape[0];
-        int wgt_channels = wgt_shape[1];
-        int Kx = wgt_shape[2];
-        int Ky = wgt_shape[3];
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
 
         long out_x = (Nx - Kx)/stride + 1;
         long out_y = (Ny - Ky)/stride + 1;
 
         auto act_prec = layer.getActPrecision();
-        auto act_mask = (uint16_t)(1 << (act_prec - 1));
+        auto act_mask = (uint16_t)(1u << (act_prec - 1));
 
         auto wgt_prec = layer.getWgtPrecision();
-        auto wgt_mask = (uint16_t)(1 << (wgt_prec - 1));
+        auto wgt_mask = (uint16_t)(1u << (wgt_prec - 1));
 
         // Stats
         stats.act_avg_width.emplace_back(std::vector<double>(batch_size,0));
@@ -1011,7 +1014,7 @@ namespace core {
                         for (int j = 0; j < Ky; j++) {
                             for (int k = 0; k < act_channels; k += N_LANES) {
                                 auto tile_act_width = computeAvgWidthDynamicStripesActTile(n, r, list_x, list_y, i, j,
-                                        k, stride, act, act_channels, act_mask, lstm);
+                                        k, stride, act, (int)act_channels, act_mask, lstm);
                                 act_width.insert(act_width.end(), tile_act_width.begin(), tile_act_width.end());
                             }
                         }
@@ -1025,7 +1028,7 @@ namespace core {
             std::vector<uint64_t> act_width_need (network_bits + 1, 0);
             std::vector<double> act_width_need_per (network_bits + 1 ,0);
             for(auto act_group : act_width)
-                for(int a = (int)act_group; a <= network_bits; a++)
+                for(auto a = (int)act_group; a <= network_bits; a++)
                     act_width_need[a]++;
             for(int a = 0; a < act_width_need.size(); a++)
                 act_width_need_per[a] = act_width_need[a] / (double)act_width.size() * 100.;
@@ -1046,8 +1049,8 @@ namespace core {
                     for (int j = 0; j < Ny; j++) {
                         for (int i = 0; i < Nx; i++) {
                             uint8_t max_bit = 0, min_bit = 16, non_zeroes = 0;
-                            for(int channel = k; channel < std::min(k + N_LANES,act_channels); channel++) {
-                                T act_bits;
+                            for(int channel = k; channel < std::min(k + (int)N_LANES,(int)act_channels); channel++) {
+                                uint16_t act_bits;
                                 if(lstm)
                                     act_bits = act.get(r, n, channel);
                                 else
@@ -1097,8 +1100,8 @@ namespace core {
             for (int i = 0; i < Kx; i++) {
                 for (int j = 0; j < Ky; j++) {
                     for (int k = 0; k < wgt_channels; k += N_LANES) {
-                        auto tile_wgt_width = computeAvgWidthDynamicStripesWgtTile(i,j,k,m,wgt,wgt_channels,num_filters,
-                                wgt_mask);
+                        auto tile_wgt_width = computeAvgWidthDynamicStripesWgtTile(i,j,k,m,wgt,(int)wgt_channels,
+                                (int)num_filters, wgt_mask);
                         wgt_width.insert(wgt_width.end(),tile_wgt_width.begin(),tile_wgt_width.end());
 
                     }
@@ -1113,9 +1116,9 @@ namespace core {
                 for (int j = 0; j < Ky; j++) {
                     for (int i = 0; i < Kx; i++) {
                         uint8_t max_bit = 0, min_bit = 16, non_zeroes = 0;
-                        for(int channel = k; channel < std::min(k + N_LANES,wgt_channels); channel++) {
+                        for(int channel = k; channel < std::min(k + (int)N_LANES,(int)wgt_channels); channel++) {
 
-                            auto wgt_bits = wgt.get(m, channel, i, j);
+                            uint16_t wgt_bits = wgt.get(m, channel, i, j);
 
                             if(wgt_bits != 0) non_zeroes++;
 
@@ -1152,7 +1155,7 @@ namespace core {
         std::vector<uint64_t> wgt_width_need (network_bits + 1, 0);
         std::vector<double> wgt_width_need_per (network_bits + 1, 0);
         for(auto wgt_group : wgt_width)
-            for(int w = (int)wgt_group; w <= network_bits; w++)
+            for(auto w = (int)wgt_group; w <= network_bits; w++)
                 wgt_width_need[w]++;
         for(int w = 0; w < wgt_width_need.size(); w++)
             wgt_width_need_per[w] = wgt_width_need[w] / (double)wgt_width.size() * 100.;

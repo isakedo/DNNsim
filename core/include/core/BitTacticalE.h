@@ -15,7 +15,7 @@ namespace core {
     private:
 
         /* Bits of the first stage in the two stages shifting */
-        const int BITS_FIRST_STAGE;
+        const uint32_t BITS_FIRST_STAGE;
 
         /* Compute number of one bit multiplications given a weights and an activation
          * @param act               Activation
@@ -109,10 +109,10 @@ namespace core {
          * @param _N_THREADS            Number of parallel threads for multi-threading execution
          * @param _FAST_MODE            Enable fast mode to simulate only one image
          */
-        BitTacticalE(int _N_LANES, int _N_COLUMNS, int _N_ROWS, int _BITS_FIRST_STAGE, int _COLUMN_REGISTERS,
-                int _LOOKAHEAD_H, int _LOOKASIDE_D, const char _SEARCH_SHAPE, uint8_t _N_THREADS, bool _FAST_MODE) :
-                BitTactical<T>(_N_LANES,_N_COLUMNS,_N_ROWS,_COLUMN_REGISTERS,_LOOKAHEAD_H, _LOOKASIDE_D,_SEARCH_SHAPE,
-                _N_THREADS,_FAST_MODE), BITS_FIRST_STAGE(_BITS_FIRST_STAGE) {}
+        BitTacticalE(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _BITS_FIRST_STAGE,
+                uint32_t _COLUMN_REGISTERS, uint32_t _LOOKAHEAD_H, uint32_t _LOOKASIDE_D, const char _SEARCH_SHAPE,
+                uint8_t _N_THREADS, bool _FAST_MODE) : BitTactical<T>(_N_LANES,_N_COLUMNS,_N_ROWS,_COLUMN_REGISTERS,
+                _LOOKAHEAD_H,_LOOKASIDE_D,_SEARCH_SHAPE,_N_THREADS,_FAST_MODE), BITS_FIRST_STAGE(_BITS_FIRST_STAGE) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

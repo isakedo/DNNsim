@@ -13,16 +13,16 @@ namespace core {
     private:
 
         /* Number of concurrent multiplications per PE */
-        const int N_LANES;
+        const uint32_t N_LANES;
 
         /* Number of columns */
-        const int N_COLUMNS;
+        const uint32_t N_COLUMNS;
 
         /* Number of rows */
-        const int N_ROWS;
+        const uint32_t N_ROWS;
 
         /* Bits per PE */
-        const int BITS_PE;
+        const uint32_t BITS_PE;
 
         /* Compute number of one bit multiplications
          * @param layer_prec    Layer precision
@@ -73,9 +73,9 @@ namespace core {
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          */
-        Stripes(int _N_LANES, int _N_COLUMNS, int _N_ROWS, int _BITS_PE, uint8_t _N_THREADS, bool _FAST_MODE) :
-                Simulator<T>(_N_THREADS,_FAST_MODE), N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS),
-                BITS_PE(_BITS_PE) {}
+        Stripes(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _BITS_PE, uint8_t _N_THREADS,
+                bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE), N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS),
+                N_ROWS(_N_ROWS), BITS_PE(_BITS_PE) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

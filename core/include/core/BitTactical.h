@@ -53,27 +53,27 @@ namespace core {
          * @param max_time      Maximum time than can be scheduled (assuming stationary PSUM FIX)
          * @return              Return the sparse scheduled weights
          */
-        schedule sparse_scheduler(const cnpy::Array<T> &wgt, int act_channels, std::vector<int> &max_time);
+        schedule sparse_scheduler(const cnpy::Array<T> &wgt, uint64_t act_channels, std::vector<int> &max_time);
 
     protected:
 
         /* Number of concurrent multiplications per PE */
-        const int N_LANES;
+        const uint32_t N_LANES;
 
         /* Number of columns */
-        const int N_COLUMNS;
+        const uint32_t N_COLUMNS;
 
         /* Number of rows */
-        const int N_ROWS;
+        const uint32_t N_ROWS;
 
         /* Number of registers per SIP */
-        const int COLUMN_REGISTERS;
+        const uint32_t COLUMN_REGISTERS;
 
         /* Lookahead value of H*/
-        const int LOOKAHEAD_H;
+        const uint32_t LOOKAHEAD_H;
 
         /* Lookaside value of D*/
-        const int LOOKASIDE_D;
+        const uint32_t LOOKASIDE_D;
 
         /* Search shape for the scheduler: must be 'L' or 'T' */
         const char SEARCH_SHAPE;
@@ -83,7 +83,7 @@ namespace core {
          * @param act_channels  Number of activation channels
          * @return              Return the scheduled weights
          */
-        schedule scheduler(const cnpy::Array<T> &wgt, int act_channels);
+        schedule scheduler(const cnpy::Array<T> &wgt, uint64_t act_channels);
 
         /* Compute the timing for a convolutional layer
          * @param layer                 Layer for which we want to calculate the outputs
@@ -144,11 +144,11 @@ namespace core {
          * @param _N_THREADS        Number of parallel threads for multi-threading execution
          * @param _FAST_MODE        Enable fast mode to simulate only one image
          */
-        BitTactical(int _N_LANES, int _N_COLUMNS, int _N_ROWS, int _COLUMN_REGISTERS, int _LOOKAHEAD_H,
-                int _LOOKASIDE_D, const char _SEARCH_SHAPE, uint8_t _N_THREADS, bool _FAST_MODE) :
-                Simulator<T>(_N_THREADS,_FAST_MODE), N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), \
-                COLUMN_REGISTERS(_COLUMN_REGISTERS), LOOKAHEAD_H(_LOOKAHEAD_H), LOOKASIDE_D(_LOOKASIDE_D),
-                SEARCH_SHAPE(_SEARCH_SHAPE) {}
+        BitTactical(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _COLUMN_REGISTERS,
+                uint32_t _LOOKAHEAD_H, uint32_t _LOOKASIDE_D, const char _SEARCH_SHAPE, uint8_t _N_THREADS,
+                bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE), N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS),
+                N_ROWS(_N_ROWS), COLUMN_REGISTERS(_COLUMN_REGISTERS), LOOKAHEAD_H(_LOOKAHEAD_H),
+                LOOKASIDE_D(_LOOKASIDE_D), SEARCH_SHAPE(_SEARCH_SHAPE) {}
 
     public:
 
