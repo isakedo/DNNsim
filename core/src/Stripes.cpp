@@ -277,6 +277,7 @@ namespace core {
 
         // Stats
         stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.idle_columns.push_back((uint64_t)(N_COLUMNS - windows_per_tile*columns_per_act));
         stats.idle_rows.push_back((uint64_t)(N_ROWS - filters_per_tile*rows_per_wgt));
         stats.columns_per_act.push_back((uint64_t)columns_per_act);
