@@ -224,7 +224,7 @@ namespace cnpy {
 
     /* Return value in two complement */
     static inline
-    uint16_t profiled_value(float num, uint16_t mag, uint16_t frac) {
+    uint16_t profiled_value(float num, int mag, int frac) {
         double scale = pow(2.,(double)frac);
         double intmax = (1u << (mag + frac)) - 1;
         double intmin = -1 * intmax;
@@ -288,7 +288,7 @@ namespace cnpy {
     template <typename T>
     Array<uint16_t> Array<T>::tensorflow_fixed_point() const {
         const int NUM_BITS = 8;
-        //const int max_fixed = 127;
+        const int max_fixed = 127;
         const int min_fixed = -128;
         const int num_discrete_values = 1u << NUM_BITS;
         const auto range_adjust = num_discrete_values / (num_discrete_values - 1.0);
@@ -303,7 +303,7 @@ namespace cnpy {
 
             for(int i = 0; i < this->shape[0]; i++) {
                 auto float_value = this->data1D[i];
-                fixed_point_vector.push_back(tensorflow_value(float_value,scale,min_value,max_value,min_fixed));
+                fixed_point_vector.push_back(tensorflow_value(float_value,scale,min_value,max_fixed,min_fixed));
             }
         } else if(this->getDimensions() == 2){
 
@@ -315,7 +315,7 @@ namespace cnpy {
             for(int i = 0; i < this->shape[0]; i++) {
                 for(int j = 0; j < this->shape[1]; j++) {
                     auto float_value = this->data2D[i][j];
-                    fixed_point_vector.push_back(tensorflow_value(float_value,scale,min_value,max_value,min_fixed));
+                    fixed_point_vector.push_back(tensorflow_value(float_value,scale,min_value,max_fixed,min_fixed));
                 }
             }
         } else if (this->getDimensions() == 3) {
@@ -329,7 +329,7 @@ namespace cnpy {
                 for(int j = 0; j < this->shape[1]; j++) {
                     for(int k = 0; k < this->shape[2]; k++) {
                         auto float_value = this->data3D[i][j][k];
-                        fixed_point_vector.push_back(tensorflow_value(float_value,scale,min_value,max_value,min_fixed));
+                        fixed_point_vector.push_back(tensorflow_value(float_value,scale,min_value,max_fixed,min_fixed));
                     }
                 }
             }
@@ -345,7 +345,7 @@ namespace cnpy {
                     for(int k = 0; k < this->shape[2]; k++) {
                         for(int l = 0; l < this->shape[3]; l++) {
                             auto float_value = this->data4D[i][j][k][l];
-                            fixed_point_vector.push_back(tensorflow_value(float_value,scale,min_value,max_value,
+                            fixed_point_vector.push_back(tensorflow_value(float_value,scale,min_value,max_fixed,
                                     min_fixed));
                         }
                     }
