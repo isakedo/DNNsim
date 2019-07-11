@@ -1267,6 +1267,134 @@ namespace core {
         sys::Statistics::addStats(stats);
     }
 
+    /* ON CHIP */
+
+    template <typename T>
+    void DynamicStripes<T>::computeOnChipLayer(const Layer<T> &layer, sys::Statistics::Stats &stats) {
+
+        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+
+        cnpy::Array<T> act = layer.getActivations();
+        act.sign_magnitude_representation(layer.getActPrecision());
+        cnpy::Array<T> wgt = layer.getWeights();
+        wgt.sign_magnitude_representation(layer.getWgtPrecision());
+        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+
+        int padding = layer.getPadding();
+        int stride = layer.getStride();
+
+        if(layer.getType() == "InnerProduct") {
+            if(act.getDimensions() == 4) act.reshape_to_2D();
+            act.reshape_to_4D();
+        }
+
+        if(layer.getType() == "Convolution")
+            act.zero_pad(padding);
+
+        if(act.getShape()[1] == 3 && stride > 1) {
+            act.reshape_first_layer_act((uint16_t)stride);
+            wgt.reshape_first_layer_wgt((uint16_t)stride);
+            stride = 1;
+        }
+
+        const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+        auto batch_size = 1;
+        auto act_channels = act_shape[1];
+        auto Nx = act_shape[2];
+        auto Ny = act_shape[3];
+        if(this->FAST_MODE) batch_size = 1;
+
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
+
+        long out_x = (Nx - Kx)/stride + 1;
+        long out_y = (Ny - Ky)/stride + 1;
+
+        auto act_prec = (uint16_t)layer.getActPrecision();
+        auto act_mask = (uint16_t)(1u << (act_prec - 1u));
+
+        auto group_size = (uint64_t)ceil(act_channels/16.);
+        auto groups = std::vector<std::vector<std::vector<T>>>(Nx,std::vector<std::vector<T>>(Ny,
+                std::vector<T>(group_size)));
+
+        for (int x = 0; x < Nx; ++x) {
+            for (int y = 0; y < Ny; ++y) {
+
+                int groups_idx = 0;
+                for(int k = 0; k < act_channels; k += 16) {
+
+                    uint8_t max_bit = 0;
+                    for (int ss = k; ss < std::min((uint64_t)(k + 16), act_channels); ++ss) {
+
+                        uint16_t act_bits = act.get(0, ss, x, y);
+
+                        bool neg = false;
+                        if((act_bits & act_mask) != 0) {
+                            act_bits = act_bits & ~act_mask;
+                            neg = true;
+                        }
+
+                        const auto &min_max_act_bits = this->minMax(act_bits);
+                        auto max_act_bit = std::get<1>(min_max_act_bits);
+                        if(neg) max_act_bit += 1;
+                        if(max_act_bit > max_bit) max_bit = max_act_bit;
+                    }
+                    int width = max_bit + 1;
+                    groups[x][y][groups_idx] = width;
+                    groups_idx++;
+
+                }
+            }
+        }
+
+        std::vector<std::tuple<uint16_t,uint64_t,uint64_t>> flatten_memory =
+                std::vector<std::tuple<uint16_t,uint64_t,uint64_t>>(Nx*Ny*group_size);
+
+        uint64_t flatten_idx = 0;
+        for (int y = 0; y < Ny; ++y) {
+            for (int x = 0; x < Nx; ++x) {
+                uint64_t channel_size = 0;
+                for (int g = 0; g < group_size; g++) {
+                    channel_size += groups[x][y][g] * 16;
+                }
+                flatten_memory[flatten_idx++] = std::make_tuple(channel_size,x,y);
+            }
+        }
+
+        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+
+        stats.time.push_back(time_span);
+
+    }
+
+    template <typename T>
+    void DynamicStripes<T>::on_chip(const core::Network<T> &network) {
+        // Initialize statistics
+        sys::Statistics::Stats stats;
+        sys::Statistics::initialize(stats);
+
+        stats.task_name = "on_chip";
+        stats.net_name = network.getName();
+        stats.arch = "DynamicStripes";
+
+        for(const Layer<T> &layer : network.getLayers()) {
+            if(layer.getType() == "Convolution") {
+                stats.layers.push_back(layer.getName());
+                stats.act_prec.push_back(layer.getActPrecision());
+                stats.wgt_prec.push_back(layer.getWgtPrecision());
+                computeOnChipLayer(layer, stats);
+            }
+        }
+
+        // Set statistics to write
+        sys::Statistics::addStats(stats);
+    }
+
     template class DynamicStripes<uint16_t>;
 
 }

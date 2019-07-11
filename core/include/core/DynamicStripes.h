@@ -180,6 +180,12 @@ namespace core {
          */
         void computeAvgWidthLayer(const Layer<T> &layer, sys::Statistics::Stats &stats, int network_bits);
 
+        /* Compute the on-chip storage for a layer
+         * @param layer         Layer for which we want to calculate the on chip storage
+         * @param stats         Statistics to fill
+         */
+        void computeOnChipLayer(const Layer<T> &layer, sys::Statistics::Stats &stats);
+
     public:
 
         /* Constructor
@@ -214,6 +220,11 @@ namespace core {
          * @param network   Network we want to check
          */
         void average_width(const Network<T> &network);
+
+        /* Simulate on-chip memory dynamic width storage
+         * @param network   Network we want to check
+         */
+        void on_chip(const Network<T> &network);
 
     };
 

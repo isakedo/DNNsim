@@ -266,17 +266,18 @@ namespace sys {
 
                 value = experiment_proto.task();
                 if(experiment_proto.architecture() != "None" && value  != "Cycles" && value != "Potentials" &&
-                        value != "Schedule" && value != "AvgWidth")
+                        value != "Schedule" && value != "AvgWidth" && value != "OnChip")
                     throw std::runtime_error("Task for network " + simulate.network +
-                                             " in Fixed16 must be <Cycles|Potentials|Schedule|AvgWidth>.");
+                                             " in Fixed16 must be <Cycles|Potentials|Schedule|AvgWidth|OnChip>.");
 
                 if(experiment_proto.architecture() != "BitTacticalE" && experiment_proto.architecture()
                         != "BitTacticalP" && experiment_proto.task() == "Schedule")
                     throw std::runtime_error("Task \"Schedule\" for network " + simulate.network +
                                              " in Fixed16 is only allowed for BitTactialP and BitTacticalE.");
 
-                if(experiment_proto.architecture() != "DynamicStripes" && experiment_proto.task() == "AvgWidth")
-                    throw std::runtime_error("Task \"AvgWidth\" for network " + simulate.network +
+                if(experiment_proto.architecture() != "DynamicStripes" && (experiment_proto.task() == "AvgWidth" ||
+                        experiment_proto.task() == "OnChip"))
+                    throw std::runtime_error("Tasks <AvgWidth|OnChip> for network " + simulate.network +
                                              " in Fixed16 is only allowed for DynamicStripes.");
 
                 experiment.architecture = experiment_proto.architecture();
