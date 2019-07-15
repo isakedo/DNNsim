@@ -1300,7 +1300,7 @@ namespace core {
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        auto batch_size = 1;
+        auto batch_size = act_shape[0];
         auto act_channels = act_shape[1];
         auto Nx = act_shape[2];
         auto Ny = act_shape[3];
@@ -1317,52 +1317,151 @@ namespace core {
         auto act_prec = (uint16_t)layer.getActPrecision();
         auto act_mask = (uint16_t)(1u << (act_prec - 1u));
 
-        auto group_size = (uint64_t)ceil(act_channels/16.);
-        auto groups = std::vector<std::vector<std::vector<T>>>(Nx,std::vector<std::vector<T>>(Ny,
-                std::vector<T>(group_size)));
+        // Stats
+        stats.act_size.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_rows.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_min_rows.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_max_base_pointer.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_max_rel_pointer.emplace_back(std::vector<uint64_t>(batch_size,0));
 
-        for (int x = 0; x < Nx; ++x) {
+        for(int n = 0; n < batch_size; n++) {
+
+            auto group_size = (uint64_t) ceil(act_channels / 16.);
+            auto groups = std::vector<std::vector<std::vector<T>>>(Nx, std::vector<std::vector<T>>(Ny,
+                    std::vector<T>(group_size)));
+
+            for (int x = 0; x < Nx; ++x) {
+                for (int y = 0; y < Ny; ++y) {
+
+                    int groups_idx = 0;
+                    for (int k = 0; k < act_channels; k += 16) {
+
+                        uint8_t max_bit = 0;
+                        for (int ss = k; ss < std::min((uint64_t) (k + 16), act_channels); ++ss) {
+
+                            uint16_t act_bits = act.get(n, ss, x, y);
+
+                            bool neg = false;
+                            if ((act_bits & act_mask) != 0) {
+                                act_bits = act_bits & ~act_mask;
+                                neg = true;
+                            }
+
+                            const auto &min_max_act_bits = this->minMax(act_bits);
+                            auto max_act_bit = std::get<1>(min_max_act_bits);
+                            if (neg) max_act_bit += 1;
+                            if (max_act_bit > max_bit) max_bit = max_act_bit;
+                        }
+                        int width = max_bit + 1;
+                        groups[x][y][groups_idx] = width;
+                        groups_idx++;
+
+                    }
+                }
+            }
+
+            std::vector<std::tuple<uint16_t, uint64_t, uint64_t>> flatten_memory =
+                    std::vector<std::tuple<uint16_t, uint64_t, uint64_t>>(Nx * Ny);
+
+            std::vector<uint64_t> memory = std::vector<uint64_t>(Nx * Ny, 0);
+
+            uint64_t total_size = 0;
+            uint64_t flatten_idx = 0;
             for (int y = 0; y < Ny; ++y) {
+                for (int x = 0; x < Nx; ++x) {
+                    uint64_t channel_size = 0;
+                    for (int g = 0; g < group_size; g++) {
+                        channel_size += groups[x][y][g] * 16;
+                    }
+                    channel_size /= 8;
+                    flatten_memory[flatten_idx] = std::make_tuple(channel_size, x, y);
+                    if(flatten_idx == 0) memory[0] = 0xF0000000;
+                    if((flatten_idx + 1) < memory.size())
+                        memory[flatten_idx + 1] = memory[flatten_idx] + channel_size;
+                    flatten_idx++;
+                    total_size += channel_size;
+                }
+            }
 
-                int groups_idx = 0;
-                for(int k = 0; k < act_channels; k += 16) {
+            std::map<uint64_t, std::tuple<uint16_t, uint64_t, uint64_t>> memory_map;
+            for(uint64_t i = 0; i < flatten_memory.size(); ++i) {
+                memory_map[memory[i]] = flatten_memory[i];
+            }
 
-                    uint8_t max_bit = 0;
-                    for (int ss = k; ss < std::min((uint64_t)(k + 16), act_channels); ++ss) {
+            // Simulate one window
+            std::vector<uint32_t> column_offsets = std::vector<uint32_t>(Ky, 0);
+            std::vector<uint32_t> registers = std::vector<uint32_t>(Ky, 0);
 
-                        uint16_t act_bits = act.get(0, ss, x, y);
+            // Generate initial column_offsets
+            // First position is base address
+            uint8_t init_column = 0;
+            uint32_t act_max_rel_pointer = 0;
+            for(int i = 0; i < Ky; ++i) {
+                if(i == 0) column_offsets[i] = memory[i*Nx];
+                else column_offsets[i] = memory[i*Nx] - column_offsets[0];
+                registers[i] = memory[i*Nx] - column_offsets[0];
+                if(registers[i] > act_max_rel_pointer)
+                    act_max_rel_pointer = registers[i];
+            }
 
-                        bool neg = false;
-                        if((act_bits & act_mask) != 0) {
-                            act_bits = act_bits & ~act_mask;
-                            neg = true;
+            const bool DEBUG = true;
+            uint32_t next_init = 0;
+            for (int y = 0; y < out_y; y++) {
+                for (int x = 0; x < out_x; x++) {
+
+                    if(DEBUG) std::cout << "Window: x" << x << ":y" << y << std::endl;
+
+                    for (int ky = 0; ky < Ky; ky++) {
+
+                        uint32_t pos = (init_column + ky) % Ky;
+                        uint32_t base_addr_pos = init_column % Ky;
+                        next_init = registers[pos];
+                        for (int kx = 0; kx < Kx; kx++) {
+                            if (kx == stride) {
+                                registers[pos] = next_init;
+                                if(registers[pos] > act_max_rel_pointer)
+                                    act_max_rel_pointer = registers[pos];
+                            }
+                            uint32_t address = next_init + column_offsets[base_addr_pos];
+                            auto position = memory_map[address];
+                            if(DEBUG) std::cout << "Processing elements in: nx" << std::get<1>(position) << ":ny" <<
+                                    std::get<2>(position) << std::endl;
+                            next_init += std::get<0>(position);
                         }
 
-                        const auto &min_max_act_bits = this->minMax(act_bits);
-                        auto max_act_bit = std::get<1>(min_max_act_bits);
-                        if(neg) max_act_bit += 1;
-                        if(max_act_bit > max_bit) max_bit = max_act_bit;
                     }
-                    int width = max_bit + 1;
-                    groups[x][y][groups_idx] = width;
-                    groups_idx++;
 
                 }
-            }
-        }
 
-        std::vector<std::tuple<uint16_t,uint64_t,uint64_t>> flatten_memory =
-                std::vector<std::tuple<uint16_t,uint64_t,uint64_t>>(Nx*Ny*group_size);
-
-        uint64_t flatten_idx = 0;
-        for (int y = 0; y < Ny; ++y) {
-            for (int x = 0; x < Nx; ++x) {
-                uint64_t channel_size = 0;
-                for (int g = 0; g < group_size; g++) {
-                    channel_size += groups[x][y][g] * 16;
+                // Update column offsets
+                int new_init_pos = (init_column + 1) % Ky;
+                for(int i = 2; i < Ky; ++i) {
+                    int pos = (init_column + i) % Ky;
+                    column_offsets[pos] -= column_offsets[new_init_pos];
                 }
-                flatten_memory[flatten_idx++] = std::make_tuple(channel_size,x,y);
+                uint32_t last_offset = next_init - column_offsets[new_init_pos];
+                column_offsets[new_init_pos] += column_offsets[init_column];
+                column_offsets[init_column] = last_offset;
+
+                init_column++;
+                if(init_column == Ky) init_column = 0;
+
+                // Update registers
+                for (int i = 0; i < Ky; i++) {
+                    if(i == init_column) registers[i] = 0;
+                    else registers[i] = column_offsets[i];
+                    if(registers[i] > act_max_rel_pointer)
+                        act_max_rel_pointer = registers[i];
+                }
+
             }
+
+            stats.act_size.back()[n] = total_size;
+            stats.act_rows.back()[n] = Ny;
+            stats.act_min_rows.back()[n] = Ky;
+            stats.act_max_base_pointer.back()[n] = memory[memory.size() - 1] - 0xF0000000;
+            stats.act_max_rel_pointer.back()[n] = act_max_rel_pointer;
+
         }
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();

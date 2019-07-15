@@ -33,7 +33,7 @@ namespace sys {
             std::vector<std::vector<uint64_t>> accumulator_updates;         //On-Chip Output Buffer Writes
             std::vector<std::vector<uint64_t>> scheduled_pe;                //Total scheduled Processing Engines
             std::vector<std::vector<uint64_t>> idle_pe;                     //Number of idle PEs in the whole simulation
-            std::vector<std::vector<uint64_t>> stall_cycles;                //Column stall cyckes due to synchronization
+            std::vector<std::vector<uint64_t>> stall_cycles;                //Column stall cycles due to synchronization
 
             /* Stats for 8bits PEs */
             std::vector<uint64_t> idle_columns;                             //Idle columns due to spatial composition
@@ -133,6 +133,13 @@ namespace sys {
             std::vector<std::vector<uint64_t>> bw_out_grad_bits_baseline;
             std::vector<std::vector<uint64_t>> bw_out_grad_bits_datawidth;
 
+            /* Stats for on chip data */
+            std::vector<std::vector<uint64_t>> act_size;
+            std::vector<std::vector<uint64_t>> act_rows;
+            std::vector<std::vector<uint64_t>> act_min_rows;
+            std::vector<std::vector<uint64_t>> act_max_base_pointer;
+            std::vector<std::vector<uint64_t>> act_max_rel_pointer;
+
 
             template <typename T>
             T get_average(const std::vector<T> &vector_stat) const {
@@ -160,6 +167,20 @@ namespace sys {
                     averages[i] = this->get_average(vector_stat[i]);
                 }
                 return this->get_total(averages);
+            }
+
+            template <typename T>
+            T get_max(const std::vector<T> &vector_stat) const {
+                return *max_element(vector_stat.begin(), vector_stat.end());
+            }
+
+            template <typename T>
+            T get_max(const std::vector<std::vector<T>> &vector_stat) const {
+                std::vector<T> maxs = std::vector<T>(vector_stat.size(),0);
+                for(int i = 0; i < vector_stat.size(); i++) {
+                    maxs[i] = this->get_max(vector_stat[i]);
+                }
+                return this->get_max(maxs);
             }
 
         };
