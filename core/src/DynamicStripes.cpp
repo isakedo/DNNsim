@@ -1427,6 +1427,12 @@ namespace core {
                             if(DEBUG) std::cout << "Processing elements in: nx" << std::get<1>(position) << ":ny" <<
                                     std::get<2>(position) << std::endl;
                             next_init += std::get<0>(position);
+
+                            if (Kx == 1) {
+                                registers[pos] = next_init;
+                                if(registers[pos] > act_max_rel_pointer)
+                                    act_max_rel_pointer = registers[pos];
+                            }
                         }
 
                     }
@@ -1434,17 +1440,21 @@ namespace core {
                 }
 
                 // Update column offsets
-                int new_init_pos = (init_column + 1) % Ky;
-                for(int i = 2; i < Ky; ++i) {
-                    int pos = (init_column + i) % Ky;
-                    column_offsets[pos] -= column_offsets[new_init_pos];
-                }
-                uint32_t last_offset = next_init - column_offsets[new_init_pos];
-                column_offsets[new_init_pos] += column_offsets[init_column];
-                column_offsets[init_column] = last_offset;
+                if (Kx != 1) {
+                    int new_init_pos = (init_column + 1) % Ky;
+                    for (int i = 2; i < Ky; ++i) {
+                        int pos = (init_column + i) % Ky;
+                        column_offsets[pos] -= column_offsets[new_init_pos];
+                    }
+                    uint32_t last_offset = next_init - column_offsets[new_init_pos];
+                    column_offsets[new_init_pos] += column_offsets[init_column];
+                    column_offsets[init_column] = last_offset;
 
-                init_column++;
-                if(init_column == Ky) init_column = 0;
+                    init_column++;
+                    if (init_column == Ky) init_column = 0;
+                } else {
+                    column_offsets[init_column] += next_init;
+                }
 
                 // Update registers
                 for (int i = 0; i < Ky; i++) {
