@@ -1406,6 +1406,12 @@ namespace core {
 
             const bool DEBUG = true;
             uint32_t next_init = 0;
+
+            if(stride > Kx)
+                break;
+
+            if (DEBUG) std::cout << "Layer: " << layer.getName() << std::endl;
+
             for (int y = 0; y < out_y; y++) {
                 for (int x = 0; x < out_x; x++) {
 
