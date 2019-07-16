@@ -134,11 +134,14 @@ namespace sys {
             std::vector<std::vector<uint64_t>> bw_out_grad_bits_datawidth;
 
             /* Stats for on chip data */
-            std::vector<std::vector<uint64_t>> act_size;
+            std::vector<std::vector<uint64_t>> act_baseline_size;
+            std::vector<std::vector<uint64_t>> act_datawidth_size;
+            std::vector<std::vector<uint64_t>> act_datawidth_channel_size;
             std::vector<std::vector<uint64_t>> act_rows;
             std::vector<std::vector<uint64_t>> act_min_rows;
             std::vector<std::vector<uint64_t>> act_max_base_pointer;
             std::vector<std::vector<uint64_t>> act_max_rel_pointer;
+            std::vector<std::vector<uint64_t>> act_max_channel_size;
 
 
             template <typename T>

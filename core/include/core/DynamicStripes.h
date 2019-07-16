@@ -184,7 +184,7 @@ namespace core {
          * @param layer         Layer for which we want to calculate the on chip storage
          * @param stats         Statistics to fill
          */
-        void computeOnChipLayer(const Layer<T> &layer, sys::Statistics::Stats &stats);
+        void computeOnChipLayer(const Layer<T> &layer, sys::Statistics::Stats &stats, int network_bits);
 
     public:
 
