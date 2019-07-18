@@ -3,8 +3,9 @@ simulate {
 	model: "Caffe"
 	data_type: "Fixed16"
 	experiment {
-        architecture: "BitTacticalE"
+        architecture: "BitTacticalP"
         task: "Schedule"
+        n_rows: 256
         lookahead_h: 2
         lookaside_d: 5
         search_shape: "L"
@@ -17,7 +18,7 @@ simulate {
 	model: "Caffe"
 	data_type: "Fixed16"
 	experiment {
-        architecture: "BitTacticalE"
+        architecture: "BitTacticalP"
         task: "Cycles"
         n_lanes: 16
         n_columns: 16
