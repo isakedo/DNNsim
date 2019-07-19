@@ -1319,8 +1319,10 @@ namespace core {
 
         // Stats
         stats.act_baseline_size.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_profiled_size.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.act_datawidth_size.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.act_datawidth_channel_size.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_datawidth_positions.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.act_rows.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.act_min_rows.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.act_max_base_pointer.emplace_back(std::vector<uint64_t>(batch_size,0));
@@ -1410,7 +1412,7 @@ namespace core {
                     act_max_rel_pointer = registers[i];
             }
 
-            const bool DEBUG = true;
+            const bool DEBUG = false;
             uint32_t next_init = 0;
 
             if(stride <= Kx) {
@@ -1435,9 +1437,8 @@ namespace core {
                                 }
                                 uint32_t address = next_init + column_offsets[base_addr_pos];
                                 auto position = memory_map[address];
-                                if (DEBUG)
-                                    std::cout << "Processing elements in: nx" << std::get<1>(position) << ":ny" <<
-                                              std::get<2>(position) << std::endl;
+                                if (DEBUG) std::cout << "Processing elements in: nx" << std::get<1>(position) <<
+                                        ":ny" << std::get<2>(position) << std::endl;
                                 next_init += std::get<0>(position);
 
                                 if (Kx == 1) {
@@ -1480,20 +1481,139 @@ namespace core {
 
             }
 
+            // Simulate parallel windows
+            std::vector<std::vector<uint32_t>> column_offsets_par = std::vector<std::vector<uint32_t>>(N_COLUMNS,
+                    std::vector<uint32_t>(Ky, 0));
+            std::vector<std::vector<uint32_t>> registers_par = std::vector<std::vector<uint32_t>>(N_COLUMNS,
+                    std::vector<uint32_t>(Ky, 0));
+
+            // Generate initial column_offsets
+            // First position is base address
+            uint32_t act_max_rel_pointer_par = 0;
+            auto num_windows = out_x * out_y;
+            auto windows_per_column = (uint16_t)ceil(num_windows / (double)N_COLUMNS);
+            std::vector<uint8_t> init_column_par = std::vector<uint8_t>(N_COLUMNS, 0);
+            for(int C = 0; C < N_COLUMNS; C++) {
+
+                auto flatten_pos = C * windows_per_column;
+                int row = flatten_pos / out_x;
+                int column = flatten_pos % out_x;
+                if (DEBUG) std::cout << "Parallel starting position: " << C << " starting at coordinates: " << column
+                        << "," << row << std::endl;
+
+                for (int i = 0; i < Ky; ++i) {
+                    if (i == 0) column_offsets_par[C][i] = memory[(i + row) * Nx];
+                    else column_offsets_par[C][i] = memory[(i + row) * Nx] - column_offsets_par[C][0];
+                    registers_par[C][i] = memory[(i + row) * Nx + column] - column_offsets_par[C][0];
+                    if (registers_par[C][i] > act_max_rel_pointer_par)
+                        act_max_rel_pointer_par = registers_par[C][i];
+                }
+
+            }
+
+            if(stride <= Kx) {
+
+                if (DEBUG) std::cout << "Layer: " << layer.getName() << std::endl;
+
+                for (int w = 0; w < windows_per_column; ++w) {
+
+                    for (int C = 0; C < N_COLUMNS; C++) {
+
+                        auto flatten_pos = C * windows_per_column + w;
+
+                        // Last window may finish earlier
+                        if(flatten_pos >= (out_x * out_y))
+                            continue;
+
+                        int y = flatten_pos / out_x;
+                        int x = flatten_pos % out_x;
+                        if (DEBUG) std::cout << "Set of windows: " << w << " Window: x" << x << ":y" << y << std::endl;
+
+                        for (int ky = 0; ky < Ky; ky++) {
+
+                            uint32_t pos = (init_column_par[C] + ky) % Ky;
+                            uint32_t base_addr_pos = init_column_par[C] % Ky;
+                            next_init = registers_par[C][pos];
+                            for (int kx = 0; kx < Kx; kx++) {
+                                if (kx == stride) {
+                                    registers_par[C][pos] = next_init;
+                                    if (registers_par[C][pos] > act_max_rel_pointer_par)
+                                        act_max_rel_pointer_par = registers_par[C][pos];
+                                }
+                                uint32_t address = next_init + column_offsets_par[C][base_addr_pos];
+                                auto position = memory_map[address];
+                                if (DEBUG) std::cout << "Processing elements in: nx" << std::get<1>(position)
+                                        << ":ny" << std::get<2>(position) << std::endl;
+                                next_init += std::get<0>(position);
+
+                                if (Kx == 1) {
+                                    registers_par[C][pos] = next_init;
+                                    if (registers_par[C][pos] > act_max_rel_pointer_par)
+                                        act_max_rel_pointer_par = registers_par[C][pos];
+                                }
+                            }
+
+                        }
+
+                        if (x == (out_x - 1)) {
+                            // Update column offsets
+                            if (Kx != 1) {
+                                int new_init_pos = (init_column_par[C] + 1) % Ky;
+                                for (int i = 2; i < Ky; ++i) {
+                                    int pos = (init_column_par[C] + i) % Ky;
+                                    column_offsets_par[C][pos] -= column_offsets_par[C][new_init_pos];
+                                }
+                                uint32_t last_offset = next_init - column_offsets_par[C][new_init_pos];
+                                column_offsets_par[C][new_init_pos] += column_offsets_par[C][init_column_par[C]];
+                                column_offsets_par[C][init_column_par[C]] = last_offset;
+
+                                init_column_par[C]++;
+                                if (init_column_par[C] == Ky) init_column_par[C] = 0;
+                            } else {
+                                column_offsets_par[C][init_column_par[C]] += next_init;
+                            }
+
+                            // Update registers
+                            for (int i = 0; i < Ky; i++) {
+                                if (i == init_column_par[C]) registers_par[C][i] = 0;
+                                else registers_par[C][i] = column_offsets_par[C][i];
+                                if (registers_par[C][i] > act_max_rel_pointer_par)
+                                    act_max_rel_pointer_par = registers_par[C][i];
+                            }
+                        }
+
+                    }
+
+                }
+
+
+
+            }
+
             // Bytes
             auto num_act = Nx * Ny * act_channels;
             auto overhead = (uint64_t)ceil(log2(network_bits) * ceil(num_act / 16.) / 8.) ;
             auto max_bits_per_channel = (uint16_t)ceil(log2(act_max_channel_size));
             auto channel_overhead = (uint64_t)ceil(max_bits_per_channel * Nx * Ny / 8.);
+            auto act_max_base_pointer = memory[memory.size() - 1] - 0xF0000000;
+            auto max_bits_pointer = (uint16_t)ceil(log2(act_max_base_pointer));
+            auto position_overhead = (uint16_t)ceil(max_bits_pointer * Nx * Ny / 8.);
 
             stats.act_baseline_size.back()[n] = num_act * 2;
-            stats.act_datawidth_size.back()[n] = total_size + overhead;
-            stats.act_datawidth_channel_size.back()[n] = total_size + overhead + channel_overhead;
+            stats.act_profiled_size.back()[n] = (uint64_t)ceil(num_act * act_prec / 8.);
             stats.act_rows.back()[n] = Ny;
             stats.act_min_rows.back()[n] = Ky;
-            stats.act_max_base_pointer.back()[n] = memory[memory.size() - 1] - 0xF0000000;
-            stats.act_max_rel_pointer.back()[n] = act_max_rel_pointer;
-            stats.act_max_channel_size.back()[n] = act_max_channel_size;
+
+            if (Kx < stride) {
+                stats.act_datawidth_channel_size.back()[n] = total_size + overhead + channel_overhead;
+                stats.act_max_channel_size.back()[n] = act_max_channel_size;
+            } else {
+                stats.act_datawidth_positions.back()[n] = total_size + overhead + position_overhead;
+                stats.act_max_base_pointer.back()[n] = act_max_base_pointer;
+                stats.act_datawidth_size.back()[n] = total_size + overhead;
+                stats.act_max_rel_pointer.back()[n] = act_max_rel_pointer;
+            }
+
 
         }
 

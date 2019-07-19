@@ -135,8 +135,10 @@ namespace sys {
 
             /* Stats for on chip data */
             std::vector<std::vector<uint64_t>> act_baseline_size;
+            std::vector<std::vector<uint64_t>> act_profiled_size;
             std::vector<std::vector<uint64_t>> act_datawidth_size;
             std::vector<std::vector<uint64_t>> act_datawidth_channel_size;
+            std::vector<std::vector<uint64_t>> act_datawidth_positions;
             std::vector<std::vector<uint64_t>> act_rows;
             std::vector<std::vector<uint64_t>> act_min_rows;
             std::vector<std::vector<uint64_t>> act_max_base_pointer;

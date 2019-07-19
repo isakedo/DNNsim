@@ -810,19 +810,20 @@ namespace interface {
     }
 
     void dump_csv_onchip(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
-        o_file << "layer,batch,act_baseline_size,act_datawidth_size,act_datawidth_channel_size,act_datawidth_positions,"
-                  "act_max_base_pointer,act_max_rel_pointer,act_max_channel_size,act_rows,act_min_rows,time(s)"
-                  << std::endl;
+        o_file << "layer,batch,act_baseline_size,act_profiled_size,act_datawidth_size,act_datawidth_channel_size,"
+                  "act_datawidth_positions,act_max_base_pointer,act_max_rel_pointer,act_max_channel_size,act_rows,"
+                  "act_min_rows,time(s)" << std::endl;
 
         #ifdef PER_IMAGE_RESULTS
         for (int j = 0; j < stats.act_baseline_size.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,0\n", stats.layers[i].c_str(), j,
-                        stats.act_baseline_size[i][j], stats.act_datawidth_size[i][j],
-                        stats.act_datawidth_channel_size[i][j], stats.act_datawidth_positions[i][j],
-                        stats.act_max_base_pointer[i][j], stats.act_max_rel_pointer[i][j],
-                        stats.act_max_channel_size[i][j], stats.act_rows[i][j], stats.act_min_rows[i][j]);
+                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,0\n",
+                        stats.layers[i].c_str(), j, stats.act_baseline_size[i][j], stats.act_profiled_size[i][j],
+                        stats.act_datawidth_size[i][j], stats.act_datawidth_channel_size[i][j],
+                        stats.act_datawidth_positions[i][j], stats.act_max_base_pointer[i][j],
+                        stats.act_max_rel_pointer[i][j], stats.act_max_channel_size[i][j], stats.act_rows[i][j],
+                        stats.act_min_rows[i][j]);
                 o_file << line;
             }
         }
@@ -832,22 +833,23 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n", stats.layers[i].c_str(),
-                     stats.get_average(stats.act_baseline_size[i]), stats.get_average(stats.act_datawidth_size[i]),
-                     stats.get_average(stats.act_datawidth_channel_size[i]),
-                     stats.get_average(stats.act_datawidth_positions[i]), stats.get_max(stats.act_max_base_pointer[i]),
-                     stats.get_max(stats.act_max_rel_pointer[i]), stats.get_max(stats.act_max_channel_size[i]),
-                     stats.get_max(stats.act_rows[i]), stats.get_max(stats.act_min_rows[i]), stats.time[i].count());
+            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n",
+                    stats.layers[i].c_str(), stats.get_average(stats.act_baseline_size[i]),
+                    stats.get_average(stats.act_profiled_size[i]), stats.get_average(stats.act_datawidth_size[i]),
+                    stats.get_average(stats.act_datawidth_channel_size[i]),
+                    stats.get_average(stats.act_datawidth_positions[i]), stats.get_max(stats.act_max_base_pointer[i]),
+                    stats.get_max(stats.act_max_rel_pointer[i]), stats.get_max(stats.act_max_channel_size[i]),
+                    stats.get_max(stats.act_rows[i]), stats.get_max(stats.act_min_rows[i]), stats.time[i].count());
             o_file << line;
         }
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n",
-                stats.get_total(stats.act_baseline_size), stats.get_total(stats.act_datawidth_size),
-                stats.get_total(stats.act_datawidth_channel_size), stats.get_total(stats.act_datawidth_positions),
-                stats.get_max(stats.act_max_base_pointer), stats.get_max(stats.act_max_rel_pointer),
-                stats.get_max(stats.act_max_channel_size), stats.get_max(stats.act_rows),
-                stats.get_max(stats.act_min_rows), total_time);
+        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n",
+                stats.get_total(stats.act_baseline_size), stats.get_total(stats.act_profiled_size),
+                stats.get_total(stats.act_datawidth_size), stats.get_total(stats.act_datawidth_channel_size),
+                stats.get_total(stats.act_datawidth_positions), stats.get_max(stats.act_max_base_pointer),
+                stats.get_max(stats.act_max_rel_pointer), stats.get_max(stats.act_max_channel_size),
+                stats.get_max(stats.act_rows), stats.get_max(stats.act_min_rows), total_time);
         o_file << line;
     }
 
