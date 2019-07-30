@@ -1390,8 +1390,8 @@ namespace core {
 
         for(int n = 0; n < batch_size; n++) {
 
-            auto output_activations = std::vector<std::vector<std::vector<T>>>(num_filters,
-                    std::vector<std::vector<T>>(out_x, std::vector<T>(out_y)));
+            auto output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
+                    std::vector<std::vector<uint32_t>>(out_x, std::vector<uint32_t>(out_y)));
 
             // Actual convolution
             for(int m = 0; m < num_filters; m++) {
@@ -1407,7 +1407,7 @@ namespace core {
 
                 for(int x=0; x<out_x; x++) {
                     for(int y=0; y<out_y; y++) {
-                        uint16_t sum = 0;
+                        uint32_t sum = 0;
                         for (int i = 0; i < Kx; i++) {
                             for (int j = 0; j < Ky; j++) {
                                 for (int k = 0; k < wgt_channels; k++) {
@@ -1471,8 +1471,8 @@ namespace core {
             // One Window
 
             int32_t act_next_init = 0, wgt_next_init = 0;
-            auto compressed_output_activations = std::vector<std::vector<std::vector<T>>>(num_filters,
-                    std::vector<std::vector<T>>(out_x, std::vector<T>(out_y, 0)));
+            auto compressed_output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
+                    std::vector<std::vector<uint32_t>>(out_x, std::vector<uint32_t>(out_y, 0)));
 
             // Activations starting positions
             auto channel_groups = (uint64_t)ceil(act_channels / (double)GROUP_SIZE);
@@ -1494,8 +1494,7 @@ namespace core {
 
                         // Weights starting positions
                         wgt_next_init = 0;
-                        uint64_t wgt_base_addr = wgt_row_position[m];
-                        auto tst = wgt_memory_map[wgt_base_addr];
+                        uint64_t wgt_base_addr = wgt_row_position[m]; //[m];
 
                         for (int ky = 0; ky < Ky; ky++) {
 
@@ -1537,7 +1536,12 @@ namespace core {
                                     }
 
                                 }
-                                
+
+                                // Update pointer to next window after last filter
+                                if (m == (num_filters - 1) && (kx == (stride - 1) || Kx == 1)) {
+                                    act_registers[ky] = act_next_init;
+                                }
+
                             }
 
                         }
@@ -1546,29 +1550,43 @@ namespace core {
 
                 }
 
-                /*// Update column offsets
+                // Update column offsets
                 if (Kx != 1) {
-                    int new_init_pos = (init_column + 1) % Ky;
-                    for (int i = 2; i < Ky; ++i) {
-                        int pos = (init_column + i) % Ky;
-                        column_offsets[pos] -= column_offsets[new_init_pos];
+                    auto prev_offset = act_column_offsets[stride];
+                    act_base_addr = act_base_addr + act_column_offsets[stride];
+                    for (int ky = 0; ky < (Ky - 1); ++ky) {
+                        act_column_offsets[ky] = act_column_offsets[ky + 1] - prev_offset;
                     }
-                    uint32_t last_offset = next_init - column_offsets[new_init_pos];
-                    column_offsets[new_init_pos] += column_offsets[init_column];
-                    column_offsets[init_column] = last_offset;
-
-                    init_column++;
-                    if (init_column == Ky) init_column = 0;
+                    act_column_offsets[Ky - 1] = act_next_init - prev_offset;
                 } else {
-                    column_offsets[init_column] += next_init;
+                    act_base_addr += act_next_init;
+                    act_column_offsets[0] = 0;
                 }
 
                 // Update registers
                 for (int i = 0; i < Ky; i++) {
-                    if (i == init_column) registers[i] = 0;
-                    else registers[i] = column_offsets[i];
-                }*/
+                    act_registers[i] = act_column_offsets[i];
+                }
 
+            }
+
+            // Check values
+
+            try {
+
+                for (int ch = 0; ch < num_filters; ++ch) {
+                    for (int x = 0; x < out_x; ++x) {
+                        for (int y = 0; y < out_y; ++y) {
+                            auto actual_value = output_activations[ch][x][y];
+                            auto compressed_value = compressed_output_activations[ch][x][y];
+                            if (actual_value != compressed_value)
+                                throw std::runtime_error("Error");
+                        }
+                    }
+                }
+
+            } catch (std::exception &e) {
+                throw std::runtime_error("On-Chip compressed wrong value.");
             }
 
             // Bytes
