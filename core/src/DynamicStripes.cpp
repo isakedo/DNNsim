@@ -1388,7 +1388,12 @@ namespace core {
             }
         }
 
+        std::cout << "Layer" << layer.getName() << std::endl;
+
         for(int n = 0; n < batch_size; n++) {
+
+            if((Kx == 1 && stride > Kx) || (Kx != 1 && stride >= Kx))
+                break;
 
             auto output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
                     std::vector<std::vector<uint32_t>>(out_x, std::vector<uint32_t>(out_y)));
@@ -1423,15 +1428,16 @@ namespace core {
 
             // Activations compressed
             uint64_t act_memory_offset = 0;
-            std::vector<uint64_t> act_row_position = std::vector<uint64_t>(Ny);
+            std::vector<std::vector<uint64_t>> act_positions = std::vector<std::vector<uint64_t>>(Ny,
+                    std::vector<uint64_t>(Nx));
             std::map<uint64_t, std::tuple<uint16_t, uint64_t, uint64_t, uint64_t, bool>> act_memory_map;
 
             for (int y = 0; y < Ny; ++y) {
 
-                // Generated from "previous" layer
-                act_row_position[y] = act_memory_offset;
-
                 for (int x = 0; x < Nx; ++x) {
+
+                    // Generated from "previous" layer
+                    act_positions[y][x] = act_memory_offset;
 
                     for (int k = 0; k < act_channels; k += GROUP_SIZE) {
 
@@ -1468,47 +1474,69 @@ namespace core {
                 }
             }
 
-            // One Window
+            // Compressed Memory Convolution
 
-            int32_t act_next_init = 0, wgt_next_init = 0;
+            uint32_t wgt_next_init = 0;
+            std::vector<uint32_t> act_next_init = std::vector<uint32_t>(N_COLUMNS);
             auto compressed_output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
                     std::vector<std::vector<uint32_t>>(out_x, std::vector<uint32_t>(out_y, 0)));
 
             // Activations starting positions
             auto channel_groups = (uint64_t)ceil(act_channels / (double)GROUP_SIZE);
-            std::vector<uint32_t> act_column_offsets = std::vector<uint32_t>(Ky, 0);
-            std::vector<uint32_t> act_registers = std::vector<uint32_t>(Ky, 0);
+            std::vector<std::vector<uint32_t>> act_column_offsets = std::vector<std::vector<uint32_t>>(N_COLUMNS,
+                    std::vector<uint32_t>(Ky, 0));
+            std::vector<std::vector<uint32_t>> act_registers = std::vector<std::vector<uint32_t>>(N_COLUMNS,
+                    std::vector<uint32_t>(Ky, 0));
 
-            uint64_t act_base_addr = 0;
-            for(int i = 0; i < Ky; ++i) {
-                auto memory_position = act_row_position[i];
-                if(i == 0) act_base_addr = memory_position;
-                act_column_offsets[i] =  memory_position - act_base_addr;
-                act_registers[i] = memory_position - act_base_addr;
+            auto num_windows = out_x * out_y;
+            auto windows_per_column = (uint16_t)ceil(num_windows / (double)N_COLUMNS);
+            std::vector<uint64_t> act_base_addr = std::vector<uint64_t>(N_COLUMNS, 0);
+            for (int C = 0; C < N_COLUMNS; ++C) {
+
+                auto flatten_pos = C * windows_per_column;
+                int row = flatten_pos / out_x;
+                int column = flatten_pos % out_x;
+                act_base_addr[C] = act_positions[row][0];
+
+                for (int i = 0; i < Ky; ++i) {
+                    act_column_offsets[C][i] = act_positions[row + i][column] - act_base_addr[C];
+                    act_registers[C][i] = act_column_offsets[C][i];
+                }
             }
 
-            for (int y = 0; y < out_y; y++) {
-                for (int x = 0; x < out_x; x++) {
+            for (int w = 0; w < windows_per_column; ++w) {
 
-                    for(int m = 0; m < num_filters; m++) {
+                for(int m = 0; m < num_filters; m++) {
+
+                    for (int C = 0; C < N_COLUMNS; C++) { // Windows in parallel
 
                         // Weights starting positions
                         wgt_next_init = 0;
-                        uint64_t wgt_base_addr = wgt_row_position[m]; //[m];
+                        uint64_t wgt_base_addr = wgt_row_position[m];
+
+                        // Window starting positions
+                        auto flatten_pos = C * windows_per_column + w;
+
+                        // Last window may finish earlier
+                        if (flatten_pos >= (out_x * out_y))
+                            continue;
+
+                        int y = flatten_pos / out_x;
+                        int x = flatten_pos % out_x;
 
                         for (int ky = 0; ky < Ky; ky++) {
 
-                            act_next_init = act_registers[ky];
+                            act_next_init[C] = act_registers[C][ky];
 
                             for (int kx = 0; kx < Kx; kx++) {
 
                                 for (int ch = 0; ch < channel_groups; ++ch) {
 
                                     // Activations width
-                                    uint32_t act_address = act_next_init + act_base_addr;
+                                    uint32_t act_address = act_next_init[C] + act_base_addr[C];
                                     auto act_tuple = act_memory_map[act_address];
                                     int act_width = std::get<0>(act_tuple);
-                                    act_next_init += 4;
+                                    act_next_init[C] += 4;
 
                                     // Weights width
                                     uint32_t wgt_address = wgt_next_init + wgt_base_addr;
@@ -1519,10 +1547,10 @@ namespace core {
                                     for (int ss = 0; ss < GROUP_SIZE; ++ss) {
 
                                         // Activations values
-                                        act_address = act_next_init + act_base_addr;
+                                        act_address = act_next_init[C] + act_base_addr[C];
                                         auto act_channel_tuple = act_memory_map[act_address];
                                         uint16_t ch_act = std::get<0>(act_channel_tuple);
-                                        act_next_init += act_width;
+                                        act_next_init[C] += act_width;
 
                                         // Weights values
                                         wgt_address = wgt_next_init + wgt_base_addr;
@@ -1539,39 +1567,40 @@ namespace core {
 
                                 // Update pointer to next window after last filter
                                 if (m == (num_filters - 1) && (kx == (stride - 1) || Kx == 1)) {
-                                    act_registers[ky] = act_next_init;
+                                    act_registers[C][ky] = act_next_init[C];
                                 }
 
+                            } // Kernel X
+
+                        } // Kernel Y
+
+                        // Update column offsets
+                        if (x == (out_x - 1) && m == (num_filters - 1)) { // Last X window for last filter
+                            if (Kx != 1) {
+                                auto prev_offset = act_column_offsets[C][stride];
+                                act_base_addr[C] = act_base_addr[C] + act_column_offsets[C][stride];
+                                for (int ky = 0; ky < (Ky - 1); ++ky) {
+                                    act_column_offsets[C][ky] = act_column_offsets[C][ky + 1] - prev_offset;
+                                }
+                                act_column_offsets[C][Ky - 1] = act_next_init[C] - prev_offset;
+                            } else {
+                                act_base_addr[C] += act_next_init[C];
+                                act_column_offsets[C][0] = 0;
                             }
 
+                            // Update registers
+                            for (int i = 0; i < Ky; i++) {
+                                act_registers[C][i] = act_column_offsets[C][i];
+                            }
                         }
 
-                    }
+                    } // Parallel windows
 
-                }
+                } // Filters
 
-                // Update column offsets
-                if (Kx != 1) {
-                    auto prev_offset = act_column_offsets[stride];
-                    act_base_addr = act_base_addr + act_column_offsets[stride];
-                    for (int ky = 0; ky < (Ky - 1); ++ky) {
-                        act_column_offsets[ky] = act_column_offsets[ky + 1] - prev_offset;
-                    }
-                    act_column_offsets[Ky - 1] = act_next_init - prev_offset;
-                } else {
-                    act_base_addr += act_next_init;
-                    act_column_offsets[0] = 0;
-                }
-
-                // Update registers
-                for (int i = 0; i < Ky; i++) {
-                    act_registers[i] = act_column_offsets[i];
-                }
-
-            }
+            } // Required window sets for convolution
 
             // Check values
-
             try {
 
                 for (int ch = 0; ch < num_filters; ++ch) {
