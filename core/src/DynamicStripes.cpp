@@ -1484,39 +1484,11 @@ namespace core {
 
                 uint32_t wgt_next_init = 0;
 
-
                 // Activations starting positions
                 auto channel_groups = (uint64_t) ceil(act_channels / (double) GROUP_SIZE);
-                std::vector<uint64_t> act_base_addr = std::vector<uint64_t>(N_COLUMNS, 0);
-                std::vector<std::vector<uint64_t>> act_offsets = std::vector<std::vector<uint64_t>>(Ny,
-                        std::vector<uint64_t>(Nx));
 
                 auto num_windows = out_x * out_y;
                 auto windows_per_column = (uint16_t) ceil(num_windows / (double) N_COLUMNS);
-
-                for (int C = 0; C < N_COLUMNS; ++C) {
-
-                    auto flatten_pos = C * windows_per_column;
-
-                    // Not all windows required
-                    if (flatten_pos >= (out_x * out_y))
-                        continue;
-
-                    int row = (flatten_pos / out_x) * stride;
-                    int column = (flatten_pos % out_x) * stride;
-                    act_base_addr[C] = act_positions[row][column];
-
-                    for (int w = 0; w < windows_per_column; ++w) {
-                        auto delta_flatten_pos = flatten_pos + w;
-
-                        int delta_row = (delta_flatten_pos / out_x) * stride;
-                        int delta_column = (delta_flatten_pos % out_x) * stride;
-
-                        act_offsets[delta_row][delta_column] = act_positions[delta_row][delta_column] - act_base_addr[C];
-                        if (act_offsets[delta_row][delta_column] > act_max_rel_pointer)
-                            act_max_rel_pointer = act_offsets[delta_row][delta_column];
-                    }
-                }
 
                 for (int w = 0; w < windows_per_column; ++w) {
 
@@ -1540,7 +1512,7 @@ namespace core {
 
                             for (int ky = 0; ky < Ky; ky++) {
 
-                                auto act_next_init = act_base_addr[C] + act_offsets[stride * y + ky][stride * x];
+                                auto act_next_init = act_positions[stride * y + ky][stride * x];
 
                                 for (int kx = 0; kx < Kx; kx++) {
 
@@ -1747,7 +1719,7 @@ namespace core {
             stats.act_max_rel_pointer.back()[n] = act_max_rel_pointer;
 
             if(stride > 1) {
-                stats.act_datawidth_overhead.back()[n] = out_x * out_y * Ky * 16 + 32;
+                stats.act_datawidth_overhead.back()[n] = out_x * out_y * Ky * 32;
             } else {
                 stats.act_datawidth_overhead.back()[n] = N_COLUMNS * ((16 * Ky) + (16 * Ky) + 32);
             }
