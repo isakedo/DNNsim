@@ -1332,7 +1332,6 @@ namespace core {
         stats.act_datawidth_groups.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.act_datawidth_overhead.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.act_max_rel_pointer.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_max_channel_size.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.wgt_baseline_size.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.wgt_profiled_size.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.wgt_datawidth_size.emplace_back(std::vector<uint64_t>(batch_size,0));

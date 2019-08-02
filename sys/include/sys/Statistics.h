@@ -140,7 +140,6 @@ namespace sys {
             std::vector<std::vector<uint64_t>> act_datawidth_groups;
             std::vector<std::vector<uint64_t>> act_datawidth_overhead;
             std::vector<std::vector<uint64_t>> act_max_rel_pointer;
-            std::vector<std::vector<uint64_t>> act_max_channel_size;
             std::vector<std::vector<uint64_t>> wgt_baseline_size;
             std::vector<std::vector<uint64_t>> wgt_profiled_size;
             std::vector<std::vector<uint64_t>> wgt_datawidth_size;
