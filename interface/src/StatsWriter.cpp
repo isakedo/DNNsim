@@ -811,7 +811,7 @@ namespace interface {
 
     void dump_csv_onchip(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
         o_file << "layer,batch,act_baseline_size,act_profiled_size,act_datawidth_size,act_datawidth_groups,"
-                  "act_datawidth_overhead,act_max_channel_size,wgt_baseline_size,wgt_profiled_size,"
+                  "act_datawidth_overhead,act_max_rel_pointer,wgt_baseline_size,wgt_profiled_size,"
                   "wgt_datawidth_size,wgt_datawidth_groups,wgt_datawidth_overhead,wgt_max_rel_pointer,time(s)"
                   << std::endl;
 
