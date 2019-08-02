@@ -137,13 +137,16 @@ namespace sys {
             std::vector<std::vector<uint64_t>> act_baseline_size;
             std::vector<std::vector<uint64_t>> act_profiled_size;
             std::vector<std::vector<uint64_t>> act_datawidth_size;
-            std::vector<std::vector<uint64_t>> act_datawidth_channel_size;
-            std::vector<std::vector<uint64_t>> act_datawidth_positions;
-            std::vector<std::vector<uint64_t>> act_rows;
-            std::vector<std::vector<uint64_t>> act_min_rows;
-            std::vector<std::vector<uint64_t>> act_max_base_pointer;
+            std::vector<std::vector<uint64_t>> act_datawidth_groups;
+            std::vector<std::vector<uint64_t>> act_datawidth_overhead;
             std::vector<std::vector<uint64_t>> act_max_rel_pointer;
             std::vector<std::vector<uint64_t>> act_max_channel_size;
+            std::vector<std::vector<uint64_t>> wgt_baseline_size;
+            std::vector<std::vector<uint64_t>> wgt_profiled_size;
+            std::vector<std::vector<uint64_t>> wgt_datawidth_size;
+            std::vector<std::vector<uint64_t>> wgt_datawidth_groups;
+            std::vector<std::vector<uint64_t>> wgt_datawidth_overhead;
+            std::vector<std::vector<uint64_t>> wgt_max_rel_pointer;
 
 
             template <typename T>
