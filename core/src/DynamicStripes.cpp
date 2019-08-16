@@ -1340,15 +1340,25 @@ namespace core {
         stats.wgt_max_rel_pointer.emplace_back(std::vector<uint64_t>(batch_size,0));
 
         // Weights compressed
+        uint64_t data_start = 0xA0000000;
+        uint64_t group_start = 0xF0000000;
+        uint8_t wgt_data_pt = 0u;
+        uint8_t wgt_group_pt = 0u;
+
+        uint64_t wgt_group_size = 0;
+        uint64_t wgt_padding_size = 0;
         uint64_t wgt_datawidth_size = 0;
-        uint64_t wgt_memory_offset = 0;
-        auto wgt_row_position = std::vector<uint64_t>(num_filters);
-        std::map<uint64_t, std::tuple<uint16_t, uint64_t, uint64_t, uint64_t, uint64_t, bool>> wgt_memory_map;
+        uint64_t wgt_data_offset = 0;
+        uint64_t wgt_group_offset = 0;
+        auto wgt_filter_position = std::vector<uint64_t>(num_filters);
+
+        std::map<uint64_t, uint16_t> wgt_memory_map;
+        std::map<uint64_t, std::vector<std::tuple<uint16_t, uint16_t, uint16_t, uint16_t, uint8_t>>> wgt_metadata;
 
         for(int m = 0; m < num_filters; m++) {
 
             // Generated statically
-            wgt_row_position[m] = wgt_memory_offset;
+            wgt_filter_position[m] = wgt_data_offset;
 
             for (int y = 0; y < Ky; ++y) {
 
@@ -1373,26 +1383,56 @@ namespace core {
                             if (max_wgt_bit > max_bit) max_bit = max_wgt_bit;
                         }
 
-                        int width = max_bit + 1;
-                        wgt_memory_map[wgt_memory_offset] = std::make_tuple(width, m, x, y, k, true);
-                        wgt_memory_offset += (uint64_t)log2(network_bits);
+                        uint8_t width = max_bit + 1u;
 
-                        for (int ss = k; ss < k + GROUP_SIZE; ++ss) {
-                            if (ss < wgt_channels)
-                                wgt_memory_map[wgt_memory_offset] = std::make_tuple(wgt.get(m, ss, x, y), m, x, y, ss,
-                                        false);
-                            else
-                                wgt_memory_map[wgt_memory_offset] = std::make_tuple(0, m, x, y, ss, false);
-                            wgt_datawidth_size += width;
-                            wgt_memory_offset += width;
+                        // Store group
+                        uint16_t shifted_group = width << wgt_group_pt;
+                        wgt_memory_map[group_start + wgt_group_offset] |= shifted_group;
+                        wgt_group_pt += 4;
+                        if (wgt_group_pt == 16) {
+                            wgt_group_pt = 0;
+                            wgt_group_offset += 1;
                         }
+
+                        // Store data
+                        bool split = width + wgt_data_pt > 16;
+                        for (int ss = 0; ss < GROUP_SIZE; ++ss) {
+                            auto metadata = std::make_tuple(m, ss + k, x, y, width);
+                            if (ss < wgt_channels) {
+                                uint16_t weight = wgt.get(m, ss + k, x, y);
+                                uint16_t shifted_weight = weight << wgt_data_pt;
+                                wgt_memory_map[data_start + wgt_data_offset + ss] |= shifted_weight;
+                                wgt_metadata[data_start + wgt_data_offset + ss].emplace_back(metadata);
+
+                                if (split) {
+                                    uint16_t rem_weight = weight >> (16u - wgt_data_pt);
+                                    wgt_memory_map[data_start + wgt_data_offset + GROUP_SIZE + ss] = rem_weight;
+                                    wgt_metadata[data_start + wgt_data_offset + GROUP_SIZE + ss].emplace_back(metadata);
+                                }
+                            } else {
+                                wgt_memory_map[data_start + wgt_data_offset + ss] = 0;
+                                wgt_metadata[data_start + wgt_data_offset + ss].emplace_back(metadata);
+                                if (split) wgt_metadata[data_start + wgt_data_offset + GROUP_SIZE + ss].emplace_back(metadata);
+                            }
+                        }
+
+                        if (split) wgt_data_offset += GROUP_SIZE;
+
+                        wgt_group_size += 4;
+                        wgt_datawidth_size += GROUP_SIZE * width;
+                        wgt_data_pt = (wgt_data_pt + width) % 16;
 
                     }
                 }
             }
+
+            if (wgt_data_pt != 0) {
+                wgt_padding_size += (16 - wgt_data_pt) * GROUP_SIZE;
+                wgt_data_offset += GROUP_SIZE;
+            }
         }
 
-        for(int n = 0; n < batch_size; n++) {
+        /*for(int n = 0; n < batch_size; n++) {
 
             auto output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
                     std::vector<std::vector<uint32_t>>(out_x, std::vector<uint32_t>(out_y)));
@@ -1559,7 +1599,7 @@ namespace core {
 
                     } // Filters
 
-                } // Required window sets for convolution*/
+                } // Required window sets for convolution
 
             } else {
 
@@ -1710,7 +1750,6 @@ namespace core {
 
             // Act Bits
             auto num_act = Nx * Ny * act_channels;
-            auto act_groups_overhead = (uint64_t)(log2(network_bits) * Nx * Ny * ceil(act_channels / (double)GROUP_SIZE));
 
             stats.act_baseline_size.back()[n] = num_act * network_bits;
             stats.act_profiled_size.back()[n] = num_act * act_prec;
@@ -1735,7 +1774,7 @@ namespace core {
             stats.wgt_datawidth_groups.back()[n] = wgt_groups_overhead;
             stats.wgt_datawidth_overhead.back()[n] = num_filters * 32;
 
-        }
+        } */
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
