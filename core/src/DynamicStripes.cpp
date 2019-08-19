@@ -1330,18 +1330,23 @@ namespace core {
         stats.act_profiled_size.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.act_datawidth_size.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.act_datawidth_groups.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.act_datawidth_padding.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.act_datawidth_overhead.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.act_max_rel_pointer.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.wgt_baseline_size.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.wgt_profiled_size.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.wgt_datawidth_size.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.wgt_datawidth_groups.emplace_back(std::vector<uint64_t>(batch_size,0));
+        stats.wgt_datawidth_padding.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.wgt_datawidth_overhead.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.wgt_max_rel_pointer.emplace_back(std::vector<uint64_t>(batch_size,0));
 
+        std::map<uint64_t, uint16_t> memory_map;
+        std::map<uint64_t, std::vector<std::tuple<uint16_t, uint16_t, uint16_t, uint16_t, uint8_t, bool>>> metadata;
+
         // Weights compressed
-        uint64_t data_start = 0xA0000000;
-        uint64_t group_start = 0xF0000000;
+        uint64_t wgt_data_start = 0xA0000000;
+        uint64_t wgt_group_start = 0xF0000000;
         uint8_t wgt_data_pt = 0u;
         uint8_t wgt_group_pt = 0u;
 
@@ -1350,10 +1355,8 @@ namespace core {
         uint64_t wgt_datawidth_size = 0;
         uint64_t wgt_data_offset = 0;
         uint64_t wgt_group_offset = 0;
-        auto wgt_filter_position = std::vector<uint64_t>(num_filters);
 
-        std::map<uint64_t, uint16_t> wgt_memory_map;
-        std::map<uint64_t, std::vector<std::tuple<uint16_t, uint16_t, uint16_t, uint16_t, uint8_t>>> wgt_metadata;
+        auto wgt_filter_position = std::vector<uint64_t>(num_filters);
 
         for(int m = 0; m < num_filters; m++) {
 
@@ -1384,10 +1387,11 @@ namespace core {
                         }
 
                         uint8_t width = max_bit + 1u;
+                        auto width_mask = (uint8_t)(1u << (width - 1u));
 
                         // Store group
                         uint16_t shifted_group = width << wgt_group_pt;
-                        wgt_memory_map[group_start + wgt_group_offset] |= shifted_group;
+                        memory_map[wgt_group_start + wgt_group_offset] |= shifted_group;
                         wgt_group_pt += 4;
                         if (wgt_group_pt == 16) {
                             wgt_group_pt = 0;
@@ -1397,30 +1401,36 @@ namespace core {
                         // Store data
                         bool split = width + wgt_data_pt > 16;
                         for (int ss = 0; ss < GROUP_SIZE; ++ss) {
-                            auto metadata = std::make_tuple(m, ss + k, x, y, width);
-                            if (ss < wgt_channels) {
+                            auto metadata_tuple = std::make_tuple(m, ss + k, x, y, width, false);
+                            if ((ss + k) < wgt_channels) {
                                 uint16_t weight = wgt.get(m, ss + k, x, y);
+
+                                if ((weight & wgt_mask) != 0) {
+                                    weight &= ~wgt_mask;
+                                    weight |= width_mask;
+                                }
+
                                 uint16_t shifted_weight = weight << wgt_data_pt;
-                                wgt_memory_map[data_start + wgt_data_offset + ss] |= shifted_weight;
-                                wgt_metadata[data_start + wgt_data_offset + ss].emplace_back(metadata);
+                                memory_map[wgt_data_start + wgt_data_offset + ss] |= shifted_weight;
+                                metadata[wgt_data_start + wgt_data_offset + ss].emplace_back(metadata_tuple);
 
                                 if (split) {
                                     uint16_t rem_weight = weight >> (16u - wgt_data_pt);
-                                    wgt_memory_map[data_start + wgt_data_offset + GROUP_SIZE + ss] = rem_weight;
-                                    wgt_metadata[data_start + wgt_data_offset + GROUP_SIZE + ss].emplace_back(metadata);
+                                    memory_map[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss] = rem_weight;
+                                    metadata[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
                                 }
                             } else {
-                                wgt_memory_map[data_start + wgt_data_offset + ss] = 0;
-                                wgt_metadata[data_start + wgt_data_offset + ss].emplace_back(metadata);
-                                if (split) wgt_metadata[data_start + wgt_data_offset + GROUP_SIZE + ss].emplace_back(metadata);
+                                memory_map[wgt_data_start + wgt_data_offset + ss] = 0;
+                                metadata[wgt_data_start + wgt_data_offset + ss].emplace_back(metadata_tuple);
+                                if (split) metadata[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
                             }
                         }
-
-                        if (split) wgt_data_offset += GROUP_SIZE;
 
                         wgt_group_size += 4;
                         wgt_datawidth_size += GROUP_SIZE * width;
                         wgt_data_pt = (wgt_data_pt + width) % 16;
+                        if (split || wgt_data_pt == 0)
+                            wgt_data_offset += GROUP_SIZE;
 
                     }
                 }
@@ -1429,12 +1439,13 @@ namespace core {
             if (wgt_data_pt != 0) {
                 wgt_padding_size += (16 - wgt_data_pt) * GROUP_SIZE;
                 wgt_data_offset += GROUP_SIZE;
+                wgt_data_pt = 0;
             }
         }
 
-        /*for(int n = 0; n < batch_size; n++) {
+        for(int n = 0; n < batch_size; n++) {
 
-            auto output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
+            /*auto output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
                     std::vector<std::vector<uint32_t>>(out_x, std::vector<uint32_t>(out_y)));
 
             // Actual convolution
@@ -1463,21 +1474,28 @@ namespace core {
                         output_activations[m][x][y] = sum;
                     }
                 }
-            }
+            }*/
 
             // Activations compressed
+            uint64_t act_data_start = 0x20000000;
+            uint64_t act_group_start = 0x40000000;
+            uint8_t act_data_pt = 0u;
+            uint8_t act_group_pt = 0u;
+
+            uint64_t act_group_size = 0;
+            uint64_t act_padding_size = 0;
             uint64_t act_datawidth_size = 0;
-            uint64_t act_memory_offset = 0;
-            std::vector<std::vector<uint64_t>> act_positions = std::vector<std::vector<uint64_t>>(Ny,
-                    std::vector<uint64_t>(Nx));
-            std::map<uint64_t, std::tuple<uint16_t, uint64_t, uint64_t, uint64_t, bool>> act_memory_map;
+            uint64_t act_data_offset = 0;
+            uint64_t act_group_offset = 0;
+
+            auto act_positions = std::vector<std::vector<uint64_t>>(Ny, std::vector<uint64_t>(Nx));
 
             for (int y = 0; y < Ny; ++y) {
 
                 for (int x = 0; x < Nx; ++x) {
 
                     // Generated from "previous" layer
-                    act_positions[y][x] = act_memory_offset;
+                    act_positions[y][x] = act_data_offset;
 
                     for (int k = 0; k < act_channels; k += GROUP_SIZE) {
 
@@ -1498,25 +1516,66 @@ namespace core {
                             if (max_act_bit > max_bit) max_bit = max_act_bit;
                         }
 
-                        int width = max_bit + 1;
-                        act_memory_map[act_memory_offset] = std::make_tuple(width, x, y, k, true);
-                        act_memory_offset += (uint64_t)log2(network_bits);
+                        uint8_t width = max_bit + 1u;
+                        auto width_mask = (uint8_t)(1u << (width - 1u));
 
-                        for (int ss = k; ss < k + GROUP_SIZE; ++ss) {
-                            if (ss < act_channels)
-                                act_memory_map[act_memory_offset] = std::make_tuple(act.get(n, ss, x, y), x, y, ss, false);
-                            else
-                                act_memory_map[act_memory_offset] = std::make_tuple(0, x, y, ss, false);
-                            act_datawidth_size += width;
-                            act_memory_offset += width;
+                        // Store group
+                        uint16_t shifted_group = width << act_group_pt;
+                        memory_map[act_group_start + act_group_offset] |= shifted_group;
+                        act_group_pt += 4;
+                        if (act_group_pt == 16) {
+                            act_group_pt = 0;
+                            act_group_offset += 1;
                         }
 
+                        // Store data
+                        bool split = width + act_data_pt > 16;
+                        for (int ss = 0; ss < GROUP_SIZE; ++ss) {
+                            auto metadata_tuple = std::make_tuple(n, ss + k, x, y, width, true);
+                            if ((ss + k) < act_channels) {
+                                uint16_t activation = act.get(n, ss + k, x, y);
+
+                                if ((activation & act_mask) != 0) {
+                                    activation &= ~act_mask;
+                                    activation |= width_mask;
+                                }
+
+                                uint16_t shifted_activation = activation << act_data_pt;
+                                memory_map[act_data_start + act_data_offset + ss] |= shifted_activation;
+                                metadata[act_data_start + act_data_offset + ss].emplace_back(metadata_tuple);
+
+                                if (split) {
+                                    uint16_t rem_activation = activation >> (16u - act_data_pt);
+                                    memory_map[act_data_start + act_data_offset + GROUP_SIZE + ss] = rem_activation;
+                                    metadata[act_data_start + act_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
+                                }
+                            } else {
+                                memory_map[act_data_start + act_data_offset + ss] = 0;
+                                metadata[act_data_start + act_data_offset + ss].emplace_back(metadata_tuple);
+                                if (split) metadata[act_data_start + act_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
+                            }
+                        }
+
+                        act_group_size += 4;
+                        act_datawidth_size += GROUP_SIZE * width;
+                        act_data_pt = (act_data_pt + width) % 16;
+                        if (split || act_data_pt == 0)
+                            act_data_offset += GROUP_SIZE;
+
                     }
+
+                    if (act_data_pt != 0) {
+                        act_padding_size += (16 - act_data_pt) * GROUP_SIZE;
+                        act_data_offset += GROUP_SIZE;
+                        act_data_pt = 0;
+                    }
+
                 }
+
             }
 
             // Compressed Memory Convolution
-            auto compressed_output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
+            /*auto compressed_output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
                     std::vector<std::vector<uint32_t>>(out_x, std::vector<uint32_t>(out_y,0)));
             uint32_t act_max_rel_pointer = 0;
 
@@ -1746,16 +1805,19 @@ namespace core {
                             throw std::runtime_error("On-Chip compressed wrong value.");
                     }
                 }
-            }
+            }*/
 
             // Act Bits
-            auto num_act = Nx * Ny * act_channels;
-
+            auto num_act = (uint64_t)(Nx * Ny * ceil(act_channels / (double)GROUP_SIZE) * GROUP_SIZE);
             stats.act_baseline_size.back()[n] = num_act * network_bits;
-            stats.act_profiled_size.back()[n] = num_act * act_prec;
+
+            auto proteus_size = ceil(act_channels / (double)GROUP_SIZE) * act_prec;
+            stats.act_profiled_size.back()[n] = Nx * Ny * (uint64_t)ceil(proteus_size / 16.) * 16 * GROUP_SIZE;
+
             stats.act_datawidth_size.back()[n] = act_datawidth_size;
-            stats.act_datawidth_groups.back()[n] = act_groups_overhead;
-            stats.act_max_rel_pointer.back()[n] = act_max_rel_pointer;
+            stats.act_datawidth_groups.back()[n] = act_group_size;
+            stats.act_datawidth_padding.back()[n] = act_padding_size;
+            //stats.act_max_rel_pointer.back()[n] = act_max_rel_pointer;
 
             if(stride > 1) {
                 stats.act_datawidth_overhead.back()[n] = out_x * out_y * Ky * 32;
@@ -1764,17 +1826,17 @@ namespace core {
             }
 
             // Wgt Bits
-            auto num_wgt = num_filters * wgt_channels * Kx * Ky;
-            auto wgt_groups_overhead = (uint64_t)(log2(network_bits) * num_filters * Kx * Ky * ceil(wgt_channels /
-                    (double)GROUP_SIZE));
-
+            auto num_wgt = (uint64_t)(num_filters * Kx * Ky * ceil(wgt_channels / (double)GROUP_SIZE) * GROUP_SIZE);
             stats.wgt_baseline_size.back()[n] = num_wgt * network_bits;
-            stats.wgt_profiled_size.back()[n] = num_wgt * wgt_prec;
+
+            auto filter_size = (uint64_t)(Kx * Ky * ceil(wgt_channels / (double)GROUP_SIZE) * GROUP_SIZE);
+            stats.wgt_profiled_size.back()[n] = num_filters * (uint64_t)ceil(filter_size * wgt_prec / 16.) * 16;
             stats.wgt_datawidth_size.back()[n] = wgt_datawidth_size;
-            stats.wgt_datawidth_groups.back()[n] = wgt_groups_overhead;
+            stats.wgt_datawidth_groups.back()[n] = wgt_group_size;
+            stats.wgt_datawidth_padding.back()[n] = wgt_padding_size;
             stats.wgt_datawidth_overhead.back()[n] = num_filters * 32;
 
-        } */
+        }
 
         std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
