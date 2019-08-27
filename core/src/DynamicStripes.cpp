@@ -1473,7 +1473,7 @@ namespace core {
             }
         }
 
-        for(int n = 1; n < batch_size; n++) {
+        for(int n = 0; n < batch_size; n++) {
 
             std::map<uint64_t, uint16_t> memory_map = wgt_memory_map;
 
@@ -1942,7 +1942,6 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
-                std::cout << layer.getName() << std::endl;
                 stats.act_prec.push_back(layer.getActPrecision());
                 stats.wgt_prec.push_back(layer.getWgtPrecision());
                 computeOnChipLayer(layer, stats, network.getNetwork_bits());
