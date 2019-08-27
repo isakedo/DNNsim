@@ -1456,7 +1456,7 @@ namespace core {
                                 }
                             } else {
                                 auto metadata_tuple = std::make_tuple(m, ss + k, x, y, 0, width, false);
-                                memory_map[wgt_data_start + wgt_data_offset + ss] = 0;
+                                memory_map[wgt_data_start + wgt_data_offset + ss] |= 0;
                                 metadata[wgt_data_start + wgt_data_offset + ss].emplace_back(metadata_tuple);
                                 if (split) metadata[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
                             }
@@ -1480,27 +1480,6 @@ namespace core {
         }
 
         for(int n = 0; n < batch_size; n++) {
-
-            auto output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
-                    std::vector<std::vector<uint32_t>>(out_x, std::vector<uint32_t>(out_y)));
-
-            // Actual convolution
-            for(int m = 0; m < num_filters; m++) {
-
-                for(int x=0; x<out_x; x++) {
-                    for(int y=0; y<out_y; y++) {
-                        uint32_t sum = 0;
-                        for (int i = 0; i < Kx; i++) {
-                            for (int j = 0; j < Ky; j++) {
-                                for (int k = 0; k < wgt_channels; k++) {
-                                    sum += act.get(n, k, stride * x + i, stride * y + j) * wgt.get(m, k, i, j);
-                                }
-                            }
-                        }
-                        output_activations[m][x][y] = sum;
-                    }
-                }
-            }
 
             // Activations compressed
             uint64_t act_data_start = 0x20000000;
@@ -1579,7 +1558,7 @@ namespace core {
                                 }
                             } else {
                                 auto metadata_tuple = std::make_tuple(n, ss + k, x, y, 0, width, true);
-                                memory_map[act_data_start + act_data_offset + ss] = 0;
+                                memory_map[act_data_start + act_data_offset + ss] |= 0;
                                 metadata[act_data_start + act_data_offset + ss].emplace_back(metadata_tuple);
                                 if (split) metadata[act_data_start + act_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
                             }
@@ -1603,418 +1582,331 @@ namespace core {
 
             }
 
-            // Compressed Memory Convolution
-            auto compressed_output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
-                    std::vector<std::vector<uint32_t>>(out_x, std::vector<uint32_t>(out_y,0)));
-            uint32_t act_max_rel_pointer = 0;
+            if (!this->FAST_MODE) {
 
-            if(stride > 1) {
+                auto output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
+                        std::vector<std::vector<uint32_t>>(out_x, std::vector<uint32_t>(out_y)));
 
-            } else {
+                // Actual convolution
+                for (int m = 0; m < num_filters; m++) {
 
-                // Activations starting positions
-                int32_t act_next_blk = 0, wgt_next_blk = 0;
-                auto channel_groups = (uint64_t)ceil(act_channels / (double)GROUP_SIZE);
-                std::vector<uint32_t> act_column_offsets = std::vector<uint32_t>(Ky, 0);
-                std::vector<uint32_t> act_registers = std::vector<uint32_t>(Ky, 0);
-
-                uint64_t act_base_addr = 0;
-                for(int i = 0; i < Ky; ++i) {
-                    auto memory_position = act_positions[i][0];
-                    auto tpl = metadata[memory_position];
-                    if(i == 0) act_base_addr = memory_position;
-                    act_column_offsets[i] =  memory_position - act_base_addr;
-                    act_registers[i] = memory_position - act_base_addr;
-                }
-
-                for (int y = 0; y < out_y; y++) {
                     for (int x = 0; x < out_x; x++) {
-
-                        for(int m = 0; m < num_filters; m++) {
-
-                            // Weights starting positions
-                            wgt_next_blk = 0;
-                            uint8_t wgt_blk_index = 0;
-                            uint64_t wgt_base_addr = wgt_filter_position[m]; //[m];
-
-                            for (int ky = 0; ky < Ky; ky++) {
-
-                                act_next_blk = act_registers[ky];
-
-                                for (int kx = 0; kx < Kx; kx++) {
-
-                                    uint8_t act_blk_index = 0;
-
-                                    for (int ch = 0; ch < channel_groups; ++ch) {
-
-                                        // Activations width
-                                        auto act_group_index = (y + ky) * Nx * channel_groups +
-                                                (x + kx) * channel_groups + ch;
-                                        uint32_t act_block_offset = act_group_index * 4 / 16 + act_group_start;
-                                        uint32_t act_mem_pointer = act_group_index * 4 % 16;
-                                        int act_width = get_value(memory_map, act_block_offset, act_mem_pointer, 4);
-                                        uint16_t act_width_mask = (uint16_t)(1u << (act_width - 1u));
-
-
-                                        // Weights width
-                                        auto wgt_group_index = m * Kx * Ky * channel_groups + ky * Kx * channel_groups +
-                                                kx * channel_groups + ch;
-                                        uint32_t wgt_block_offset = wgt_group_index * 4 / 16 + wgt_group_start;
-                                        uint32_t wgt_mem_pointer = wgt_group_index * 4 % 16;
-                                        int wgt_width = get_value(memory_map, wgt_block_offset, wgt_mem_pointer, 4);
-                                        uint16_t wgt_width_mask = (uint16_t)(1u << (wgt_width - 1u));
-
-                                        // DEBUG {
-                                        int act_index = act_mem_pointer / 4;
-                                        auto act_metadata = metadata[act_block_offset];
-                                        if (std::get<1>(act_metadata[act_index]) != (ch * GROUP_SIZE))
-                                            break;
-                                        if (std::get<2>(act_metadata[act_index]) != (x + kx))
-                                            break;
-                                        if (std::get<3>(act_metadata[act_index]) != (y + ky))
-                                            break;
-                                        if (std::get<4>(act_metadata[act_index]) != act_width)
-                                            break;
-
-                                        int wgt_index = wgt_mem_pointer / 4;
-                                        auto wgt_metadata = metadata[wgt_block_offset];
-                                        if (std::get<0>(wgt_metadata[wgt_index]) != m)
-                                            break;
-                                        if (std::get<1>(wgt_metadata[wgt_index]) != (ch * GROUP_SIZE))
-                                            break;
-                                        if (std::get<2>(wgt_metadata[wgt_index]) != kx)
-                                            break;
-                                        if (std::get<3>(wgt_metadata[wgt_index]) != ky)
-                                            break;
-                                        if (std::get<4>(wgt_metadata[wgt_index]) != wgt_width)
-                                            break;
-                                        // }
-
-                                        for (int ss = 0; ss < GROUP_SIZE; ++ss) {
-
-                                            // Activations values
-                                            act_block_offset = ss + act_next_blk + act_base_addr;
-                                            uint16_t ch_act = get_value(memory_map, act_block_offset, act_blk_index,
-                                                    act_width);
-
-                                            if ((ch_act & act_width_mask) != 0) {
-                                                ch_act &= ~act_width_mask;
-                                                ch_act |= act_mask;
-                                            }
-
-                                            // Weights values
-                                            wgt_block_offset = ss + wgt_next_blk + wgt_base_addr;
-                                            uint16_t ch_wgt = get_value(memory_map, wgt_block_offset, wgt_blk_index,
-                                                    wgt_width);
-
-                                            if ((ch_wgt & wgt_width_mask) != 0) {
-                                                ch_wgt &= ~wgt_width_mask;
-                                                ch_wgt |= wgt_mask;
-                                            }
-
-                                            act_metadata = metadata[act_block_offset];
-                                            if (std::get<1>(act_metadata[0]) != (ch * GROUP_SIZE) + ss)
-                                                break;
-                                            if (std::get<2>(act_metadata[0]) != (x + kx))
-                                                break;
-                                            if (std::get<3>(act_metadata[0]) != (y + ky))
-                                                break;
-                                            if (std::get<4>(act_metadata[0]) != ch_act)
-                                                break;
-
-
-                                            wgt_metadata = metadata[wgt_block_offset];
-                                            if (ss < wgt_channels && wgt.get(m,(ch * GROUP_SIZE) + ss,kx,ky) != ch_wgt)
-                                                std::cout << "dfa";
-
-                                            uint16_t ch_wgt2 = get_value(memory_map, wgt_block_offset, wgt_blk_index,
-                                                                        wgt_width);
-
-                                            if ((ch_wgt2 & wgt_width_mask) != 0) {
-                                                ch_wgt2 &= ~wgt_width_mask;
-                                                ch_wgt2 |= wgt_mask;
-                                            }
-
-                                            // Multiply - Accumulate
-                                            compressed_output_activations[m][x][y] += ch_act * ch_wgt;
-
-                                        }
-
-                                        if ((act_width + act_blk_index) > 15) {
-                                            act_next_blk += GROUP_SIZE;
-                                        }
-                                        act_blk_index = (act_blk_index + act_width) % 16;
-
-                                        if ((wgt_width + wgt_blk_index) > 15) {
-                                            wgt_next_blk += GROUP_SIZE;
-                                        }
-                                        wgt_blk_index = (wgt_blk_index + wgt_width) % 16;
-
+                        for (int y = 0; y < out_y; y++) {
+                            uint32_t sum = 0;
+                            for (int i = 0; i < Kx; i++) {
+                                for (int j = 0; j < Ky; j++) {
+                                    for (int k = 0; k < wgt_channels; k++) {
+                                        sum += act.get(n, k, stride * x + i, stride * y + j) * wgt.get(m, k, i, j);
                                     }
-
-                                    if (act_blk_index != 0) act_next_blk += GROUP_SIZE;
-
-                                    // Update pointer to next window after last filter
-                                    if (m == (num_filters - 1) && (kx == (stride - 1) || Kx == 1)) {
-                                        act_registers[ky] = act_next_blk;
-                                    }
-
-                                }
-
-                            }
-
-                        }
-
-                    }
-
-                    // Update column offsets
-                    if (Kx != 1) {
-                        auto prev_offset = act_column_offsets[stride];
-                        act_base_addr = act_base_addr + act_column_offsets[stride];
-                        for (int ky = 0; ky < (Ky - 1); ++ky) {
-                            act_column_offsets[ky] = act_column_offsets[ky + 1] - prev_offset;
-                        }
-                        act_column_offsets[Ky - 1] = act_next_blk - prev_offset;
-                    } else {
-                        act_base_addr += act_next_blk;
-                        act_column_offsets[0] = 0;
-                    }
-
-                    // Update registers
-                    for (int i = 0; i < Ky; i++) {
-                        act_registers[i] = act_column_offsets[i];
-                    }
-
-                }
-
-            }
-
-            /*if(stride > 1) {
-
-                uint32_t wgt_next_init = 0;
-
-                // Activations starting positions
-                auto channel_groups = (uint64_t) ceil(act_channels / (double) GROUP_SIZE);
-
-                auto num_windows = out_x * out_y;
-                auto windows_per_column = (uint16_t) ceil(num_windows / (double) N_COLUMNS);
-
-                for (int w = 0; w < windows_per_column; ++w) {
-
-                    for (int m = 0; m < num_filters; m++) {
-
-                        for (int C = 0; C < N_COLUMNS; C++) { // Windows in parallel
-
-                            // Weights starting positions
-                            wgt_next_init = 0;
-                            uint64_t wgt_base_addr = wgt_row_position[m];
-
-                            // Window starting positions
-                            auto flatten_pos = C * windows_per_column + w;
-
-                            // Last window may finish earlier
-                            if (flatten_pos >= (out_x * out_y))
-                                continue;
-
-                            int y = flatten_pos / out_x;
-                            int x = flatten_pos % out_x;
-
-                            for (int ky = 0; ky < Ky; ky++) {
-
-                                auto act_next_init = act_positions[stride * y + ky][stride * x];
-
-                                for (int kx = 0; kx < Kx; kx++) {
-
-                                    for (int ch = 0; ch < channel_groups; ++ch) {
-
-                                        // Activations width
-                                        uint32_t act_address = act_next_init;
-                                        auto act_tuple = act_memory_map[act_address];
-                                        int act_width = std::get<0>(act_tuple);
-                                        act_next_init += 4;
-
-                                        // Weights width
-                                        uint32_t wgt_address = wgt_next_init + wgt_base_addr;
-                                        auto wgt_tuple = wgt_memory_map[wgt_address];
-                                        int wgt_width = std::get<0>(wgt_tuple);
-                                        wgt_next_init += 4;
-
-                                        for (int ss = 0; ss < GROUP_SIZE; ++ss) {
-
-                                            // Activations values
-                                            act_address = act_next_init;
-                                            auto act_channel_tuple = act_memory_map[act_address];
-                                            uint16_t ch_act = std::get<0>(act_channel_tuple);
-                                            act_next_init += act_width;
-
-                                            // Weights values
-                                            wgt_address = wgt_next_init + wgt_base_addr;
-                                            auto wgt_channel_tuple = wgt_memory_map[wgt_address];
-                                            uint16_t ch_wgt = std::get<0>(wgt_channel_tuple);
-                                            wgt_next_init += wgt_width;
-
-                                            // Multiply - Accumulate
-                                            compressed_output_activations[m][x][y] += ch_act * ch_wgt;
-
-                                        }
-
-                                    }
-
-                                } // Kernel X
-
-                            } // Kernel Y
-
-                        } // Parallel windows
-
-                    } // Filters
-
-                } // Required window sets for convolution
-
-            } else {
-
-                uint32_t wgt_next_init = 0;
-                std::vector<uint32_t> act_next_init = std::vector<uint32_t>(N_COLUMNS);
-
-                // Activations starting positions
-                auto channel_groups = (uint64_t) ceil(act_channels / (double) GROUP_SIZE);
-                std::vector<std::vector<uint32_t>> act_column_offsets = std::vector<std::vector<uint32_t>>(N_COLUMNS,
-                        std::vector<uint32_t>(Ky,0));
-                std::vector<std::vector<uint32_t>> act_registers = std::vector<std::vector<uint32_t>>(N_COLUMNS,
-                        std::vector<uint32_t>(Ky, 0));
-
-                auto num_windows = out_x * out_y;
-                auto windows_per_column = (uint16_t) ceil(num_windows / (double) N_COLUMNS);
-                std::vector<uint64_t> act_base_addr = std::vector<uint64_t>(N_COLUMNS, 0);
-                for (int C = 0; C < N_COLUMNS; ++C) {
-
-                    auto flatten_pos = C * windows_per_column;
-
-                    // Not all windows required
-                    if (flatten_pos >= (out_x * out_y))
-                        continue;
-
-                    int row = flatten_pos / out_x;
-                    int column = flatten_pos % out_x;
-                    act_base_addr[C] = act_positions[row][0];
-
-                    for (int i = 0; i < Ky; ++i) {
-                        act_column_offsets[C][i] = act_positions[row + i][0] - act_base_addr[C];
-                        act_registers[C][i] = act_positions[row + i][column] - act_base_addr[C];
-                        if (act_registers[C][i] > act_max_rel_pointer)
-                            act_max_rel_pointer = act_registers[C][i];
-                    }
-                }
-
-                for (int w = 0; w < windows_per_column; ++w) {
-
-                    for (int m = 0; m < num_filters; m++) {
-
-                        for (int C = 0; C < N_COLUMNS; C++) { // Windows in parallel
-
-                            // Weights starting positions
-                            wgt_next_init = 0;
-                            uint64_t wgt_base_addr = wgt_row_position[m];
-
-                            // Window starting positions
-                            auto flatten_pos = C * windows_per_column + w;
-
-                            // Last window may finish earlier
-                            if (flatten_pos >= (out_x * out_y))
-                                continue;
-
-                            int y = flatten_pos / out_x;
-                            int x = flatten_pos % out_x;
-
-                            for (int ky = 0; ky < Ky; ky++) {
-
-                                act_next_init[C] = act_registers[C][ky];
-
-                                for (int kx = 0; kx < Kx; kx++) {
-
-                                    for (int ch = 0; ch < channel_groups; ++ch) {
-
-                                        // Activations width
-                                        uint32_t act_address = act_next_init[C] + act_base_addr[C];
-                                        auto act_tuple = act_memory_map[act_address];
-                                        int act_width = std::get<0>(act_tuple);
-                                        act_next_init[C] += 4;
-
-                                        // Weights width
-                                        uint32_t wgt_address = wgt_next_init + wgt_base_addr;
-                                        auto wgt_tuple = wgt_memory_map[wgt_address];
-                                        int wgt_width = std::get<0>(wgt_tuple);
-                                        wgt_next_init += 4;
-
-                                        for (int ss = 0; ss < GROUP_SIZE; ++ss) {
-
-                                            // Activations values
-                                            act_address = act_next_init[C] + act_base_addr[C];
-                                            auto act_channel_tuple = act_memory_map[act_address];
-                                            uint16_t ch_act = std::get<0>(act_channel_tuple);
-                                            act_next_init[C] += act_width;
-
-                                            // Weights values
-                                            wgt_address = wgt_next_init + wgt_base_addr;
-                                            auto wgt_channel_tuple = wgt_memory_map[wgt_address];
-                                            uint16_t ch_wgt = std::get<0>(wgt_channel_tuple);
-                                            wgt_next_init += wgt_width;
-
-                                            // Multiply - Accumulate
-                                            compressed_output_activations[m][x][y] += ch_act * ch_wgt;
-
-                                        }
-
-                                    }
-
-                                    // Update pointer to next window after last filter
-                                    if (m == (num_filters - 1) && (kx == (stride - 1) || Kx == 1)) {
-                                        act_registers[C][ky] = act_next_init[C];
-                                    }
-
-                                } // Kernel X
-
-                            } // Kernel Y
-
-                            // Update column offsets
-                            if (x == (out_x - 1) && m == (num_filters - 1)) { // Last X window for last filter
-                                if (Kx != 1) {
-                                    auto prev_offset = act_column_offsets[C][stride];
-                                    act_base_addr[C] = act_base_addr[C] + act_column_offsets[C][stride];
-                                    for (int ky = 0; ky < (Ky - 1); ++ky) {
-                                        act_column_offsets[C][ky] = act_column_offsets[C][ky + 1] - prev_offset;
-                                    }
-                                    act_column_offsets[C][Ky - 1] = act_next_init[C] - prev_offset;
-                                } else {
-                                    act_base_addr[C] += act_next_init[C];
-                                    act_column_offsets[C][0] = 0;
-                                }
-
-                                // Update registers
-                                for (int i = 0; i < Ky; i++) {
-                                    act_registers[C][i] = act_column_offsets[C][i];
-                                    if (act_registers[C][i] > act_max_rel_pointer)
-                                        act_max_rel_pointer = act_registers[C][i];
                                 }
                             }
-
-                        } // Parallel windows
-
-                    } // Filters
-
-                } // Required window sets for convolution
-
-            }*/
-
-            // Check values
-            for (int ch = 0; ch < num_filters; ++ch) {
-                for (int x = 0; x < out_x; ++x) {
-                    for (int y = 0; y < out_y; ++y) {
-                        auto actual_value = output_activations[ch][x][y];
-                        auto compressed_value = compressed_output_activations[ch][x][y];
-                        if (actual_value != compressed_value)
-                            throw std::runtime_error("On-Chip compressed wrong value.");
+                            output_activations[m][x][y] = sum;
+                        }
                     }
                 }
+
+                // Compressed Memory Convolution
+                auto compressed_output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
+                        std::vector<std::vector<uint32_t>>(out_x, std::vector<uint32_t>(out_y, 0)));
+                uint32_t act_max_rel_pointer = 0;
+
+                if (stride > 1) {
+
+                    /*uint32_t wgt_next_init = 0;
+
+                    // Activations starting positions
+                    auto channel_groups = (uint64_t) ceil(act_channels / (double) GROUP_SIZE);
+
+                    auto num_windows = out_x * out_y;
+                    auto windows_per_column = (uint16_t) ceil(num_windows / (double) N_COLUMNS);
+
+                    for (int w = 0; w < windows_per_column; ++w) {
+
+                        for (int m = 0; m < num_filters; m++) {
+
+                            for (int C = 0; C < N_COLUMNS; C++) { // Windows in parallel
+
+                                // Weights starting positions
+                                wgt_next_init = 0;
+                                uint64_t wgt_base_addr = wgt_row_position[m];
+
+                                // Window starting positions
+                                auto flatten_pos = C * windows_per_column + w;
+
+                                // Last window may finish earlier
+                                if (flatten_pos >= (out_x * out_y))
+                                    continue;
+
+                                int y = flatten_pos / out_x;
+                                int x = flatten_pos % out_x;
+
+                                for (int ky = 0; ky < Ky; ky++) {
+
+                                    auto act_next_init = act_positions[stride * y + ky][stride * x];
+
+                                    for (int kx = 0; kx < Kx; kx++) {
+
+                                        for (int ch = 0; ch < channel_groups; ++ch) {
+
+                                            // Activations width
+                                            uint32_t act_address = act_next_init;
+                                            auto act_tuple = act_memory_map[act_address];
+                                            int act_width = std::get<0>(act_tuple);
+                                            act_next_init += 4;
+
+                                            // Weights width
+                                            uint32_t wgt_address = wgt_next_init + wgt_base_addr;
+                                            auto wgt_tuple = wgt_memory_map[wgt_address];
+                                            int wgt_width = std::get<0>(wgt_tuple);
+                                            wgt_next_init += 4;
+
+                                            for (int ss = 0; ss < GROUP_SIZE; ++ss) {
+
+                                                // Activations values
+                                                act_address = act_next_init;
+                                                auto act_channel_tuple = act_memory_map[act_address];
+                                                uint16_t ch_act = std::get<0>(act_channel_tuple);
+                                                act_next_init += act_width;
+
+                                                // Weights values
+                                                wgt_address = wgt_next_init + wgt_base_addr;
+                                                auto wgt_channel_tuple = wgt_memory_map[wgt_address];
+                                                uint16_t ch_wgt = std::get<0>(wgt_channel_tuple);
+                                                wgt_next_init += wgt_width;
+
+                                                // Multiply - Accumulate
+                                                compressed_output_activations[m][x][y] += ch_act * ch_wgt;
+
+                                            }
+
+                                        }
+
+                                    } // Kernel X
+
+                                } // Kernel Y
+
+                            } // Parallel windows
+
+                        } // Filters
+
+                    } // Required window sets for convolution*/
+
+                } else {
+
+                    uint32_t wgt_next_blk = 0;
+                    std::vector<uint32_t> act_next_blk = std::vector<uint32_t>(N_COLUMNS);
+
+                    // Activations starting positions
+                    auto channel_groups = (uint64_t) ceil(act_channels / (double) GROUP_SIZE);
+                    std::vector<std::vector<uint32_t>> act_column_offsets = std::vector<std::vector<uint32_t>>(
+                            N_COLUMNS,
+                            std::vector<uint32_t>(Ky, 0));
+                    std::vector<std::vector<uint32_t>> act_registers = std::vector<std::vector<uint32_t>>(N_COLUMNS,
+                            std::vector<uint32_t>(Ky, 0));
+
+                    auto num_windows = out_x * out_y;
+                    auto windows_per_column = (uint16_t) ceil(num_windows / (double) N_COLUMNS);
+                    std::vector<uint64_t> act_base_addr = std::vector<uint64_t>(N_COLUMNS, 0);
+                    for (int C = 0; C < N_COLUMNS; ++C) {
+
+                        auto flatten_pos = C * windows_per_column;
+
+                        // Not all windows required
+                        if (flatten_pos >= (out_x * out_y))
+                            continue;
+
+                        int row = flatten_pos / out_x;
+                        int column = flatten_pos % out_x;
+                        act_base_addr[C] = act_positions[row][0];
+
+                        for (int i = 0; i < Ky; ++i) {
+                            act_column_offsets[C][i] = act_positions[row + i][0] - act_base_addr[C];
+                            act_registers[C][i] = act_positions[row + i][column] - act_base_addr[C];
+                            if (act_registers[C][i] > act_max_rel_pointer)
+                                act_max_rel_pointer = act_registers[C][i];
+                        }
+                    }
+
+                    for (int w = 0; w < windows_per_column; ++w) {
+
+                        for (int m = 0; m < num_filters; m++) {
+
+                            for (int C = 0; C < N_COLUMNS; C++) { // Windows in parallel
+
+                                // Weights starting positions
+                                wgt_next_blk = 0;
+                                uint8_t wgt_blk_index = 0;
+                                uint64_t wgt_base_addr = wgt_filter_position[m]; //[m];
+
+                                // Window starting positions
+                                auto flatten_pos = C * windows_per_column + w;
+
+                                // Last window may finish earlier
+                                if (flatten_pos >= (out_x * out_y))
+                                    continue;
+
+                                int y = flatten_pos / out_x;
+                                int x = flatten_pos % out_x;
+
+                                for (int ky = 0; ky < Ky; ky++) {
+
+                                    act_next_blk[C] = act_registers[C][ky];
+
+                                    for (int kx = 0; kx < Kx; kx++) {
+
+                                        uint8_t act_blk_index = 0;
+
+                                        for (int ch = 0; ch < channel_groups; ++ch) {
+
+                                            // Activations width
+                                            auto act_group_index = (y + ky) * Nx * channel_groups +
+                                                    (x + kx) * channel_groups + ch;
+                                            uint32_t act_block_offset = act_group_index * 4 / 16 + act_group_start;
+                                            uint32_t act_mem_pointer = act_group_index * 4 % 16;
+                                            int act_width = get_value(memory_map, act_block_offset, act_mem_pointer, 4);
+                                            uint16_t act_width_mask = (uint16_t) (1u << (act_width - 1u));
+
+
+                                            // Weights width
+                                            auto wgt_group_index =
+                                                    m * Kx * Ky * channel_groups + ky * Kx * channel_groups +
+                                                    kx * channel_groups + ch;
+                                            uint32_t wgt_block_offset = wgt_group_index * 4 / 16 + wgt_group_start;
+                                            uint32_t wgt_mem_pointer = wgt_group_index * 4 % 16;
+                                            int wgt_width = get_value(memory_map, wgt_block_offset, wgt_mem_pointer, 4);
+                                            uint16_t wgt_width_mask = (uint16_t) (1u << (wgt_width - 1u));
+
+                                            // DEBUG {
+                                            int act_index = act_mem_pointer / 4;
+                                            auto act_metadata = metadata[act_block_offset];
+                                            if (std::get<1>(act_metadata[act_index]) != (ch * GROUP_SIZE))
+                                                exit(-1);
+                                            if (std::get<2>(act_metadata[act_index]) != (x + kx))
+                                                exit(-1);
+                                            if (std::get<3>(act_metadata[act_index]) != (y + ky))
+                                                exit(-1);
+                                            if (std::get<4>(act_metadata[act_index]) != act_width)
+                                                exit(-1);
+
+                                            int wgt_index = wgt_mem_pointer / 4;
+                                            auto wgt_metadata = metadata[wgt_block_offset];
+                                            if (std::get<0>(wgt_metadata[wgt_index]) != m)
+                                                exit(-1);
+                                            if (std::get<1>(wgt_metadata[wgt_index]) != (ch * GROUP_SIZE))
+                                                exit(-1);
+                                            if (std::get<2>(wgt_metadata[wgt_index]) != kx)
+                                                exit(-1);
+                                            if (std::get<3>(wgt_metadata[wgt_index]) != ky)
+                                                exit(-1);
+                                            if (std::get<4>(wgt_metadata[wgt_index]) != wgt_width)
+                                                exit(-1);
+                                            // }
+
+                                            for (int ss = 0; ss < GROUP_SIZE; ++ss) {
+
+                                                // Activations values
+                                                act_block_offset = ss + act_next_blk[C] + act_base_addr[C];
+                                                uint16_t ch_act = get_value(memory_map, act_block_offset, act_blk_index,
+                                                        act_width);
+
+                                                if ((ch_act & act_width_mask) != 0) {
+                                                    ch_act &= ~act_width_mask;
+                                                    ch_act |= act_mask;
+                                                }
+
+                                                // Weights values
+                                                wgt_block_offset = ss + wgt_next_blk + wgt_base_addr;
+                                                uint16_t ch_wgt = get_value(memory_map, wgt_block_offset, wgt_blk_index,
+                                                        wgt_width);
+
+                                                if ((ch_wgt & wgt_width_mask) != 0) {
+                                                    ch_wgt &= ~wgt_width_mask;
+                                                    ch_wgt |= wgt_mask;
+                                                }
+
+                                                act_metadata = metadata[act_block_offset];
+                                                if (((ch * GROUP_SIZE) + ss) < act_channels &&
+                                                    act.get(n, (ch * GROUP_SIZE) + ss, x + kx, y + ky) != ch_act)
+                                                    exit(-1);
+
+
+                                                wgt_metadata = metadata[wgt_block_offset];
+                                                if (((ch * GROUP_SIZE) + ss) < wgt_channels &&
+                                                    wgt.get(m, (ch * GROUP_SIZE) + ss, kx, ky) != ch_wgt)
+                                                    exit(-1);
+
+                                                // Multiply - Accumulate
+                                                compressed_output_activations[m][x][y] += ch_act * ch_wgt;
+
+                                            }
+
+                                            if ((act_width + act_blk_index) > 15) {
+                                                act_next_blk[C] += GROUP_SIZE;
+                                            }
+                                            act_blk_index = (act_blk_index + act_width) % 16;
+
+                                            if ((wgt_width + wgt_blk_index) > 15) {
+                                                wgt_next_blk += GROUP_SIZE;
+                                            }
+                                            wgt_blk_index = (wgt_blk_index + wgt_width) % 16;
+
+                                        }
+
+                                        if (act_blk_index != 0) act_next_blk[C] += GROUP_SIZE;
+
+                                        // Update pointer to next window after last filter
+                                        if (m == (num_filters - 1) && (kx == (stride - 1) || Kx == 1)) {
+                                            act_registers[C][ky] = act_next_blk[C];
+                                        }
+
+                                    } // Kernel X
+
+                                } // Kernel Y
+
+                                // Update column offsets
+                                if (x == (out_x - 1) && m == (num_filters - 1)) { // Last X window for last filter
+                                    if (Kx != 1) {
+                                        auto prev_offset = act_column_offsets[C][stride];
+                                        act_base_addr[C] = act_base_addr[C] + act_column_offsets[C][stride];
+                                        for (int ky = 0; ky < (Ky - 1); ++ky) {
+                                            act_column_offsets[C][ky] = act_column_offsets[C][ky + 1] - prev_offset;
+                                        }
+                                        act_column_offsets[C][Ky - 1] = act_next_blk[C] - prev_offset;
+                                    } else {
+                                        act_base_addr[C] += act_next_blk[C];
+                                        act_column_offsets[C][0] = 0;
+                                    }
+
+                                    // Update registers
+                                    for (int i = 0; i < Ky; i++) {
+                                        act_registers[C][i] = act_column_offsets[C][i];
+                                        if (act_registers[C][i] > act_max_rel_pointer)
+                                            act_max_rel_pointer = act_registers[C][i];
+                                    }
+                                }
+
+                            } // Parallel windows
+
+                        } // Filters
+
+                    } // Required window sets for convolution
+
+                }
+
+                // Check values
+                for (int ch = 0; ch < num_filters; ++ch) {
+                    for (int x = 0; x < out_x; ++x) {
+                        for (int y = 0; y < out_y; ++y) {
+                            auto actual_value = output_activations[ch][x][y];
+                            auto compressed_value = compressed_output_activations[ch][x][y];
+                            if (actual_value != compressed_value)
+                                throw std::runtime_error("On-Chip compressed wrong value.");
+                        }
+                    }
+                }
+
+                stats.act_max_rel_pointer.back()[n] = act_max_rel_pointer;
+
             }
 
             // Act Bits
@@ -2027,7 +1919,6 @@ namespace core {
             stats.act_datawidth_size.back()[n] = act_datawidth_size;
             stats.act_datawidth_groups.back()[n] = act_group_size;
             stats.act_datawidth_padding.back()[n] = act_padding_size;
-            //stats.act_max_rel_pointer.back()[n] = act_max_rel_pointer;
 
             if(stride > 1) {
                 stats.act_datawidth_overhead.back()[n] = out_x * out_y * Ky * 32;
@@ -2068,6 +1959,7 @@ namespace core {
         for(const Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
                 stats.layers.push_back(layer.getName());
+                std::cout << layer.getName() << std::endl;
                 stats.act_prec.push_back(layer.getActPrecision());
                 stats.wgt_prec.push_back(layer.getWgtPrecision());
                 computeOnChipLayer(layer, stats, network.getNetwork_bits());
