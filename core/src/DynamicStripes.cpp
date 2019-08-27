@@ -1374,8 +1374,7 @@ namespace core {
         stats.wgt_datawidth_overhead.emplace_back(std::vector<uint64_t>(batch_size,0));
         stats.wgt_max_rel_pointer.emplace_back(std::vector<uint64_t>(batch_size,0));
 
-        std::map<uint64_t, uint16_t> memory_map;
-        std::map<uint64_t, std::vector<std::tuple<uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint8_t, bool>>> metadata;
+        std::map<uint64_t, uint16_t> wgt_memory_map;
 
         // Weights compressed
         uint64_t wgt_data_start = 0xA0000000;
@@ -1424,8 +1423,7 @@ namespace core {
                         // Store group
                         auto metadata_grp = std::make_tuple(m, k, x, y, width, 4, false);
                         uint16_t shifted_group = width << wgt_group_pt;
-                        memory_map[wgt_group_start + wgt_group_offset] |= shifted_group;
-                        metadata[wgt_group_start + wgt_group_offset].emplace_back(metadata_grp);
+                        wgt_memory_map[wgt_group_start + wgt_group_offset] |= shifted_group;
                         wgt_group_pt += 4;
                         if (wgt_group_pt == 16) {
                             wgt_group_pt = 0;
@@ -1446,19 +1444,15 @@ namespace core {
                                 }
 
                                 uint16_t shifted_weight = weight << wgt_data_pt;
-                                memory_map[wgt_data_start + wgt_data_offset + ss] |= shifted_weight;
-                                metadata[wgt_data_start + wgt_data_offset + ss].emplace_back(metadata_tuple);
+                                wgt_memory_map[wgt_data_start + wgt_data_offset + ss] |= shifted_weight;
 
                                 if (split) {
                                     uint16_t rem_weight = weight >> (16u - wgt_data_pt);
-                                    memory_map[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss] = rem_weight;
-                                    metadata[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
+                                    wgt_memory_map[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss] = rem_weight;
                                 }
                             } else {
                                 auto metadata_tuple = std::make_tuple(m, ss + k, x, y, 0, width, false);
-                                memory_map[wgt_data_start + wgt_data_offset + ss] |= 0;
-                                metadata[wgt_data_start + wgt_data_offset + ss].emplace_back(metadata_tuple);
-                                if (split) metadata[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
+                                wgt_memory_map[wgt_data_start + wgt_data_offset + ss] |= 0;
                             }
                         }
 
@@ -1479,7 +1473,9 @@ namespace core {
             }
         }
 
-        for(int n = 0; n < batch_size; n++) {
+        for(int n = 1; n < batch_size; n++) {
+
+            std::map<uint64_t, uint16_t> memory_map = wgt_memory_map;
 
             // Activations compressed
             uint64_t act_data_start = 0x20000000;
@@ -1493,7 +1489,7 @@ namespace core {
             uint64_t act_data_offset = 0;
             uint64_t act_group_offset = 0;
 
-            auto act_positions = std::vector<std::vector<uint64_t>>(Ny, std::vector<uint64_t>(Nx));
+            auto act_positions = std::vector<std::vector<uint64_t>>(Ny, std::vector<uint64_t>(Nx, 0));
 
             for (int y = 0; y < Ny; ++y) {
 
@@ -1527,7 +1523,6 @@ namespace core {
                         auto metadata_grp = std::make_tuple(n, k, x, y, width, 4, true);
                         uint16_t shifted_group = width << act_group_pt;
                         memory_map[act_group_start + act_group_offset] |= shifted_group;
-                        metadata[act_group_start + act_group_offset].emplace_back(metadata_grp);
                         act_group_pt += 4;
                         if (act_group_pt == 16) {
                             act_group_pt = 0;
@@ -1549,18 +1544,14 @@ namespace core {
 
                                 uint16_t shifted_activation = activation << act_data_pt;
                                 memory_map[act_data_start + act_data_offset + ss] |= shifted_activation;
-                                metadata[act_data_start + act_data_offset + ss].emplace_back(metadata_tuple);
 
                                 if (split) {
                                     uint16_t rem_activation = activation >> (16u - act_data_pt);
                                     memory_map[act_data_start + act_data_offset + GROUP_SIZE + ss] = rem_activation;
-                                    metadata[act_data_start + act_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
                                 }
                             } else {
                                 auto metadata_tuple = std::make_tuple(n, ss + k, x, y, 0, width, true);
                                 memory_map[act_data_start + act_data_offset + ss] |= 0;
-                                metadata[act_data_start + act_data_offset + ss].emplace_back(metadata_tuple);
-                                if (split) metadata[act_data_start + act_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
                             }
                         }
 
@@ -1585,7 +1576,7 @@ namespace core {
             if (!this->FAST_MODE) {
 
                 auto output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
-                        std::vector<std::vector<uint32_t>>(out_x, std::vector<uint32_t>(out_y)));
+                        std::vector<std::vector<uint32_t>>(out_x, std::vector<uint32_t>(out_y, 0)));
 
                 // Actual convolution
                 for (int m = 0; m < num_filters; m++) {
