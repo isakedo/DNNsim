@@ -11,19 +11,20 @@ namespace cnpy {
 
     private:
 
-        /* Set to true to ensure the array is read as 4D */
-        bool force4D = false;
+        typedef std::vector<std::vector<std::vector<std::vector<T>>>> Array4D;
+        typedef std::vector<std::vector<std::vector<T>>> Array3D;
+        typedef std::vector<std::vector<T>> Array2D;
+        typedef std::vector<T> Array1D;
 
-        /* Vector with the size of the vector for each dimension
-         * Example for 4D: filter index, channel index, X-dimension index, Y-dimension index
+        /**
+         * Data of the array.
+         */
+        Array4D data;
+
+        /**
+         * Dimensions and size of the array.
          */
         std::vector<size_t> shape;
-
-        /* Vector containing the data */
-        std::vector<T> data1D;
-        std::vector<std::vector<T>> data2D;
-        std::vector<std::vector<std::vector<T>>> data3D;
-        std::vector<std::vector<std::vector<std::vector<T>>>> data4D;
 
     public:
 
@@ -141,9 +142,6 @@ namespace cnpy {
          * @param K   New K dimension for the channels
          */
         void channel_zero_pad(int K);
-
-        /* Transform a 2D array into 4D to allow accessing it as 4D */
-        void reshape_to_4D();
 
         /* Transform a 4D array into 2D */
         void reshape_to_2D();

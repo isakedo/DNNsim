@@ -8,47 +8,34 @@ namespace cnpy {
     template <typename T>
     void Array<T>::set_values(const std::string &path) {
         cnpy::NpyArray data_npy;
-        cnpy::npy_load(path, data_npy, this->shape);
-        std::vector<T> flat_array = data_npy.as_vec<T>();
-        if (this->getDimensions() == 1) this->data1D = flat_array;
-        else if(this->getDimensions() == 2){
-            this->data2D = std::vector<std::vector<T>>(this->shape[0],std::vector<T>(this->shape[1]));
-            for(int i = 0; i < this->shape[0]; i++) {
-                for(int j = 0; j < this->shape[1]; j++)
-                    this->data2D[i][j] = flat_array[this->shape[1]*i + j];
-            }
+        cnpy::npy_load(path, data_npy, shape);
+        std::vector<uint16_t> flat_array = data_npy.as_vec<uint16_t>();
 
-        } else if (this->getDimensions() == 3) {
-            unsigned long coef1 = shape[1]*shape[2];
-            this->data3D = std::vector<std::vector<std::vector<T>>>(this->shape[0],
-                    std::vector<std::vector<T>>(this->shape[1],std::vector<T>(this->shape[2])));
-            for(int i = 0; i < this->shape[0]; i++) {
-                for(int j = 0; j < this->shape[1]; j++) {
-                    for(int k = 0; k < this->shape[2]; k++)
-                            this->data3D[i][j][k] = flat_array[coef1*i + shape[2]*j + k];
-                }
-            }
-        } else if (this->getDimensions() == 4) {
-            unsigned long coef1 = shape[1]*shape[2]*shape[3];
-            unsigned long coef2 = shape[2]*shape[3];
-            this->data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(this->shape[0],
-                    std::vector<std::vector<std::vector<T>>>(this->shape[1],std::vector<std::vector<T>>(this->shape[2],
-                    std::vector<T>(this->shape[3]))));
-            for(int i = 0; i < this->shape[0]; i++) {
-                for(int j = 0; j < this->shape[1]; j++) {
-                    for(int k = 0; k < this->shape[2]; k++) {
-                        for(int l = 0; l < this->shape[3]; l++)
-                            this->data4D[i][j][k][l] = flat_array[coef1*i + coef2*j + shape[3]*k + l];
+        if (shape.size() == 2) {
+            shape.push_back(1);
+            shape.push_back(1);
+        }
+
+        uint64_t last3Dim = shape[1] * shape[2] * shape[3];
+        uint64_t last2Dim = shape[2] * shape[3];
+        data = Array4D(shape[0], Array3D(shape[1], Array2D(shape[2], Array1D(shape[3]))));
+
+        for (uint64_t i = 0; i < shape[0]; i++) {
+            for (uint64_t j = 0; j < shape[1]; j++) {
+                for (uint64_t k = 0; k < shape[2]; k++) {
+                    for (uint64_t l = 0; l < shape[3]; l++) {
+                        auto value = flat_array[last3Dim * i + last2Dim * j + shape[3] * k + l];
+                        data[i][j][k][l] = value;
                     }
                 }
             }
-        } else throw std::runtime_error("Array dimensions error");
+        }
     }
 
     template <typename T>
     void Array<T>::set_values(const std::vector<T> &_data, const std::vector<size_t> &_shape) {
         Array::shape = _shape;
-        if (this->getDimensions() == 1) this->data1D = _data;
+        if (_sha == 1) this->data1D = _data;
         else if(this->getDimensions() == 2){
             this->data2D = std::vector<std::vector<T>>(this->shape[0],std::vector<T>(this->shape[1]));
             for(int i = 0; i < this->shape[0]; i++) {
@@ -90,7 +77,7 @@ namespace cnpy {
         if(getDimensions() != 4)
             throw std::runtime_error("4D Array dimensions error");
         #endif
-        return this->data4D[i][j][k][l];
+        return this->data[i][j][k][l];
     }
 
     template <typename T>
@@ -99,7 +86,7 @@ namespace cnpy {
         if(getDimensions() != 3)
             throw std::runtime_error("3D Array dimensions error");
         #endif
-        return this->data3D[i][j][k];
+        return this->data[i][j][k][0];
     }
 
     template <typename T>
@@ -108,7 +95,7 @@ namespace cnpy {
         if(getDimensions() != 2)
             throw std::runtime_error("2D Array dimensions error");
         #endif
-        return this->data2D[i][j];
+        return this->data[i][j][0][0];
     }
 
     template <typename T>
@@ -177,32 +164,18 @@ namespace cnpy {
 
     template <typename T>
     T Array<T>::get(unsigned long long index) const {
-        if(this->getDimensions() == 4) {
-            auto i = index / (this->shape[1]*this->shape[2]*this->shape[3]);
-            auto rem = index % (this->shape[1]*this->shape[2]*this->shape[3]);
-            auto j = rem / (this->shape[2]*this->shape[3]);
-            rem %= (this->shape[2]*this->shape[3]);
-            auto k = rem / this->shape[3];
-            auto l = rem % this->shape[3];
-            return this->data4D[i][j][k][l];
-        } else if(this->getDimensions() == 3) {
-            auto i = index / (this->shape[1]*this->shape[2]);
-            auto rem = index % (this->shape[1]*this->shape[2]);
-            auto j = rem / this->shape[2];
-            auto k = rem % this->shape[2];
-            return this->data3D[i][j][k];
-        } else if (this->getDimensions() == 2) {
-            auto i = index / this->shape[1];
-            auto j = index % this->shape[1];
-            return this->data2D[i][j];
-        } else if (this->getDimensions() == 1) return this->data1D[index];
-        else throw std::runtime_error("Array dimensions error");
+        auto i = index / (this->shape[1]*this->shape[2]*this->shape[3]);
+        auto rem = index % (this->shape[1]*this->shape[2]*this->shape[3]);
+        auto j = rem / (this->shape[2]*this->shape[3]);
+        rem %= (this->shape[2]*this->shape[3]);
+        auto k = rem / this->shape[3];
+        auto l = rem % this->shape[3];
+        return this->data[i][j][k][l];
     }
 
     template <typename T>
     unsigned long Array<T>::getDimensions() const {
-        if(this->force4D) return 4;
-        else if(shape.size() == 4 && shape[2] == 1 && shape[3] == 1) return 2;
+        if(shape[2] == 1 && shape[3] == 1) return 2;
         else return shape.size();
     }
 
@@ -213,11 +186,7 @@ namespace cnpy {
 
     template <typename T>
     unsigned long long Array<T>::getMax_index() const {
-        if (this->getDimensions() == 1) return this->shape[0];
-        else if (this->getDimensions() == 2) return this->shape[0]*this->shape[1];
-        else if (this->getDimensions() == 3) return this->shape[0]*this->shape[1]*this->shape[2];
-        else if (this->getDimensions() == 4) return this->shape[0]*this->shape[1]*this->shape[2]*this->shape[3];
-        else throw std::runtime_error("Array dimensions error");
+        return this->shape[0]*this->shape[1]*this->shape[2]*this->shape[3];
     }
 
     /* DATA TRANSFORMATION */
@@ -238,39 +207,16 @@ namespace cnpy {
     template <typename T>
     Array<uint16_t> Array<T>::profiled_fixed_point(int mag, int frac) const {
         std::vector<uint16_t> fixed_point_vector;
-        if (this->getDimensions() == 1) {
-            for(int i = 0; i < this->shape[0]; i++) {
-                auto float_value = this->data1D[i];
-                fixed_point_vector.push_back(profiled_value(float_value,mag,frac));
-            }
-        } else if(this->getDimensions() == 2){
-            for(int i = 0; i < this->shape[0]; i++) {
-                for(int j = 0; j < this->shape[1]; j++) {
-                    auto float_value = this->data2D[i][j];
-                    fixed_point_vector.push_back(profiled_value(float_value,mag,frac));
-                }
-            }
-        } else if (this->getDimensions() == 3) {
-            for(int i = 0; i < this->shape[0]; i++) {
-                for(int j = 0; j < this->shape[1]; j++) {
-                    for(int k = 0; k < this->shape[2]; k++) {
-                        auto float_value = this->data3D[i][j][k];
+        for(int i = 0; i < this->shape[0]; i++) {
+            for(int j = 0; j < this->shape[1]; j++) {
+                for(int k = 0; k < this->shape[2]; k++) {
+                    for(int l = 0; l < this->shape[3]; l++) {
+                        auto float_value = this->data[i][j][k][l];
                         fixed_point_vector.push_back(profiled_value(float_value,mag,frac));
                     }
                 }
             }
-        } else if (this->getDimensions() == 4) {
-            for(int i = 0; i < this->shape[0]; i++) {
-                for(int j = 0; j < this->shape[1]; j++) {
-                    for(int k = 0; k < this->shape[2]; k++) {
-                        for(int l = 0; l < this->shape[3]; l++) {
-                            auto float_value = this->data4D[i][j][k][l];
-                            fixed_point_vector.push_back(profiled_value(float_value,mag,frac));
-                        }
-                    }
-                }
-            }
-        } else throw std::runtime_error("Array dimensions error");
+        }
 
         Array<uint16_t> fixed_point_array;
         fixed_point_array.set_values(fixed_point_vector,this->shape);
@@ -294,64 +240,21 @@ namespace cnpy {
         const auto range_adjust = num_discrete_values / (num_discrete_values - 1.0);
 
         std::vector<uint16_t> fixed_point_vector;
-        if (this->getDimensions() == 1) {
+        auto min_value = min_4D(this->data);
+        auto max_value = max_4D(this->data);
+        auto range = (max_value - min_value) * range_adjust;
+        auto scale = num_discrete_values / range;
 
-            auto min_value = min_1D(this->data1D);
-            auto max_value = max_1D(this->data1D);
-            auto range = (max_value - min_value) * range_adjust;
-            auto scale = num_discrete_values / range;
-
-            for(int i = 0; i < this->shape[0]; i++) {
-                auto float_value = this->data1D[i];
-                fixed_point_vector.push_back(tensorflow_value(float_value,scale,min_value,max_fixed,min_fixed));
-            }
-        } else if(this->getDimensions() == 2){
-
-            auto min_value = min_2D(this->data2D);
-            auto max_value = max_2D(this->data2D);
-            auto range = (max_value - min_value) * range_adjust;
-            auto scale = num_discrete_values / range;
-
-            for(int i = 0; i < this->shape[0]; i++) {
-                for(int j = 0; j < this->shape[1]; j++) {
-                    auto float_value = this->data2D[i][j];
-                    fixed_point_vector.push_back(tensorflow_value(float_value,scale,min_value,max_fixed,min_fixed));
-                }
-            }
-        } else if (this->getDimensions() == 3) {
-
-            auto min_value = min_3D(this->data3D);
-            auto max_value = max_3D(this->data3D);
-            auto range = (max_value - min_value) * range_adjust;
-            auto scale = num_discrete_values / range;
-
-            for(int i = 0; i < this->shape[0]; i++) {
-                for(int j = 0; j < this->shape[1]; j++) {
-                    for(int k = 0; k < this->shape[2]; k++) {
-                        auto float_value = this->data3D[i][j][k];
+        for(int i = 0; i < this->shape[0]; i++) {
+            for(int j = 0; j < this->shape[1]; j++) {
+                for(int k = 0; k < this->shape[2]; k++) {
+                    for(int l = 0; l < this->shape[3]; l++) {
+                        auto float_value = this->data[i][j][k][l];
                         fixed_point_vector.push_back(tensorflow_value(float_value,scale,min_value,max_fixed,min_fixed));
                     }
                 }
             }
-        } else if (this->getDimensions() == 4) {
-
-            auto min_value = min_4D(this->data4D);
-            auto max_value = max_4D(this->data4D);
-            auto range = (max_value - min_value) * range_adjust;
-            auto scale = num_discrete_values / range;
-
-            for(int i = 0; i < this->shape[0]; i++) {
-                for(int j = 0; j < this->shape[1]; j++) {
-                    for(int k = 0; k < this->shape[2]; k++) {
-                        for(int l = 0; l < this->shape[3]; l++) {
-                            auto float_value = this->data4D[i][j][k][l];
-                            fixed_point_vector.push_back(tensorflow_value(float_value,scale,min_value,max_fixed,
-                                    min_fixed));
-                        }
-                    }
-                }
-            }
-        } else throw std::runtime_error("Array dimensions error");
+        }
 
         Array<uint16_t> fixed_point_array;
         fixed_point_array.set_values(fixed_point_vector,this->shape);
@@ -360,96 +263,38 @@ namespace cnpy {
 
     template <typename T>
     void Array<T>::sign_magnitude_representation(int prec) {
-        double intmax = (1u << (prec - 1)) - 1;
+        double intmax = (1u << (prec - 1u)) - 1u;
         auto mask = (uint16_t)(intmax + 1);
-        if (this->getDimensions() == 1) {
-            for(int i = 0; i < this->shape[0]; i++) {
-                auto two_comp = (short)this->data1D[i];
-                auto abs_value = (uint16_t)abs(two_comp);
-                auto sign_mag = abs_value | (two_comp & mask);
-                this->data1D[i] = sign_mag;
-            }
-        } else if(this->getDimensions() == 2){
-            for(int i = 0; i < this->shape[0]; i++) {
-                for(int j = 0; j < this->shape[1]; j++) {
-                    auto two_comp = (short)this->data2D[i][j];
-                    auto abs_value = (uint16_t)abs(two_comp);
-                    auto sign_mag = abs_value | (two_comp & mask);
-                    this->data2D[i][j] = sign_mag;
-                }
-            }
-        } else if (this->getDimensions() == 3) {
-            for(int i = 0; i < this->shape[0]; i++) {
-                for(int j = 0; j < this->shape[1]; j++) {
-                    for(int k = 0; k < this->shape[2]; k++) {
-                        auto two_comp = (short)this->data3D[i][j][k];
+        for(int i = 0; i < this->shape[0]; i++) {
+            for(int j = 0; j < this->shape[1]; j++) {
+                for(int k = 0; k < this->shape[2]; k++) {
+                    for(int l = 0; l < this->shape[3]; l++) {
+                        auto two_comp = (short)this->data[i][j][k][l];
                         auto abs_value = (uint16_t)abs(two_comp);
                         auto sign_mag = abs_value | (two_comp & mask);
-                        this->data3D[i][j][k] = sign_mag;
+                        this->data[i][j][k][l] = sign_mag;
                     }
                 }
             }
-        } else if (this->getDimensions() == 4) {
-            for(int i = 0; i < this->shape[0]; i++) {
-                for(int j = 0; j < this->shape[1]; j++) {
-                    for(int k = 0; k < this->shape[2]; k++) {
-                        for(int l = 0; l < this->shape[3]; l++) {
-                            auto two_comp = (short)this->data4D[i][j][k][l];
-                            auto abs_value = (uint16_t)abs(two_comp);
-                            auto sign_mag = abs_value | (two_comp & mask);
-                            this->data4D[i][j][k][l] = sign_mag;
-                        }
-                    }
-                }
-            }
-        } else throw std::runtime_error("Array dimensions error");
+        }
     }
 
     template <typename T>
     void Array<T>::powers_of_two_representation(int prec) {
-        double intmax = (1 << (prec - 1)) - 1;
+        double intmax = (1u << (prec - 1u)) - 1u;
         auto mask = (uint16_t)(intmax + 1);
-        if (this->getDimensions() == 1) {
-            for(int i = 0; i < this->shape[0]; i++) {
-                auto two_comp = (short)this->data1D[i];
-                auto abs_value = (uint16_t)abs(two_comp);
-                auto powers_of_two = abs_value & ~mask;
-                this->data1D[i] = powers_of_two;
-            }
-        } else if(this->getDimensions() == 2){
-            for(int i = 0; i < this->shape[0]; i++) {
-                for(int j = 0; j < this->shape[1]; j++) {
-                    auto two_comp = (short)this->data2D[i][j];
-                    auto abs_value = (uint16_t)abs(two_comp);
-                    auto powers_of_two = abs_value & ~mask;
-                    this->data2D[i][j] = powers_of_two;
-                }
-            }
-        } else if (this->getDimensions() == 3) {
-            for(int i = 0; i < this->shape[0]; i++) {
-                for(int j = 0; j < this->shape[1]; j++) {
-                    for(int k = 0; k < this->shape[2]; k++) {
-                        auto two_comp = (short)this->data3D[i][j][k];
+        for(int i = 0; i < this->shape[0]; i++) {
+            for(int j = 0; j < this->shape[1]; j++) {
+                for(int k = 0; k < this->shape[2]; k++) {
+                    for(int l = 0; l < this->shape[3]; l++) {
+                        auto two_comp = (short)this->data[i][j][k][l];
                         auto abs_value = (uint16_t)abs(two_comp);
                         auto powers_of_two = abs_value & ~mask;
-                        this->data3D[i][j][k] = powers_of_two;
+                        this->data[i][j][k][l] = powers_of_two;
                     }
                 }
             }
-        } else if (this->getDimensions() == 4) {
-            for(int i = 0; i < this->shape[0]; i++) {
-                for(int j = 0; j < this->shape[1]; j++) {
-                    for(int k = 0; k < this->shape[2]; k++) {
-                        for(int l = 0; l < this->shape[3]; l++) {
-                            auto two_comp = (short)this->data4D[i][j][k][l];
-                            auto abs_value = (uint16_t)abs(two_comp);
-                            auto powers_of_two = abs_value & ~mask;
-                            this->data4D[i][j][k][l] = powers_of_two;
-                        }
-                    }
-                }
-            }
-        } else throw std::runtime_error("Array dimensions error");
+        }
     }
 
     /* PADDING */
@@ -461,22 +306,20 @@ namespace cnpy {
         auto Nx = this->shape[2];
         auto Ny = this->shape[3];
 
-        auto tmp_data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(batch_size,
-                std::vector<std::vector<std::vector<T>>>(act_channels,std::vector<std::vector<T>>(Nx + 2*padding,
-                std::vector<T>(Ny + 2*padding,0))));
+        auto tmp_data4D = Array4D(batch_size, Array3D(act_channels, Array2D(Nx + 2*padding,Array1D(Ny + 2*padding,0))));
 
         for(int n = 0; n < batch_size; n++) {
             for (int k = 0; k < act_channels; k++) {
                 for (int i = 0; i < Nx; i++) {
                     for(int j = 0; j < Ny; j++) {
-                        tmp_data4D[n][k][padding + i][padding + j] = this->data4D[n][k][i][j];
+                        tmp_data4D[n][k][padding + i][padding + j] = this->data[n][k][i][j];
                     }
                 }
             }
         }
 
-        this->data4D.clear();
-        this->data4D = tmp_data4D;
+        this->data.clear();
+        this->data = tmp_data4D;
         this->shape.clear();
         this->shape.push_back(batch_size);
         this->shape.push_back(act_channels);
@@ -491,22 +334,20 @@ namespace cnpy {
         auto Nx = this->shape[2];
         auto Ny = this->shape[3];
 
-        auto tmp_data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(batch_size,
-                std::vector<std::vector<std::vector<T>>>(act_channels,std::vector<std::vector<T>>(X,
-                        std::vector<T>(Y,0))));
+        auto tmp_data4D = Array4D(batch_size, Array3D(act_channels, Array2D(X, Array1D(Y,0))));
 
         for(int n = 0; n < batch_size; n++) {
             for (int k = 0; k < act_channels; k++) {
                 for (int i = 0; i < Nx; i++) {
                     for(int j = 0; j < Ny; j++) {
-                        tmp_data4D[n][k][i][j] = this->data4D[n][k][i][j];
+                        tmp_data4D[n][k][i][j] = this->data[n][k][i][j];
                     }
                 }
             }
         }
 
-        this->data4D.clear();
-        this->data4D = tmp_data4D;
+        this->data.clear();
+        this->data = tmp_data4D;
         this->shape.clear();
         this->shape.push_back(batch_size);
         this->shape.push_back(act_channels);
@@ -521,22 +362,21 @@ namespace cnpy {
         auto X = this->shape[2];
         auto Y = this->shape[3];
 
-        auto tmp_data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(N,
-                std::vector<std::vector<std::vector<T>>>((unsigned)K,std::vector<std::vector<T>>(X,
-                std::vector<T>(Y,0))));
+
+        auto tmp_data4D = Array4D(N, Array3D(K, Array2D(X, Array1D(Y, 0))));
 
         for(int n = 0; n < N; n++) {
             for (int k = 0; k < old_k; k++) {
                 for (int i = 0; i < X; i++) {
                     for(int j = 0; j < Y; j++) {
-                        tmp_data4D[n][k][i][j] = this->data4D[n][k][i][j];
+                        tmp_data4D[n][k][i][j] = this->data[n][k][i][j];
                     }
                 }
             }
         }
 
-        this->data4D.clear();
-        this->data4D = tmp_data4D;
+        this->data.clear();
+        this->data = tmp_data4D;
         this->shape.clear();
         this->shape.push_back(N);
         this->shape.push_back((unsigned)K);
@@ -547,43 +387,31 @@ namespace cnpy {
     /* RESHAPE */
 
     template <typename T>
-    void Array<T>::reshape_to_4D() {
-        this->data4D.clear();
-        this->data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(this->shape[0],
-                std::vector<std::vector<std::vector<T>>>(this->shape[1],std::vector<std::vector<T>>(1,
-                std::vector<T>(1))));
-        for(int i = 0; i < this->shape[0]; i++) {
-            for(int j = 0; j < this->shape[1]; j++) {
-                this->data4D[i][j][0][0] = this->data2D[i][j];
-            }
-        }
-        this->data2D.clear();
-        this->shape.clear();
-        this->shape.push_back(this->shape[0]);
-        this->shape.push_back(this->shape[1]);
-        this->shape.push_back(1);
-        this->shape.push_back(1);
-        this->force4D = true;
-    }
-
-    template <typename T>
     void Array<T>::reshape_to_2D() {
-        this->data2D.clear();
+
+        auto batch_size = this->shape[0];
+        auto act_channels = this->shape[1] * this->shape[2] * this->shape[3];
+        auto tmp_data2D = Array4D(batch_size, Array3D(act_channels, Array2D(1, Array1D(1,0))));
+
         for(int i = 0; i < this->shape[0]; i++) {
-            std::vector<T> second_dim;
+            int count = 0;
             for(int j = 0; j < this->shape[1]; j++) {
                 for(int k = 0; k < this->shape[2]; k++) {
                     for(int l = 0; l < this->shape[3]; l++) {
-                        second_dim.push_back(this->data4D[i][j][k][l]);
+                        tmp_data2D[i][count][0][0] = this->data[i][j][k][l];
+                        count++;
                     }
                 }
             }
-            this->data2D.push_back(second_dim);
         }
-        this->data4D.clear();
-        this->shape[1] = this->shape[1]*this->shape[2]*this->shape[3];
-        this->shape.pop_back();
-        this->shape.pop_back();
+
+        this->data.clear();
+        this->data = tmp_data2D;
+        this->shape.clear();
+        this->shape.push_back(batch_size);
+        this->shape.push_back(act_channels);
+        this->shape.push_back(1);
+        this->shape.push_back(1);
     }
 
     template <typename T>
@@ -593,9 +421,7 @@ namespace cnpy {
         auto old_X = this->shape[2];
         auto old_Y = this->shape[3];
 
-        auto tmp_data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(N,
-                std::vector<std::vector<std::vector<T>>>((unsigned)K,std::vector<std::vector<T>>((unsigned)X,
-                std::vector<T>((unsigned)Y,0))));
+        auto tmp_data4D = Array4D(N, Array3D(K, Array2D(X, Array1D(Y, 0))));
 
         for(int n = 0; n < N; n++) {
             for (int k = 0; k < old_k; k++) {
@@ -605,14 +431,14 @@ namespace cnpy {
                         auto rem = k % (X*Y);
                         auto new_i = rem / Y;
                         auto new_j = rem % Y;
-                        tmp_data4D[n][new_k][new_i][new_j] = this->data4D[n][k][i][j];
+                        tmp_data4D[n][new_k][new_i][new_j] = this->data[n][k][i][j];
                     }
                 }
             }
         }
 
-        this->data4D.clear();
-        this->data4D = tmp_data4D;
+        this->data.clear();
+        this->data = tmp_data4D;
         this->shape.clear();
         this->shape.push_back(N);
         this->shape.push_back((unsigned)K);
@@ -632,9 +458,7 @@ namespace cnpy {
         auto new_Nx = (uint16_t)ceil(Nx/(double)stride);
         auto new_Ny = (uint16_t)ceil(Nx/(double)stride);
 
-        auto tmp_data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(batch_size,
-                std::vector<std::vector<std::vector<T>>>(new_act_channels,std::vector<std::vector<T>>(new_Nx,
-                std::vector<T>(new_Ny,0))));
+        auto tmp_data4D = Array4D(batch_size, Array3D(new_act_channels, Array2D(new_Nx, Array1D(new_Ny, 0))));
 
         for(int n = 0; n < batch_size; n++)
             for(int k = 0; k < act_channels; k++)
@@ -643,11 +467,11 @@ namespace cnpy {
                         auto new_i = i/stride;
                         auto new_j = j/stride;
                         auto new_k = (j%stride)*stride*act_channels + act_channels*(i%stride) + k;
-                        tmp_data4D[n][new_k][new_i][new_j] = this->data4D[n][k][i][j];
+                        tmp_data4D[n][new_k][new_i][new_j] = this->data[n][k][i][j];
                     }
 
-        this->data4D.clear();
-        this->data4D = tmp_data4D;
+        this->data.clear();
+        this->data = tmp_data4D;
         this->shape.clear();
         this->shape.push_back(batch_size);
         this->shape.push_back(new_act_channels);
@@ -667,9 +491,7 @@ namespace cnpy {
         auto new_Kx = (uint16_t)ceil(Kx/(double)stride);
         auto new_Ky = (uint16_t)ceil(Ky/(double)stride);
 
-        auto tmp_data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(num_filters,
-                std::vector<std::vector<std::vector<T>>>(new_wgt_channels,std::vector<std::vector<T>>(new_Kx,
-                std::vector<T>(new_Ky,0))));
+        auto tmp_data4D = Array4D(num_filters, Array3D(new_wgt_channels, Array2D(new_Kx, Array1D(new_Ky, 0))));
 
         for(int m = 0; m < num_filters; m++)
             for(int k = 0; k < wgt_channels; k++)
@@ -678,11 +500,11 @@ namespace cnpy {
                         auto new_i = i/stride;
                         auto new_j = j/stride;
                         auto new_k = (j%stride)*stride*wgt_channels + wgt_channels*(i%stride) + k;
-                        tmp_data4D[m][new_k][new_i][new_j] = this->data4D[m][k][i][j];
+                        tmp_data4D[m][new_k][new_i][new_j] = this->data[m][k][i][j];
                     }
 
-        this->data4D.clear();
-        this->data4D = tmp_data4D;
+        this->data.clear();
+        this->data = tmp_data4D;
         this->shape.clear();
         this->shape.push_back(num_filters);
         this->shape.push_back(new_wgt_channels);

@@ -2,7 +2,7 @@
 #define DNNSIM_SIMULATOR_H
 
 #include <sys/common.h>
-#include <sys/Statistics.h>
+#include <sys/Stats.h>
 #include <cnpy/Array.h>
 #include "Layer.h"
 #include "Network.h"

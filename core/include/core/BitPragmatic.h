@@ -5,7 +5,6 @@
 
 #define ZERO_COUNT // Count zeroes as 1 cycle
 #define BOOTH_ENCODING // Activate booth-like encoding
-#define FC_MULTIPLEX_COLUMNS // Execute each mult-add in a different column
 
 namespace core {
 
@@ -75,12 +74,12 @@ namespace core {
          * @param max_channel           Maximum number of channels
          * @param cycles_per_col        Number of cycles per column (Overwritten)
          * @param end_previous_pallet   Cycle when the previous pallet finishes (Overwritten)
-         * @param stats                 Statistics to fill 
+         * @param stall_cycles          Stall cycles stat (Overwritten)
          */
         void computePragmaticTile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
                 int kernel_x, int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act,
                 int act_max, int max_channel, std::vector<uint32_t> &cycles_per_col,
-                std::vector<uint32_t> &end_previous_pallet, sys::Statistics::Stats &stats);
+                std::vector<uint32_t> &end_previous_pallet, uint64_t &stall_cycles);
 
         /* Compute cycles for laconic tile
          * @param batch                 Current number of batch
@@ -94,44 +93,12 @@ namespace core {
          * @param wgt                   Set of weights
          * @param cycles_per_col        Number of cycles per column (Overwritten)
          * @param end_previous_pallet   Cycle when the previous pallet finishes (Overwritten)
-         * @param stats                 Statistics to fill
+         * @param stall_cycles          Stall cycles stat (Overwritten)
          */
         void computePragmatic2DTile(int batch, const std::vector<int> &list_act_x,const std::vector<int> &list_act_y,
                 int kernel_x, int kernel_y, int init_filter, int stride, const cnpy::Array<T> &padded_act,
                 const cnpy::Array<T> &wgt, int max_filter, std::vector<uint32_t> &cycles_per_col,
-                std::vector<uint32_t> &end_previous_pallet, sys::Statistics::Stats &stats);
-
-        /* Compute the timing for a convolutional layer
-         * @param layer     Layer for which we want to calculate the outputs
-         * @param stats     Statistics to fill
-         */
-        void computeConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats);
-
-        /* Compute the timing for a 2D convolutional layer
-         * @param layer     Layer for which we want to calculate the outputs
-         * @param stats     Statistics to fill
-         */
-        void computeConvolution2D(const Layer<T> &layer, sys::Statistics::Stats &stats);
-
-        /* Compute the timing for a fully-connected layer
-         * @param layer     Layer for which we want to calculate the outputs
-         * @param stats     Statistics to fill
-         */
-        void computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats);
-
-        /* Compute the potentials for a convolutional layer
-         * @param layer         Layer for which we want to calculate potentials
-         * @param stats         Statistics to fill
-         * @param network_bits  Max bits network
-         */
-        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits);
-
-        /* Compute the potentials for a inner product layer
-         * @param layer         Layer for which we want to calculate potentials
-         * @param stats         Statistics to fill
-         * @param network_bits  Max bits network
-         */
-        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits);
+                std::vector<uint32_t> &end_previous_pallet, uint64_t &stall_cycles);
 
     public:
 

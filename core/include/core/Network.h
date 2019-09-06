@@ -68,6 +68,11 @@ namespace core {
         bool getForward() const { return forward; }
         bool getBackward() const { return backward; }
         bool isTensorflow_8b() const { return tensorflow_8b; }
+        uint64_t getBatches() const { return this->layers.front().getActivations().getShape()[0]; }
+        uint64_t getNumLayers() const { return this->layers.size(); }
+        std::vector<std::string> getLayersName() const {
+            return std::vector<std::string>(layers.size(), layers.getName());
+        }
 
         /* Setters */
         std::vector<Layer<T>> &updateLayers() { return layers; }

@@ -381,7 +381,6 @@ int main(int argc, char *argv[]) {
 		                        if (experiment.task == "Cycles") DNNsim.run(network);
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 		                    }
-		                    sys::Statistics::updateFlagsLastStat(simulate.tensorflow_8b);
 		                }
 		            }
 				}
@@ -393,10 +392,6 @@ int main(int argc, char *argv[]) {
                 #endif
             }
         }
-
-        //Dump statistics
-        auto writer = interface::StatsWriter(QUIET);
-        writer.dump_csv();
 
     } catch (std::exception &exception) {
         std::cerr << "Error: " << exception.what() << std::endl;

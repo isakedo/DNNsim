@@ -10,9 +10,9 @@ add_library(
         ${PROJECT_NAME}
         include/sys/cxxopts.h
         include/sys/common.h
-        include/sys/Statistics.h
+        include/sys/Stats.h
         include/sys/Batch.h
-        src/Statistics.cpp
+        src/Stats.cpp
         src/Batch.cpp
 )
 

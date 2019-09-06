@@ -85,38 +85,6 @@ namespace core {
          */
         schedule scheduler(const cnpy::Array<T> &wgt, uint64_t act_channels);
 
-        /* Compute the timing for a convolutional layer
-         * @param layer                 Layer for which we want to calculate the outputs
-         * @param stats                 Statistics to fill
-         * @param proto_dense_schedule  Schedule read from protobuf file
-         */
-        virtual void computeConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats, const schedule
-                &proto_dense_schedule) = 0;
-
-        /* Compute the timing for a fully-connected layer
-         * @param layer                 Layer for which we want to calculate the outputs
-         * @param stats                 Statistics to fill
-         * @param proto_dense_schedule  Schedule read from protobuf file
-         */
-        virtual void computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats,const schedule
-                &proto_dense_schedule) = 0;
-
-        /* Compute the potentials for a convolutional layer
-         * @param layer         Layer for which we want to calculate potentials
-         * @param stats         Statistics to fill
-         * @param network_bits  Max bits network
-         */
-        virtual void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
-                int network_bits) = 0;
-
-        /* Compute the potentials for a inner product layer
-         * @param layer         Layer for which we want to calculate potentials
-         * @param stats         Statistics to fill
-         * @param network_bits  Max bits network
-         */
-        virtual void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
-                int network_bits) = 0;
-
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate
          */

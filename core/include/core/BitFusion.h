@@ -29,26 +29,6 @@ namespace core {
          */
         static inline uint16_t computeBitFusionBitsPE(uint8_t act_rounded_precision, uint8_t wgt_rounded_precision);
 
-        /* Compute the timing for a layer
-         * @param layer     Layer for which we want to calculate the outputs
-         * @param stats     Statistics to fill
-         */
-        void computeLayer(const Layer<T> &layer, sys::Statistics::Stats &stats);
-
-        /* Compute the potentials for a convolutional layer
-         * @param layer         Layer for which we want to calculate potentials
-         * @param stats         Statistics to fill
-         * @param network_bits  Max bits network
-         */
-        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits);
-
-        /* Compute the potentials for a inner product layer
-         * @param layer     Layer for which we want to calculate potentials
-         * @param stats     Statistics to fill
-         * @param network_bits  Max bits network
-         */
-        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits);
-
     public:
 
         /* Constructor
