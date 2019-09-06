@@ -811,22 +811,24 @@ namespace interface {
 
     void dump_csv_onchip(std::ofstream &o_file, const sys::Statistics::Stats &stats) {
         o_file << "layer,batch,act_baseline_size,act_profiled_size,act_datawidth_size,act_datawidth_groups,"
-                  "act_datawidth_padding,act_datawidth_overhead,act_max_rel_pointer,wgt_baseline_size,"
-                  "wgt_profiled_size,wgt_datawidth_size,wgt_datawidth_groups,wgt_datawidth_padding,"
-                  "wgt_datawidth_overhead,wgt_max_rel_pointer,time(s)" << std::endl;
+                  "act_datawidth_padding,act_datawidth_overhead,act_datawidth_row_overhead,act_datawidth_max_overhead,"
+                  "act_max_rel_pointer,act_precision,wgt_baseline_size,wgt_profiled_size,wgt_datawidth_size,"
+                  "wgt_datawidth_groups,wgt_datawidth_padding,wgt_datawidth_overhead,wgt_max_rel_pointer,wgt_precision,"
+                  "time(s)" << std::endl;
 
         #ifdef PER_IMAGE_RESULTS
         for (int j = 0; j < stats.act_baseline_size.front().size(); j++) {
             for (int i = 0; i < stats.layers.size(); i++) {
                 char line[256];
-                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,0\n",
+                snprintf(line, sizeof(line), "%s,%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%d,0\n",
                         stats.layers[i].c_str(), j, stats.act_baseline_size[i][j], stats.act_profiled_size[i][j],
                         stats.act_datawidth_size[i][j], stats.act_datawidth_groups[i][j],
                         stats.act_datawidth_padding[i][j], stats.act_datawidth_overhead[i][j],
-                        stats.act_max_rel_pointer[i][j], stats.wgt_baseline_size[i][j], stats.wgt_profiled_size[i][j],
-                        stats.wgt_datawidth_size[i][j], stats.wgt_datawidth_groups[i][j],
+                        stats.act_datawidth_row_overhead[i][j], stats.act_datawidth_max_overhead[i][j],
+                        stats.act_prec[i], stats.act_max_rel_pointer[i][j], stats.wgt_baseline_size[i][j],
+                        stats.wgt_profiled_size[i][j], stats.wgt_datawidth_size[i][j], stats.wgt_datawidth_groups[i][j],
                         stats.wgt_datawidth_padding[i][j], stats.wgt_datawidth_overhead[i][j],
-                        stats.wgt_max_rel_pointer[i][j]);
+                        stats.wgt_max_rel_pointer[i][j], stats.wgt_prec[i]);
                 o_file << line;
             }
         }
@@ -836,23 +838,27 @@ namespace interface {
         for (int i = 0; i < stats.layers.size(); i++) {
             total_time += stats.time[i].count();
             char line[256];
-            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n",
+            snprintf(line, sizeof(line), "%s,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%d,%.2f\n",
                     stats.layers[i].c_str(), stats.get_average(stats.act_baseline_size[i]),
                     stats.get_average(stats.act_profiled_size[i]), stats.get_average(stats.act_datawidth_size[i]),
                     stats.get_average(stats.act_datawidth_groups[i]), stats.get_average(stats.act_datawidth_padding[i]),
-                    stats.get_average(stats.act_datawidth_overhead[i]), stats.get_max(stats.act_max_rel_pointer[i]),
-                    stats.get_average(stats.wgt_baseline_size[i]), stats.get_average(stats.wgt_profiled_size[i]),
-                    stats.get_average(stats.wgt_datawidth_size[i]), stats.get_average(stats.wgt_datawidth_groups[i]),
-                    stats.get_average(stats.wgt_datawidth_padding[i]), stats.get_average(stats.wgt_datawidth_overhead[i]),
-                    stats.get_max(stats.wgt_max_rel_pointer[i]), stats.time[i].count());
+                    stats.get_average(stats.act_datawidth_overhead[i]),
+                    stats.get_average(stats.act_datawidth_row_overhead[i]),
+                    stats.get_average(stats.act_datawidth_max_overhead[i]), stats.get_max(stats.act_max_rel_pointer[i]),
+                    stats.act_prec[i], stats.get_average(stats.wgt_baseline_size[i]),
+                    stats.get_average(stats.wgt_profiled_size[i]), stats.get_average(stats.wgt_datawidth_size[i]),
+                    stats.get_average(stats.wgt_datawidth_groups[i]), stats.get_average(stats.wgt_datawidth_padding[i]),
+                    stats.get_average(stats.wgt_datawidth_overhead[i]), stats.get_max(stats.wgt_max_rel_pointer[i]),
+                    stats.wgt_prec[i], stats.time[i].count());
             o_file << line;
         }
 
         char line[256];
-        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.2f\n",
+        snprintf(line, sizeof(line), "TOTAL,AVG,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,-,%lu,%lu,%lu,%lu,%lu,%lu,%lu,-,%.2f\n",
                 stats.get_total(stats.act_baseline_size), stats.get_total(stats.act_profiled_size),
                 stats.get_total(stats.act_datawidth_size), stats.get_total(stats.act_datawidth_groups),
                 stats.get_total(stats.act_datawidth_padding), stats.get_total(stats.act_datawidth_overhead),
+                stats.get_total(stats.act_datawidth_row_overhead), stats.get_total(stats.act_datawidth_max_overhead),
                 stats.get_max(stats.act_max_rel_pointer), stats.get_total(stats.wgt_baseline_size),
                 stats.get_total(stats.wgt_profiled_size), stats.get_total(stats.wgt_datawidth_size),
                 stats.get_total(stats.wgt_datawidth_groups), stats.get_total(stats.wgt_datawidth_padding),
