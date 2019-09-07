@@ -35,19 +35,13 @@ namespace cnpy {
          * @param _data     Vector containing the data
          * @param _shape    Shape of the data
          */
-        Array(const std::vector<std::vector<T>> &_data, const std::vector<size_t> &_shape) {
-            this->data2D = _data;
-            this->shape = _shape;
-        }
+        Array(const Array2D &_data, const std::vector<size_t> &_shape);
 
         /* Constructor
          * @param _data     Vector containing the data
          * @param _shape    Shape of the data
          */
-        Array(const std::vector<std::vector<std::vector<std::vector<T>>>> &_data, const std::vector<size_t> &_shape) {
-            this->data4D = _data;
-            this->shape = _shape;
-        }
+        Array(const Array4D &_data, const std::vector<size_t> &_shape);
 
         /* Read the numpy array from the npy file, copy the direction, and set the size
          * @param path  Path to the numpy file with extension .npy

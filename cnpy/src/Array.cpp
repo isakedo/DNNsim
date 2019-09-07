@@ -6,6 +6,34 @@ namespace cnpy {
     /* SETTERS */
 
     template <typename T>
+    Array<T>::Array(const Array2D &_data, const std::vector<size_t> &_shape) {
+        this->data = Array4D(_shape[0], Array3D(_shape[1], Array2D(1, Array1D(1))));
+        for(int i = 0; i < this->shape[0]; i++) {
+            for(int j = 0; j < this->shape[1]; j++)
+                this->data[i][j][0][0] = _data[i][j];
+        }
+        this->shape = _shape;
+        this->shape.push_back(1);
+        this->shape.push_back(1);
+    }
+
+    template <typename T>
+    Array<T>::Array(const Array4D &_data, const std::vector<size_t> &_shape) {
+        this->data = Array4D(_shape[0], Array3D(_shape[1], Array2D(_shape[2], Array1D(_shape[3]))));
+        auto coef1 = shape[1]*shape[2]*shape[3];
+        auto coef2 = shape[2]*shape[3];
+        for(int i = 0; i < this->shape[0]; i++) {
+            for(int j = 0; j < this->shape[1]; j++) {
+                for(int k = 0; k < this->shape[2]; k++) {
+                    for(int l = 0; l < this->shape[3]; l++)
+                        this->data[i][j][k][l] = _data[i][j][k][l];
+                }
+            }
+        }
+        this->shape = _shape;
+    }
+
+    template <typename T>
     void Array<T>::set_values(const std::string &path) {
         cnpy::NpyArray data_npy;
         cnpy::npy_load(path, data_npy, shape);
@@ -34,38 +62,48 @@ namespace cnpy {
 
     template <typename T>
     void Array<T>::set_values(const std::vector<T> &_data, const std::vector<size_t> &_shape) {
-        Array::shape = _shape;
-        if (_sha == 1) this->data1D = _data;
-        else if(this->getDimensions() == 2){
-            this->data2D = std::vector<std::vector<T>>(this->shape[0],std::vector<T>(this->shape[1]));
+        if (_shape.size() == 1) {
+            this->data = Array4D(_shape[0], Array3D(1, Array2D(1, Array1D(1))));
+            for(int i = 0; i < this->shape[0]; i++) {
+                this->data[i][0][0][0] = _data[i];
+            }
+            this->shape = _shape;
+            this->shape.push_back(1);
+            this->shape.push_back(1);
+            this->shape.push_back(1);
+        } else if(_shape.size() == 2){
+            this->data = Array4D(_shape[0], Array3D(_shape[1], Array2D(1, Array1D(1))));
             for(int i = 0; i < this->shape[0]; i++) {
                 for(int j = 0; j < this->shape[1]; j++)
-                    this->data2D[i][j] = _data[this->shape[1]*i + j];
+                    this->data[i][j][0][0] = _data[this->shape[1]*i + j];
             }
-        } else if (this->getDimensions() == 3) {
+            this->shape = _shape;
+            this->shape.push_back(1);
+            this->shape.push_back(1);
+        } else if (_shape.size() == 3) {
+            this->data = Array4D(_shape[0], Array3D(_shape[1], Array2D(_shape[2], Array1D(1))));
             unsigned long coef1 = shape[1]*shape[2];
-            this->data3D = std::vector<std::vector<std::vector<T>>>(this->shape[0],
-                    std::vector<std::vector<T>>(this->shape[1],std::vector<T>(this->shape[2])));
             for(int i = 0; i < this->shape[0]; i++) {
                 for(int j = 0; j < this->shape[1]; j++) {
                     for(int k = 0; k < this->shape[2]; k++)
-                        this->data3D[i][j][k] = _data[coef1*i + shape[2]*j + k];
+                        this->data[i][j][k][0] = _data[coef1*i + shape[2]*j + k];
                 }
             }
-        } else if (this->getDimensions() == 4) {
+            this->shape = _shape;
+            this->shape.push_back(1);
+        } else if (_shape.size() == 4) {
+            this->data = Array4D(_shape[0], Array3D(_shape[1], Array2D(_shape[2], Array1D(_shape[3]))));
             auto coef1 = shape[1]*shape[2]*shape[3];
             auto coef2 = shape[2]*shape[3];
-            this->data4D = std::vector<std::vector<std::vector<std::vector<T>>>>(this->shape[0],
-                    std::vector<std::vector<std::vector<T>>>(this->shape[1],std::vector<std::vector<T>>(this->shape[2],
-                    std::vector<T>(this->shape[3]))));
             for(int i = 0; i < this->shape[0]; i++) {
                 for(int j = 0; j < this->shape[1]; j++) {
                     for(int k = 0; k < this->shape[2]; k++) {
                         for(int l = 0; l < this->shape[3]; l++)
-                            this->data4D[i][j][k][l] = _data[coef1*i + coef2*j + shape[3]*k + l];
+                            this->data[i][j][k][l] = _data[coef1*i + coef2*j + shape[3]*k + l];
                     }
                 }
             }
+            this->shape = _shape;
         } else throw std::runtime_error("Array dimensions error");
     }
 

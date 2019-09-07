@@ -161,7 +161,6 @@ namespace core {
             // Operations
             uint64_t parallel_mult = conv ? num_filters * out_x * out_y * Kx * Ky * wgt_channels :
                     num_filters * wgt_channels * R;
-            uint64_t bit_counter = 0;
 
             // Get layer precision
             auto act_layer_prec = layer.getActPrecision();
@@ -174,6 +173,7 @@ namespace core {
 
             for(int n = 0; n < batch_size; n++) {
                 double MAX_BITS = network.getNetwork_bits() * network.getNetwork_bits();
+                uint64_t bit_counter = 0;
 
                 bit_counter = (uint64_t)computeBitFusionBitsPE(act_rounded_precision, wgt_rounded_precision);
                 bit_counter *= conv ? out_x * out_y * Kx * Ky * wgt_channels * num_filters :

@@ -55,44 +55,12 @@ namespace core {
          * @param act_mask              Position of the activations sign bit
          * @param cycles_per_group      Number of cycles per column (Overwritten)
          * @param end_previous_pallet   Cycle when the previous pallet finishes (Overwritten)
-         * @param stats                 Statistics to fill
+         * @param stall_cycles          Stall cycles stat (Overwritten)
          */
         void computeTacticalPTile(int batch, const std::vector<int> &list_act_x, const std::vector<int>
                 &list_act_y, int stride, const cnpy::Array<T> &padded_act, const schedule &dense_schedule,
                 int schedule_time, uint16_t act_mask, std::vector<uint32_t> &cycles_per_col,
-                std::vector<uint32_t> &end_previous_pallet, sys::Statistics::Stats &stats);
-
-        /* Compute the timing for a convolutional layer
-         * @param layer                 Layer for which we want to calculate the outputs
-         * @param stats                 Statistics to fill
-         * @param proto_dense_schedule  Schedule read from protobuf file
-         */
-        void computeConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats,
-                                const schedule &proto_dense_schedule) override;
-
-        /* Compute the timing for a fully-connected layer
-         * @param layer                 Layer for which we want to calculate the outputs
-         * @param stats                 Statistics to fill
-         * @param proto_dense_schedule  Schedule read from protobuf file
-         */
-        void computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats,
-                                 const schedule &proto_dense_schedule) override;
-
-        /* Compute the potentials for a convolutional layer
-         * @param layer         Layer for which we want to calculate potentials
-         * @param stats         Statistics to fill
-         * @param network_bits  Max bits network
-         */
-        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits)
-            override;
-
-        /* Compute the potentials for a inner product layer
-         * @param layer         Layer for which we want to calculate potentials
-         * @param stats         Statistics to fill
-         * @param network_bits  Max bits network
-         */
-        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits)
-            override;
+                std::vector<uint32_t> &end_previous_pallet, uint64_t &stall_cycles);
 
     public:
 

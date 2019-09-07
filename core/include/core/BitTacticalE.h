@@ -5,7 +5,6 @@
 
 #define ZERO_COUNT // Count zeroes as 1 cycle
 #define BOOTH_ENCODING // Activate booth-like encoding
-#define FC_MULTIPLEX_COLUMNS // Execute each mult-add in a different column
 
 namespace core {
 
@@ -56,44 +55,12 @@ namespace core {
          * @param schedule_time         Time index for the scheduler
          * @param cycles_per_col        Number of cycles per column (Overwritten)
          * @param end_previous_pallet   Cycle when the previous pallet finishes (Overwritten)
-         * @param stats                 Statistics to fill
+         * @param stall_cycles          Stall cycles stat (Overwritten)
          */
         void computeTacticalETile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
                 int stride, const cnpy::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time,
                 std::vector<uint32_t> &cycles_per_col, std::vector<uint32_t> &end_previous_pallet,
-                sys::Statistics::Stats &stats);
-
-        /* Compute the timing for a convolutional layer
-         * @param layer                 Layer for which we want to calculate the outputs
-         * @param stats                 Statistics to fill
-         * @param proto_dense_schedule  Schedule read from protobuf file
-         */
-        void computeConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats,
-                const schedule &proto_dense_schedule) override;
-
-        /* Compute the timing for a fully-connected layer
-         * @param layer                 Layer for which we want to calculate the outputs
-         * @param stats                 Statistics to fill
-         * @param proto_dense_schedule  Schedule read from protobuf file
-         */
-        void computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats,
-                const schedule &proto_dense_schedule) override;
-
-        /* Compute the potentials for a convolutional layer
-         * @param layer         Layer for which we want to calculate potentials
-         * @param stats         Statistics to fill
-         * @param network_bits  Max bits network
-         */
-        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits)
-            override;
-
-        /* Compute the potentials for a inner product layer
-         * @param layer         Layer for which we want to calculate potentials
-         * @param stats         Statistics to fill
-         * @param network_bits  Max bits network
-         */
-        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits)
-            override;
+                uint64_t &stall_cycles);
 
     public:
 
@@ -113,11 +80,6 @@ namespace core {
                 uint32_t _COLUMN_REGISTERS, uint32_t _LOOKAHEAD_H, uint32_t _LOOKASIDE_D, const char _SEARCH_SHAPE,
                 uint8_t _N_THREADS, bool _FAST_MODE) : BitTactical<T>(_N_LANES,_N_COLUMNS,_N_ROWS,_COLUMN_REGISTERS,
                 _LOOKAHEAD_H,_LOOKASIDE_D,_SEARCH_SHAPE,_N_THREADS,_FAST_MODE), BITS_FIRST_STAGE(_BITS_FIRST_STAGE) {}
-
-        /* Run the timing simulator of the architecture
-         * @param network   Network we want to simulate
-         */
-        void run(const Network<T> &network) override;
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

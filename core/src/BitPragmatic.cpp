@@ -307,14 +307,7 @@ namespace core {
             auto base_cycles = (uint64_t)(conv ? out_x * out_y * ceil(act_channels/(double)N_LANES) * Kx * Ky *
                     baseline_filters_sets : ceil(act_channels/(double)N_LANES) * baseline_filters_sets * R);
 
-            int n;
-
-            #ifdef OPENMP
-            auto max_threads = omp_get_max_threads();
-            omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-            #pragma omp parallel for private(n)
-            #endif
-            for(n = 0; n < batch_size; n++) {
+            for(int n = 0; n < batch_size; n++) {
 
                 uint64_t batch_cycles = 0;
                 uint64_t batch_stall_cycles = 0;
@@ -503,18 +496,10 @@ namespace core {
             // Operations
             uint64_t parallel_mult = conv ? num_filters * out_x * out_y * Kx * Ky * wgt_channels :
                     num_filters * wgt_channels * R;
-            uint64_t bit_counter = 0;
 
-            int n;
-
-            #ifdef OPENMP
-            auto max_threads = omp_get_max_threads();
-            omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-            #pragma omp parallel for private(n)
-            #endif
-            for(n = 0; n < batch_size; n++) {
+            for(int n = 0; n < batch_size; n++) {
                 double MAX_BITS = network_bits * network_bits;
-                bit_counter = 0;
+                uint64_t bit_counter = 0;
 
                 if (conv) {
 
