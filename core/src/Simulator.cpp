@@ -190,7 +190,7 @@ namespace core {
     void Simulator<T>::sparsity(const base::Network<T> &network) {
 
         // Initialize statistics
-        std::string filename = network.getName() + "_sparsity";
+        std::string filename = "sparsity";
         sys::Stats stats = sys::Stats(network.getNumLayers(), 1, filename);
 
         auto act_sparsity = stats.register_double_t("act_sparsity", 0, sys::Average);
@@ -228,7 +228,8 @@ namespace core {
         }
 
         //Dump statistics
-        stats.dump_csv(network.getName(), network.getLayersName(), QUIET);
+        std::string header = "Value sparsity for " + network.getName() + "\n";
+        stats.dump_csv(network.getName(), network.getLayersName(), header, QUIET);
 
     }
 
@@ -236,7 +237,7 @@ namespace core {
     void Simulator<uint16_t>::bit_sparsity(const base::Network<uint16_t> &network) {
 
         // Initialize statistics
-        std::string filename = network.getName() + "_sparsity";
+        std::string filename = "bit_sparsity";
         sys::Stats stats = sys::Stats(network.getNumLayers(), 1, filename);
 
         auto act_sparsity = stats.register_double_t("act_bit_sparsity", 0, sys::Average);
@@ -276,7 +277,8 @@ namespace core {
         }
 
         //Dump statistics
-        stats.dump_csv(network.getName(), network.getLayersName(), this->QUIET);
+        std::string header = "Bit sparsity for " + network.getName() + "\n";
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
 
     }
 
@@ -288,7 +290,7 @@ namespace core {
         network_model = reader.read_network_trace_params();
 
         // Initialize statistics
-        std::string filename = simulate.network + "_sparsity";
+        std::string filename = "training_value_sparsity";
         sys::Stats stats = sys::Stats(network_model.getNumLayers(), epochs, filename);
 
         // Forward stats
@@ -394,7 +396,8 @@ namespace core {
         }
 
         //Dump statistics
-        stats.dump_csv(network_model.getName(), network_model.getLayersName(), this->QUIET);
+        std::string header = "Value sparsity for " + network_model.getName() + "\n";
+        stats.dump_csv(network_model.getName(), network_model.getLayersName(), header, this->QUIET);
 
 	}
 
@@ -406,8 +409,8 @@ namespace core {
         network_model = reader.read_network_trace_params();
 
         // Initialize statistics
-        auto task_name = mantissa ? "_mantissa_bit_sparsity" : "_exponent_bit_sparsity";
-        std::string filename = simulate.network + task_name;
+        std::string task_name = mantissa ? "mantissa_bit_sparsity" : "exponent_bit_sparsity";
+        std::string filename = "training_" + task_name;
         sys::Stats stats = sys::Stats(network_model.getNumLayers(), epochs, filename);
 
         // Forward stats
@@ -530,7 +533,8 @@ namespace core {
         }
 
         //Dump statistics
-        stats.dump_csv(network_model.getName(), network_model.getLayersName(), this->QUIET);
+        std::string header = "Bit sparsity for " + network_model.getName() + "\n";
+        stats.dump_csv(network_model.getName(), network_model.getLayersName(), header, this->QUIET);
 
     }
 

@@ -167,11 +167,10 @@ namespace core {
 
         // Initialize statistics
         int mux_entries = this->LOOKAHEAD_H + this->LOOKASIDE_D + 1;
-        std::string filename = network.getName() + "BitTacticalP_C" + std::to_string(this->N_COLUMNS) + "_R"
-                + std::to_string(this->N_ROWS) + "_PG_" + std::to_string(PRECISION_GRANULARITY) + "_CR"
-                + std::to_string(this->COLUMN_REGISTERS) + "_" + this->SEARCH_SHAPE + std::to_string(mux_entries) + "("
-                + std::to_string(this->LOOKAHEAD_H) + "-" + std::to_string(this->LOOKASIDE_D) + ")" +
-                (LEADING_BIT ? "_LB" : "");
+        std::string filename = "BitTacticalP_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS)
+                + "_PG_" + std::to_string(PRECISION_GRANULARITY) + "_CR" + std::to_string(this->COLUMN_REGISTERS) + "_"
+                + this->SEARCH_SHAPE + std::to_string(mux_entries) + "(" + std::to_string(this->LOOKAHEAD_H) + "-" +
+                std::to_string(this->LOOKASIDE_D) + ")" + (LEADING_BIT ? "_LB" : "");
         sys::Stats stats = sys::Stats(network.getNumLayers(), network.getBatches(), filename);
 
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
@@ -182,6 +181,8 @@ namespace core {
         auto accumulator_updates = stats.register_uint_t("accumulator_updates", 0, sys::AverageTotal);
         auto scheduled_pe = stats.register_uint_t("scheduled_pe", 0, sys::AverageTotal);
         auto idle_pe = stats.register_uint_t("idle_pe", 0, sys::AverageTotal);
+        auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
+        auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
         for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
 
@@ -235,8 +236,8 @@ namespace core {
             auto groups = act_channels / wgt_channels;
             auto num_filters_sets = (uint32_t)ceil(num_filters/(double)this->N_ROWS/groups);
 
-            auto act_prec = layer.getActPrecision();
-            auto act_mask = (uint16_t)(1u << (act_prec - 1));
+            auto act_layer_prec = layer.getActPrecision();
+            auto act_mask = (uint16_t)(1u << (act_layer_prec - 1));
 
             schedule dense_schedule;
             const schedule &proto_dense_schedule = schedules[layer_it];
@@ -322,12 +323,26 @@ namespace core {
 
                 }
 
+                act_prec->value[layer_it][n] = act_layer_prec;
+                wgt_prec->value[layer_it][n] = layer.getWgtPrecision();
+
             }
 
         }
 
         //Dump statistics
-        stats.dump_csv(network.getName(), network.getLayersName(), this->QUIET);
+        std::string header = "BitTactical-P Number of Cycles for " + network.getName() + "\n";
+        header += "Number of lanes/terms per PE: " + std::to_string(this->N_LANES) + "\n";
+        header += "Number of columns/windows in parallel: " + std::to_string(this->N_COLUMNS) + "\n";
+        header += "Number of rows/filters in parallel: " + std::to_string(this->N_ROWS) + "\n";
+        header += "Number of values per group: " + std::to_string(PRECISION_GRANULARITY) + "\n";
+        header += "Calculate only leading bit: " + std::to_string(LEADING_BIT) + "\n";
+        header += "Number of run-ahead input registers per column: " + std::to_string(this->COLUMN_REGISTERS) + "\n";
+        header += "Search shape: " + std::to_string(this->SEARCH_SHAPE) + "\n";
+        header += "Lookahead H: " + std::to_string(this->LOOKAHEAD_H) + "\n";
+        header += "Lookaside D: " + std::to_string(this->LOOKASIDE_D) + "\n";
+
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
 
     }
 
@@ -338,13 +353,13 @@ namespace core {
 
 
         // Initialize statistics
-        std::string filename = network.getName() + "_BitTacticalP_potentials";
+        std::string filename = "BitTacticalP_potentials";
         sys::Stats stats = sys::Stats(network.getNumLayers(), network.getBatches(), filename);
 
-        auto bit_multiplications = stats.register_uint_t("bit_multiplications", 0, sys::AverageTotal);
         auto work_reduction = stats.register_double_t("work_reduction", 0, sys::Average);
         auto speedup = stats.register_double_t("speedup", 0, sys::Average);
         auto par_mult = stats.register_double_t("parallel_multiplication", 0, sys::AverageTotal);
+        auto bit_multiplications = stats.register_uint_t("bit_multiplications", 0, sys::AverageTotal);
         auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
         auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
@@ -357,7 +372,7 @@ namespace core {
             base::Array<T> act = layer.getActivations();
             if (!conv && act.getDimensions() == 4) act.reshape_to_2D();
             act.powers_of_two_representation(layer.getActPrecision());
-            base::Array<T> wgt = layer.getWeights();
+            const base::Array<T> &wgt = layer.getWeights();
 
             int padding = layer.getPadding();
             int stride = layer.getStride();
@@ -385,8 +400,8 @@ namespace core {
             auto Kx = wgt_shape[2];
             auto Ky = wgt_shape[3];
 
-            long out_x = (Nx - Kx + 2*padding)/stride + 1;
-            long out_y = (Ny - Ky + 2*padding)/stride + 1;
+            long out_x = (Nx - Kx)/stride + 1;
+            long out_y = (Ny - Ky)/stride + 1;
 
             // Get layer precision
             auto act_layer_prec = layer.getActPrecision();
@@ -432,12 +447,19 @@ namespace core {
                 work_reduction->value[layer_it][n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
                 speedup->value[layer_it][n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
                 par_mult->value[layer_it][n] = parallel_mult;
+                act_prec->value[layer_it][n] = layer.getActPrecision();
+                wgt_prec->value[layer_it][n] = layer.getWgtPrecision();
             }
 
         }
 
         //Dump statistics
-        stats.dump_csv(network.getName(), network.getLayersName(), this->QUIET);
+        std::string header = "BitTactical-P Potentials/Work Reduction for " + network.getName() + "\n";
+        #ifdef ZERO_COUNT
+        header += "Zero count as one cycle\n";
+        #endif
+
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
 
     }
 

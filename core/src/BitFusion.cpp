@@ -16,8 +16,8 @@ namespace core {
     void BitFusion<T>::run(const base::Network<T> &network) {
 
         // Initialize statistics
-        std::string filename = network.getName() + "_BitFusion_N" + std::to_string(N) + "_M" + std::to_string(M) +
-                "_PMAX" + std::to_string(PMAX) + "_PMIN" + std::to_string(PMIN) + "_cycles";
+        std::string filename = "BitFusion_N" + std::to_string(N) + "_M" + std::to_string(M) + "_PMAX" +
+                std::to_string(PMAX) + "_PMIN" + std::to_string(PMIN) + "_cycles";
         sys::Stats stats = sys::Stats(network.getNumLayers(), network.getBatches(), filename);
 
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
@@ -30,6 +30,7 @@ namespace core {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
+            bool lstm = layer.getType() == "LSTM";
 
             base::Array<T> act = layer.getActivations();
             if(!conv && act.getDimensions() == 4) act.reshape_to_2D();
@@ -38,8 +39,7 @@ namespace core {
             int padding = layer.getPadding();
             int stride = layer.getStride();
 
-            if(layer.getType() == "Convolution")
-                act.zero_pad(padding);
+            if(conv) act.zero_pad(padding);
 
             if(act.getShape()[1] == 3 && stride > 1) {
                 act.reshape_first_layer_act((uint16_t)stride);
@@ -52,7 +52,7 @@ namespace core {
 
             int batch_size = 1;
             uint64_t Nx, Ny, R;
-            if(layer.getType() == "LSTM") {
+            if(lstm) {
                 R = act_shape[0];
                 Nx = 1;
                 Ny = 1;
@@ -103,7 +103,13 @@ namespace core {
         }
 
         //Dump statistics
-        stats.dump_csv(network.getName(), network.getLayersName(), this->QUIET);
+        std::string header = "BitFusion Number of Cycles for " + network.getName() + "\n";
+        header += "Number of windows in parallel: " + std::to_string(N) + "\n";
+        header += "Number of filters in parallel: " + std::to_string(M) + "\n";
+        header += "Maximum spatial precision: " + std::to_string(PMAX) + "\n";
+        header += "Minimum spatial precision: " + std::to_string(PMIN) + "\n";
+
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
 
     }
 
@@ -113,13 +119,13 @@ namespace core {
     void BitFusion<T>::potentials(const base::Network<T> &network) {
 
         // Initialize statistics
-        std::string filename = network.getName() + "_BitFusion_potentials";
+        std::string filename = "BitFusion_potentials";
         sys::Stats stats = sys::Stats(network.getNumLayers(), network.getBatches(), filename);
 
-        auto bit_multiplications = stats.register_uint_t("bit_multiplications", 0, sys::AverageTotal);
         auto work_reduction = stats.register_double_t("work_reduction", 0, sys::Average);
         auto speedup = stats.register_double_t("speedup", 0, sys::Average);
         auto par_mult = stats.register_double_t("parallel_multiplication", 0, sys::AverageTotal);
+        auto bit_multiplications = stats.register_uint_t("bit_multiplications", 0, sys::AverageTotal);
         auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
         auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
@@ -127,22 +133,29 @@ namespace core {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
+            bool lstm = layer.getType() == "LSTM";
 
             base::Array<T> act = layer.getActivations();
             if(!conv && act.getDimensions() == 4) act.reshape_to_2D();
             const base::Array<T> &wgt = layer.getWeights();
 
+            int padding = layer.getPadding();
+            int stride = layer.getStride();
+
+            if (conv) act.zero_pad(padding);
+
             const std::vector<size_t> &act_shape = act.getShape();
             const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-            int batch_size = 1;
-            uint64_t Nx, Ny, R;
-            if(layer.getType() == "LSTM") {
+            uint64_t batch_size, Nx, Ny, R;
+            if (lstm) {
                 R = act_shape[0];
+                batch_size = act_shape[1];
                 Nx = 1;
                 Ny = 1;
             } else {
                 R = 1;
+                batch_size = act_shape[0];
                 Nx = act_shape[2];
                 Ny = act_shape[3];
             }
@@ -152,11 +165,8 @@ namespace core {
             auto Kx = wgt_shape[2];
             auto Ky = wgt_shape[3];
 
-            int padding = layer.getPadding();
-            int stride = layer.getStride();
-
-            long out_x = (Nx - Kx + 2*padding)/stride + 1;
-            long out_y = (Ny - Ky + 2*padding)/stride + 1;
+            long out_x = (Nx - Kx)/stride + 1;
+            long out_y = (Ny - Ky)/stride + 1;
 
             // Operations
             uint64_t parallel_mult = conv ? num_filters * out_x * out_y * Kx * Ky * wgt_channels :
@@ -183,12 +193,15 @@ namespace core {
                 work_reduction->value[layer_it][n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
                 speedup->value[layer_it][n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
                 par_mult->value[layer_it][n] = parallel_mult;
+                act_prec->value[layer_it][n] = layer.getActPrecision();
+                wgt_prec->value[layer_it][n] = layer.getWgtPrecision();
             }
 
         }
 
         //Dump statistics
-        stats.dump_csv(network.getName(), network.getLayersName(), this->QUIET);
+        std::string header = "BitFusion Potentials/Work Reduction for " + network.getName() + "\n";
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
 
     }
 

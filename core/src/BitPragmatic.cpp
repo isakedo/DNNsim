@@ -234,19 +234,22 @@ namespace core {
         // Initialize statistics
         std::string arch = "BitPragmatic";
         arch += (DIFFY ? "_Diffy" : "");
-        std::string filename = network.getName() + "_" + arch + "_C" + std::to_string(N_COLUMNS) + "_R" +
+        std::string filename = arch + "_C" + std::to_string(N_COLUMNS) + "_R" +
                 std::to_string(N_ROWS) + "_B" + std::to_string(BITS_FIRST_STAGE) + "_CR" +
                 std::to_string(COLUMN_REGISTERS) + "_cycles";
         sys::Stats stats = sys::Stats(network.getNumLayers(), network.getBatches(), filename);
 
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
         auto baseline_cycles = stats.register_uint_t("baseline_cycles", 0, sys::AverageTotal);
+        auto speedup = stats.register_double_t("speedup", 0, sys::Average);
         auto stall_cycles = stats.register_uint_t("stall_cycles", 0, sys::AverageTotal);
         auto weight_buff_reads = stats.register_uint_t("weight_buff_reads", 0, sys::AverageTotal);
         auto act_buff_reads = stats.register_uint_t("act_buff_reads", 0, sys::AverageTotal);
         auto accumulator_updates = stats.register_uint_t("accumulator_updates", 0, sys::AverageTotal);
         auto scheduled_pe = stats.register_uint_t("scheduled_pe", 0, sys::AverageTotal);
         auto idle_pe = stats.register_uint_t("idle_pe", 0, sys::AverageTotal);
+        auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
+        auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
         for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
 
@@ -297,8 +300,8 @@ namespace core {
             long out_x = (Nx - Kx)/stride + 1;
             long out_y = (Ny - Ky)/stride + 1;
 
-            auto act_prec = (uint16_t)layer.getActPrecision();
-            auto act_mask = (uint16_t)(1u << (act_prec - 1u));
+            auto act_layer_prec = (uint16_t)layer.getActPrecision();
+            auto act_mask = (uint16_t)(1u << (act_layer_prec - 1u));
 
             auto groups = act_channels / wgt_channels;
             auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS/groups);
@@ -348,6 +351,7 @@ namespace core {
                     accumulator_updates->value[layer_it][n] = batch_accumulator_updates;
                     scheduled_pe->value[layer_it][n] = batch_scheduled_pe;
                     idle_pe->value[layer_it][n] = batch_idle_pe;
+                    speedup->value[layer_it][n] = base_cycles / (double)cycles->value[layer_it][n];
 
                 } else if (conv) {
 
@@ -382,6 +386,7 @@ namespace core {
                     scheduled_pe->value[layer_it][n] = batch_scheduled_pe * num_filters_sets;
                     idle_pe->value[layer_it][n] = batch_idle_pe * num_filters_sets;
                     baseline_cycles->value[layer_it][n] = base_cycles;
+                    speedup->value[layer_it][n] = base_cycles / (double)cycles->value[layer_it][n];
 
                 } else {
 
@@ -418,15 +423,28 @@ namespace core {
                     auto idle_rows = N_ROWS - (num_filters % N_ROWS);
                     idle_rows = idle_rows == 16 ? 0 : idle_rows;
                     idle_pe->value[layer_it][n] = (uint64_t)(idle_rows * ceil(act_channels/(double)N_LANES));
+                    baseline_cycles->value[layer_it][n] = base_cycles;
+                    speedup->value[layer_it][n] = base_cycles / (double)cycles->value[layer_it][n];
 
                 }
+
+                act_prec->value[layer_it][n] = act_layer_prec;
+                wgt_prec->value[layer_it][n] = layer.getWgtPrecision();
 
             }
 
         }
 
         //Dump statistics
-        stats.dump_csv(network.getName(), network.getLayersName(), this->QUIET);
+        std::string header = "BitPragmatic Number of Cycles for " + network.getName() + "\n";
+        header += "Number of lanes/terms per PE: " + std::to_string(N_LANES) + "\n";
+        header += "Number of columns/windows in parallel: " + std::to_string(N_COLUMNS) + "\n";
+        header += "Number of rows/filters in parallel: " + std::to_string(N_ROWS) + "\n";
+        header += "Number of bits for first stage shifter: " + std::to_string(BITS_FIRST_STAGE) + "\n";
+        header += "Number of run-ahead input registers per column: " + std::to_string(COLUMN_REGISTERS) + "\n";
+        header += "Diffy: " + std::to_string(DIFFY) + "\n";
+
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
 
     }
 
@@ -436,13 +454,13 @@ namespace core {
     void BitPragmatic<T>::potentials(const base::Network<T> &network) {
 
         // Initialize statistics
-        std::string filename = network.getName() + "_BitPragmatic_potentials";
+        std::string filename = "BitPragmatic_potentials";
         sys::Stats stats = sys::Stats(network.getNumLayers(), network.getBatches(), filename);
 
-        auto bit_multiplications = stats.register_uint_t("bit_multiplications", 0, sys::AverageTotal);
         auto work_reduction = stats.register_double_t("work_reduction", 0, sys::Average);
         auto speedup = stats.register_double_t("speedup", 0, sys::Average);
         auto par_mult = stats.register_double_t("parallel_multiplication", 0, sys::AverageTotal);
+        auto bit_multiplications = stats.register_uint_t("bit_multiplications", 0, sys::AverageTotal);
         auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
         auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
@@ -455,7 +473,7 @@ namespace core {
             base::Array<T> act = layer.getActivations();
             if (!conv && act.getDimensions() == 4) act.reshape_to_2D();
             act.powers_of_two_representation(layer.getActPrecision());
-            base::Array<T> wgt = layer.getWeights();
+            const base::Array<T> &wgt = layer.getWeights();
 
             int padding = layer.getPadding();
             int stride = layer.getStride();
@@ -485,8 +503,8 @@ namespace core {
             auto Kx = wgt_shape[2];
             auto Ky = wgt_shape[3];
 
-            long out_x = (Nx - Kx + 2*padding)/stride + 1;
-            long out_y = (Ny - Ky + 2*padding)/stride + 1;
+            long out_x = (Nx - Kx)/stride + 1;
+            long out_y = (Ny - Ky)/stride + 1;
 
             auto groups = act_channels / wgt_channels;
             auto num_filters_sets = (uint32_t)ceil((double)num_filters/groups);
@@ -535,12 +553,22 @@ namespace core {
                 work_reduction->value[layer_it][n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
                 speedup->value[layer_it][n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
                 par_mult->value[layer_it][n] = parallel_mult;
+                act_prec->value[layer_it][n] = layer.getActPrecision();
+                wgt_prec->value[layer_it][n] = layer.getWgtPrecision();
             }
 
         }
 
         //Dump statistics
-        stats.dump_csv(network.getName(), network.getLayersName(), this->QUIET);
+        std::string header = "BitPragmatic Potentials/Work Reduction for " + network.getName() + "\n";
+        #ifdef BOOTH_ENCODING
+        header += "Booth-like Encoding\n";
+        #endif
+        #ifdef ZERO_COUNT
+        header += "Zero count as one cycle\n";
+        #endif
+
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
 
     }
 

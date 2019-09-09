@@ -37,10 +37,16 @@ namespace base {
     void Array<T>::set_values(const std::string &path) {
         base::NpyArray data_npy;
         base::npy_load(path, data_npy, shape);
-        std::vector<uint16_t> flat_array = data_npy.as_vec<uint16_t>();
+        std::vector<T> flat_array = data_npy.as_vec<T>();
 
-        if (shape.size() == 2) {
+        if (shape.size() == 1) {
             shape.push_back(1);
+            shape.push_back(1);
+            shape.push_back(1);
+        } else if (shape.size() == 2) {
+            shape.push_back(1);
+            shape.push_back(1);
+        } else if (shape.size() == 3) {
             shape.push_back(1);
         }
 

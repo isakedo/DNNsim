@@ -416,7 +416,8 @@ namespace sys {
         return std::dynamic_pointer_cast<stat_double_dist_t>(table.var);
     }
 
-    void Stats::dump_csv(const std::string &network_name, const std::vector<std::string> &layers_name, bool QUIET)
+    void Stats::dump_csv(const std::string &network_name, const std::vector<std::string> &layers_name,
+            const std::string &header, bool QUIET)
     {
 
         std::ofstream o_file;
@@ -435,8 +436,10 @@ namespace sys {
                 throw std::runtime_error("Error creating folder results/" + network_name);
         }
 
-        std::string path = "results/" + filename + ".csv";
+        std::string path = "results/" + network_name + "/" + filename + ".csv";
         o_file.open (path);
+
+        o_file << std::endl << header << std::endl;
 
         std::string scalar_parameter_names = "Layer,Batch,";
         for (const auto &table : database) {
