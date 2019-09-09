@@ -1,4 +1,4 @@
-#include"cnpy/cnpy.h"
+#include"base/cnpy.h"
 #include<complex>
 #include<cstdlib>
 #include<algorithm>
@@ -8,7 +8,7 @@
 #include<stdexcept>
 #include <regex>
 
-namespace cnpy {
+namespace base {
 
     char BigEndianTest() {
         int x = 1;
@@ -113,8 +113,8 @@ namespace cnpy {
     NpyArray load_the_npy_file(FILE *fp, std::vector<size_t> &shape) {
         size_t word_size;
         bool fortran_order;
-        cnpy::parse_npy_header(fp, word_size, shape, fortran_order);
-        cnpy::NpyArray arr(shape, word_size, fortran_order);
+        base::parse_npy_header(fp, word_size, shape, fortran_order);
+        base::NpyArray arr(shape, word_size, fortran_order);
         size_t nread = fread(arr.data<char>(), 1, arr.num_bytes(), fp);
         if (nread != arr.num_bytes())
             throw std::runtime_error("load_the_npy_file: failed fread");

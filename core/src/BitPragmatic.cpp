@@ -62,7 +62,7 @@ namespace core {
 
     template <typename T>
     uint8_t BitPragmatic<T>::computePragmaticColumn(int batch, int recursion, int act_x, int act_y, int kernel_x,
-            int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, bool lstm) {
+            int kernel_y, int init_channel, int stride, const base::Array<T> &padded_act, int max_channel, bool lstm) {
 
         std::vector<std::queue<uint8_t>> offsets;
         for(int channel = init_channel; channel < std::min(init_channel + (int)N_LANES,max_channel); channel++) {
@@ -96,7 +96,7 @@ namespace core {
     template <typename T>
     void BitPragmatic<T>::computePragmaticTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int stride,
-            const cnpy::Array<T> &padded_act, int act_mask, int max_channel, std::vector<uint32_t> &cycles_per_col,
+            const base::Array<T> &padded_act, int act_mask, int max_channel, std::vector<uint32_t> &cycles_per_col,
             std::vector<uint32_t> &end_previous_pallet, uint64_t &stall_cycles) {
 
         for(int window = 0; window < list_act_x.size(); window++) {
@@ -169,7 +169,7 @@ namespace core {
     template <typename T>
     void BitPragmatic<T>::computePragmatic2DTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_filter, int stride,
-            const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int max_filter,
+            const base::Array<T> &padded_act, const base::Array<T> &wgt, int max_filter,
             std::vector<uint32_t> &cycles_per_col, std::vector<uint32_t> &end_previous_pallet,
             uint64_t &stall_cycles) {
 
@@ -229,7 +229,7 @@ namespace core {
     /* CYCLES */
 
     template <typename T>
-    void BitPragmatic<T>::run(const Network<T> &network) {
+    void BitPragmatic<T>::run(const base::Network<T> &network) {
 
         // Initialize statistics
         std::string arch = "BitPragmatic";
@@ -250,14 +250,14 @@ namespace core {
 
         for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
 
-            const Layer<T> &layer = network.getLayers()[layer_it];
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
             bool lstm = layer.getType() == "LSTM";
 
-            cnpy::Array<T> act = layer.getActivations();
+            base::Array<T> act = layer.getActivations();
             if(!conv && act.getDimensions() == 4) act.reshape_to_2D();
             if(!DIFFY) act.powers_of_two_representation(layer.getActPrecision());
-            cnpy::Array<T> wgt = layer.getWeights();
+            base::Array<T> wgt = layer.getWeights();
 
             int padding = layer.getPadding();
             int stride = layer.getStride();
@@ -426,14 +426,14 @@ namespace core {
         }
 
         //Dump statistics
-        stats.dump_csv(network.getName(), network.getLayersName());
+        stats.dump_csv(network.getName(), network.getLayersName(), this->QUIET);
 
     }
 
     /* POTENTIALS */
 
     template <typename T>
-    void BitPragmatic<T>::potentials(const Network<T> &network) {
+    void BitPragmatic<T>::potentials(const base::Network<T> &network) {
 
         // Initialize statistics
         std::string filename = network.getName() + "_BitPragmatic_potentials";
@@ -448,14 +448,14 @@ namespace core {
 
         for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
 
-            const Layer<T> &layer = network.getLayers()[layer_it];
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
             bool lstm = layer.getType() == "LSTM";
 
-            cnpy::Array<T> act = layer.getActivations();
+            base::Array<T> act = layer.getActivations();
             if (!conv && act.getDimensions() == 4) act.reshape_to_2D();
             act.powers_of_two_representation(layer.getActPrecision());
-            cnpy::Array<T> wgt = layer.getWeights();
+            base::Array<T> wgt = layer.getWeights();
 
             int padding = layer.getPadding();
             int stride = layer.getStride();
@@ -540,8 +540,10 @@ namespace core {
         }
 
         //Dump statistics
-        stats.dump_csv(network.getName(), network.getLayersName());
+        stats.dump_csv(network.getName(), network.getLayersName(), this->QUIET);
 
     }
+
+    template class BitPragmatic<uint16_t>;
 
 }

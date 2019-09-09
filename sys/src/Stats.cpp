@@ -416,7 +416,7 @@ namespace sys {
         return std::dynamic_pointer_cast<stat_double_dist_t>(table.var);
     }
 
-    void Stats::dump_csv(const std::string &network_name, const std::vector<std::string> &layers_name)
+    void Stats::dump_csv(const std::string &network_name, const std::vector<std::string> &layers_name, bool QUIET)
     {
 
         std::ofstream o_file;
@@ -518,7 +518,7 @@ namespace sys {
 
         o_file.close();
 
-        std::cout << "Results stored in: " << path << std::endl;
+        if (!QUIET) std::cout << "Results stored in: " << path << std::endl;
     }
 
 }

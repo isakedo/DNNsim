@@ -68,7 +68,7 @@ namespace core {
 
     template <typename T>
     uint8_t BitTacticalE<T>::computeTacticalEColumn(int batch, int recursion, int act_x, int act_y, int stride,
-            const cnpy::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time, bool lstm) {
+            const base::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time, bool lstm) {
 
         std::list<uint16_t> unique_act_bits;
         std::vector<std::queue<uint8_t>> offsets;
@@ -116,7 +116,7 @@ namespace core {
 
     template <typename T>
     void BitTacticalE<T>::computeTacticalETile(int batch, const std::vector<int> &list_act_x,
-            const std::vector<int> &list_act_y, int stride, const cnpy::Array<T> &padded_act,
+            const std::vector<int> &list_act_y, int stride, const base::Array<T> &padded_act,
             const schedule &dense_schedule, int schedule_time, std::vector<uint32_t> &cycles_per_col,
             std::vector<uint32_t> &end_previous_pallet, uint64_t &stall_cycles) {
 
@@ -156,7 +156,7 @@ namespace core {
     /* CYCLES */
 
     template <typename T>
-    void BitTacticalE<T>::run(const Network<T> &network, const std::vector<schedule> &schedules) {
+    void BitTacticalE<T>::run(const base::Network<T> &network, const std::vector<schedule> &schedules) {
 
         // Initialize statistics
         int mux_entries = this->LOOKAHEAD_H + this->LOOKASIDE_D + 1;
@@ -177,14 +177,14 @@ namespace core {
 
         for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
 
-            const Layer<T> &layer = network.getLayers()[layer_it];
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
             bool lstm = layer.getType() == "LSTM";
 
-            cnpy::Array<T> act = layer.getActivations();
+            base::Array<T> act = layer.getActivations();
             if(!conv && act.getDimensions() == 4) act.reshape_to_2D();
             act.powers_of_two_representation(layer.getActPrecision());
-            cnpy::Array<T> wgt = layer.getWeights();
+            base::Array<T> wgt = layer.getWeights();
 
             int padding = layer.getPadding();
             int stride = layer.getStride();
@@ -314,14 +314,14 @@ namespace core {
         }
 
         //Dump statistics
-        stats.dump_csv(network.getName(), network.getLayersName());
+        stats.dump_csv(network.getName(), network.getLayersName(), this->QUIET);
 
     }
 
     /* POTENTIALS */
 
     template <typename T>
-    void BitTacticalE<T>::potentials(const Network<T> &network) {
+    void BitTacticalE<T>::potentials(const base::Network<T> &network) {
 
         // Initialize statistics
         std::string filename = network.getName() + "_BitTacticalE_potentials";
@@ -336,14 +336,14 @@ namespace core {
 
         for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
 
-            const Layer<T> &layer = network.getLayers()[layer_it];
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
             bool lstm = layer.getType() == "LSTM";
 
-            cnpy::Array<T> act = layer.getActivations();
+            base::Array<T> act = layer.getActivations();
             if (!conv && act.getDimensions() == 4) act.reshape_to_2D();
             act.powers_of_two_representation(layer.getActPrecision());
-            cnpy::Array<T> wgt = layer.getWeights();
+            base::Array<T> wgt = layer.getWeights();
 
             int padding = layer.getPadding();
             int stride = layer.getStride();
@@ -439,7 +439,7 @@ namespace core {
         }
 
         //Dump statistics
-        stats.dump_csv(network.getName(), network.getLayersName());
+        stats.dump_csv(network.getName(), network.getLayersName(), this->QUIET);
 
     }
 

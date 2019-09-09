@@ -67,39 +67,13 @@ namespace core {
          * @param max_channel   Maximum number of channels
          * @param max_filter    Maximum number of filters
          * @param conv2D        True if 2D convolution
-         * @param stats         Statistics to fill
+         * @param stall_cycles  Stall cycles stat (Overwritten)
          * @return              Number of cycles
          */
         uint8_t computeLaconicTile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
                 int kernel_x, int kernel_y, int init_channel, int init_filter, int stride,
                 const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group, int max_channel,
-                int max_filter, bool conv2D, sys::Statistics::Stats &stats);
-
-        /* Compute the timing for a convolutional layer
-         * @param layer     Layer for which we want to calculate the outputs
-         * @param stats     Statistics to fill
-         */
-        void computeConvolution(const Layer<T> &layer, sys::Statistics::Stats &stats);
-
-        /* Compute the timing for a fully-connected layer
-         * @param layer     Layer for which we want to calculate the outputs
-         * @param stats     Statistics to fill
-         */
-        void computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats);
-
-        /* Compute the potentials for a convolutional layer
-         * @param layer         Layer for which we want to calculate potentials
-         * @param stats         Statistics to fill
-         * @param network_bits  Max bits network
-         */
-        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits);
-
-        /* Compute the potentials for a inner product layer
-         * @param layer         Layer for which we want to calculate potentials
-         * @param stats         Statistics to fill
-         * @param network_bits  Max bits network
-         */
-        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats,int network_bits);
+                int max_filter, bool conv2D, uint64_t &stall_cycles);
 
     public:
 

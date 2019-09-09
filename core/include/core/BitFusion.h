@@ -38,19 +38,20 @@ namespace core {
          * @param _PMIN         Minimum precision
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
+         * @param _QUIET        Avoid std::out messages
          */
-        BitFusion(uint32_t _M, uint32_t _N, uint32_t _PMAX, uint32_t _PMIN, uint8_t _N_THREADS, bool _FAST_MODE) :
-            Simulator<T>(_N_THREADS,_FAST_MODE), M(_M), N(_N), PMAX(_PMAX), PMIN(_PMIN) {}
+        BitFusion(uint32_t _M, uint32_t _N, uint32_t _PMAX, uint32_t _PMIN, uint8_t _N_THREADS, bool _FAST_MODE,
+                bool _QUIET) : Simulator<T>(_N_THREADS,_FAST_MODE,_QUIET), M(_M), N(_N), PMAX(_PMAX), PMIN(_PMIN) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate
          */
-        void run(const Network<T> &network);
+        void run(const base::Network<T> &network);
 
         /* Calculate potentials for the given network
          * @param network   Network we want to calculate work reduction
          */
-        void potentials(const Network<T> &network);
+        void potentials(const base::Network<T> &network);
 
     };
 

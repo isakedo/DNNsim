@@ -36,7 +36,7 @@ THE SOFTWARE.
 #include<stdint.h>
 #include<numeric>
 
-namespace cnpy {
+namespace base {
 
     struct NpyArray {
         NpyArray(const std::vector<size_t>& _shape, size_t _word_size, bool _fortran_order) :

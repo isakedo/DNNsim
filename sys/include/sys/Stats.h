@@ -456,8 +456,9 @@ namespace sys {
          * Return all stats per image in a csv file
          * @param network Name of the network
          * @param layers Name of the layers
+         * @param QUIET Avoid std::out messages
          */
-        void dump_csv(const std::string &network_name, const std::vector<std::string> &layers_name);
+        void dump_csv(const std::string &network_name, const std::vector<std::string> &layers_name, bool QUIET);
 
     };
 

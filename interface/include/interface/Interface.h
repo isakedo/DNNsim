@@ -2,8 +2,7 @@
 #define DNNSIM_INTERFACE_H
 
 #include <sys/common.h>
-#include <core/Network.h>
-#include <core/BitTactical.h>
+#include <base/Network.h>
 #include <network.pb.h>
 #include <schedule.pb.h>
 

@@ -3,12 +3,6 @@
 
 #include "Simulator.h"
 
-typedef std::vector<std::vector<std::tuple<int,int,int,uint16_t>>> schedule;
-typedef std::vector<std::tuple<int,int,int,uint16_t>> time_schedule;
-typedef std::tuple<int,int,int,uint16_t> schedule_tuple;
-typedef std::list<std::tuple<int,int>> weights_set;
-typedef std::tuple<int,int> weight_index;
-
 namespace core {
 
     template <typename T>
@@ -53,7 +47,7 @@ namespace core {
          * @param max_time      Maximum time than can be scheduled (assuming stationary PSUM FIX)
          * @return              Return the sparse scheduled weights
          */
-        schedule sparse_scheduler(const cnpy::Array<T> &wgt, uint64_t act_channels, std::vector<int> &max_time);
+        schedule sparse_scheduler(const base::Array<T> &wgt, uint64_t act_channels, std::vector<int> &max_time);
 
     protected:
 
@@ -83,23 +77,18 @@ namespace core {
          * @param act_channels  Number of activation channels
          * @return              Return the scheduled weights
          */
-        schedule scheduler(const cnpy::Array<T> &wgt, uint64_t act_channels);
-
-        /* Run the timing simulator of the architecture
-         * @param network   Network we want to simulate
-         */
-        virtual void run(const Network<T> &network) = 0;
+        schedule scheduler(const base::Array<T> &wgt, uint64_t act_channels);
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate
          * @param schedules Dense schedules for the layer we want to simulate
          */
-        virtual void run(const Network<T> &network, const std::vector<schedule> &schedules) = 0;
+        virtual void run(const base::Network<T> &network, const std::vector<schedule> &schedules) = 0;
 
         /* Calculate work reduction for the given network
          * @param network   Network we want to calculate work reduction
          */
-        virtual void potentials(const Network<T> &network) = 0;
+        virtual void potentials(const base::Network<T> &network) = 0;
 
         /* Constructor
          * @param _N_LANES          Number of concurrent multiplications per PE
@@ -111,11 +100,12 @@ namespace core {
          * @param _SEARCH_SHAPE     Type of search
          * @param _N_THREADS        Number of parallel threads for multi-threading execution
          * @param _FAST_MODE        Enable fast mode to simulate only one image
+         * @param _QUIET            Avoid std::out messages
          */
         BitTactical(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _COLUMN_REGISTERS,
                 uint32_t _LOOKAHEAD_H, uint32_t _LOOKASIDE_D, const char _SEARCH_SHAPE, uint8_t _N_THREADS,
-                bool _FAST_MODE) : Simulator<T>(_N_THREADS,_FAST_MODE), N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS),
-                N_ROWS(_N_ROWS), COLUMN_REGISTERS(_COLUMN_REGISTERS), LOOKAHEAD_H(_LOOKAHEAD_H),
+                bool _FAST_MODE, bool _QUIET) : Simulator<T>(_N_THREADS,_FAST_MODE,_QUIET), N_LANES(_N_LANES),
+                N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), COLUMN_REGISTERS(_COLUMN_REGISTERS), LOOKAHEAD_H(_LOOKAHEAD_H),
                 LOOKASIDE_D(_LOOKASIDE_D), SEARCH_SHAPE(_SEARCH_SHAPE) {}
 
     public:
@@ -123,7 +113,7 @@ namespace core {
         /* Return the weights scheduled for all the layers
          * @param network   Network we want to get the scheduler
          */
-        std::vector<schedule> network_scheduler(const Network<T> &network);
+        std::vector<schedule> network_scheduler(const base::Network<T> &network);
 
     };
 

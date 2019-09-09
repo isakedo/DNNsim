@@ -23,58 +23,26 @@ THE SOFTWARE.
 
 #include <interface/NetReader.h>
 #include <interface/NetWriter.h>
-#include <interface/StatsWriter.h>
 
-#include <core/Network.h>
-#include <core/Stripes.h>
-#include <core/DynamicStripes.h>
-#include <core/DynamicStripesFP.h>
-#include <core/Loom.h>
+#include <base/Network.h>
+//#include <core/Stripes.h>
+//#include <core/DynamicStripes.h>
+//#include <core/DynamicStripesFP.h>
+//#include <core/Loom.h>
 #include <core/BitPragmatic.h>
-#include <core/Laconic.h>
+//#include <core/Laconic.h>
 #include <core/BitTacticalP.h>
 #include <core/BitTacticalE.h>
-#include <core/SCNN.h>
-#include <core/SCNNp.h>
-#include <core/SCNNe.h>
+//#include <core/SCNN.h>
+//#include <core/SCNNp.h>
+//#include <core/SCNNe.h>
 #include <core/BitFusion.h>
 
 template <typename T>
-core::Network<T> read_training(const std::string &network_name, uint32_t batch, uint32_t epoch, uint32_t decoder_states,
-        uint32_t traces_mode, bool QUIET) {
+base::Network<T> read(const std::string &input_type, const std::string &network_name, uint32_t batch, bool QUIET) {
 
     // Read the network
-    core::Network<T> network;
-    interface::NetReader<T> reader = interface::NetReader<T>(network_name, batch, epoch, QUIET);
-	network = reader.read_network_trace_params();
-	if(decoder_states > 0) network.duplicate_decoder_layers(decoder_states);
-
-	bool forward = (traces_mode & 0x1u) != 0;
-	bool backward = (traces_mode & 0x2u) != 0;
-	network.setForkward(forward);
-	network.setBackward(backward);
-
-	// Forward traces
-	if(forward) {
-		reader.read_training_weights_npy(network);
-		reader.read_training_activations_npy(network);
-	}
-
-	// Backward traces
-	if(backward) {
-		reader.read_training_weight_gradients_npy(network);
-		reader.read_training_input_gradients_npy(network);
-		reader.read_training_output_activation_gradients_npy(network);
-	}
-    return network;
-
-}
-
-template <typename T>
-core::Network<T> read(const std::string &input_type, const std::string &network_name, uint32_t batch, bool QUIET) {
-
-    // Read the network
-    core::Network<T> network;
+    base::Network<T> network;
     interface::NetReader<T> reader = interface::NetReader<T>(network_name, batch, 0, QUIET);
     if (input_type == "Caffe") {
         network = reader.read_network_caffe();
@@ -104,7 +72,7 @@ core::Network<T> read(const std::string &input_type, const std::string &network_
 }
 
 template <typename T>
-void write(const core::Network<T> &network, bool QUIET) {
+void write(const base::Network<T> &network, bool QUIET) {
 
     // Write network
     interface::NetWriter<T> writer = interface::NetWriter<T>(network.getName(),QUIET);
@@ -125,7 +93,7 @@ std::vector<schedule> read_schedule(const std::string &network_name, const std::
 }
 
 template <typename T>
-void write_schedule(const core::Network<T> &network, core::BitTactical<T> &DNNsim, const std::string &arch,
+void write_schedule(const base::Network<T> &network, core::BitTactical<T> &DNNsim, const std::string &arch,
         const sys::Batch::Simulate::Experiment &experiment, bool QUIET) {
     const auto &network_schedule = DNNsim.network_scheduler(network);
     interface::NetWriter<uint16_t> writer = interface::NetWriter<uint16_t>(network.getName(),QUIET);
@@ -207,43 +175,25 @@ int main(int argc, char *argv[]) {
 				// Training traces
 				if(simulate.training) {
 
-                    uint32_t traces_mode = 0;
-					if(simulate.only_forward) traces_mode = 1;
-					else if(simulate.only_backward) traces_mode = 2;
-					else traces_mode = 3;
-
                     uint32_t epochs = simulate.epochs;
 					for(const auto &experiment : simulate.experiments) {
 
-						// Initialize statistics
-						sys::Statistics::Stats stats;
-						sys::Statistics::initialize(stats);
-
-						for (uint32_t epoch = 0; epoch < epochs; epoch++) {
-							core::Network<float> network;
-							network = read_training<float>(simulate.network, simulate.batch, epoch,
-							        simulate.decoder_states, traces_mode, QUIET);
-
-				        	if(experiment.architecture == "None") {
-				        		core::Simulator<float> DNNsim(N_THREADS,FAST_MODE);
-				                if (experiment.task == "Sparsity") DNNsim.training_sparsity(network,stats,epoch,
-				                        epochs);
-				                else if (experiment.task == "ExpBitSparsity") DNNsim.training_bit_sparsity(network,
-				                        stats, epoch, epochs, false);
-				                else if (experiment.task == "MantBitSparsity") DNNsim.training_bit_sparsity(network,
-				                        stats, epoch, epochs, true);
-				                else if (experiment.task == "ExpDistr") DNNsim.training_distribution(network, stats,
-				                        epoch, epochs, false);
-				                else if (experiment.task == "MantDistr") DNNsim.training_distribution(network, stats,
-								        epoch, epochs, true);
-				            } else if (experiment.architecture == "DynamicStripesFP") {
-								core::DynamicStripesFP<float> DNNsim(experiment.leading_bit,experiment.minor_bit,
-                                        N_THREADS,FAST_MODE);
-				                if (experiment.task == "AvgWidth") DNNsim.average_width(network,stats,epoch,epochs);
-				            }
-						}
-
-						sys::Statistics::addStats(stats);
+                        if(experiment.architecture == "None") {
+                            core::Simulator<float> DNNsim(N_THREADS,FAST_MODE,QUIET);
+                            if (experiment.task == "Sparsity") DNNsim.training_sparsity(simulate, epochs);
+                            else if (experiment.task == "ExpBitSparsity")
+                                DNNsim.training_bit_sparsity(simulate, epochs, false);
+                            else if (experiment.task == "MantBitSparsity")
+                                DNNsim.training_bit_sparsity(simulate, epochs, true);
+                            /*else if (experiment.task == "ExpDistr")
+                                DNNsim.training_distribution(simulate, epochs, false);
+                            else if (experiment.task == "MantDistr")
+                                DNNsim.training_distribution(simulate, epochs, true);*/
+                        } /*else if (experiment.architecture == "DynamicStripesFP") {
+                            core::DynamicStripesFP<float> DNNsim(experiment.leading_bit,experiment.minor_bit,
+                                    N_THREADS,FAST_MODE);
+                            if (experiment.task == "AvgWidth") DNNsim.average_width(network, epochs);
+                        } */
 
 		            }
 
@@ -251,24 +201,24 @@ int main(int argc, char *argv[]) {
 				} else {
 
 		            if (simulate.data_type == "Float32") {
-		                core::Network<float> network;
+                        base::Network<float> network;
 		                network = read<float>(simulate.model, simulate.network, simulate.batch, QUIET);
 		                network.setNetwork_bits(simulate.network_bits);
 		                for(const auto &experiment : simulate.experiments) {
 		                    if(experiment.architecture == "None") {
-		                    	core::Simulator<float> DNNsim(N_THREADS,FAST_MODE);
+		                    	core::Simulator<float> DNNsim(N_THREADS,FAST_MODE,QUIET);
 		                        if (experiment.task == "Sparsity") DNNsim.sparsity(network);
-		                    } else if (experiment.architecture == "SCNN") {
+		                    } /*else if (experiment.architecture == "SCNN") {
 		                        core::SCNN<float> DNNsim(experiment.Wt, experiment.Ht, experiment.I, experiment.F,
 		                                experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE);
 		                        if (experiment.task == "Cycles") DNNsim.run(network);
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
-		                    }
+		                    }*/
 		                }
 		            } else if (simulate.data_type == "Fixed16") {
-		                core::Network<uint16_t> network;
+                        base::Network<uint16_t> network;
                         if (simulate.model != "Protobuf") {
-                            core::Network<float> tmp_network;
+                            base::Network<float> tmp_network;
                             tmp_network = read<float>(simulate.model, simulate.network, simulate.batch, QUIET);
                             tmp_network.setTensorflow_8b(simulate.tensorflow_8b);
                             network = tmp_network.fixed_point();
@@ -286,18 +236,18 @@ int main(int argc, char *argv[]) {
                                     << experiment.architecture << std::endl;
 
                             if(experiment.architecture == "None") {
-		                        core::Simulator<uint16_t> DNNsim(N_THREADS,FAST_MODE);
+		                        core::Simulator<uint16_t> DNNsim(N_THREADS,FAST_MODE,QUIET);
 		                        if(experiment.task == "Sparsity") DNNsim.sparsity(network);
 		                        else if(experiment.task == "BitSparsity") DNNsim.bit_sparsity(network);
 
 		                    } else if(experiment.architecture == "BitPragmatic") {
 		                        core::BitPragmatic<uint16_t> DNNsim(experiment.n_lanes,experiment.n_columns,
 		                                experiment.n_rows,experiment.bits_first_stage,experiment.column_registers,
-		                                experiment.diffy,N_THREADS,FAST_MODE);
+		                                experiment.diffy,N_THREADS,FAST_MODE,QUIET);
 		                        if(experiment.task == "Cycles") DNNsim.run(network);
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
-		                    } else if(experiment.architecture == "Stripes") {
+		                    /*} else if(experiment.architecture == "Stripes") {
 		                        core::Stripes<uint16_t> DNNsim(experiment.n_lanes,experiment.n_columns,
 		                                experiment.n_rows,experiment.bits_pe,N_THREADS,FAST_MODE);
 		                        if(experiment.task == "Cycles") DNNsim.run(network);
@@ -324,13 +274,13 @@ int main(int argc, char *argv[]) {
 		                        core::Laconic<uint16_t> DNNsim(experiment.n_lanes,experiment.n_columns,
 		                                experiment.n_rows,N_THREADS,FAST_MODE);
 		                        if(experiment.task == "Cycles") DNNsim.run(network);
-		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
+		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);*/
 
 		                    } else if (experiment.architecture == "BitTacticalP") {
 		                        core::BitTacticalP<uint16_t> DNNsim(experiment.n_lanes,experiment.n_columns,
 		                                experiment.n_rows,experiment.precision_granularity, experiment.column_registers,
 		                                experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape,
-		                                experiment.leading_bit, N_THREADS, FAST_MODE);
+		                                experiment.leading_bit, N_THREADS, FAST_MODE, QUIET);
 		                        if(experiment.task == "Cycles" && experiment.read_schedule) {
 		                            auto dense_schedule = read_schedule<uint16_t>(network.getName(),"BitTactical",
 		                                    experiment,QUIET);
@@ -338,14 +288,15 @@ int main(int argc, char *argv[]) {
 		                        }
 		                        else if (experiment.task == "Schedule")
 		                            write_schedule<uint16_t>(network,DNNsim,"BitTactical",experiment,QUIET);
-		                        else if (experiment.task == "Cycles") DNNsim.run(network);
+		                        else if (experiment.task == "Cycles")
+                                    DNNsim.run(network, std::vector<schedule>(network.getNumLayers(), schedule()));
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
 		                    } else if (experiment.architecture == "BitTacticalE") {
 		                        core::BitTacticalE<uint16_t> DNNsim(experiment.n_lanes,experiment.n_columns,
 		                                experiment.n_rows,experiment.bits_first_stage, experiment.column_registers,
 		                                experiment.lookahead_h,experiment.lookaside_d, experiment.search_shape,
-		                                N_THREADS,FAST_MODE);
+		                                N_THREADS,FAST_MODE,QUIET);
 		                        if(experiment.task == "Cycles" && experiment.read_schedule) {
 		                            auto dense_schedule = read_schedule<uint16_t>(network.getName(),"BitTactical",
 		                                    experiment,QUIET);
@@ -353,10 +304,11 @@ int main(int argc, char *argv[]) {
 		                        }
 		                        else if (experiment.task == "Schedule")
 		                            write_schedule<uint16_t>(network,DNNsim,"BitTactical",experiment,QUIET);
-		                        else if (experiment.task == "Cycles") DNNsim.run(network);
+		                        else if (experiment.task == "Cycles")
+		                            DNNsim.run(network, std::vector<schedule>(network.getNumLayers(), schedule()));
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
-		                    } else if (experiment.architecture == "SCNN") {
+		                    /*} else if (experiment.architecture == "SCNN") {
 		                        core::SCNN<uint16_t> DNNsim(experiment.Wt, experiment.Ht, experiment.I, experiment.F,
 		                                experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE);
 		                        if (experiment.task == "Cycles") DNNsim.run(network);
@@ -374,10 +326,11 @@ int main(int argc, char *argv[]) {
 		                                experiment.out_acc_size, experiment.banks, experiment.pe_serial_bits, N_THREADS,
 		                                FAST_MODE);
 		                        if (experiment.task == "Cycles") DNNsim.run(network);
-		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
+		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);*/
+
 		                    } else if (experiment.architecture == "BitFusion") {
 		                        core::BitFusion<uint16_t> DNNsim(experiment.M, experiment.N, experiment.pmax,
-		                                experiment.pmin, N_THREADS, FAST_MODE);
+		                                experiment.pmin, N_THREADS, FAST_MODE,QUIET);
 		                        if (experiment.task == "Cycles") DNNsim.run(network);
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 		                    }

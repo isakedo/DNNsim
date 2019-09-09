@@ -3,9 +3,11 @@
 
 #include <sys/common.h>
 #include <sys/Stats.h>
-#include <cnpy/Array.h>
-#include "Layer.h"
-#include "Network.h"
+#include <sys/Batch.h>
+#include <base/Array.h>
+#include <base/Layer.h>
+#include <base/Network.h>
+#include <interface/NetReader.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -35,6 +37,9 @@ namespace core {
 
         /* Enable fast mode: only one image */
         const bool FAST_MODE = false;
+
+        /* Avoid std::out messages */
+        const bool QUIET = false;
 
         /* Iterate set of windows in groups
          * @param out_x         Output activations X size
@@ -82,7 +87,7 @@ namespace core {
         /* Return value into sign-magnitude representation
          * @param two_comp  Signed value in two complement
          * @param mask      Mask with one bit for the bit position
-         * @return          Value in sign-maginutde
+         * @return          Value in sign-magnitude
          */
         uint16_t sign_magnitude(short two_comp, uint16_t mask);
 
@@ -91,46 +96,40 @@ namespace core {
         /* Constructor
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
+         * @param _QUIET        Avoid std::out messages
          */
-        Simulator(uint8_t _N_THREADS, bool _FAST_MODE) : N_THREADS(_N_THREADS), FAST_MODE(_FAST_MODE) {}
+        Simulator(uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET) : N_THREADS(_N_THREADS), FAST_MODE(_FAST_MODE),
+                QUIET(_QUIET) {}
 
         /* Calculate the sparsity in the network
          * @param network   Network we want to check
          */
-        void sparsity(const Network<T> &network);
+        void sparsity(const base::Network<T> &network);
 
         /* Calculate the bit-sparsity in the network. Assumes two-complement
          * @param network   Network we want to check
          */
-        void bit_sparsity(const Network<T> &network);
+        void bit_sparsity(const base::Network<T> &network);
 
         /* Calculate the training sparsity in the network
-         * @param network   Network we want to check
-		 * @param stats		Shared stats for the epochs
-		 * @param epoch		Current epoch
+         * @param simulate  Simulate configuration
 		 * @param epochs    Number of epochs
          */
-        void training_sparsity(const Network<T> &network, sys::Statistics::Stats &stats, int epoch, int epochs);
+        void training_sparsity(const sys::Batch::Simulate &simulate, int epochs);
 
         /* Calculate the training bit sparsity in the network
-         * @param network   Network we want to check
-         * @param stats		Shared stats for the epochs
-         * @param epoch		Current epoch
+         * @param simulate  Simulate configuration
          * @param epochs    Number of epochs
          * @param mantissa  Mantissa bit sparsity instead of exponent
          */
-        void training_bit_sparsity(const Network<T> &network, sys::Statistics::Stats &stats, int epoch, int epochs,
-                bool mantissa);
+        void training_bit_sparsity(const sys::Batch::Simulate &simulate, int epochs, bool mantissa);
 
         /* Calculate the training exponent distribution in the network
-         * @param network   Network we want to check
-         * @param stats		Shared stats for the epochs
-         * @param epoch		Current epoch
+         * @param simulate  Simulate configuration
          * @param epochs    Number of epochs
          * @param mantissa  Mantissa distribution instead of exponent
          */
-        void training_distribution(const Network<T> &network, sys::Statistics::Stats &stats, int epoch, int epochs,
-                bool mantissa);
+        //void training_distribution(const sys::Batch::Simulate &simulate, int epochs, bool mantissa);
 
     };
 

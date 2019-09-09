@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.1)
 project(
-        cnpy
+        base
         VERSION 1.0.0
         LANGUAGES CXX
 )
@@ -8,8 +8,10 @@ project(
 # Create library
 add_library(
         ${PROJECT_NAME}
-        include/cnpy/cnpy.h
-        include/cnpy/Array.h
+        include/base/cnpy.h
+        include/base/Array.h
+        include/base/Layer.h
+        include/base/Network.h
         src/cnpy.cpp
         src/Array.cpp
 )

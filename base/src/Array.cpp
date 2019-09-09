@@ -1,7 +1,7 @@
 
-#include <cnpy/Array.h>
+#include <base/Array.h>
 
-namespace cnpy {
+namespace base {
 
     /* SETTERS */
 
@@ -35,8 +35,8 @@ namespace cnpy {
 
     template <typename T>
     void Array<T>::set_values(const std::string &path) {
-        cnpy::NpyArray data_npy;
-        cnpy::npy_load(path, data_npy, shape);
+        base::NpyArray data_npy;
+        base::npy_load(path, data_npy, shape);
         std::vector<uint16_t> flat_array = data_npy.as_vec<uint16_t>();
 
         if (shape.size() == 2) {
@@ -64,7 +64,7 @@ namespace cnpy {
     void Array<T>::set_values(const std::vector<T> &_data, const std::vector<size_t> &_shape) {
         if (_shape.size() == 1) {
             this->data = Array4D(_shape[0], Array3D(1, Array2D(1, Array1D(1))));
-            for(int i = 0; i < this->shape[0]; i++) {
+            for(int i = 0; i < _shape[0]; i++) {
                 this->data[i][0][0][0] = _data[i];
             }
             this->shape = _shape;
@@ -73,33 +73,33 @@ namespace cnpy {
             this->shape.push_back(1);
         } else if(_shape.size() == 2){
             this->data = Array4D(_shape[0], Array3D(_shape[1], Array2D(1, Array1D(1))));
-            for(int i = 0; i < this->shape[0]; i++) {
-                for(int j = 0; j < this->shape[1]; j++)
-                    this->data[i][j][0][0] = _data[this->shape[1]*i + j];
+            for(int i = 0; i < _shape[0]; i++) {
+                for(int j = 0; j < _shape[1]; j++)
+                    this->data[i][j][0][0] = _data[_shape[1]*i + j];
             }
             this->shape = _shape;
             this->shape.push_back(1);
             this->shape.push_back(1);
         } else if (_shape.size() == 3) {
             this->data = Array4D(_shape[0], Array3D(_shape[1], Array2D(_shape[2], Array1D(1))));
-            unsigned long coef1 = shape[1]*shape[2];
-            for(int i = 0; i < this->shape[0]; i++) {
-                for(int j = 0; j < this->shape[1]; j++) {
-                    for(int k = 0; k < this->shape[2]; k++)
-                        this->data[i][j][k][0] = _data[coef1*i + shape[2]*j + k];
+            unsigned long coef1 = _shape[1]*_shape[2];
+            for(int i = 0; i < _shape[0]; i++) {
+                for(int j = 0; j < _shape[1]; j++) {
+                    for(int k = 0; k < _shape[2]; k++)
+                        this->data[i][j][k][0] = _data[coef1*i + _shape[2]*j + k];
                 }
             }
             this->shape = _shape;
             this->shape.push_back(1);
         } else if (_shape.size() == 4) {
             this->data = Array4D(_shape[0], Array3D(_shape[1], Array2D(_shape[2], Array1D(_shape[3]))));
-            auto coef1 = shape[1]*shape[2]*shape[3];
-            auto coef2 = shape[2]*shape[3];
-            for(int i = 0; i < this->shape[0]; i++) {
-                for(int j = 0; j < this->shape[1]; j++) {
-                    for(int k = 0; k < this->shape[2]; k++) {
-                        for(int l = 0; l < this->shape[3]; l++)
-                            this->data[i][j][k][l] = _data[coef1*i + coef2*j + shape[3]*k + l];
+            auto coef1 = _shape[1]*_shape[2]*_shape[3];
+            auto coef2 = _shape[2]*_shape[3];
+            for(int i = 0; i < _shape[0]; i++) {
+                for(int j = 0; j < _shape[1]; j++) {
+                    for(int k = 0; k < _shape[2]; k++) {
+                        for(int l = 0; l < _shape[3]; l++)
+                            this->data[i][j][k][l] = _data[coef1*i + coef2*j + _shape[3]*k + l];
                     }
                 }
             }

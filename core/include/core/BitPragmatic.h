@@ -59,7 +59,7 @@ namespace core {
          * @return              Number of cycles
          */
         uint8_t computePragmaticColumn(int batch, int recursion, int act_x, int act_y, int kernel_x, int kernel_y,
-                int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, bool lstm);
+                int init_channel, int stride, const base::Array<T> &padded_act, int max_channel, bool lstm);
 
         /* Compute cycles for pragmatic tile
          * @param batch                 Current number of batch
@@ -77,7 +77,7 @@ namespace core {
          * @param stall_cycles          Stall cycles stat (Overwritten)
          */
         void computePragmaticTile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
-                int kernel_x, int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act,
+                int kernel_x, int kernel_y, int init_channel, int stride, const base::Array<T> &padded_act,
                 int act_max, int max_channel, std::vector<uint32_t> &cycles_per_col,
                 std::vector<uint32_t> &end_previous_pallet, uint64_t &stall_cycles);
 
@@ -96,8 +96,8 @@ namespace core {
          * @param stall_cycles          Stall cycles stat (Overwritten)
          */
         void computePragmatic2DTile(int batch, const std::vector<int> &list_act_x,const std::vector<int> &list_act_y,
-                int kernel_x, int kernel_y, int init_filter, int stride, const cnpy::Array<T> &padded_act,
-                const cnpy::Array<T> &wgt, int max_filter, std::vector<uint32_t> &cycles_per_col,
+                int kernel_x, int kernel_y, int init_filter, int stride, const base::Array<T> &padded_act,
+                const base::Array<T> &wgt, int max_filter, std::vector<uint32_t> &cycles_per_col,
                 std::vector<uint32_t> &end_previous_pallet, uint64_t &stall_cycles);
 
     public:
@@ -111,21 +111,22 @@ namespace core {
          * @param _DIFFY                Enable Diffy
          * @param _N_THREADS            Number of parallel threads for multi-threading execution
          * @param _FAST_MODE            Enable fast mode to simulate only one image
+         * @param _QUIET        Avoid std::out messages
          */
         BitPragmatic(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _BITS_FIRST_STAGE,
-                uint32_t _COLUMN_REGISTERS, bool _DIFFY, uint8_t _N_THREADS, bool _FAST_MODE) :
-                Simulator<T>(_N_THREADS,_FAST_MODE), N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS),
+                uint32_t _COLUMN_REGISTERS, bool _DIFFY, uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET) :
+                Simulator<T>(_N_THREADS,_FAST_MODE,_QUIET), N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS),
                 BITS_FIRST_STAGE(_BITS_FIRST_STAGE), COLUMN_REGISTERS(_COLUMN_REGISTERS), DIFFY(_DIFFY) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate
          */
-        void run(const Network<T> &network);
+        void run(const base::Network<T> &network);
 
         /* Calculate potentials for the given network
          * @param network   Network we want to calculate work reduction
          */
-        void potentials(const Network<T> &network);
+        void potentials(const base::Network<T> &network);
 
     };
 

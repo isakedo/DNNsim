@@ -4,7 +4,6 @@
 #include "BitTactical.h"
 
 #define ZERO_COUNT // Count zeroes as 1 cycle
-#define FC_MULTIPLEX_COLUMNS // Execute each mult-add in a different column
 
 namespace core {
 
@@ -41,7 +40,7 @@ namespace core {
          * @return                  Number of cycles
          */
         uint8_t computeTacticalPColumn(int batch, int recursion, int act_x, int act_y, int stride,
-                const cnpy::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time, uint16_t act_mask,
+                const base::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time, uint16_t act_mask,
                 bool lstm);
 
         /* Compute cycles for Bit-Tactical P tile
@@ -58,7 +57,7 @@ namespace core {
          * @param stall_cycles          Stall cycles stat (Overwritten)
          */
         void computeTacticalPTile(int batch, const std::vector<int> &list_act_x, const std::vector<int>
-                &list_act_y, int stride, const cnpy::Array<T> &padded_act, const schedule &dense_schedule,
+                &list_act_y, int stride, const base::Array<T> &padded_act, const schedule &dense_schedule,
                 int schedule_time, uint16_t act_mask, std::vector<uint32_t> &cycles_per_col,
                 std::vector<uint32_t> &end_previous_pallet, uint64_t &stall_cycles);
 
@@ -76,28 +75,24 @@ namespace core {
          * @param _LEADING_BIT              Calculate only the leading bit for dynamic precisions
          * @param _N_THREADS                Number of parallel threads for multi-threading execution
          * @param _FAST_MODE                Enable fast mode to simulate only one image
+         * @param _QUIET                    Avoid std::out messages
          */
         BitTacticalP(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _PRECISION_GRANULARITY,
                 uint32_t _COLUMN_REGISTERS, uint32_t _LOOKAHEAD_H, uint32_t _LOOKASIDE_D, const char _SEARCH_SHAPE,
-                bool _LEADING_BIT, uint8_t _N_THREADS, bool _FAST_MODE) : BitTactical<T>(_N_ROWS,_N_COLUMNS,_N_ROWS,
-                _COLUMN_REGISTERS,_LOOKAHEAD_H,_LOOKASIDE_D,_SEARCH_SHAPE,_N_THREADS,_FAST_MODE),
+                bool _LEADING_BIT, uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET) : BitTactical<T>(_N_ROWS,_N_COLUMNS,
+                _N_ROWS,_COLUMN_REGISTERS,_LOOKAHEAD_H,_LOOKASIDE_D,_SEARCH_SHAPE,_N_THREADS,_FAST_MODE,_QUIET),
                 PRECISION_GRANULARITY(_PRECISION_GRANULARITY), LEADING_BIT(_LEADING_BIT) {}
-
-        /* Run the timing simulator of the architecture
-         * @param network   Network we want to simulate
-         */
-        void run(const Network<T> &network) override;
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate
          * @param schedules Dense schedules for the layer we want to simulate
          */
-        void run(const Network<T> &network, const std::vector<schedule> &schedules) override;
+        void run(const base::Network<T> &network, const std::vector<schedule> &schedules) override;
 
         /* Calculate potentials for the given network
          * @param network   Network we want to calculate work reduction
          */
-        void potentials(const Network<T> &network) override;
+        void potentials(const base::Network<T> &network) override;
 
     };
 

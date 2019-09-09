@@ -8,34 +8,32 @@ project(
 # Create library
 add_library(
         ${PROJECT_NAME}
-        include/core/Layer.h
-        include/core/Network.h
-        include/core/Laconic.h
+        #include/core/Laconic.h
         include/core/BitPragmatic.h
-        include/core/Stripes.h
-        include/core/DynamicStripes.h
-        include/core/DynamicStripesFP.h
-        include/core/Loom.h
+        #include/core/Stripes.h
+        #include/core/DynamicStripes.h
+        #include/core/DynamicStripesFP.h
+        #include/core/Loom.h
         include/core/BitTactical.h
         include/core/BitTacticalP.h
         include/core/BitTacticalE.h
-        include/core/SCNN.h
-        include/core/SCNNp.h
-        include/core/SCNNe.h
+        #include/core/SCNN.h
+        #include/core/SCNNp.h
+        #include/core/SCNNe.h
         include/core/BitFusion.h
         src/Simulator.cpp
-        src/Laconic.cpp
+        #src/Laconic.cpp
         src/BitPragmatic.cpp
-        src/Stripes.cpp
+        #src/Stripes.cpp
         src/BitTactical.cpp
         src/BitTacticalP.cpp
         src/BitTacticalE.cpp
-        src/DynamicStripes.cpp
-        src/DynamicStripesFP.cpp
-        src/Loom.cpp
-        src/SCNN.cpp
-        src/SCNNp.cpp
-        src/SCNNe.cpp
+        #src/DynamicStripes.cpp
+        #src/DynamicStripesFP.cpp
+        #src/Loom.cpp
+        #src/SCNN.cpp
+        #src/SCNNp.cpp
+        #src/SCNNe.cpp
         src/BitFusion.cpp
 )
 
@@ -46,7 +44,8 @@ target_include_directories(
 
 target_link_libraries(
         ${PROJECT_NAME}
-        PRIVATE cnpy
+        PRIVATE base
+        PRIVATE interface
         PRIVATE sys
 )
 

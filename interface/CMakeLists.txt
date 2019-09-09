@@ -25,8 +25,7 @@ target_include_directories(
 
 target_link_libraries(
         ${PROJECT_NAME}
-        PRIVATE cnpy
-        PRIVATE core
+        PRIVATE base
         PRIVATE sys
         PRIVATE proto
 )

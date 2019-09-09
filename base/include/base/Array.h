@@ -2,9 +2,9 @@
 #define DNNSIM_ARRAY_H
 
 #include <sys/common.h>
-#include <cnpy/cnpy.h>
+#include <base/cnpy.h>
 
-namespace cnpy {
+namespace base {
 
     template <typename T>
     class Array {

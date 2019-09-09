@@ -63,7 +63,7 @@ namespace core {
     uint8_t Laconic<T>::computeLaconicTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int init_filter,
             int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group, int max_channel,
-            int max_filter, bool conv2D, sys::Statistics::Stats &stats) {
+            int max_filter, bool conv2D, uint64_t &stall_cycles) {
 
         //Get the slowest column
         std::vector<uint8_t> cycles;
@@ -75,7 +75,7 @@ namespace core {
 
         auto slowest_column = *std::max_element(cycles.begin(), cycles.end());
         auto fastest_column = *std::min_element(cycles.begin(), cycles.end());
-        stats.stall_cycles.back()[batch] += slowest_column - fastest_column;
+        stall_cycles += slowest_column - fastest_column;
         return slowest_column;
     }
 

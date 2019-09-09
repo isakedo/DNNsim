@@ -13,7 +13,7 @@ namespace core {
     /* CYCLES */
 
     template <typename T>
-    void BitFusion<T>::run(const Network<T> &network) {
+    void BitFusion<T>::run(const base::Network<T> &network) {
 
         // Initialize statistics
         std::string filename = network.getName() + "_BitFusion_N" + std::to_string(N) + "_M" + std::to_string(M) +
@@ -28,12 +28,12 @@ namespace core {
 
         for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
 
-            const Layer<T> &layer = network.getLayers()[layer_it];
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
 
-            cnpy::Array<T> act = layer.getActivations();
+            base::Array<T> act = layer.getActivations();
             if(!conv && act.getDimensions() == 4) act.reshape_to_2D();
-            cnpy::Array<T> wgt = layer.getWeights();
+            base::Array<T> wgt = layer.getWeights();
 
             int padding = layer.getPadding();
             int stride = layer.getStride();
@@ -103,14 +103,14 @@ namespace core {
         }
 
         //Dump statistics
-        stats.dump_csv(network.getName(), network.getLayersName());
+        stats.dump_csv(network.getName(), network.getLayersName(), this->QUIET);
 
     }
 
     /* POTENTIALS */
 
     template <typename T>
-    void BitFusion<T>::potentials(const Network<T> &network) {
+    void BitFusion<T>::potentials(const base::Network<T> &network) {
 
         // Initialize statistics
         std::string filename = network.getName() + "_BitFusion_potentials";
@@ -125,12 +125,12 @@ namespace core {
 
         for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
 
-            const Layer<T> &layer = network.getLayers()[layer_it];
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
 
-            cnpy::Array<T> act = layer.getActivations();
+            base::Array<T> act = layer.getActivations();
             if(!conv && act.getDimensions() == 4) act.reshape_to_2D();
-            const cnpy::Array<T> &wgt = layer.getWeights();
+            const base::Array<T> &wgt = layer.getWeights();
 
             const std::vector<size_t> &act_shape = act.getShape();
             const std::vector<size_t> &wgt_shape = wgt.getShape();
@@ -188,7 +188,7 @@ namespace core {
         }
 
         //Dump statistics
-        stats.dump_csv(network.getName(), network.getLayersName());
+        stats.dump_csv(network.getName(), network.getLayersName(), this->QUIET);
 
     }
 

@@ -187,7 +187,7 @@ namespace core {
     }
 
     template <typename T>
-    schedule BitTactical<T>::sparse_scheduler(const cnpy::Array<T> &wgt, uint64_t act_channels,
+    schedule BitTactical<T>::sparse_scheduler(const base::Array<T> &wgt, uint64_t act_channels,
             std::vector<int> &max_time) {
 
         const auto &wgt_shape = wgt.getShape();
@@ -249,7 +249,7 @@ namespace core {
     }
 
     template <typename T>
-    schedule BitTactical<T>::scheduler(const cnpy::Array<T> &wgt, uint64_t act_channels) {
+    schedule BitTactical<T>::scheduler(const base::Array<T> &wgt, uint64_t act_channels) {
         std::vector<int> max_time;
         const auto &sparse_schedule = sparse_scheduler(wgt,act_channels,max_time);
         const auto &dense_schedule = dense_scheduler(sparse_schedule,max_time);
@@ -257,15 +257,14 @@ namespace core {
     }
 
     template <typename T>
-    std::vector<schedule> BitTactical<T>::network_scheduler(const Network<T> &network) {
+    std::vector<schedule> BitTactical<T>::network_scheduler(const base::Network<T> &network) {
 
         std::vector<schedule> network_schedule;
-        for(const Layer<T> &layer : network.getLayers()) {
+        for(const base::Layer<T> &layer : network.getLayers()) {
             if(layer.getType() == "Convolution") {
 
-                cnpy::Array<T> act = layer.getActivations();
-                cnpy::Array<T> wgt = layer.getWeights();
-                if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+                base::Array<T> act = layer.getActivations();
+                base::Array<T> wgt = layer.getWeights();
 
                 auto stride = layer.getStride();
 
@@ -279,8 +278,7 @@ namespace core {
 
             } else if(layer.getType() == "InnerProduct") {
 
-                cnpy::Array<T> wgt = layer.getWeights();
-                wgt.reshape_to_4D();
+                base::Array<T> wgt = layer.getWeights();
                 const auto &dense_schedule = scheduler(wgt, layer.getWeights().getShape()[1]);
                 network_schedule.push_back(dense_schedule);
 

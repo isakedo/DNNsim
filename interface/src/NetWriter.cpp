@@ -4,7 +4,7 @@
 namespace interface {
 
     template <typename T>
-    void NetWriter<T>::fill_layer(protobuf::Network_Layer* layer_proto, const core::Layer<T> &layer) {
+    void NetWriter<T>::fill_layer(protobuf::Network_Layer* layer_proto, const base::Layer<T> &layer) {
         layer_proto->set_type(layer.getType());
         layer_proto->set_name(layer.getName());
         layer_proto->set_input(layer.getInput());
@@ -36,7 +36,7 @@ namespace interface {
     }
 
     template <typename T>
-    void NetWriter<T>::write_network_protobuf(const core::Network<T> &network) {
+    void NetWriter<T>::write_network_protobuf(const base::Network<T> &network) {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
         check_path("net_traces/" + this->name);
@@ -45,7 +45,7 @@ namespace interface {
         protobuf::Network network_proto;
         network_proto.set_name(network.getName());
 
-        for(const core::Layer<T> &layer : network.getLayers())
+        for(const base::Layer<T> &layer : network.getLayers())
             fill_layer(network_proto.add_layers(),layer);
 
         {
