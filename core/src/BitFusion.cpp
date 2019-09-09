@@ -21,7 +21,7 @@ namespace core {
         sys::Stats stats = sys::Stats(network.getNumLayers(), network.getBatches(), filename);
 
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
-        auto performance = stats.register_uint_t("perfomance_factor", 0, sys::Average);
+        auto performance = stats.register_uint_t("performance_factor", 0, sys::Average);
         auto time_mux = stats.register_uint_t("time_multiplex", 0, sys::Average);
         auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
         auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
@@ -96,8 +96,8 @@ namespace core {
                 cycles->value[layer_it][n] = compute_cycles * time_multiplex;
                 performance->value[layer_it][n] = perf_factor;
                 time_mux->value[layer_it][n] = time_multiplex;
-                act_prec->value[layer_it][n] = act_layer_prec;
-                wgt_prec->value[layer_it][n] = wgt_layer_prec;
+                act_prec->value[layer_it][n] = layer.getActPrecision();
+                wgt_prec->value[layer_it][n] = layer.getWgtPrecision();
             }
 
         }

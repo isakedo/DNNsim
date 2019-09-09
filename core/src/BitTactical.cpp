@@ -278,7 +278,7 @@ namespace core {
 
             } else if(layer.getType() == "InnerProduct") {
 
-                base::Array<T> wgt = layer.getWeights();
+                const base::Array<T> &wgt = layer.getWeights();
                 const auto &dense_schedule = scheduler(wgt, layer.getWeights().getShape()[1]);
                 network_schedule.push_back(dense_schedule);
 
