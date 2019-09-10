@@ -24,11 +24,11 @@ namespace sys {
      * @return Average of the vector
      */
     template <typename T>
-    T get_average(const std::vector<std::vector<T>> &vector_stat)
+    T get_average(const std::vector<std::vector<T>> &vector_stat, bool skip_first = false)
     {
-        std::vector<T> averages = std::vector<T>(vector_stat.size(), 0);
-        for(uint64_t i = 0; i < vector_stat.size(); i++) {
-            averages[i] = get_average(vector_stat[i]);
+        std::vector<T> averages = std::vector<T>(vector_stat.size() - skip_first,0);
+        for(int i = skip_first; i < vector_stat.size(); i++) {
+            averages[i - skip_first] = get_average(vector_stat[i]);
         }
         return get_average(averages);
     }
@@ -126,7 +126,7 @@ namespace sys {
         AverageTotal,
         Total,
         Max,
-        Speedup
+        Special
     };
 
     /**
@@ -148,6 +148,11 @@ namespace sys {
         double special_value;
 
         /**
+         * Skip first value when doing average
+         */
+        bool skip_first;
+
+        /**
          * Constructor
          */
         stat_base_t();
@@ -155,8 +160,9 @@ namespace sys {
         /**
          * Constructor
          * @param _measure Measure for the statistics
+         * @param _skip_first Skip first value when doing average
          */
-        explicit stat_base_t(Measure _measure);
+        stat_base_t(Measure _measure, bool _skip_first);
 
         /**
          * Destructor
@@ -217,8 +223,9 @@ namespace sys {
          * @param _batches Number of batches
          * @param _value Initial value
          * @param _measure Measure for the statistics
+         * @param skip_first Skip first value when doing average
          */
-        stat_uint_t(uint64_t _layers, uint64_t _batches, uint64_t _value, Measure _measure);
+        stat_uint_t(uint64_t _layers, uint64_t _batches, uint64_t _value, Measure _measure, bool _skip_first);
 
         /**
          * Return scalar as type
@@ -274,8 +281,9 @@ namespace sys {
          * @param _batches Number of batches
          * @param _value Initial value
          * @param _measure Measure for the statistics
+         * @param skip_first Skip first value when doing average
          */
-        stat_double_t(uint64_t _layers, uint64_t _batches, double _value, Measure _measure);
+        stat_double_t(uint64_t _layers, uint64_t _batches, double _value, Measure _measure, bool _skip_first);
 
         /**
          * Return scalar as type
@@ -343,9 +351,10 @@ namespace sys {
          * @param _max_range Maximum value for the distribution range
          * @param _value Initial value
          * @param _measure Measure for the statistics
+         * @param skip_first Skip first value when doing average
          */
         stat_uint_dist_t(uint64_t _layers, uint64_t _batches, uint64_t _min_range, uint64_t _max_range, uint64_t _value,
-                Measure _measure);
+                Measure _measure, bool _skip_first);
 
         /**
          * Return distribution as type
@@ -413,9 +422,10 @@ namespace sys {
          * @param _max_range Maximum value for the distribution range
          * @param _value Initial value
          * @param _measure Measure for the statistics
+         * @param _skip_first Skip first value when doing average
          */
         stat_double_dist_t(uint64_t _layers, uint64_t _batches, uint64_t _min_range, uint64_t _max_range, double _value,
-                Measure _measure);
+                Measure _measure, bool _skip_first);
 
         /**
          * Return distribution as type
@@ -496,6 +506,16 @@ namespace sys {
         std::string filename;
 
         /**
+         * Tensorflow 8b quantization
+         */
+        bool tensorflow = false;
+
+        /**
+         * Training traces
+         */
+        bool training = false;
+
+        /**
          * Check if the path exists
          * @param path Path to check
          */
@@ -521,18 +541,22 @@ namespace sys {
          * @param name Name of the variable
          * @param init_value Initial value for the variable
          * @param measure Measure for the statistics
+         * @param skip_first Skip first value when doing average
          * @return Reference to the registered stat
          */
-        std::shared_ptr<stat_uint_t> register_uint_t(const std::string &name, uint64_t init_value,  Measure measure);
+        std::shared_ptr<stat_uint_t> register_uint_t(const std::string &name, uint64_t init_value,  Measure measure,
+                bool skip_first = false);
 
         /**
          * Register one double precision floating point stat in the database.
          * @param name Name of the variable
          * @param init_value Initial value for the variable
          * @param measure Measure for the statistics
+         * @param skip_first Skip first value when doing average
          * @return Reference to the registered stat
          */
-        std::shared_ptr<stat_double_t> register_double_t(const std::string &name, double init_value, Measure measure);
+        std::shared_ptr<stat_double_t> register_double_t(const std::string &name, double init_value, Measure measure,
+                bool skip_first = false);
 
         /**
          * Register one unsigned integer 64 bits distribution stat in the database.
@@ -541,10 +565,11 @@ namespace sys {
          * @param max_range Maximum value for the distribution range
          * @param init_value Initial value for the variable
          * @param measure Measure for the statistics
+         * @param skip_first Skip first value when doing average
          * @return Reference to the registered stat
          */
         std::shared_ptr<stat_uint_dist_t> register_uint_dist_t(const std::string &name, int64_t min_range,
-                int64_t max_range, uint64_t init_value, Measure measure);
+                int64_t max_range, uint64_t init_value, Measure measure, bool skip_first = false);
 
         /**
          * Register one double precision floating point distribution stat in the database.
@@ -553,10 +578,11 @@ namespace sys {
          * @param max_range Maximum value for the distribution range
          * @param init_value Initial value for the variable
          * @param measure Measure for the statistics
+         * @param skip_first Skip first value when doing average
          * @return Reference to the registered stat
          */
         std::shared_ptr<stat_double_dist_t> register_double_dist_t(const std::string &name, int64_t min_range,
-                int64_t max_range, double init_value, Measure measure);
+                int64_t max_range, double init_value, Measure measure, bool skip_first = false);
 
         /**
          * Return all stats per image in a csv file
@@ -567,6 +593,18 @@ namespace sys {
          */
         void dump_csv(const std::string &network_name, const std::vector<std::string> &layers_name,
                 const std::string &header, bool QUIET);
+
+        /**
+         * Set tensorflow 8b flag
+         * @param tensorflow True if tensorflow quantization
+         */
+        void setTensorflow(bool tensorflow);
+
+        /**
+         * Set training flag
+         * @param training True if Training traces
+         */
+        void setTraining(bool training);
 
     };
 

@@ -188,13 +188,13 @@ namespace core {
     void Simulator<T>::sparsity(const base::Network<T> &network) {
 
         // Initialize statistics
-        std::string filename = "sparsity";
+        std::string filename = "value_sparsity";
         sys::Stats stats = sys::Stats(network.getNumLayers(), 1, filename);
 
-        auto act_sparsity = stats.register_double_t("act_sparsity", 0, sys::Average);
+        auto act_sparsity = stats.register_double_t("act_sparsity", 0, sys::Special);
         auto zero_act = stats.register_uint_t("zero_act", 0, sys::AverageTotal);
         auto total_act = stats.register_uint_t("total_act", 0, sys::AverageTotal);
-        auto wgt_sparsity = stats.register_double_t("wgt_sparsity", 0, sys::Average);
+        auto wgt_sparsity = stats.register_double_t("wgt_sparsity", 0, sys::Special);
         auto zero_wgt = stats.register_uint_t("zero_wgt", 0, sys::AverageTotal);
         auto total_wgt = stats.register_uint_t("total_wgt", 0, sys::AverageTotal);
 
@@ -225,6 +225,9 @@ namespace core {
 
         }
 
+        act_sparsity->special_value = sys::get_total(zero_act->value) / (double)sys::get_total(total_act->value) * 100.;
+        wgt_sparsity->special_value = sys::get_total(zero_wgt->value) / (double)sys::get_total(total_wgt->value) * 100.;
+
         //Dump statistics
         std::string header = "Value sparsity for " + network.getName() + "\n";
         stats.dump_csv(network.getName(), network.getLayersName(), header, QUIET);
@@ -238,10 +241,10 @@ namespace core {
         std::string filename = "bit_sparsity";
         sys::Stats stats = sys::Stats(network.getNumLayers(), 1, filename);
 
-        auto act_sparsity = stats.register_double_t("act_bit_sparsity", 0, sys::Average);
+        auto act_sparsity = stats.register_double_t("act_bit_sparsity", 0, sys::Special);
         auto zero_act = stats.register_uint_t("zero_act_bits", 0, sys::AverageTotal);
         auto total_act = stats.register_uint_t("total_act_bits", 0, sys::AverageTotal);
-        auto wgt_sparsity = stats.register_double_t("wgt_bit_sparsity", 0, sys::Average);
+        auto wgt_sparsity = stats.register_double_t("wgt_bit_sparsity", 0, sys::Special);
         auto zero_wgt = stats.register_uint_t("zero_wgt_bits", 0, sys::AverageTotal);
         auto total_wgt = stats.register_uint_t("total_wgt_bits", 0, sys::AverageTotal);
 
@@ -274,6 +277,9 @@ namespace core {
 
         }
 
+        act_sparsity->special_value = sys::get_total(zero_act->value) / (double)sys::get_total(total_act->value) * 100.;
+        wgt_sparsity->special_value = sys::get_total(zero_wgt->value) / (double)sys::get_total(total_wgt->value) * 100.;
+
         //Dump statistics
         std::string header = "Bit sparsity for " + network.getName() + "\n";
         stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
@@ -292,21 +298,21 @@ namespace core {
         sys::Stats stats = sys::Stats(network_model.getNumLayers(), epochs, filename);
 
         // Forward stats
-        auto fw_act_sparsity = stats.register_double_t("fw_act_sparsity", 0, sys::Average);
+        auto fw_act_sparsity = stats.register_double_t("fw_act_sparsity", 0, sys::Special);
         auto fw_zero_act = stats.register_uint_t("fw_zero_act", 0, sys::AverageTotal);
         auto fw_total_act = stats.register_uint_t("fw_total_act", 0, sys::AverageTotal);
-        auto fw_wgt_sparsity = stats.register_double_t("fw_wgt_sparsity", 0, sys::Average);
+        auto fw_wgt_sparsity = stats.register_double_t("fw_wgt_sparsity", 0, sys::Special);
         auto fw_zero_wgt = stats.register_uint_t("fw_zero_wgt", 0, sys::AverageTotal);
         auto fw_total_wgt = stats.register_uint_t("fw_total_wgt", 0, sys::AverageTotal);
 
-        // Barckward stats
-        auto bw_in_grad_sparsity = stats.register_double_t("bw_in_grad_sparsity", 0, sys::Average);
+        // Backward stats
+        auto bw_in_grad_sparsity = stats.register_double_t("bw_in_grad_sparsity", 0, sys::Special);
         auto bw_zero_in_grad = stats.register_uint_t("bw_zero_in_grad", 0, sys::AverageTotal);
         auto bw_total_in_grad = stats.register_uint_t("bw_total_in_grad", 0, sys::AverageTotal);
-        auto bw_wgt_grad_sparsity = stats.register_double_t("bw_wgt_grad_sparsity", 0, sys::Average);
+        auto bw_wgt_grad_sparsity = stats.register_double_t("bw_wgt_grad_sparsity", 0, sys::Special);
         auto bw_zero_wgt_grad = stats.register_uint_t("bw_zero_wgt_grad", 0, sys::AverageTotal);
         auto bw_total_wgt_grad = stats.register_uint_t("bw_total_wgt_grad", 0, sys::AverageTotal);
-        auto bw_out_grad_sparsity = stats.register_double_t("bw_out_grad_sparsity", 0, sys::Average);
+        auto bw_out_grad_sparsity = stats.register_double_t("bw_out_grad_sparsity", 0, sys::Special);
         auto bw_zero_out_grad = stats.register_uint_t("bw_zero_out_grad", 0, sys::AverageTotal);
         auto bw_total_out_grad = stats.register_uint_t("bw_total_out_grad", 0, sys::AverageTotal);
 
@@ -319,6 +325,8 @@ namespace core {
 
             base::Network<T> network;
             network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states,traces_mode);
+
+            if(!QUIET) std::cout << "Starting simulation training sparsity for epoch " << epoch << std::endl;
 
             for (int layer_it = 0; layer_it < network.getLayers().size(); layer_it++) {
 
@@ -393,6 +401,12 @@ namespace core {
 
         }
 
+        fw_act_sparsity->special_value = sys::get_total(fw_zero_act->value) / (double)sys::get_total(fw_total_act->value) * 100.;
+        fw_wgt_sparsity->special_value = sys::get_total(fw_zero_wgt->value) / (double)sys::get_total(fw_total_wgt->value) * 100.;
+        bw_in_grad_sparsity->special_value = sys::get_total(bw_zero_in_grad->value) / (double)sys::get_total(bw_total_in_grad->value) * 100.;
+        bw_wgt_grad_sparsity->special_value = sys::get_total(bw_zero_wgt_grad->value) / (double)sys::get_total(bw_total_wgt_grad->value) * 100.;
+        bw_out_grad_sparsity->special_value = sys::get_total(bw_zero_out_grad->value) / (double)sys::get_total(bw_total_out_grad->value) * 100.;
+
         //Dump statistics
         std::string header = "Value sparsity for " + network_model.getName() + "\n";
         stats.dump_csv(network_model.getName(), network_model.getLayersName(), header, this->QUIET);
@@ -412,21 +426,21 @@ namespace core {
         sys::Stats stats = sys::Stats(network_model.getNumLayers(), epochs, filename);
 
         // Forward stats
-        auto fw_act_sparsity = stats.register_double_t("fw_act_bit_sparsity", 0, sys::Average);
+        auto fw_act_sparsity = stats.register_double_t("fw_act_bit_sparsity", 0, sys::Special);
         auto fw_zero_act = stats.register_uint_t("fw_zero_act_bits", 0, sys::AverageTotal);
         auto fw_total_act = stats.register_uint_t("fw_total_act_bits", 0, sys::AverageTotal);
-        auto fw_wgt_sparsity = stats.register_double_t("fw_wgt_bit_sparsity", 0, sys::Average);
+        auto fw_wgt_sparsity = stats.register_double_t("fw_wgt_bit_sparsity", 0, sys::Special);
         auto fw_zero_wgt = stats.register_uint_t("fw_zero_wgt_bits", 0, sys::AverageTotal);
         auto fw_total_wgt = stats.register_uint_t("fw_total_wgt_bits", 0, sys::AverageTotal);
 
         // Backward stats
-        auto bw_in_grad_sparsity = stats.register_double_t("bw_in_grad_bit_sparsity", 0, sys::Average);
+        auto bw_in_grad_sparsity = stats.register_double_t("bw_in_grad_bit_sparsity", 0, sys::Special);
         auto bw_zero_in_grad = stats.register_uint_t("bw_zero_in_grad_bits", 0, sys::AverageTotal);
         auto bw_total_in_grad = stats.register_uint_t("bw_total_in_grad_bits", 0, sys::AverageTotal);
-        auto bw_wgt_grad_sparsity = stats.register_double_t("bw_wgt_grad_bit_sparsity", 0, sys::Average);
+        auto bw_wgt_grad_sparsity = stats.register_double_t("bw_wgt_grad_bit_sparsity", 0, sys::Special);
         auto bw_zero_wgt_grad = stats.register_uint_t("bw_zero_wgt_grad_bits", 0, sys::AverageTotal);
         auto bw_total_wgt_grad = stats.register_uint_t("bw_total_wgt_grad_bits", 0, sys::AverageTotal);
-        auto bw_out_grad_sparsity = stats.register_double_t("bw_out_grad_bit_sparsity", 0, sys::Average);
+        auto bw_out_grad_sparsity = stats.register_double_t("bw_out_grad_bit_sparsity", 0, sys::Special);
         auto bw_zero_out_grad = stats.register_uint_t("bw_zero_out_grad_bits", 0, sys::AverageTotal);
         auto bw_total_out_grad = stats.register_uint_t("bw_total_out_grad_bits", 0, sys::AverageTotal);
 
@@ -441,6 +455,8 @@ namespace core {
 
             base::Network<T> network;
             network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode);
+
+            if(!QUIET) std::cout << "Starting simulation training bit sparsity for epoch " << epoch << std::endl;
 
             for (int layer_it = 0; layer_it < network.getLayers().size(); layer_it++) {
 
@@ -468,12 +484,12 @@ namespace core {
                         zero_wgt_bits += (MAX_ONES - ones);
                     }
 
-                    fw_act_sparsity->value[layer_it][epoch] = zero_act_bits / (double) act.getMax_index() * 100.;
+                    fw_act_sparsity->value[layer_it][epoch] = zero_act_bits / (double)(act.getMax_index() * MAX_ONES) * 100.;
                     fw_zero_act->value[layer_it][epoch] = zero_act_bits;
-                    fw_total_act->value[layer_it][epoch] = act.getMax_index();
-                    fw_wgt_sparsity->value[layer_it][epoch] = zero_wgt_bits / (double) wgt.getMax_index() * 100.;
+                    fw_total_act->value[layer_it][epoch] = act.getMax_index() * MAX_ONES;
+                    fw_wgt_sparsity->value[layer_it][epoch] = zero_wgt_bits / (double)(wgt.getMax_index()  * MAX_ONES) * 100.;
                     fw_zero_wgt->value[layer_it][epoch] = zero_wgt_bits;
-                    fw_total_wgt->value[layer_it][epoch] = wgt.getMax_index();
+                    fw_total_wgt->value[layer_it][epoch] = wgt.getMax_index() * MAX_ONES;
                 }
 
                 //Backward
@@ -512,23 +528,29 @@ namespace core {
 
                     if (layer_it != 0) {
                         bw_in_grad_sparsity->value[layer_it][epoch] =
-                                zero_act_grad_bits / (double) act_grad.getMax_index() * 100.;
+                                zero_act_grad_bits / (double)(act_grad.getMax_index() * MAX_ONES) * 100.;
                         bw_zero_in_grad->value[layer_it][epoch] = zero_act_grad_bits;
-                        bw_total_in_grad->value[layer_it][epoch] = act_grad.getMax_index();
+                        bw_total_in_grad->value[layer_it][epoch] = act_grad.getMax_index() * MAX_ONES;
                     }
                     bw_wgt_grad_sparsity->value[layer_it][epoch] =
-                            zero_wgt_grad_bits / (double) wgt_grad.getMax_index() * 100.;
+                            zero_wgt_grad_bits / (double)(wgt_grad.getMax_index() * MAX_ONES) * 100.;
                     bw_zero_wgt_grad->value[layer_it][epoch] = zero_wgt_grad_bits;
-                    bw_total_wgt_grad->value[layer_it][epoch] = wgt_grad.getMax_index();
+                    bw_total_wgt_grad->value[layer_it][epoch] = wgt_grad.getMax_index() * MAX_ONES;
                     bw_out_grad_sparsity->value[layer_it][epoch] = zero_out_act_grad_bits /
-                                                                   (double) out_act_grad.getMax_index() * 100.;
+                            (double)(out_act_grad.getMax_index()  * MAX_ONES) * 100.;
                     bw_zero_out_grad->value[layer_it][epoch] = zero_out_act_grad_bits;
-                    bw_total_out_grad->value[layer_it][epoch] = out_act_grad.getMax_index();
+                    bw_total_out_grad->value[layer_it][epoch] = out_act_grad.getMax_index() * MAX_ONES;
                 }
 
             }
 
         }
+
+        fw_act_sparsity->special_value = sys::get_total(fw_zero_act->value) / (double)sys::get_total(fw_total_act->value) * 100.;
+        fw_wgt_sparsity->special_value = sys::get_total(fw_zero_wgt->value) / (double)sys::get_total(fw_total_wgt->value) * 100.;
+        bw_in_grad_sparsity->special_value = sys::get_total(bw_zero_in_grad->value) / (double)sys::get_total(bw_total_in_grad->value) * 100.;
+        bw_wgt_grad_sparsity->special_value = sys::get_total(bw_zero_wgt_grad->value) / (double)sys::get_total(bw_total_wgt_grad->value) * 100.;
+        bw_out_grad_sparsity->special_value = sys::get_total(bw_zero_out_grad->value) / (double)sys::get_total(bw_total_out_grad->value) * 100.;
 
         //Dump statistics
         std::string header = mantissa ? "Mantissa" : "Exponent";
@@ -552,11 +574,11 @@ namespace core {
 
         int min_range = mantissa ? 0 : -127;
         int max_range = mantissa ? 127 : 128;
-        auto fw_act_values = stats.register_uint_dist_t("fw_act_values", min_range, max_range, 0, sys::AverageTotal);
-        auto fw_wgt_values = stats.register_uint_dist_t("fw_wgt_values", min_range, max_range, 0, sys::AverageTotal);
-        auto bw_in_grad_values = stats.register_uint_dist_t("bw_in_grad_values", min_range, max_range, 0, sys::AverageTotal);
-        auto bw_wgt_grad_values = stats.register_uint_dist_t("bw_wgt_grad_values", min_range, max_range, 0, sys::AverageTotal);
-        auto bw_out_grad_values = stats.register_uint_dist_t("bw_out_grad_values", min_range, max_range, 0, sys::AverageTotal);
+        auto fw_act_values = stats.register_uint_dist_t("Forward Activations Distribution", min_range, max_range, 0, sys::AverageTotal);
+        auto fw_wgt_values = stats.register_uint_dist_t("Forward Weights Distribution", min_range, max_range, 0, sys::AverageTotal);
+        auto bw_in_grad_values = stats.register_uint_dist_t("Backward Input Gradients Distribution", min_range, max_range, 0, sys::AverageTotal);
+        auto bw_wgt_grad_values = stats.register_uint_dist_t("Backward Weight Gradients Distribution", min_range, max_range, 0, sys::AverageTotal);
+        auto bw_out_grad_values = stats.register_uint_dist_t("Backward Output Gradients Distribution", min_range, max_range, 0, sys::AverageTotal);
 
         uint32_t traces_mode = 0;
         if(simulate.only_forward) traces_mode = 1;
@@ -567,6 +589,8 @@ namespace core {
 
             base::Network<T> network;
             network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode);
+
+            if(!QUIET) std::cout << "Starting simulation training distribution for epoch " << epoch << std::endl;
 
             for (int layer_it = 0; layer_it < network.getLayers().size(); layer_it++) {
 

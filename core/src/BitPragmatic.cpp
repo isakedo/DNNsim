@@ -241,7 +241,7 @@ namespace core {
 
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
         auto baseline_cycles = stats.register_uint_t("baseline_cycles", 0, sys::AverageTotal);
-        auto speedup = stats.register_double_t("speedup", 0, sys::Speedup);
+        auto speedup = stats.register_double_t("speedup", 0, sys::Special);
         auto stall_cycles = stats.register_uint_t("stall_cycles", 0, sys::AverageTotal);
         auto weight_buff_reads = stats.register_uint_t("weight_buff_reads", 0, sys::AverageTotal);
         auto act_buff_reads = stats.register_uint_t("act_buff_reads", 0, sys::AverageTotal);
