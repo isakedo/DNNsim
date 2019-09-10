@@ -191,6 +191,7 @@ namespace core {
             bool fc = layer.getType() == "InnerProduct";
 
             base::Array<T> act = layer.getActivations();
+            act.sign_magnitude_representation(layer.getActPrecision());
             if(fc && act.getDimensions() == 4) act.reshape_to_2D();
             if(fc) act.reshape_to_4D();
 

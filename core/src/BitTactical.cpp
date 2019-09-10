@@ -265,6 +265,7 @@ namespace core {
 
                 base::Array<T> act = layer.getActivations();
                 base::Array<T> wgt = layer.getWeights();
+                if (wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
                 auto stride = layer.getStride();
 
