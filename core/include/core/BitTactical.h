@@ -45,9 +45,11 @@ namespace core {
          * @param wgt           Weights per layer
          * @param act_channels  Number of activation channels
          * @param max_time      Maximum time than can be scheduled (assuming stationary PSUM FIX)
+         * @param fc            True if InnerProduct
          * @return              Return the sparse scheduled weights
          */
-        schedule sparse_scheduler(const base::Array<T> &wgt, uint64_t act_channels, std::vector<int> &max_time);
+        schedule sparse_scheduler(const base::Array<T> &wgt, uint64_t act_channels, std::vector<int> &max_time,
+                bool fc);
 
     protected:
 
@@ -75,9 +77,10 @@ namespace core {
         /* Schedule the weights in the scratchpad trying to remove zero weights
          * @param wgt           Weights per layer
          * @param act_channels  Number of activation channels
+         * @param fc            True if InnerProduct
          * @return              Return the scheduled weights
          */
-        schedule scheduler(const base::Array<T> &wgt, uint64_t act_channels);
+        schedule scheduler(const base::Array<T> &wgt, uint64_t act_channels, bool fc);
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate

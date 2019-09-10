@@ -16,15 +16,19 @@ namespace base {
         typedef std::vector<std::vector<T>> Array2D;
         typedef std::vector<T> Array1D;
 
-        /**
-         * Data of the array.
-         */
-        Array4D data;
+        /* Set to true to ensure the array is read as 4D */
+        bool force4D = false;
 
-        /**
-         * Dimensions and size of the array.
+        /* Vector with the size of the vector for each dimension
+         * Example for 4D: filter index, channel index, X-dimension index, Y-dimension index
          */
         std::vector<size_t> shape;
+
+        /* Vector containing the data */
+        Array1D data1D;
+        Array2D data2D;
+        Array3D data3D;
+        Array4D data4D;
 
     public:
 
@@ -35,13 +39,19 @@ namespace base {
          * @param _data     Vector containing the data
          * @param _shape    Shape of the data
          */
-        Array(const Array2D &_data, const std::vector<size_t> &_shape);
+        Array(const Array2D &_data, const std::vector<size_t> &_shape) {
+            this->data2D = _data;
+            this->shape = _shape;
+        }
 
         /* Constructor
          * @param _data     Vector containing the data
          * @param _shape    Shape of the data
          */
-        Array(const Array4D &_data, const std::vector<size_t> &_shape);
+        Array(const Array4D &_data, const std::vector<size_t> &_shape) {
+            this->data4D = _data;
+            this->shape = _shape;
+        }
 
         /* Read the numpy array from the npy file, copy the direction, and set the size
          * @param path  Path to the numpy file with extension .npy
@@ -52,7 +62,7 @@ namespace base {
          * @param _data     Dynamic vector containing the data
          * @param _shape    Shape of the data
          */
-        void set_values(const std::vector<T> &_data, const std::vector<size_t> &_shape);
+        void set_values(const Array1D &_data, const std::vector<size_t> &_shape);
 
         /*  Return the value inside the vector given the fourth dimensions
          * @param i     Index for the first dimension
@@ -137,6 +147,9 @@ namespace base {
          */
         void channel_zero_pad(int K);
 
+        /* Transform a 2D array into 4D to allow accessing it as 4D */
+        void reshape_to_4D();
+
         /* Transform a 4D array into 2D */
         void reshape_to_2D();
 
@@ -158,6 +171,7 @@ namespace base {
         void reshape_first_layer_wgt(uint16_t stride);
 
     };
+
 }
 
 

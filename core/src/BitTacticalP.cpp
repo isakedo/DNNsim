@@ -171,10 +171,9 @@ namespace core {
                 + "_PG_" + std::to_string(PRECISION_GRANULARITY) + "_CR" + std::to_string(this->COLUMN_REGISTERS) + "_"
                 + this->SEARCH_SHAPE + std::to_string(mux_entries) + "(" + std::to_string(this->LOOKAHEAD_H) + "-" +
                 std::to_string(this->LOOKASIDE_D) + ")" + (LEADING_BIT ? "_LB" : "");
-        sys::Stats stats = sys::Stats(network.getNumLayers(), network.getBatches(), filename);
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
-        auto baseline_cycles = stats.register_uint_t("baseline_cycles", 0, sys::AverageTotal);
         auto stall_cycles = stats.register_uint_t("stall_cycles", 0, sys::AverageTotal);
         auto weight_buff_reads = stats.register_uint_t("weight_buff_reads", 0, sys::AverageTotal);
         auto act_buff_reads = stats.register_uint_t("act_buff_reads", 0, sys::AverageTotal);
@@ -189,11 +188,14 @@ namespace core {
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
             bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
 
             base::Array<T> act = layer.getActivations();
-            if(!conv && act.getDimensions() == 4) act.reshape_to_2D();
-            act.sign_magnitude_representation(layer.getActPrecision());
+            if(fc && act.getDimensions() == 4) act.reshape_to_2D();
+            if(fc) act.reshape_to_4D();
+
             base::Array<T> wgt = layer.getWeights();
+            if(conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
             int padding = layer.getPadding();
             int stride = layer.getStride();
@@ -242,7 +244,7 @@ namespace core {
             schedule dense_schedule;
             const schedule &proto_dense_schedule = schedules[layer_it];
             if(proto_dense_schedule.empty())
-                dense_schedule = this->scheduler(wgt,act_channels);
+                dense_schedule = this->scheduler(wgt, act_channels, fc);
             else
                 dense_schedule = proto_dense_schedule;
 
@@ -354,7 +356,7 @@ namespace core {
 
         // Initialize statistics
         std::string filename = "BitTacticalP_potentials";
-        sys::Stats stats = sys::Stats(network.getNumLayers(), network.getBatches(), filename);
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
         auto work_reduction = stats.register_double_t("work_reduction", 0, sys::Average);
         auto speedup = stats.register_double_t("speedup", 0, sys::Average);
@@ -368,11 +370,13 @@ namespace core {
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
             bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
 
             base::Array<T> act = layer.getActivations();
-            if (!conv && act.getDimensions() == 4) act.reshape_to_2D();
-            act.powers_of_two_representation(layer.getActPrecision());
-            const base::Array<T> &wgt = layer.getWeights();
+            if(fc && act.getDimensions() == 4) act.reshape_to_2D();
+
+            base::Array<T> wgt = layer.getWeights();
+            if(conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
             int padding = layer.getPadding();
             int stride = layer.getStride();

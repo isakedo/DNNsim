@@ -237,7 +237,7 @@ namespace core {
         std::string filename = arch + "_C" + std::to_string(N_COLUMNS) + "_R" +
                 std::to_string(N_ROWS) + "_B" + std::to_string(BITS_FIRST_STAGE) + "_CR" +
                 std::to_string(COLUMN_REGISTERS) + "_cycles";
-        sys::Stats stats = sys::Stats(network.getNumLayers(), network.getBatches(), filename);
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
         auto baseline_cycles = stats.register_uint_t("baseline_cycles", 0, sys::AverageTotal);
@@ -256,11 +256,15 @@ namespace core {
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
             bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
 
             base::Array<T> act = layer.getActivations();
-            if(!conv && act.getDimensions() == 4) act.reshape_to_2D();
             if(!DIFFY) act.powers_of_two_representation(layer.getActPrecision());
+            if(fc && act.getDimensions() == 4) act.reshape_to_2D();
+            if(fc) act.reshape_to_4D();
+
             base::Array<T> wgt = layer.getWeights();
+            if(conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
             int padding = layer.getPadding();
             int stride = layer.getStride();
@@ -455,7 +459,7 @@ namespace core {
 
         // Initialize statistics
         std::string filename = "BitPragmatic_potentials";
-        sys::Stats stats = sys::Stats(network.getNumLayers(), network.getBatches(), filename);
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
         auto work_reduction = stats.register_double_t("work_reduction", 0, sys::Average);
         auto speedup = stats.register_double_t("speedup", 0, sys::Average);
@@ -469,11 +473,14 @@ namespace core {
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
             bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
 
             base::Array<T> act = layer.getActivations();
-            if (!conv && act.getDimensions() == 4) act.reshape_to_2D();
             act.powers_of_two_representation(layer.getActPrecision());
-            const base::Array<T> &wgt = layer.getWeights();
+            if(fc && act.getDimensions() == 4) act.reshape_to_2D();
+
+            base::Array<T> wgt = layer.getWeights();
+            if(conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
             int padding = layer.getPadding();
             int stride = layer.getStride();

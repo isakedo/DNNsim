@@ -188,7 +188,7 @@ namespace core {
 
     template <typename T>
     schedule BitTactical<T>::sparse_scheduler(const base::Array<T> &wgt, uint64_t act_channels,
-            std::vector<int> &max_time) {
+            std::vector<int> &max_time, bool fc) {
 
         const auto &wgt_shape = wgt.getShape();
 
@@ -225,7 +225,7 @@ namespace core {
                     for (int k = 0; k < wgt_channels; k += N_LANES) {
                         int index = 0;
                         for(int channel = k; channel < std::min(k + (int)N_LANES,(int)wgt_channels); channel++) {
-                            auto wgt_bits = wgt.get(m,channel,i,j);
+                            auto wgt_bits = fc ? wgt.get(m, channel) : wgt.get(m,channel,i,j);
                             int pos = (m % N_ROWS) * N_LANES + index;
                             sparse_schedule[time][pos] = std::make_tuple(start_group + channel,i,j,wgt_bits);
                             index++;
@@ -249,9 +249,9 @@ namespace core {
     }
 
     template <typename T>
-    schedule BitTactical<T>::scheduler(const base::Array<T> &wgt, uint64_t act_channels) {
+    schedule BitTactical<T>::scheduler(const base::Array<T> &wgt, uint64_t act_channels, bool fc) {
         std::vector<int> max_time;
-        const auto &sparse_schedule = sparse_scheduler(wgt,act_channels,max_time);
+        const auto &sparse_schedule = sparse_scheduler(wgt,act_channels,max_time, fc);
         const auto &dense_schedule = dense_scheduler(sparse_schedule,max_time);
         return dense_schedule;
     }
@@ -273,13 +273,13 @@ namespace core {
                     wgt.reshape_first_layer_wgt((uint16_t) stride);
                 }
 
-                const auto &dense_schedule = scheduler(wgt, act.getShape()[1]);
+                const auto &dense_schedule = scheduler(wgt, act.getShape()[1], false);
                 network_schedule.push_back(dense_schedule);
 
             } else if(layer.getType() == "InnerProduct") {
 
                 const base::Array<T> &wgt = layer.getWeights();
-                const auto &dense_schedule = scheduler(wgt, layer.getWeights().getShape()[1]);
+                const auto &dense_schedule = scheduler(wgt, layer.getWeights().getShape()[1], true);
                 network_schedule.push_back(dense_schedule);
 
             }

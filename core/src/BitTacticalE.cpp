@@ -136,7 +136,7 @@ namespace core {
                     column_cycles = end_previous_pallet[0] + 1;
                 }
             }
-            stall_cycles += (end_previous_pallet[0] + 1) - fastest_column;;
+            stall_cycles += (end_previous_pallet[0] + 1) - fastest_column;
 
             //Update end_previous_pallet
             for(int i = 0; i < this->COLUMN_REGISTERS - 1; i++) {
@@ -164,10 +164,9 @@ namespace core {
                 + "_B" + std::to_string(BITS_FIRST_STAGE) + "_CR" + std::to_string(this->COLUMN_REGISTERS) + "_" +
                 this->SEARCH_SHAPE + std::to_string(mux_entries) + "(" + std::to_string(this->LOOKAHEAD_H) + "-" +
                 std::to_string(this->LOOKASIDE_D) + ")";
-        sys::Stats stats = sys::Stats(network.getNumLayers(), network.getBatches(), filename);
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
-        auto baseline_cycles = stats.register_uint_t("baseline_cycles", 0, sys::AverageTotal);
         auto stall_cycles = stats.register_uint_t("stall_cycles", 0, sys::AverageTotal);
         auto weight_buff_reads = stats.register_uint_t("weight_buff_reads", 0, sys::AverageTotal);
         auto act_buff_reads = stats.register_uint_t("act_buff_reads", 0, sys::AverageTotal);
@@ -182,11 +181,14 @@ namespace core {
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
             bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
 
             base::Array<T> act = layer.getActivations();
-            if(!conv && act.getDimensions() == 4) act.reshape_to_2D();
-            act.powers_of_two_representation(layer.getActPrecision());
+            if(fc && act.getDimensions() == 4) act.reshape_to_2D();
+            if(fc) act.reshape_to_4D();
+
             base::Array<T> wgt = layer.getWeights();
+            if(conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
             int padding = layer.getPadding();
             int stride = layer.getStride();
@@ -232,7 +234,7 @@ namespace core {
             schedule dense_schedule;
             const schedule &proto_dense_schedule = schedules[layer_it];
             if(proto_dense_schedule.empty())
-                dense_schedule = this->scheduler(wgt,act_channels);
+                dense_schedule = this->scheduler(wgt, act_channels, fc);
             else
                 dense_schedule = proto_dense_schedule;
 
@@ -256,7 +258,7 @@ namespace core {
                     while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, this->N_COLUMNS)) {
                         for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
                             computeTacticalETile(n, list_x, list_y, stride, act, dense_schedule, schedule_time,
-                                                 cycles_per_col, end_previous_pallet, batch_stall_cycles);
+                                    cycles_per_col, end_previous_pallet, batch_stall_cycles);
 
                             batch_act_buff_reads++;
                             batch_weight_buff_reads++;
@@ -270,7 +272,7 @@ namespace core {
                     stall_cycles->value[layer_it][n] = batch_stall_cycles;
                     weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads;
                     act_buff_reads->value[layer_it][n] = batch_act_buff_reads;
-                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates;
+                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates * num_filters_sets;
                     scheduled_pe->value[layer_it][n] = batch_scheduled_pe;
                     idle_pe->value[layer_it][n] = batch_idle_pe;
 
@@ -340,7 +342,7 @@ namespace core {
 
         // Initialize statistics
         std::string filename = "BitTacticalE_potentials";
-        sys::Stats stats = sys::Stats(network.getNumLayers(), network.getBatches(), filename);
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
         auto work_reduction = stats.register_double_t("work_reduction", 0, sys::Average);
         auto speedup = stats.register_double_t("speedup", 0, sys::Average);
@@ -354,11 +356,14 @@ namespace core {
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
             bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
 
             base::Array<T> act = layer.getActivations();
-            if (!conv && act.getDimensions() == 4) act.reshape_to_2D();
             act.powers_of_two_representation(layer.getActPrecision());
-            const base::Array<T> &wgt = layer.getWeights();
+            if(fc && act.getDimensions() == 4) act.reshape_to_2D();
+
+            base::Array<T> wgt = layer.getWeights();
+            if(conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
             int padding = layer.getPadding();
             int stride = layer.getStride();

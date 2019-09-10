@@ -221,8 +221,6 @@ namespace interface {
             }
         }
 
-        std::string name = network_proto.name();
-
         for(const protobuf::Network_Layer &layer_proto : network_proto.layers())
             layers.emplace_back(read_layer_proto(layer_proto));
 
