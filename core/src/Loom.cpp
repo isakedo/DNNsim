@@ -12,8 +12,8 @@ namespace core {
 
     template <typename T>
     uint8_t Loom<T>::computeLoomColumn(int batch, int recursion, int act_x, int act_y, int kernel_x, int kernel_y,
-            int init_channel, int init_filter, int stride, const cnpy::Array<T> &padded_act,
-            const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter, uint16_t act_mask,
+            int init_channel, int init_filter, int stride, const base::Array<T> &padded_act,
+            const base::Array<T> &wgt, int start_group, int max_channel, int max_filter, uint16_t act_mask,
             uint16_t wgt_mask, int wgt_prec, bool lstm) {
 
         uint32_t N_GROUPS = N_ROWS * 16 / PRECISION_GRANULARITY;
@@ -113,9 +113,9 @@ namespace core {
     template <typename T>
     uint8_t Loom<T>::computeLoomTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int init_filter,
-            int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group,
+            int stride, const base::Array<T> &padded_act, const base::Array<T> &wgt, int start_group,
             int max_act_channel, int max_wgt_channel, int max_filter, uint16_t act_mask, uint16_t wgt_mask,
-            int wgt_prec, sys::Statistics::Stats &stats) {
+            int wgt_prec, uint64_t &stall_cycles) {
 
         uint32_t ACT_N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
         uint32_t WINDOWS_PER_GROUP = N_COLUMNS / ACT_N_GROUPS;
@@ -227,7 +227,7 @@ namespace core {
         // Slowest PE
         auto max_act_cycles = *std::max_element(act_per_group_cycles.begin(), act_per_group_cycles.end());
         auto min_act_cycles = *std::min_element(act_per_group_cycles.begin(), act_per_group_cycles.end());
-        stats.stall_cycles.back()[batch] += max_act_cycles - min_act_cycles;
+        stall_cycles += max_act_cycles - min_act_cycles;
 
         auto max_wgt_cycles = *std::max_element(wgt_per_group_cycles.begin(), wgt_per_group_cycles.end());
 
@@ -241,440 +241,297 @@ namespace core {
     /* CYCLES */
 
     template <typename T>
-    void Loom<T>::computeConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void Loom<T>::run(const base::Network<T> &network) {
 
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-
-        cnpy::Array<T> act = layer.getActivations();
-        act.sign_magnitude_representation(layer.getActPrecision());
-        cnpy::Array<T> wgt = layer.getWeights();
-        wgt.sign_magnitude_representation(layer.getWgtPrecision());
-        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
-
-        int padding = layer.getPadding();
-        int stride = layer.getStride();
-
-        act.zero_pad(padding);
-
-        if(act.getShape()[1] == 3 && stride > 1) {
-            act.reshape_first_layer_act((uint16_t)stride);
-            wgt.reshape_first_layer_wgt((uint16_t)stride);
-            stride = 1;
-        }
-
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-
-        auto batch_size = act_shape[0];
-        auto act_channels = act_shape[1];
-        auto Nx = act_shape[2];
-        auto Ny = act_shape[3];
-        if(this->FAST_MODE) batch_size = 1;
-
-        auto num_filters = wgt_shape[0];
-        auto wgt_channels = wgt_shape[1];
-        auto Kx = wgt_shape[2];
-        auto Ky = wgt_shape[3];
-
-        long out_x = (Nx - Kx)/stride + 1;
-        long out_y = (Ny - Ky)/stride + 1;
-
-        auto groups = act_channels / wgt_channels;
-        auto it_per_group = num_filters / groups;
-
-        auto act_prec = layer.getActPrecision();
-        auto act_mask = (uint16_t)(1u << (act_prec - 1));
-
-        auto wgt_prec = layer.getWgtPrecision();
-        auto wgt_mask = (uint16_t)(1u << (wgt_prec - 1));
-
-        // Stats
-        stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.weight_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.accumulator_updates.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.scheduled_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.idle_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
-
-        int n;
-
-        // Convolution
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for(n = 0; n < batch_size; n++) {
-
-            std::vector<int> list_x, list_y;
-            int x_counter = 0, y_counter = 0;
-            uint64_t cycles = 0;
-            uint64_t weight_buff_reads = 0;
-            uint64_t act_buff_reads = 0;
-            uint64_t accumulator_updates = 0;
-            uint64_t scheduled_pe = 0;
-            uint64_t idle_pe = 0;
-
-            for(int m = 0; m < num_filters; m += N_ROWS) {
-
-                // Two towers alexnet
-                int start_group = 0;
-                if(m >= it_per_group)
-                    start_group = (int)wgt_channels;
-
-                // Fix for MobileNet
-                if(wgt_channels == 1 && act_channels != 1)
-                    start_group = m;
-
-                while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
-                    for (int i = 0; i < Kx; i++) {
-                        for (int j = 0; j < Ky; j++) {
-                            for (int k = 0; k < wgt_channels; k += N_LANES) {
-                                cycles += computeLoomTile(n,list_x, list_y, i, j, k, m, stride, act, wgt, start_group,
-                                        (int)act_channels, (int)wgt_channels, (int)num_filters, act_mask, wgt_mask,
-                                        wgt_prec, stats);
-
-                                act_buff_reads++;
-                                weight_buff_reads++;
-                                scheduled_pe += list_x.size() * N_ROWS;
-                                idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
-                            }
-                        }
-                    }
-                    accumulator_updates++;
-                }
-            }
-
-            stats.cycles.back()[n] = cycles;
-            stats.weight_buff_reads.back()[n] = weight_buff_reads;
-            stats.act_buff_reads.back()[n] = act_buff_reads;
-            stats.accumulator_updates.back()[n] = accumulator_updates;
-            stats.scheduled_pe.back()[n] = scheduled_pe;
-            stats.idle_pe.back()[n] = idle_pe;
-
-        }
-
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-
-        stats.time.push_back(time_span);
-
-    }
-
-    template <typename T>
-    void Loom<T>::computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
-
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-
-        cnpy::Array<T> act = layer.getActivations();
-        act.sign_magnitude_representation(layer.getActPrecision());
-        cnpy::Array<T> wgt = layer.getWeights();
-        wgt.sign_magnitude_representation(layer.getWgtPrecision());
-        wgt.reshape_to_4D();
-
-        if(layer.getType() == "InnerProduct") {
-            if (act.getDimensions() == 4) act.reshape_to_2D();
-            act.reshape_to_4D();
-        }
-
-        bool lstm = layer.getType() == "LSTM";
-
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-
-        uint64_t batch_size, act_channels, R;
-        if(lstm) {
-            R = act_shape[0];
-            batch_size = act_shape[1];
-            act_channels = act_shape[2];
-        } else {
-            R = 1;
-            batch_size = act_shape[0];
-            act_channels = act_shape[1];
-        }
-        if(this->FAST_MODE) batch_size = 1;
-
-        auto num_filters = wgt_shape[0];
-        auto wgt_channels = wgt_shape[1];
-
-        auto act_prec = layer.getActPrecision();
-        auto act_mask = (uint16_t)(1u << (act_prec - 1));
-
-        auto wgt_prec = layer.getWgtPrecision();
-        auto wgt_mask = (uint16_t)(1u << (wgt_prec - 1));
-
-        // Stats
-        stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.weight_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.accumulator_updates.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.scheduled_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.idle_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
-
-        int n;
-
-        #ifndef FC_MULTIPLEX_COLUMNS
-
-        // All FC in one column
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for (n = 0; n < batch_size; n++) {
-
-            uint64_t cycles = 0;
-            uint64_t weight_buff_reads = 0;
-            uint64_t act_buff_reads = 0;
-            uint64_t accumulator_updates = 0;
-
-            for (int r = 0; r < R; r++) {
-                for (int m = 0; m < num_filters; m += N_ROWS) {
-                    for (int k = 0; k < wgt_channels; k += WEIGHT_LANES) {
-                        cycles += computeLoomColumn(n,r,0,0,0,0,k,m,0,act,wgt,0,wgt_channels,num_filters,act_mask,
-                                wgt_mask,wgt_prec,lstm);
-                        act_buff_reads++;
-                        weight_buff_reads++;
-                    }
-                    accumulator_updates++;
-                }
-            }
-
-            stats.cycles.back()[n] = stats.cycles.back()[n];
-            stats.weight_buff_reads.back()[n] = weight_buff_reads;
-            stats.act_buff_reads.back()[n] = act_buff_reads;
-            stats.accumulator_updates.back()[n] = accumulator_updates;
-            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)WEIGHT_LANES);
-            auto idle_rows = N_ROWS - (num_filters % N_ROWS);
-            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)WEIGHT_LANES);
-
-        }
-
-        #else
-
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for (n = 0; n < batch_size; n++) {
-
-            int column_index = 0;
-            std::vector<uint64_t>column_end = std::vector<uint64_t>(N_COLUMNS, 0);
-            uint64_t cycles = 0;
-            uint64_t stall_cycles = 0;
-            uint64_t weight_buff_reads = 0;
-            uint64_t act_buff_reads = 0;
-            uint64_t accumulator_updates = 0;
-
-            for (int r = 0; r < R; r++) {
-                for (int m = 0; m < num_filters; m += N_ROWS) {
-                    for (int k = 0; k < wgt_channels; k += N_LANES) {
-                        if(cycles < column_end[column_index]) {
-                            stall_cycles = column_end[column_index] - cycles;
-                            cycles = column_end[column_index];
-                        }
-                        auto column_cycles = computeLoomColumn(n,r,0,0,0,0,k,m,0,act,wgt,0,(int)wgt_channels,
-                                (int)num_filters,act_mask,wgt_mask,wgt_prec,lstm);
-                        column_end[column_index] = cycles + column_cycles;
-                        cycles++;
-                        column_index++;
-                        if(column_index >= N_COLUMNS) column_index = 0;
-
-                        act_buff_reads++;
-                        weight_buff_reads++;
-                    }
-                    accumulator_updates++;
-                }
-            }
-
-            uint64_t last_column_end = *std::max_element(column_end.begin(), column_end.end());
-            stats.cycles.back()[n] = std::max(cycles, last_column_end);
-            stats.stall_cycles.back()[n] = stall_cycles;
-            stats.weight_buff_reads.back()[n] = weight_buff_reads;
-            stats.act_buff_reads.back()[n] = act_buff_reads;
-            stats.accumulator_updates.back()[n] = accumulator_updates;
-            stats.scheduled_pe.back()[n] = (uint64_t)(num_filters * N_ROWS * ceil(act_channels/(double)N_LANES));
-            auto idle_rows = N_ROWS - (num_filters % N_ROWS);
-            idle_rows = idle_rows == 16 ? 0 : idle_rows;
-            stats.idle_pe.back()[n] = (uint64_t)(idle_rows * ceil(act_channels/(double)N_LANES));
-
-        }
-
-        #endif
-
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-
-        stats.time.push_back(time_span);
-
-    }
-
-    template <typename T>
-    void Loom<T>::run(const Network<T> &network) {
         // Initialize statistics
-        sys::Statistics::Stats stats;
-        sys::Statistics::initialize(stats);
+        std::string filename = "Loom_L" + std::to_string(N_LANES) + "_C" + std::to_string(N_COLUMNS) + "_R" +
+                std::to_string(N_ROWS) + "_PG" + std::to_string(PRECISION_GRANULARITY) + "_PSB" +
+                std::to_string(PE_SERIAL_BITS) + (DYNAMIC_WEIGHTS ? "_DW" : "") +
+                (DYNAMIC_WEIGHTS && LEADING_BIT ? "_LB" : "") + "_cycles";
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
-        stats.task_name = "cycles";
-        stats.net_name = network.getName();
-        stats.arch = "Loom_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG" +
-                std::to_string(PRECISION_GRANULARITY) + "_PSB" + std::to_string(PE_SERIAL_BITS) +
-                (DYNAMIC_WEIGHTS ? "_DW" : "") + (DYNAMIC_WEIGHTS && LEADING_BIT ? "_LB" : "");
+        auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
+        auto stall_cycles = stats.register_uint_t("stall_cycles", 0, sys::AverageTotal);
+        auto weight_buff_reads = stats.register_uint_t("weight_buff_reads", 0, sys::AverageTotal);
+        auto act_buff_reads = stats.register_uint_t("act_buff_reads", 0, sys::AverageTotal);
+        auto accumulator_updates = stats.register_uint_t("accumulator_updates", 0, sys::AverageTotal);
+        auto scheduled_pe = stats.register_uint_t("scheduled_pe", 0, sys::AverageTotal);
+        auto idle_pe = stats.register_uint_t("idle_pe", 0, sys::AverageTotal);
+        auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
+        auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
-        for(const Layer<T> &layer : network.getLayers()) {
-            if(layer.getType() == "Convolution") {
-                stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getActPrecision());
-                stats.wgt_prec.push_back(layer.getWgtPrecision());
-                computeConvolution(layer, stats);
-            } else if(layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
-                stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getActPrecision());
-                stats.wgt_prec.push_back(layer.getWgtPrecision());
-                computeInnerProduct(layer, stats);
+        for (auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
+
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
+            bool conv = layer.getType() == "Convolution";
+            bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
+
+            base::Array<T> act = layer.getActivations();
+            act.sign_magnitude_representation(layer.getActPrecision());
+            if (fc && act.getDimensions() == 4) act.reshape_to_2D();
+            if (fc) act.reshape_to_4D();
+
+            base::Array<T> wgt = layer.getWeights();
+            wgt.sign_magnitude_representation(layer.getWgtPrecision());
+            if (wgt.getDimensions() == 2) wgt.reshape_to_4D();
+
+            int padding = layer.getPadding();
+            int stride = layer.getStride();
+
+            if (conv) act.zero_pad(padding);
+
+            if (act.getShape()[1] == 3 && stride > 1) {
+                act.reshape_first_layer_act((uint16_t) stride);
+                wgt.reshape_first_layer_wgt((uint16_t) stride);
+                stride = 1;
             }
+
+            const std::vector<size_t> &act_shape = act.getShape();
+            const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+            uint64_t batch_size, act_channels, Nx, Ny, R;
+            if (lstm) {
+                R = act_shape[0];
+                batch_size = act_shape[1];
+                act_channels = act_shape[2];
+                Nx = 1;
+                Ny = 1;
+            } else {
+                R = 1;
+                batch_size = act_shape[0];
+                act_channels = act_shape[1];
+                Nx = act_shape[2];
+                Ny = act_shape[3];
+            }
+            if (this->FAST_MODE) batch_size = 1;
+
+            auto num_filters = wgt_shape[0];
+            auto wgt_channels = wgt_shape[1];
+            auto Kx = wgt_shape[2];
+            auto Ky = wgt_shape[3];
+
+            long out_x = (Nx - Kx) / stride + 1;
+            long out_y = (Ny - Ky) / stride + 1;
+
+            auto groups = act_channels / wgt_channels;
+            auto it_per_group = num_filters / groups;;
+
+            auto act_layer_prec = layer.getActPrecision();
+            auto act_mask = (uint16_t) (1u << (act_layer_prec - 1));
+
+            auto wgt_layer_prec = layer.getWgtPrecision();
+            auto wgt_mask = (uint16_t) (1u << (wgt_layer_prec - 1));
+
+            for (int n = 0; n < batch_size; n++) {
+
+                uint64_t batch_cycles = 0;
+                uint64_t batch_stall_cycles = 0;
+                uint64_t batch_weight_buff_reads = 0;
+                uint64_t batch_act_buff_reads = 0;
+                uint64_t batch_accumulator_updates = 0;
+                uint64_t batch_scheduled_pe = 0;
+                uint64_t batch_idle_pe = 0;
+
+                if (conv) {
+
+                    std::vector<int> list_x, list_y;
+                    int x_counter = 0, y_counter = 0;
+
+                    for (int m = 0; m < num_filters; m += N_ROWS) {
+
+                        // Two towers alexnet
+                        int start_group = 0;
+                        if (m >= it_per_group)
+                            start_group = (int) wgt_channels;
+
+                        // Fix for MobileNet
+                        if (wgt_channels == 1 && act_channels != 1)
+                            start_group = m;
+
+                        while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, N_COLUMNS)) {
+                            for (int i = 0; i < Kx; i++) {
+                                for (int j = 0; j < Ky; j++) {
+                                    for (int k = 0; k < wgt_channels; k += N_LANES) {
+                                        batch_cycles += computeLoomTile(n, list_x, list_y, i, j, k, m, stride, act, wgt,
+                                                start_group, (int) act_channels, (int) wgt_channels, (int) num_filters,
+                                                act_mask, wgt_mask, wgt_layer_prec, batch_stall_cycles);
+
+                                        batch_act_buff_reads++;
+                                        batch_weight_buff_reads++;
+                                        batch_scheduled_pe += list_x.size() * N_ROWS;
+                                        batch_idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
+                                    }
+                                }
+                            }
+                            batch_accumulator_updates++;
+                        }
+                    }
+
+                    cycles->value[layer_it][n] = batch_cycles;
+                    stall_cycles->value[layer_it][n] = batch_cycles;
+                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads;
+                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads;
+                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates;
+                    scheduled_pe->value[layer_it][n] = batch_scheduled_pe;
+                    idle_pe->value[layer_it][n] = batch_idle_pe;
+
+                } else {
+
+                    int column_index = 0;
+                    std::vector<uint64_t> column_end = std::vector<uint64_t>(N_COLUMNS, 0);
+
+                    for (int r = 0; r < R; r++) {
+                        for (int m = 0; m < num_filters; m += N_ROWS) {
+                            for (int k = 0; k < wgt_channels; k += N_LANES) {
+                                if (batch_cycles < column_end[column_index]) {
+                                    batch_stall_cycles += column_end[column_index] - batch_cycles;
+                                    batch_cycles = column_end[column_index];
+                                }
+                                auto column_cycles = computeLoomColumn(n, r, 0, 0, 0, 0, k, m, 0, act, wgt, 0,
+                                        (int) wgt_channels, (int)num_filters, act_mask, wgt_mask, wgt_layer_prec, lstm);
+                                column_end[column_index] = batch_cycles + column_cycles;
+                                batch_cycles++;
+                                column_index++;
+                                if (column_index >= N_COLUMNS) column_index = 0;
+
+                                batch_act_buff_reads++;
+                                batch_weight_buff_reads++;
+                            }
+                            batch_accumulator_updates++;
+                        }
+                    }
+
+                    uint64_t last_column_end = *std::max_element(column_end.begin(), column_end.end());
+                    cycles->value[layer_it][n] = std::max(batch_cycles, last_column_end);
+                    stall_cycles->value[layer_it][n] = batch_stall_cycles;
+                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads;
+                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads;
+                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates;
+                    scheduled_pe->value[layer_it][n] = (uint64_t) (num_filters * N_ROWS *
+                                                                   ceil(act_channels / (double) N_LANES));
+                    auto idle_rows = N_ROWS - (num_filters % N_ROWS);
+                    idle_rows = idle_rows == 16 ? 0 : idle_rows;
+                    idle_pe->value[layer_it][n] = (uint64_t) (idle_rows * ceil(act_channels / (double) N_LANES));
+
+                }
+
+                act_prec->value[layer_it][n] = act_layer_prec;
+                wgt_prec->value[layer_it][n] = wgt_layer_prec;
+
+            }
+
         }
 
-        // Set statistics to write
-        sys::Statistics::addStats(stats);
+        //Dump statistics
+        std::string header = "Loom Number of Cycles for " + network.getName() + "\n";
+        header += "Number of lanes/terms per PE: " + std::to_string(N_LANES) + "\n";
+        header += "Number of columns/windows in parallel: " + std::to_string(N_COLUMNS) + "\n";
+        header += "Number of rows/filters in parallel: " + std::to_string(N_ROWS) + "\n";
+        header += "Number of values per group: " + std::to_string(PRECISION_GRANULARITY) + "\n";
+        std::string ldn_bit = LEADING_BIT ? "True" : "False";
+        header += "Calculate only leading bit: " + ldn_bit + "\n";
+        header += "Number of processing bits per PE: " + std::to_string(PE_SERIAL_BITS) + "\n";
+        std::string dyn_wgts = DYNAMIC_WEIGHTS ? "True" : "False";
+        header += "Dynamic precision for weights: " + dyn_wgts + "\n";
+
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
+
     }
 
     /* POTENTIALS */
 
     template <typename T>
-    void Loom<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
-            const int network_bits) {
+    void Loom<T>::potentials(const base::Network<T> &network) {
 
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-
-        const cnpy::Array<T> &act = layer.getActivations();
-        cnpy::Array<T> wgt = layer.getWeights();
-        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
-
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-
-        int batch_size = 1;
-        auto Nx = act_shape[2];
-        auto Ny = act_shape[3];
-
-        auto num_filters = wgt_shape[0];
-        auto wgt_channels = wgt_shape[1];
-        auto Kx = wgt_shape[2];
-        auto Ky = wgt_shape[3];
-
-        int padding = layer.getPadding();
-        int stride = layer.getStride();
-
-        long out_x = (Nx - Kx + 2*padding)/stride + 1;
-        long out_y = (Ny - Ky + 2*padding)/stride + 1;
-
-        // Operations
-        const auto parallel_mult = (uint64_t)(num_filters * out_x * out_y * Kx * Ky * wgt_channels);
-        stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
-        stats.speedup.emplace_back(std::vector<double>(batch_size,0));
-        uint64_t bit_counter = 0;
-
-        // Get layer precision
-        auto act_prec = layer.getActPrecision();
-        auto wgt_prec = layer.getWgtPrecision();
-
-        // Convolution
-        for(int n = 0; n < batch_size; n++) {
-            bit_counter = (uint64_t)computeLoomBitsPE((uint8_t)act_prec, (uint8_t)wgt_prec) * out_x * out_y * Kx * Ky *
-                    wgt_channels * num_filters;
-            double MAX_BITS = network_bits * network_bits;
-            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
-            stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
-            stats.bit_multiplications.back()[n] = bit_counter;
-        }
-
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-
-        stats.time.push_back(time_span);
-        stats.parallel_multiplications.push_back(parallel_mult);
-
-    }
-
-    template <typename T>
-    void Loom<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats,
-            const int network_bits) {
-
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-
-        cnpy::Array<T> act = layer.getActivations();
-        if(act.getDimensions() == 4) act.reshape_to_2D();
-        const cnpy::Array<T> &wgt = layer.getWeights();
-
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-
-        int batch_size = 1;
-        auto R = (layer.getType() == "LSTM") ? act_shape[0] : 1;
-
-        auto num_filters = wgt_shape[0];
-        auto wgt_channels = wgt_shape[1];
-
-        // Operations
-        const auto parallel_mult = (uint64_t)num_filters * wgt_channels * R;
-        stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
-        stats.speedup.emplace_back(std::vector<double>(batch_size,0));
-        uint64_t bit_counter = 0;
-
-        // Get layer precision
-        auto act_prec = layer.getActPrecision();
-        auto wgt_prec = layer.getWgtPrecision();
-
-        for (int n = 0; n < batch_size; n++) {
-            bit_counter = (uint64_t)computeLoomBitsPE((uint8_t)act_prec, (uint8_t)wgt_prec) * wgt_channels *
-                    num_filters * R;
-            double MAX_BITS = network_bits * network_bits;
-            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
-            stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
-            stats.bit_multiplications.back()[n] = bit_counter;
-        }
-
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-
-        stats.time.push_back(time_span);
-        stats.parallel_multiplications.push_back(parallel_mult);
-
-    }
-
-
-    template <typename T>
-    void Loom<T>::potentials(const Network<T> &network) {
         // Initialize statistics
-        sys::Statistics::Stats stats;
-        sys::Statistics::initialize(stats);
+        std::string filename = "Loom_potentials";
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
-        stats.task_name = "potentials";
-        stats.net_name = network.getName();
-        stats.arch = "Loom";
+        auto work_reduction = stats.register_double_t("work_reduction", 0, sys::Average);
+        auto speedup = stats.register_double_t("speedup", 0, sys::Average);
+        auto par_mult = stats.register_double_t("parallel_multiplication", 0, sys::AverageTotal);
+        auto bit_multiplications = stats.register_uint_t("bit_multiplications", 0, sys::AverageTotal);
+        auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
+        auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
-        for(const Layer<T> &layer : network.getLayers()) {
-            if(layer.getType() == "Convolution") {
-                stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getActPrecision());
-                stats.wgt_prec.push_back(layer.getWgtPrecision());
-                computePotentialsConvolution(layer,stats,network.getNetwork_bits());
-            } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
-                stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getActPrecision());
-                stats.wgt_prec.push_back(layer.getWgtPrecision());
-                computePotentialsInnerProduct(layer,stats,network.getNetwork_bits());
+        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
+
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
+            bool conv = layer.getType() == "Convolution";
+            bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
+
+            base::Array<T> act = layer.getActivations();
+            if(fc && act.getDimensions() == 4) act.reshape_to_2D();
+
+            base::Array<T> wgt = layer.getWeights();
+            if(conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
+
+            int padding = layer.getPadding();
+            int stride = layer.getStride();
+
+            const std::vector<size_t> &act_shape = act.getShape();
+            const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+            uint64_t batch_size, act_channels, Nx, Ny, R;
+            if (lstm) {
+                R = act_shape[0];
+                batch_size = act_shape[1];
+                act_channels = act_shape[2];
+                Nx = 1;
+                Ny = 1;
+            } else {
+                R = 1;
+                batch_size = act_shape[0];
+                act_channels = act_shape[1];
+                Nx = act_shape[2];
+                Ny = act_shape[3];
             }
+
+            auto num_filters = wgt_shape[0];
+            auto wgt_channels = wgt_shape[1];
+            auto Kx = wgt_shape[2];
+            auto Ky = wgt_shape[3];
+
+            long out_x = (Nx - Kx + 2*padding)/stride + 1;
+            long out_y = (Ny - Ky + 2*padding)/stride + 1;
+
+            auto groups = act_channels / wgt_channels;
+            auto it_per_group = num_filters / groups;
+
+            // Get layer precision
+            auto act_layer_prec = layer.getActPrecision();
+            auto wgt_layer_prec = layer.getWgtPrecision();
+
+            auto network_bits = network.getNetwork_bits();
+
+            // Operations
+            uint64_t parallel_mult = conv ? num_filters * out_x * out_y * Kx * Ky * wgt_channels :
+                    num_filters * wgt_channels * R;
+
+            for(int n = 0; n < batch_size; n++) {
+                double MAX_BITS = network_bits * network_bits;
+                uint64_t bit_counter = 0;
+
+                bit_counter = (uint64_t)computeLoomBitsPE((uint8_t)act_layer_prec, (uint8_t)wgt_layer_prec);
+                bit_counter *= conv ? out_x * out_y * Kx * Ky * wgt_channels * num_filters:
+                        wgt_channels * num_filters * R;
+
+                bit_multiplications->value[layer_it][n] = bit_counter;
+                work_reduction->value[layer_it][n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
+                speedup->value[layer_it][n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
+                par_mult->value[layer_it][n] = parallel_mult;
+                act_prec->value[layer_it][n] = act_layer_prec;
+                wgt_prec->value[layer_it][n] = wgt_layer_prec;
+            }
+
         }
 
-        // Set statistics to write
-        sys::Statistics::addStats(stats);
+        //Dump statistics
+        std::string header = "Loom Potentials/Work Reduction for " + network.getName() + "\n";
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
+
     }
 
     template class Loom<uint16_t>;

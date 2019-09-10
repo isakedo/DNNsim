@@ -25,12 +25,12 @@ THE SOFTWARE.
 #include <interface/NetWriter.h>
 
 #include <base/Network.h>
-//#include <core/Stripes.h>
+#include <core/Stripes.h>
 //#include <core/DynamicStripes.h>
 //#include <core/DynamicStripesFP.h>
-//#include <core/Loom.h>
+#include <core/Loom.h>
 #include <core/BitPragmatic.h>
-//#include <core/Laconic.h>
+#include <core/Laconic.h>
 #include <core/BitTacticalP.h>
 #include <core/BitTacticalE.h>
 //#include <core/SCNN.h>
@@ -247,13 +247,13 @@ int main(int argc, char *argv[]) {
 		                        if(experiment.task == "Cycles") DNNsim.run(network);
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
-		                    /*} else if(experiment.architecture == "Stripes") {
+		                    } else if(experiment.architecture == "Stripes") {
 		                        core::Stripes<uint16_t> DNNsim(experiment.n_lanes,experiment.n_columns,
-		                                experiment.n_rows,experiment.bits_pe,N_THREADS,FAST_MODE);
+		                                experiment.n_rows,experiment.bits_pe,N_THREADS,FAST_MODE,QUIET);
 		                        if(experiment.task == "Cycles") DNNsim.run(network);
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
-		                    } else if(experiment.architecture == "DynamicStripes") {
+		                    /*} else if(experiment.architecture == "DynamicStripes") {
 		                        core::DynamicStripes<uint16_t> DNNsim(experiment.n_lanes,experiment.n_columns,
 		                                experiment.n_rows,experiment.precision_granularity, experiment.column_registers,
 		                                experiment.bits_pe, experiment.leading_bit, experiment.diffy, 
@@ -261,20 +261,20 @@ int main(int argc, char *argv[]) {
 		                        if(experiment.task == "Cycles") DNNsim.run(network);
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 		                        else if (experiment.task == "AvgWidth") DNNsim.average_width(network);
-		                        else if (experiment.task == "OnChip") DNNsim.on_chip(network);
+		                        else if (experiment.task == "OnChip") DNNsim.on_chip(network);*/
 
 		                    } else if(experiment.architecture == "Loom") {
 		                        core::Loom<uint16_t> DNNsim(experiment.n_lanes,experiment.n_columns,experiment.n_rows,
 		                                experiment.precision_granularity, experiment.pe_serial_bits,
-		                                experiment.leading_bit, experiment.dynamic_weights, N_THREADS,FAST_MODE);
+		                                experiment.leading_bit, experiment.dynamic_weights, N_THREADS,FAST_MODE,QUIET);
 		                        if(experiment.task == "Cycles") DNNsim.run(network);
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
 		                    } else if (experiment.architecture == "Laconic") {
 		                        core::Laconic<uint16_t> DNNsim(experiment.n_lanes,experiment.n_columns,
-		                                experiment.n_rows,N_THREADS,FAST_MODE);
+		                                experiment.n_rows,N_THREADS,FAST_MODE,QUIET);
 		                        if(experiment.task == "Cycles") DNNsim.run(network);
-		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);*/
+		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
 		                    } else if (experiment.architecture == "BitTacticalP") {
 		                        core::BitTacticalP<uint16_t> DNNsim(experiment.n_lanes,experiment.n_columns,

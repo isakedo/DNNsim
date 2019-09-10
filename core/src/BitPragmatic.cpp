@@ -234,14 +234,14 @@ namespace core {
         // Initialize statistics
         std::string arch = "BitPragmatic";
         arch += (DIFFY ? "_Diffy" : "");
-        std::string filename = arch + "_C" + std::to_string(N_COLUMNS) + "_R" +
+        std::string filename = arch + "_L" + std::to_string(N_LANES) + "_C" + std::to_string(N_COLUMNS) + "_R" +
                 std::to_string(N_ROWS) + "_B" + std::to_string(BITS_FIRST_STAGE) + "_CR" +
                 std::to_string(COLUMN_REGISTERS) + "_cycles";
         sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
         auto baseline_cycles = stats.register_uint_t("baseline_cycles", 0, sys::AverageTotal);
-        auto speedup = stats.register_double_t("speedup", 0, sys::Average);
+        auto speedup = stats.register_double_t("speedup", 0, sys::Speedup);
         auto stall_cycles = stats.register_uint_t("stall_cycles", 0, sys::AverageTotal);
         auto weight_buff_reads = stats.register_uint_t("weight_buff_reads", 0, sys::AverageTotal);
         auto act_buff_reads = stats.register_uint_t("act_buff_reads", 0, sys::AverageTotal);
@@ -309,10 +309,9 @@ namespace core {
 
             auto groups = act_channels / wgt_channels;
             auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS/groups);
-            auto baseline_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS/groups);
 
             auto base_cycles = (uint64_t)(conv ? out_x * out_y * ceil(act_channels/(double)N_LANES) * Kx * Ky *
-                    baseline_filters_sets : ceil(act_channels/(double)N_LANES) * baseline_filters_sets * R);
+                    num_filters_sets : ceil(act_channels/(double)N_LANES) * num_filters_sets * R);
 
             for(int n = 0; n < batch_size; n++) {
 
@@ -400,7 +399,7 @@ namespace core {
                     for (int r = 0; r < R; r++) {
                         for (int k = 0; k < act_channels; k += N_LANES) {
                             if(batch_cycles < column_end[column_index]) {
-                                batch_stall_cycles = column_end[column_index] - batch_cycles;
+                                batch_stall_cycles += column_end[column_index] - batch_cycles;
                                 batch_cycles = column_end[column_index];
                             }
                             auto column_cycles = computePragmaticColumn(n,r,0,0,0,0,k,0,act,(int)act_channels,lstm);
@@ -439,6 +438,8 @@ namespace core {
 
         }
 
+        speedup->special_value = sys::get_total(baseline_cycles->value) / (double)sys::get_total(cycles->value);
+
         //Dump statistics
         std::string header = "BitPragmatic Number of Cycles for " + network.getName() + "\n";
         header += "Number of lanes/terms per PE: " + std::to_string(N_LANES) + "\n";
@@ -446,7 +447,8 @@ namespace core {
         header += "Number of rows/filters in parallel: " + std::to_string(N_ROWS) + "\n";
         header += "Number of bits for first stage shifter: " + std::to_string(BITS_FIRST_STAGE) + "\n";
         header += "Number of run-ahead input registers per column: " + std::to_string(COLUMN_REGISTERS) + "\n";
-        header += "Diffy: " + std::to_string(DIFFY) + "\n";
+        std::string dffy = DIFFY ? "True" : "False";
+        header += "Diffy: " + dffy + "\n";
 
         stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
 

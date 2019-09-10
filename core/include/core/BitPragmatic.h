@@ -111,7 +111,7 @@ namespace core {
          * @param _DIFFY                Enable Diffy
          * @param _N_THREADS            Number of parallel threads for multi-threading execution
          * @param _FAST_MODE            Enable fast mode to simulate only one image
-         * @param _QUIET        Avoid std::out messages
+         * @param _QUIET                Avoid std::out messages
          */
         BitPragmatic(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _BITS_FIRST_STAGE,
                 uint32_t _COLUMN_REGISTERS, bool _DIFFY, uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET) :

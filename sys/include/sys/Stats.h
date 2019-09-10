@@ -6,6 +6,106 @@
 namespace sys {
 
     /**
+     * Return the average of a 1D vector
+     * @tparam T Data type of the stat
+     * @param vector_stat 1D Vector with the stats
+     * @return Average of the vector
+     */
+    template <typename T>
+    T get_average(const std::vector<T> &vector_stat)
+    {
+        return accumulate(vector_stat.begin(), vector_stat.end(), 0.0) / vector_stat.size();
+    }
+
+    /**
+     * Return the average of a 2D vector
+     * @tparam T Data type of the stat
+     * @param vector_stat 2D Vector with the stats
+     * @return Average of the vector
+     */
+    template <typename T>
+    T get_average(const std::vector<std::vector<T>> &vector_stat)
+    {
+        std::vector<T> averages = std::vector<T>(vector_stat.size(), 0);
+        for(uint64_t i = 0; i < vector_stat.size(); i++) {
+            averages[i] = get_average(vector_stat[i]);
+        }
+        return get_average(averages);
+    }
+
+    /**
+     * Return the total of a 1D vector
+     * @tparam T Data type of the stat
+     * @param vector_stat 1D Vector with the stats
+     * @return Total of the vector
+     */
+    template <typename T>
+    T get_total(const std::vector<T> &vector_stat)
+    {
+        return accumulate(vector_stat.begin(), vector_stat.end(), 0.0);
+    }
+
+    /**
+     * Return the total of a 2D vector
+     * @tparam T Data type of the stat
+     * @param vector_stat 2D Vector with the stats
+     * @return Total of the vector
+     */
+    template <typename T>
+    T get_total(const std::vector<std::vector<T>> &vector_stat)
+    {
+        std::vector<T> totals = std::vector<T>(vector_stat.size(), 0);
+        for(uint64_t i = 0; i < vector_stat.size(); i++) {
+            totals[i] = get_total(vector_stat[i]);
+        }
+        return get_total(totals);
+    }
+
+    /**
+     * Return the sum of the averages of a 2D vector
+     * @tparam T Data type of the stat
+     * @param vector_stat 2D Vector with the stats
+     * @return Sum of the averages of the vector
+     */
+    template <typename T>
+    T get_average_total(const std::vector<std::vector<T>> &vector_stat)
+    {
+        std::vector<T> averages = std::vector<T>(vector_stat.size(), 0);
+        for(uint64_t i = 0; i < vector_stat.size(); i++) {
+            averages[i] = get_average(vector_stat[i]);
+        }
+        return get_total(averages);
+    }
+
+    /**
+     * Return the maximum of a 1D vector
+     * @tparam T Data type of the stat
+     * @param vector_stat 1D Vector with the stats
+     * @return Max value in the vector
+     */
+    template <typename T>
+    T get_max(const std::vector<T> &vector_stat)
+    {
+        return *max_element(vector_stat.begin(), vector_stat.end());
+    }
+
+    /**
+     * Return the maximum of a 2D vector
+     * @tparam T Data type of the stat
+     * @param vector_stat 2D Vector with the stats
+     * @return Max value in the vector
+     */
+    template <typename T>
+    T get_max(const std::vector<std::vector<T>> &vector_stat)
+    {
+        std::vector<T> maxs = std::vector<T>(vector_stat.size(), 0);
+        for(uint64_t i = 0; i < vector_stat.size(); i++) {
+            maxs[i] = get_max(vector_stat[i]);
+        }
+        return get_max(maxs);
+    }
+
+    /**
     * Type of statistics
     */
     enum stat_type {
@@ -25,7 +125,8 @@ namespace sys {
         Average,
         AverageTotal,
         Total,
-        Max
+        Max,
+        Speedup
     };
 
     /**
@@ -40,6 +141,11 @@ namespace sys {
          * Measure for the statistics
          */
         Measure measure;
+
+        /**
+         * Special value for some stats
+         */
+        double special_value;
 
         /**
          * Constructor

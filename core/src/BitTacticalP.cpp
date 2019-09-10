@@ -167,10 +167,11 @@ namespace core {
 
         // Initialize statistics
         int mux_entries = this->LOOKAHEAD_H + this->LOOKASIDE_D + 1;
-        std::string filename = "BitTacticalP_C" + std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS)
-                + "_PG_" + std::to_string(PRECISION_GRANULARITY) + "_CR" + std::to_string(this->COLUMN_REGISTERS) + "_"
-                + this->SEARCH_SHAPE + std::to_string(mux_entries) + "(" + std::to_string(this->LOOKAHEAD_H) + "-" +
-                std::to_string(this->LOOKASIDE_D) + ")" + (LEADING_BIT ? "_LB" : "");
+        std::string filename = "BitTacticalP_L" + std::to_string(this->N_LANES) + "_L" + std::to_string(this->N_COLUMNS)
+                + "_R" + std::to_string(this->N_ROWS) + "_PG_" + std::to_string(PRECISION_GRANULARITY) + "_CR" +
+                std::to_string(this->COLUMN_REGISTERS) + "_" + this->SEARCH_SHAPE + std::to_string(mux_entries) + "(" +
+                std::to_string(this->LOOKAHEAD_H) + "-" + std::to_string(this->LOOKASIDE_D) + ")" +
+                (LEADING_BIT ? "_LB" : "") + "_cycles";
         sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
@@ -296,7 +297,7 @@ namespace core {
                     for (int r = 0; r < R; r++) {
                         for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
                             if(batch_cycles < column_end[column_index]) {
-                                batch_stall_cycles = column_end[column_index] - batch_cycles;
+                                batch_stall_cycles += column_end[column_index] - batch_cycles;
                                 batch_cycles = column_end[column_index];
                             }
                             auto column_cycles = computeTacticalPColumn(n,r,0,0,0,act,dense_schedule,schedule_time,
@@ -339,9 +340,10 @@ namespace core {
         header += "Number of columns/windows in parallel: " + std::to_string(this->N_COLUMNS) + "\n";
         header += "Number of rows/filters in parallel: " + std::to_string(this->N_ROWS) + "\n";
         header += "Number of values per group: " + std::to_string(PRECISION_GRANULARITY) + "\n";
-        header += "Calculate only leading bit: " + std::to_string(LEADING_BIT) + "\n";
+        std::string ldn_bit = LEADING_BIT ? "True" : "False";
+        header += "Calculate only leading bit: " + ldn_bit + "\n";
         header += "Number of run-ahead input registers per column: " + std::to_string(this->COLUMN_REGISTERS) + "\n";
-        header += "Search shape: " + std::to_string(this->SEARCH_SHAPE) + "\n";
+        header += "Search shape: " + std::string(1, this->SEARCH_SHAPE) + "\n";
         header += "Lookahead H: " + std::to_string(this->LOOKAHEAD_H) + "\n";
         header += "Lookaside D: " + std::to_string(this->LOOKASIDE_D) + "\n";
 

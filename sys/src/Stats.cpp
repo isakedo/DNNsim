@@ -4,111 +4,11 @@
 
 namespace sys {
 
-    /**
-     * Return the average of a 1D vector
-     * @tparam T Data type of the stat
-     * @param vector_stat 1D Vector with the stats
-     * @return Average of the vector
-     */
-    template <typename T>
-    T get_average(const std::vector<T> &vector_stat)
-    {
-        return accumulate(vector_stat.begin(), vector_stat.end(), 0.0) / vector_stat.size();
-    }
-
-    /**
-     * Return the average of a 2D vector
-     * @tparam T Data type of the stat
-     * @param vector_stat 2D Vector with the stats
-     * @return Average of the vector
-     */
-    template <typename T>
-    T get_average(const std::vector<std::vector<T>> &vector_stat)
-    {
-        std::vector<T> averages = std::vector<T>(vector_stat.size(), 0);
-        for(uint64_t i = 0; i < vector_stat.size(); i++) {
-            averages[i] = get_average(vector_stat[i]);
-        }
-        return get_average(averages);
-    }
-
-    /**
-     * Return the total of a 1D vector
-     * @tparam T Data type of the stat
-     * @param vector_stat 1D Vector with the stats
-     * @return Total of the vector
-     */
-    template <typename T>
-    T get_total(const std::vector<T> &vector_stat)
-    {
-        return accumulate(vector_stat.begin(), vector_stat.end(), 0.0);
-    }
-
-    /**
-     * Return the total of a 2D vector
-     * @tparam T Data type of the stat
-     * @param vector_stat 2D Vector with the stats
-     * @return Total of the vector
-     */
-    template <typename T>
-    T get_total(const std::vector<std::vector<T>> &vector_stat)
-    {
-        std::vector<T> totals = std::vector<T>(vector_stat.size(), 0);
-        for(uint64_t i = 0; i < vector_stat.size(); i++) {
-            totals[i] = get_total(vector_stat[i]);
-        }
-        return get_total(totals);
-    }
-
-    /**
-     * Return the sum of the averages of a 2D vector
-     * @tparam T Data type of the stat
-     * @param vector_stat 2D Vector with the stats
-     * @return Sum of the averages of the vector
-     */
-    template <typename T>
-    T get_average_total(const std::vector<std::vector<T>> &vector_stat)
-    {
-        std::vector<T> averages = std::vector<T>(vector_stat.size(), 0);
-        for(uint64_t i = 0; i < vector_stat.size(); i++) {
-            averages[i] = get_average(vector_stat[i]);
-        }
-        return get_total(averages);
-    }
-
-    /**
-     * Return the maximum of a 1D vector
-     * @tparam T Data type of the stat
-     * @param vector_stat 1D Vector with the stats
-     * @return Max value in the vector
-     */
-    template <typename T>
-    T get_max(const std::vector<T> &vector_stat)
-    {
-        return *max_element(vector_stat.begin(), vector_stat.end());
-    }
-
-    /**
-     * Return the maximum of a 2D vector
-     * @tparam T Data type of the stat
-     * @param vector_stat 2D Vector with the stats
-     * @return Max value in the vector
-     */
-    template <typename T>
-    T get_max(const std::vector<std::vector<T>> &vector_stat)
-    {
-        std::vector<T> maxs = std::vector<T>(vector_stat.size(), 0);
-        for(uint64_t i = 0; i < vector_stat.size(); i++) {
-            maxs[i] = get_max(vector_stat[i]);
-        }
-        return get_max(maxs);
-    }
-
     //stat_base_t
 
-    stat_base_t::stat_base_t() : measure(No_Measure) {}
+    stat_base_t::stat_base_t() : measure(No_Measure), special_value(0.0) {}
 
-    stat_base_t::stat_base_t(Measure _measure) : measure(_measure) {}
+    stat_base_t::stat_base_t(Measure _measure) : measure(_measure), special_value(0.0) {}
 
     // stat_uint_t
 
@@ -129,7 +29,7 @@ namespace sys {
 
     inline std::string stat_uint_t::layer_to_string(uint64_t layer)
     {
-        if (measure == Measure::Average || measure == Measure::AverageTotal) {
+        if (measure == Measure::Average || measure == Measure::AverageTotal || measure == Measure::Speedup) {
             return std::to_string(get_average(value[layer]));
         } else if (measure == Measure ::Total) {
             return std::to_string(get_total(value[layer]));
@@ -179,7 +79,7 @@ namespace sys {
 
     inline std::string stat_double_t::layer_to_string(uint64_t layer)
     {
-        if (measure == Measure::Average || measure == Measure::AverageTotal) {
+        if (measure == Measure::Average || measure == Measure::AverageTotal || measure == Measure::Speedup) {
             return std::to_string(get_average(value[layer]));
         } else if (measure == Measure ::Total) {
             return std::to_string(get_total(value[layer]));
@@ -240,7 +140,7 @@ namespace sys {
     {
         std::string line;
         for (const auto &_value : value) {
-            if (measure == Measure::Average || measure == Measure::AverageTotal) {
+            if (measure == Measure::Average || measure == Measure::AverageTotal || measure == Measure::Speedup) {
                 line += std::to_string(get_average(_value[layer])) + ',';
             } else if (measure == Measure::Total) {
                 line += std::to_string(get_total(_value[layer])) + ',';
@@ -313,7 +213,7 @@ namespace sys {
     {
         std::string line;
         for (const auto &_value : value) {
-            if (measure == Measure::Average || measure == Measure::AverageTotal) {
+            if (measure == Measure::Average || measure == Measure::AverageTotal || measure == Measure::Speedup) {
                 line += std::to_string(get_average(_value[layer])) + ',';
             } else if (measure == Measure::Total) {
                 line += std::to_string(get_total(_value[layer])) + ',';
@@ -483,7 +383,9 @@ namespace sys {
         o_file << scalar_parameter_names << std::endl;
         std::string line = network_name + ",ALL,";
         for (const auto &table : database) {
-            if (table.var->getType() == stat_type::Scalar)
+            if (table.var->measure == Measure::Speedup) {
+                line += std::to_string(table.var->special_value) + ',';
+            } else if (table.var->getType() == stat_type::Scalar)
                 line += table.var->network_to_string() + ',';
         }
         line = line.substr(0, line.size() - 1);
