@@ -27,7 +27,7 @@ THE SOFTWARE.
 #include <base/Network.h>
 #include <core/Stripes.h>
 //#include <core/DynamicStripes.h>
-//#include <core/DynamicStripesFP.h>
+#include <core/DynamicStripesFP.h>
 #include <core/Loom.h>
 #include <core/BitPragmatic.h>
 #include <core/Laconic.h>
@@ -185,15 +185,15 @@ int main(int argc, char *argv[]) {
                                 DNNsim.training_bit_sparsity(simulate, epochs, false);
                             else if (experiment.task == "MantBitSparsity")
                                 DNNsim.training_bit_sparsity(simulate, epochs, true);
-                            /*else if (experiment.task == "ExpDistr")
+                            else if (experiment.task == "ExpDistr")
                                 DNNsim.training_distribution(simulate, epochs, false);
                             else if (experiment.task == "MantDistr")
-                                DNNsim.training_distribution(simulate, epochs, true);*/
-                        } /*else if (experiment.architecture == "DynamicStripesFP") {
+                                DNNsim.training_distribution(simulate, epochs, true);
+                        } else if (experiment.architecture == "DynamicStripesFP") {
                             core::DynamicStripesFP<float> DNNsim(experiment.leading_bit,experiment.minor_bit,
-                                    N_THREADS,FAST_MODE);
-                            if (experiment.task == "AvgWidth") DNNsim.average_width(network, epochs);
-                        } */
+                                    N_THREADS,FAST_MODE,QUIET);
+                            if (experiment.task == "AvgWidth") DNNsim.average_width(simulate, epochs);
+                        }
 
 		            }
 

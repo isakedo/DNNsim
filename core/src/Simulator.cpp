@@ -3,11 +3,11 @@
 
 namespace core {
 
-    /* AUXILIAR FUNCTIONS */
+    /* COMMON FUNCTIONS */
 
     template <typename T>
-    base::Network<T> read_training(const std::string &network_name, uint32_t batch, uint32_t epoch,
-            uint32_t decoder_states, uint32_t traces_mode, bool QUIET) {
+    base::Network<T> Simulator<T>::read_training(const std::string &network_name, uint32_t batch, uint32_t epoch,
+            uint32_t decoder_states, uint32_t traces_mode) {
 
         // Read the network
         base::Network<T> network;
@@ -35,8 +35,6 @@ namespace core {
         return network;
 
     }
-
-    /* COMMON FUNCTIONS */
 
     template <typename T>
     bool Simulator<T>::iterateWindows(long out_x, long out_y, std::vector<int> &list_x, std::vector<int> &list_y,
@@ -301,6 +299,7 @@ namespace core {
         auto fw_zero_wgt = stats.register_uint_t("fw_zero_wgt", 0, sys::AverageTotal);
         auto fw_total_wgt = stats.register_uint_t("fw_total_wgt", 0, sys::AverageTotal);
 
+        // Barckward stats
         auto bw_in_grad_sparsity = stats.register_double_t("bw_in_grad_sparsity", 0, sys::Average);
         auto bw_zero_in_grad = stats.register_uint_t("bw_zero_in_grad", 0, sys::AverageTotal);
         auto bw_total_in_grad = stats.register_uint_t("bw_total_in_grad", 0, sys::AverageTotal);
@@ -318,13 +317,12 @@ namespace core {
 
 	    for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
-            base::Network<float> network;
-            network = read_training<float>(simulate.network, simulate.batch, epoch,
-                    simulate.decoder_states, traces_mode, QUIET);
+            base::Network<T> network;
+            network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states,traces_mode);
 
             for (int layer_it = 0; layer_it < network.getLayers().size(); layer_it++) {
 
-                const base::Layer<float> &layer = network.getLayers()[layer_it];
+                const base::Layer<T> &layer = network.getLayers()[layer_it];
 
                 // Forward
                 if (network.getForward()) {
@@ -421,6 +419,7 @@ namespace core {
         auto fw_zero_wgt = stats.register_uint_t("fw_zero_wgt_bits", 0, sys::AverageTotal);
         auto fw_total_wgt = stats.register_uint_t("fw_total_wgt_bits", 0, sys::AverageTotal);
 
+        // Backward stats
         auto bw_in_grad_sparsity = stats.register_double_t("bw_in_grad_bit_sparsity", 0, sys::Average);
         auto bw_zero_in_grad = stats.register_uint_t("bw_zero_in_grad_bits", 0, sys::AverageTotal);
         auto bw_total_in_grad = stats.register_uint_t("bw_total_in_grad_bits", 0, sys::AverageTotal);
@@ -440,13 +439,12 @@ namespace core {
 
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
-            base::Network<float> network;
-            network = read_training<float>(simulate.network, simulate.batch, epoch,
-                    simulate.decoder_states, traces_mode, QUIET);
+            base::Network<T> network;
+            network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode);
 
             for (int layer_it = 0; layer_it < network.getLayers().size(); layer_it++) {
 
-                const base::Layer<float> &layer = network.getLayers()[layer_it];
+                const base::Layer<T> &layer = network.getLayers()[layer_it];
 
                 // Forward
                 if (network.getForward()) {
@@ -533,98 +531,105 @@ namespace core {
         }
 
         //Dump statistics
-        std::string header = "Bit sparsity for " + network_model.getName() + "\n";
+        std::string header = mantissa ? "Mantissa" : "Exponent";
+        header += " Bit sparsity for " + network_model.getName() + "\n";
         stats.dump_csv(network_model.getName(), network_model.getLayersName(), header, this->QUIET);
 
     }
 
 
-    /*template <typename T>
-    void Simulator<T>::training_distribution(const Network<T> &network, sys::Statistics::Stats &stats,
-            int epoch, int epochs, bool mantissa) {
+    template <typename T>
+    void Simulator<T>::training_distribution(const sys::Batch::Simulate &simulate, int epochs, bool mantissa) {
 
-        const auto MAX_VALUE = mantissa ? 128 : 256;
+        base::Network<T> network_model;
+        interface::NetReader<T> reader = interface::NetReader<T>(simulate.network, 0, 0, QUIET);
+        network_model = reader.read_network_trace_params();
 
-        if(epoch == 0) {
-            stats.task_name = mantissa ? "mantissa_distribution" : "exponent_distribution";
-            stats.net_name = network.getName();
-            stats.arch = "None";
-            stats.mantissa_data = mantissa;
+        // Initialize statistics
+        std::string task_name = mantissa ? "mantissa_distribution" : "exponent_distribution";
+        std::string filename = "training_" + task_name;
+        sys::Stats stats = sys::Stats(network_model.getNumLayers(), epochs, filename);
 
-            stats.fw_act_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
-            stats.fw_wgt_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
-            stats.bw_in_grad_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
-            stats.bw_wgt_grad_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
-            stats.bw_out_grad_values = std::vector<std::vector<std::vector<uint64_t>>>(MAX_VALUE);
-        }
+        int min_range = mantissa ? 0 : -127;
+        int max_range = mantissa ? 127 : 128;
+        auto fw_act_values = stats.register_uint_dist_t("fw_act_values", min_range, max_range, 0, sys::AverageTotal);
+        auto fw_wgt_values = stats.register_uint_dist_t("fw_wgt_values", min_range, max_range, 0, sys::AverageTotal);
+        auto bw_in_grad_values = stats.register_uint_dist_t("bw_in_grad_values", min_range, max_range, 0, sys::AverageTotal);
+        auto bw_wgt_grad_values = stats.register_uint_dist_t("bw_wgt_grad_values", min_range, max_range, 0, sys::AverageTotal);
+        auto bw_out_grad_values = stats.register_uint_dist_t("bw_out_grad_values", min_range, max_range, 0, sys::AverageTotal);
 
-        for(int layer_it = 0; layer_it < network.getLayers().size(); layer_it++) {
+        uint32_t traces_mode = 0;
+        if(simulate.only_forward) traces_mode = 1;
+        else if(simulate.only_backward) traces_mode = 2;
+        else traces_mode = 3;
 
-            const Layer<T> &layer = network.getLayers()[layer_it];
+        for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
-            if(epoch == 0) {
-                stats.layers.push_back(layer.getName());
+            base::Network<T> network;
+            network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode);
 
-                for(int i = 0; i < MAX_VALUE; i++) {
-                    stats.fw_act_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
-                    stats.fw_wgt_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
-                    stats.bw_in_grad_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
-                    stats.bw_wgt_grad_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
-                    stats.bw_out_grad_values[i].emplace_back(std::vector<uint64_t>(epochs, 0));
-                }
-            }
+            for (int layer_it = 0; layer_it < network.getLayers().size(); layer_it++) {
 
-            // Forward
-            if(network.getForward()) {
-                const auto &act = layer.getActivations();
-                for(uint64_t i = 0; i < act.getMax_index(); i++) {
-                    const auto data_float = act.get(i);
-                    auto data_bfloat = this->split_bfloat16(data_float);
-                    auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                    stats.fw_act_values[bin_value][layer_it][epoch]++;
-                }
+                const base::Layer<T> &layer = network.getLayers()[layer_it];
 
-                const auto &wgt = layer.getWeights();
-                for(uint64_t i = 0; i < wgt.getMax_index(); i++) {
-                    const auto data_float = wgt.get(i);
-                    auto data_bfloat = this->split_bfloat16(data_float);
-                    auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                    stats.fw_wgt_values[bin_value][layer_it][epoch]++;
-                }
-            }
-
-            //Backward
-            if(network.getBackward()) {
-                const auto &act_grad = layer.getInputGradients();
-                if(layer_it != 0) {
-                    for (uint64_t i = 0; i < act_grad.getMax_index(); i++) {
-                        const auto data_float = act_grad.get(i);
+                // Forward
+                if (network.getForward()) {
+                    const auto &act = layer.getActivations();
+                    for(uint64_t i = 0; i < act.getMax_index(); i++) {
+                        const auto data_float = act.get(i);
                         auto data_bfloat = this->split_bfloat16(data_float);
                         auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                        stats.bw_in_grad_values[bin_value][layer_it][epoch]++;
+                        fw_act_values->value[bin_value][layer_it][epoch]++;
+                    }
+
+                    const auto &wgt = layer.getWeights();
+                    for(uint64_t i = 0; i < wgt.getMax_index(); i++) {
+                        const auto data_float = wgt.get(i);
+                        auto data_bfloat = this->split_bfloat16(data_float);
+                        auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
+                        fw_wgt_values->value[bin_value][layer_it][epoch]++;
                     }
                 }
 
-                const auto &wgt_grad = layer.getWeightGradients();
-                for(uint64_t i = 0; i < wgt_grad.getMax_index(); i++) {
-                    const auto data_float = wgt_grad.get(i);
-                    auto data_bfloat = this->split_bfloat16(data_float);
-                    auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                    stats.bw_wgt_grad_values[bin_value][layer_it][epoch]++;
+                //Backward
+                if (network.getBackward()) {
+                    const auto &act_grad = layer.getInputGradients();
+                    if(layer_it != 0) {
+                        for (uint64_t i = 0; i < act_grad.getMax_index(); i++) {
+                            const auto data_float = act_grad.get(i);
+                            auto data_bfloat = this->split_bfloat16(data_float);
+                            auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
+                            bw_in_grad_values->value[bin_value][layer_it][epoch]++;
+                        }
+                    }
+
+                    const auto &wgt_grad = layer.getWeightGradients();
+                    for(uint64_t i = 0; i < wgt_grad.getMax_index(); i++) {
+                        const auto data_float = wgt_grad.get(i);
+                        auto data_bfloat = this->split_bfloat16(data_float);
+                        auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
+                        bw_wgt_grad_values->value[bin_value][layer_it][epoch]++;
+                    }
+
+                    const auto &out_act_grad = layer.getOutputGradients();
+                    for (uint64_t i = 0; i < out_act_grad.getMax_index(); i++) {
+                        const auto data_float = out_act_grad.get(i);
+                        auto data_bfloat = this->split_bfloat16(data_float);
+                        auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
+                        bw_out_grad_values->value[bin_value][layer_it][epoch]++;
+                    }
                 }
 
-                const auto &out_act_grad = layer.getOutputGradients();
-                for (uint64_t i = 0; i < out_act_grad.getMax_index(); i++) {
-                    const auto data_float = out_act_grad.get(i);
-                    auto data_bfloat = this->split_bfloat16(data_float);
-                    auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                    stats.bw_out_grad_values[bin_value][layer_it][epoch]++;
-                }
             }
 
         }
 
-    }*/
+        //Dump statistics
+        std::string header = mantissa ? "Mantissa" : "Exponent";
+        header += " Distribution for " + network_model.getName() + "\n";
+        stats.dump_csv(network_model.getName(), network_model.getLayersName(), header, this->QUIET);
+
+    }
 
     INITIALISE_DATA_TYPES(Simulator);
 

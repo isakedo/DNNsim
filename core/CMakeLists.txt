@@ -12,7 +12,7 @@ add_library(
         include/core/BitPragmatic.h
         include/core/Stripes.h
         #include/core/DynamicStripes.h
-        #include/core/DynamicStripesFP.h
+        include/core/DynamicStripesFP.h
         include/core/Loom.h
         include/core/BitTactical.h
         include/core/BitTacticalP.h
@@ -29,7 +29,7 @@ add_library(
         src/BitTacticalP.cpp
         src/BitTacticalE.cpp
         #src/DynamicStripes.cpp
-        #src/DynamicStripesFP.cpp
+        src/DynamicStripesFP.cpp
         src/Loom.cpp
         #src/SCNN.cpp
         #src/SCNNp.cpp
