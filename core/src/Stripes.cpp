@@ -24,6 +24,10 @@ namespace core {
         auto baseline_cycles = stats.register_uint_t("baseline_cycles", 0, sys::AverageTotal);
         auto speedup = stats.register_double_t("speedup", 0, sys::Special);
         auto stall_cycles = stats.register_uint_t("stall_cycles", 0, sys::AverageTotal);
+        auto idle_columns = stats.register_uint_t("idle_columns", 0, sys::AverageTotal);
+        auto idle_rows = stats.register_uint_t("idle_rows", 0, sys::AverageTotal);
+        auto columns_per_act = stats.register_uint_t("columns_per_act", 0, sys::AverageTotal);
+        auto rows_per_wgt = stats.register_uint_t("rows_per_wgt", 0, sys::AverageTotal);
         auto weight_buff_reads = stats.register_uint_t("weight_buff_reads", 0, sys::AverageTotal);
         auto act_buff_reads = stats.register_uint_t("act_buff_reads", 0, sys::AverageTotal);
         auto accumulator_updates = stats.register_uint_t("accumulator_updates", 0, sys::AverageTotal);
@@ -90,15 +94,15 @@ namespace core {
             auto act_layer_prec = layer.getActPrecision();
             auto wgt_layer_prec = layer.getWgtPrecision();
 
-            auto columns_per_act = (int)ceil(act_layer_prec / (double)BITS_PE);
-            auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
+            auto layer_columns_per_act = (int)ceil(act_layer_prec / (double)BITS_PE);
+            auto layer_rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
             if(columns_per_act > rows_per_wgt){
                 auto tmp = rows_per_wgt;
                 rows_per_wgt = columns_per_act;
                 columns_per_act = tmp;
             }
-            auto windows_per_tile = N_COLUMNS/columns_per_act;
-            auto filters_per_tile = N_ROWS/rows_per_wgt;
+            auto windows_per_tile = N_COLUMNS/layer_columns_per_act;
+            auto filters_per_tile = N_ROWS/layer_rows_per_wgt;
 
             auto groups = act_channels / wgt_channels;
             auto num_filters_sets = (uint32_t)ceil(num_filters/(double)filters_per_tile/groups);
@@ -116,7 +120,8 @@ namespace core {
                 uint64_t batch_accumulator_updates = 0;
                 uint64_t batch_scheduled_pe = 0;
                 uint64_t batch_idle_pe = 0;
-                auto precision_cycles = (columns_per_act == 1 && rows_per_wgt == 1) ? act_layer_prec : BITS_PE;
+                auto precision_cycles = (layer_columns_per_act == 1 && layer_rows_per_wgt == 1) ?
+                        act_layer_prec : BITS_PE;
 
                 if (conv && wgt_shape[1] == 1 && act_shape[1] != 1) {
 
@@ -216,6 +221,10 @@ namespace core {
 
                 }
 
+                idle_columns->value[layer_it][n] = N_COLUMNS - windows_per_tile * layer_columns_per_act;
+                idle_rows->value[layer_it][n] = N_ROWS - filters_per_tile * layer_rows_per_wgt;
+                columns_per_act->value[layer_it][n] = layer_columns_per_act;
+                rows_per_wgt->value[layer_it][n] = layer_rows_per_wgt;
                 act_prec->value[layer_it][n] = act_layer_prec;
                 wgt_prec->value[layer_it][n] = wgt_layer_prec;
 
@@ -294,9 +303,6 @@ namespace core {
             long out_x = (Nx - Kx + 2*padding)/stride + 1;
             long out_y = (Ny - Ky + 2*padding)/stride + 1;
 
-            auto groups = act_channels / wgt_channels;
-            auto it_per_group = num_filters / groups;
-
             // Get layer precision
             auto act_layer_prec = layer.getActPrecision();
 
@@ -327,7 +333,6 @@ namespace core {
         //Dump statistics
         std::string header = "Stripes Potentials/Work Reduction for " + network.getName() + "\n";
         stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
-
 
     }
 

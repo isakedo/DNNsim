@@ -105,7 +105,7 @@ namespace core {
 
         act_cycles = (uint8_t)ceil(act_cycles/(double)PE_SERIAL_BITS);
         max_wgt_cycles = DYNAMIC_WEIGHTS ? max_wgt_cycles : (uint8_t)wgt_prec;
-        max_wgt_cycles = (uint8_t)ceil(max_wgt_cycles/(double)PE_SERIAL_BITS);
+        max_wgt_cycles = max_wgt_cycles;
         return max_wgt_cycles * act_cycles;
 
     }
@@ -233,7 +233,6 @@ namespace core {
 
         max_act_cycles = (uint8_t)ceil(max_act_cycles/(double)PE_SERIAL_BITS);
         max_wgt_cycles = DYNAMIC_WEIGHTS ? max_wgt_cycles : (uint8_t)wgt_prec;
-        max_wgt_cycles = (uint8_t)ceil(max_wgt_cycles/(double)PE_SERIAL_BITS);
         return max_wgt_cycles * max_act_cycles;
 
     }
@@ -431,7 +430,7 @@ namespace core {
         header += "Number of values per group: " + std::to_string(PRECISION_GRANULARITY) + "\n";
         std::string ldn_bit = LEADING_BIT ? "True" : "False";
         header += "Calculate only leading bit: " + ldn_bit + "\n";
-        header += "Number of processing bits per PE: " + std::to_string(PE_SERIAL_BITS) + "\n";
+        header += "Number of activations processing bits per PE: " + std::to_string(PE_SERIAL_BITS) + "\n";
         std::string dyn_wgts = DYNAMIC_WEIGHTS ? "True" : "False";
         header += "Dynamic precision for weights: " + dyn_wgts + "\n";
 

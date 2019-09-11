@@ -181,7 +181,7 @@ namespace sys {
     inline std::string stat_uint_dist_t::dist_to_string()
     {
         std::string line;
-        for (int64_t r = min_range; r < max_range; ++r) {
+        for (int64_t r = min_range; r <= max_range; ++r) {
             line += std::to_string(r) + ',';
         }
         line = line.substr(0, line.size() - 1);
@@ -208,8 +208,9 @@ namespace sys {
 
     inline std::string stat_double_dist_t::to_string(uint64_t layer, uint64_t batch) {
         std::string line;
-        for (const auto &_value : value[layer][batch])
-            line += std::to_string(_value) + ',';
+        for (const auto &_value : value) {
+            line += std::to_string(_value[layer][batch]) + ',';
+        }
         line = line.substr(0, line.size() - 1);
         return line;
     }
@@ -255,7 +256,7 @@ namespace sys {
     inline std::string stat_double_dist_t::dist_to_string()
     {
         std::string line;
-        for (int64_t r = min_range; r < max_range; ++r)
+        for (int64_t r = min_range; r <= max_range; ++r)
             line += std::to_string(r) + ',';
         line = line.substr(0, line.size() - 1);
         return line;
@@ -316,8 +317,8 @@ namespace sys {
     {
         table_t table;
         table.name = name;
-        table.var = std::make_shared<stat_double_dist_t>(stat_double_dist_t(layers, batches, min_range,
-                max_range, init_value, measure, skip_first));
+        table.var = std::make_shared<stat_double_dist_t>(stat_double_dist_t(layers, batches, min_range, max_range,
+                init_value, measure, skip_first));
 
         database.emplace_back(table);
         return std::dynamic_pointer_cast<stat_double_dist_t>(table.var);
@@ -343,7 +344,7 @@ namespace sys {
                 throw std::runtime_error("Error creating folder results/" + network_name);
         }
 
-        std::string path = "results/" + network_name + "/" + filename + ".csv";
+        std::string path = "results/" + network_name + "/" + filename + (tensorflow ? "-TF.csv" : ".csv");
         o_file.open (path);
 
         o_file << std::endl << header << std::endl;
