@@ -609,10 +609,8 @@ namespace core {
                     act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
 
 
-                bool neg = false;
                 if((act_bits & act_mask) != 0) {
                     act_bits = act_bits & ~act_mask;
-                    neg = true;
                 }
 
                 const auto &min_max_act_bits = this->minMax(act_bits);
@@ -620,7 +618,7 @@ namespace core {
                 auto min_act_bit = std::get<0>(min_max_act_bits);
                 auto max_act_bit = std::get<1>(min_max_act_bits);
 
-                if(neg) max_act_bit += 1;
+                max_act_bit += 1;
 
                 if(min_act_bit < min_bit) min_bit = min_act_bit;
                 if(max_act_bit > max_bit) max_bit = max_act_bit;
@@ -669,10 +667,8 @@ namespace core {
 
                 uint16_t wgt_bits = wgt.get(filter, channel, kernel_x, kernel_y);
 
-                bool neg = false;
                 if((wgt_bits & wgt_mask) != 0) {
                     wgt_bits = wgt_bits & ~wgt_mask;
-                    neg = true;
                 }
 
                 const auto &min_max_wgt_bits = this->minMax(wgt_bits);
@@ -680,7 +676,7 @@ namespace core {
                 auto min_wgt_bit = std::get<0>(min_max_wgt_bits);
                 auto max_wgt_bit = std::get<1>(min_max_wgt_bits);
 
-                if(neg) max_wgt_bit += 1;
+                max_wgt_bit += 1;
 
                 if(min_wgt_bit < min_bit) min_bit = min_wgt_bit;
                 if(max_wgt_bit > max_bit) max_bit = max_wgt_bit;
@@ -744,6 +740,7 @@ namespace core {
             if(fc) act.reshape_to_4D();
 
             base::Array<T> wgt = layer.getWeights();
+            wgt.sign_magnitude_representation(layer.getWgtPrecision());
             if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
             int padding = layer.getPadding();
@@ -833,6 +830,7 @@ namespace core {
             for(int n = 0; n < batch_size; n++) {
 
                 uint64_t batch_act_bits_datawidth = 0;
+                uint64_t batch_act_bits_datawidth_non_zeros = 0;
                 for(int r = 0; r < R; r++) {
                     for (int k = 0; k < act_channels; k += N_LANES) {
                         for (int j = 0; j < Ny; j++) {
@@ -867,7 +865,8 @@ namespace core {
                                 int width;
                                 if(!LEADING_BIT) width = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
                                 else width = max_bit + 1;
-                                batch_act_bits_datawidth = batch_act_bits_datawidth + (width * non_zeroes);
+                                batch_act_bits_datawidth_non_zeros += (width * non_zeroes);
+                                batch_act_bits_datawidth += (width * N_LANES);
                             }
                         }
                     }
@@ -877,8 +876,10 @@ namespace core {
                 auto num_act = R * Nx * Ny * act_channels;
                 act_bits_baseline->value[layer_it][n] = num_act * network_bits;
                 act_bits_profiled->value[layer_it][n] = 4 + num_act * act_layer_prec;
-                auto overhead = (uint64_t)((16 + log2(network_bits)) * ceil(num_act / 16.));
-                act_bits_datawidth->value[layer_it][n] = overhead + batch_act_bits_datawidth;
+                auto overhead_non_zeros = (uint64_t)((16 + log2(network_bits)) * ceil(num_act / 16.));
+                auto overhead = (uint64_t)(log2(network_bits) * ceil(num_act / 16.));
+                act_bits_datawidth->value[layer_it][n] = std::min(overhead + batch_act_bits_datawidth,
+                        overhead_non_zeros + batch_act_bits_datawidth_non_zeros);
 
             }
 
@@ -900,6 +901,7 @@ namespace core {
             }
 
             uint64_t batch_wgt_bits_datawidth = 0;
+            uint64_t batch_wgt_bits_datawidth_non_zeros = 0;
             for(int m = 0; m < num_filters; m++) {
                 for (int k = 0; k < wgt_channels; k += N_LANES) {
                     for (int j = 0; j < Ky; j++) {
@@ -931,7 +933,8 @@ namespace core {
                             int width;
                             if(!LEADING_BIT) width = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
                             else width = max_bit + 1;
-                            batch_wgt_bits_datawidth = batch_wgt_bits_datawidth + (width * non_zeroes);
+                            batch_wgt_bits_datawidth_non_zeros += (width * non_zeroes);
+                            batch_wgt_bits_datawidth += (width * N_LANES);
                         }
                     }
 
@@ -955,8 +958,10 @@ namespace core {
                 auto num_wgt = wgt.getMax_index();
                 wgt_bits_baseline->value[layer_it][n] = num_wgt * network_bits;
                 wgt_bits_profiled->value[layer_it][n] = 4 + num_wgt * wgt_layer_prec;
-                auto overhead = (uint64_t)((16 + log2(network_bits)) * ceil(num_wgt / 16.));
-                wgt_bits_datawidth->value[layer_it][n] = overhead + batch_wgt_bits_datawidth;
+                auto overhead_non_zeros = (uint64_t)((16 + log2(network_bits)) * ceil(num_wgt / 16.));
+                auto overhead = (uint64_t)(log2(network_bits) * ceil(num_wgt / 16.));
+                wgt_bits_datawidth->value[layer_it][n] = std::min(overhead + batch_wgt_bits_datawidth,
+                        overhead_non_zeros + batch_wgt_bits_datawidth_non_zeros);
 
                 wgt_avg_width->value[layer_it][n] = batch_wgt_avg_width;
                 wgt_width_reduction->value[layer_it][n] = (wgt_layer_prec - batch_wgt_avg_width) * 100. / wgt_layer_prec;

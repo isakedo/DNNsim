@@ -9,8 +9,6 @@ namespace core {
     void DynamicStripesFP<T>::computeAvgWidthDataFirstDim(const base::Array<T> &data, double &avg_width,
             uint64_t &bits_baseline, uint64_t &bits_datawidth) {
 
-        const uint16_t mask = 0x80;
-
         const std::vector<size_t> &data_shape = data.getShape();
         
         auto first_dim = data_shape[0];
@@ -20,6 +18,7 @@ namespace core {
 
         std::vector<double> data_width;
         uint64_t data_bits_datawidth = 0;
+        uint64_t data_bits_datawidth_non_zeros = 0;
         for(int i = 0; i < first_dim; i += 16) {
             for (int j = 0; j < second_dim; j++) {
                 for (int k = 0; k < third_dim; k++) {
@@ -36,13 +35,7 @@ namespace core {
                             auto biased_exponent = std::get<1>(data_bfloat);
 
                             int unbiased_exponent = biased_exponent - 127;
-                            uint16_t exponent = this->sign_magnitude((short)unbiased_exponent, mask);
-
-                            bool neg = false;
-                            if((exponent & mask) != 0) {
-                                exponent = exponent & ~mask;
-                                neg = true;
-                            }
+                            uint16_t exponent = this->sign_magnitude((short)unbiased_exponent, 0x100);
 
                             if(exponent != 0) non_zeroes++;
 
@@ -50,8 +43,6 @@ namespace core {
 
                             auto min_data_bit = std::get<0>(min_max_data_bits);
                             auto max_data_bit = std::get<1>(min_max_data_bits);
-
-                            if(neg) max_data_bit += 1;
 
                             if(min_data_bit < min_bit) min_bit = min_data_bit;
                             if(max_data_bit > max_bit) max_bit = max_data_bit;
@@ -62,7 +53,8 @@ namespace core {
                         if(LEADING_BIT) width = (min_bit > max_bit) ? 0 : max_bit + 1;
                         else if(MINOR_BIT) width = (min_bit > max_bit) ? 0 : 8 - min_bit;
                         else width = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
-                        data_bits_datawidth = data_bits_datawidth + (width * non_zeroes);
+                        data_bits_datawidth += (width * 16);
+                        data_bits_datawidth_non_zeros += (width * non_zeroes);
                         data_width.push_back(width);
                     }
                 }
@@ -71,19 +63,18 @@ namespace core {
         }
 
         auto num_data = first_dim * second_dim * third_dim * fourth_dim;
-        auto overhead = (uint64_t)((16 + 4) * ceil(num_data / 16.));
+        auto overhead_non_zeros = (uint64_t)((16 + 3) * ceil(num_data / 16.));
+        auto overhead = (uint64_t)(3 * ceil(num_data / 16.));
 
         avg_width = accumulate(data_width.begin(), data_width.end(), 0.0) / data_width.size();
         bits_baseline = (uint64_t)num_data * 8;
-        bits_datawidth = overhead + data_bits_datawidth;
+        bits_datawidth = std::min(overhead + data_bits_datawidth, overhead_non_zeros + data_bits_datawidth_non_zeros);
 
     }
 
     template <typename T>
     void DynamicStripesFP<T>::computeAvgWidthDataSecondDim(const base::Array<T> &data, double &avg_width,
             uint64_t &bits_baseline, uint64_t &bits_datawidth) {
-
-        const uint16_t mask = 0x80;
 
         const std::vector<size_t> &data_shape = data.getShape();
 
@@ -94,6 +85,7 @@ namespace core {
 
         std::vector<double> data_width;
         uint64_t data_bits_datawidth = 0;
+        uint64_t data_bits_datawidth_non_zeros = 0;
         for(int i = 0; i < first_dim; i++) {
             for (int j = 0; j < second_dim; j += 16) {
                 for (int k = 0; k < third_dim; k++) {
@@ -110,13 +102,7 @@ namespace core {
                             auto biased_exponent = std::get<1>(data_bfloat);
 
                             int unbiased_exponent = biased_exponent - 127;
-                            uint16_t exponent = this->sign_magnitude((short)unbiased_exponent, mask);
-
-                            bool neg = false;
-                            if((exponent & mask) != 0) {
-                                exponent = exponent & ~mask;
-                                neg = true;
-                            }
+                            uint16_t exponent = this->sign_magnitude((short)unbiased_exponent, 0x100);
 
                             if(exponent != 0) non_zeroes++;
 
@@ -124,8 +110,6 @@ namespace core {
 
                             auto min_data_bit = std::get<0>(min_max_data_bits);
                             auto max_data_bit = std::get<1>(min_max_data_bits);
-
-                            if(neg) max_data_bit += 1;
 
                             if(min_data_bit < min_bit) min_bit = min_data_bit;
                             if(max_data_bit > max_bit) max_bit = max_data_bit;
@@ -136,7 +120,8 @@ namespace core {
                         if(LEADING_BIT) width = (min_bit > max_bit) ? 0 : max_bit + 1;
                         else if(MINOR_BIT) width = (min_bit > max_bit) ? 0 : 8 - min_bit;
                         else width = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
-                        data_bits_datawidth = data_bits_datawidth + (width * non_zeroes);
+                        data_bits_datawidth += (width * 16);
+                        data_bits_datawidth_non_zeros += (width * non_zeroes);
                         data_width.push_back(width);
                     }
                 }
@@ -145,19 +130,18 @@ namespace core {
         }
 
         auto num_data = first_dim * second_dim * third_dim * fourth_dim;
-        auto overhead = (uint64_t)((16 + 4) * ceil(num_data / 16.));
+        auto overhead_non_zeros = (uint64_t)((16 + 3) * ceil(num_data / 16.));
+        auto overhead = (uint64_t)(3 * ceil(num_data / 16.));
 
         avg_width = accumulate(data_width.begin(), data_width.end(), 0.0) / data_width.size();
         bits_baseline = (uint64_t)num_data * 8;
-        bits_datawidth = overhead + data_bits_datawidth;
+        bits_datawidth = std::min(overhead + data_bits_datawidth, overhead_non_zeros + data_bits_datawidth_non_zeros);
 
     }
 
     template <typename T>
     void DynamicStripesFP<T>::computeAvgWidthDataSeq2Seq(const base::Array<T> &data, double &avg_width,
             uint64_t &bits_baseline, uint64_t &bits_datawidth) {
-
-        const uint16_t mask = 0x80;
 
         const std::vector<size_t> &data_shape = data.getShape();
 
@@ -167,6 +151,7 @@ namespace core {
 
         std::vector<double> data_width;
         uint64_t data_bits_datawidth = 0;
+        uint64_t data_bits_datawidth_non_zeros = 0;
         for(int i = 0; i < first_dim; i++) {
             for (int j = 0; j < second_dim; j++) {
                 for (int k = 0; k < third_dim; k += 16) {
@@ -182,13 +167,7 @@ namespace core {
                         auto biased_exponent = std::get<1>(data_bfloat);
 
                         int unbiased_exponent = biased_exponent - 127;
-                        uint16_t exponent = this->sign_magnitude((short)unbiased_exponent, mask);
-
-                        bool neg = false;
-                        if((exponent & mask) != 0) {
-                            exponent = exponent & ~mask;
-                            neg = true;
-                        }
+                        uint16_t exponent = this->sign_magnitude((short)unbiased_exponent, 0x100);
 
                         if(exponent != 0) non_zeroes++;
 
@@ -196,8 +175,6 @@ namespace core {
 
                         auto min_data_bit = std::get<0>(min_max_data_bits);
                         auto max_data_bit = std::get<1>(min_max_data_bits);
-
-                        if(neg) max_data_bit += 1;
 
                         if(min_data_bit < min_bit) min_bit = min_data_bit;
                         if(max_data_bit > max_bit) max_bit = max_data_bit;
@@ -208,18 +185,20 @@ namespace core {
                     if(LEADING_BIT) width = (min_bit > max_bit) ? 0 : max_bit + 1;
                     else if(MINOR_BIT) width = (min_bit > max_bit) ? 0 : 8 - min_bit;
                     else width = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
-                    data_bits_datawidth = data_bits_datawidth + (width * non_zeroes);
+                    data_bits_datawidth += (width * 16);
+                    data_bits_datawidth_non_zeros += (width * non_zeroes);
                     data_width.push_back(width);
                 }
             }
         }
 
         auto num_data = first_dim * second_dim * third_dim;
-        auto overhead = (uint64_t)((16 + 4) * ceil(num_data / 16.));
+        auto overhead_non_zeros = (uint64_t)((16 + 3) * ceil(num_data / 16.));
+        auto overhead = (uint64_t)(3 * ceil(num_data / 16.));
 
         avg_width = accumulate(data_width.begin(), data_width.end(), 0.0) / data_width.size();
         bits_baseline = (uint64_t)num_data * 8;
-        bits_datawidth = overhead + data_bits_datawidth;
+        bits_datawidth = std::min(overhead + data_bits_datawidth, overhead_non_zeros + data_bits_datawidth_non_zeros);
 
     }
 
