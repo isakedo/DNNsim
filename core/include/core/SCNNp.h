@@ -26,6 +26,24 @@ namespace core {
             uint32_t f_loop = 0;
         };
 
+        struct Tile_stats {
+            uint32_t cycles = 0;
+            uint32_t dense_cycles = 0;
+            uint32_t mults = 0;
+            uint32_t idle_bricks = 0;
+            uint32_t idle_conflicts = 0;
+            uint32_t idle_column_cycles = 0;
+            uint32_t column_stalls = 0;
+            uint32_t idle_pe = 0;
+            uint32_t weight_buff_reads = 0;
+            uint32_t act_buff_reads = 0;
+            uint32_t accumulator_updates = 0;
+            uint32_t i_loop = 0;
+            uint32_t f_loop = 0;
+            uint32_t offchip_weight_reads = 0;
+
+        };
+
         /* Compute number of one bit multiplications given a weight and an activation
          * @param act           Activation
          * @param wgt           Weight
@@ -63,11 +81,11 @@ namespace core {
          * @param padding   Padding for the layer
          * @param act       Activations for the layer
          * @param wgt       Weights for the layer
-         * @param stats     Statistics to fill
+         * @return          Return stats for the current tile
          */
-        void computeSCNNpTile(int n, int ct, int ck, int kc, int tw, int th, uint64_t X, uint64_t Y, int Kc, uint64_t K,
-                uint64_t W, uint64_t H, uint64_t R, uint64_t S, int stride, int padding, const cnpy::Array<T> &act,
-                const cnpy::Array<T> &wgt, sys::Statistics::Stats &stats);
+        Tile_stats computeSCNNpTile(int n, int ct, int ck, int kc, int tw, int th, uint64_t X, uint64_t Y, int Kc,
+                uint64_t K, uint64_t W, uint64_t H, uint64_t R, uint64_t S, int stride, int padding,
+                const cnpy::Array<T> &act, const cnpy::Array<T> &wgt);
 
     public:
 

@@ -35,7 +35,7 @@ THE SOFTWARE.
 #include <core/BitTacticalE.h>
 #include <core/SCNN.h>
 //#include <core/SCNNp.h>
-//#include <core/SCNNe.h>
+#include <core/SCNNe.h>
 #include <core/BitFusion.h>
 
 template <typename T>
@@ -319,14 +319,14 @@ int main(int argc, char *argv[]) {
 		                                experiment.out_acc_size, experiment.banks, experiment.pe_serial_bits,
 		                                N_THREADS, FAST_MODE);
 		                        if (experiment.task == "Cycles") DNNsim.run(network);
-		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
+		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);*/
 
 		                    } else if (experiment.architecture == "SCNNe") {
 		                        core::SCNNe<uint16_t> DNNsim(experiment.Wt, experiment.Ht, experiment.I, experiment.F,
 		                                experiment.out_acc_size, experiment.banks, experiment.pe_serial_bits, N_THREADS,
-		                                FAST_MODE);
+		                                FAST_MODE, QUIET);
 		                        if (experiment.task == "Cycles") DNNsim.run(network);
-		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);*/
+		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
 		                    } else if (experiment.architecture == "BitFusion") {
 		                        core::BitFusion<uint16_t> DNNsim(experiment.M, experiment.N, experiment.pmax,

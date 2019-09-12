@@ -226,7 +226,6 @@ namespace core {
         for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
-            bool conv = layer.getType() == "Convolution";
             bool lstm = layer.getType() == "LSTM";
             bool fc = layer.getType() == "InnerProduct";
 
