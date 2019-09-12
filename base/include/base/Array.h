@@ -2,14 +2,19 @@
 #define DNNSIM_ARRAY_H
 
 #include <sys/common.h>
-#include <cnpy/cnpy.h>
+#include <base/cnpy.h>
 
-namespace cnpy {
+namespace base {
 
     template <typename T>
     class Array {
 
     private:
+
+        typedef std::vector<std::vector<std::vector<std::vector<T>>>> Array4D;
+        typedef std::vector<std::vector<std::vector<T>>> Array3D;
+        typedef std::vector<std::vector<T>> Array2D;
+        typedef std::vector<T> Array1D;
 
         /* Set to true to ensure the array is read as 4D */
         bool force4D = false;
@@ -20,10 +25,10 @@ namespace cnpy {
         std::vector<size_t> shape;
 
         /* Vector containing the data */
-        std::vector<T> data1D;
-        std::vector<std::vector<T>> data2D;
-        std::vector<std::vector<std::vector<T>>> data3D;
-        std::vector<std::vector<std::vector<std::vector<T>>>> data4D;
+        Array1D data1D;
+        Array2D data2D;
+        Array3D data3D;
+        Array4D data4D;
 
     public:
 
@@ -34,7 +39,7 @@ namespace cnpy {
          * @param _data     Vector containing the data
          * @param _shape    Shape of the data
          */
-        Array(const std::vector<std::vector<T>> &_data, const std::vector<size_t> &_shape) {
+        Array(const Array2D &_data, const std::vector<size_t> &_shape) {
             this->data2D = _data;
             this->shape = _shape;
         }
@@ -43,7 +48,7 @@ namespace cnpy {
          * @param _data     Vector containing the data
          * @param _shape    Shape of the data
          */
-        Array(const std::vector<std::vector<std::vector<std::vector<T>>>> &_data, const std::vector<size_t> &_shape) {
+        Array(const Array4D &_data, const std::vector<size_t> &_shape) {
             this->data4D = _data;
             this->shape = _shape;
         }
@@ -57,7 +62,7 @@ namespace cnpy {
          * @param _data     Dynamic vector containing the data
          * @param _shape    Shape of the data
          */
-        void set_values(const std::vector<T> &_data, const std::vector<size_t> &_shape);
+        void set_values(const Array1D &_data, const std::vector<size_t> &_shape);
 
         /*  Return the value inside the vector given the fourth dimensions
          * @param i     Index for the first dimension
@@ -166,6 +171,7 @@ namespace cnpy {
         void reshape_first_layer_wgt(uint16_t stride);
 
     };
+
 }
 
 

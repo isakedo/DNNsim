@@ -29,8 +29,8 @@ namespace core {
 
     template <typename T>
     uint8_t Laconic<T>::computeLaconicColumn(int batch, int recursion, int act_x, int act_y, int kernel_x, int kernel_y,
-            int init_channel, int init_filter, int stride, const cnpy::Array<T> &padded_act,
-            const cnpy::Array<T> &wgt, int start_group, int max_channel, int max_filter, bool lstm, bool conv2D) {
+            int init_channel, int init_filter, int stride, const base::Array<T> &padded_act,
+            const base::Array<T> &wgt, int start_group, int max_channel, int max_filter, bool lstm, bool conv2D) {
 
         //Get the slowest PE
         std::vector<uint8_t> cycles;
@@ -62,8 +62,8 @@ namespace core {
     template <typename T>
     uint8_t Laconic<T>::computeLaconicTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int init_filter,
-            int stride, const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, int start_group, int max_channel,
-            int max_filter, bool conv2D, sys::Statistics::Stats &stats) {
+            int stride, const base::Array<T> &padded_act, const base::Array<T> &wgt, int start_group, int max_channel,
+            int max_filter, bool conv2D, uint64_t &stall_cycles) {
 
         //Get the slowest column
         std::vector<uint8_t> cycles;
@@ -75,473 +75,331 @@ namespace core {
 
         auto slowest_column = *std::max_element(cycles.begin(), cycles.end());
         auto fastest_column = *std::min_element(cycles.begin(), cycles.end());
-        stats.stall_cycles.back()[batch] += slowest_column - fastest_column;
+        stall_cycles += slowest_column - fastest_column;
         return slowest_column;
     }
 
     /* CYCLES */
 
     template <typename T>
-    void Laconic<T>::computeConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void Laconic<T>::run(const base::Network<T> &network) {
 
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-
-        cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation(layer.getActPrecision());
-        cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation(layer.getWgtPrecision());
-        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
-
-        int padding = layer.getPadding();
-        int stride = layer.getStride();
-
-        act.zero_pad(padding);
-
-        if(act.getShape()[1] == 3 && stride > 1) {
-            act.reshape_first_layer_act((uint16_t)stride);
-            wgt.reshape_first_layer_wgt((uint16_t)stride);
-            stride = 1;
-        }
-
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-
-        auto batch_size = act_shape[0];
-        auto act_channels = act_shape[1];
-        auto Nx = act_shape[2];
-        auto Ny = act_shape[3];
-        if(this->FAST_MODE) batch_size = 1;
-
-        auto num_filters = wgt_shape[0];
-        auto wgt_channels = wgt_shape[1];
-        auto Kx = wgt_shape[2];
-        auto Ky = wgt_shape[3];
-
-        long out_x = (Nx - Kx)/stride + 1;
-        long out_y = (Ny - Ky)/stride + 1;
-
-        auto groups = act_channels / wgt_channels;
-        auto it_per_group = num_filters / groups;
-
-        // Stats
-        stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.weight_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.accumulator_updates.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.scheduled_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.idle_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
-
-        int n;
-
-        // Convolution
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for(n = 0; n < batch_size; n++) {
-
-            std::vector<int> list_x, list_y;
-            int x_counter = 0, y_counter = 0;
-            uint64_t cycles = 0;
-            uint64_t weight_buff_reads = 0;
-            uint64_t act_buff_reads = 0;
-            uint64_t accumulator_updates = 0;
-            uint64_t scheduled_pe = 0;
-            uint64_t idle_pe = 0;
-
-            for(int m = 0; m < num_filters; m += N_ROWS) {
-
-                int start_group = 0;
-                if(m >= it_per_group)
-                    start_group = (int)wgt_channels;
-
-                bool conv2D = false;
-                if(wgt_channels == 1 && act_channels != 1)
-                    conv2D = true;
-
-                while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
-                    for (int i = 0; i < Kx; i++) {
-                        for (int j = 0; j < Ky; j++) {
-                            for (int k = 0; k < wgt_channels; k += N_LANES) {
-                                cycles += computeLaconicTile(n,list_x, list_y, i, j, k, m, stride, act,
-                                        wgt, start_group, (int)wgt_channels, (int)num_filters, conv2D, stats);
-
-                                act_buff_reads++;
-                                weight_buff_reads++;
-                                scheduled_pe += list_x.size() * N_ROWS;
-                                idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
-                            }
-                        }
-                    }
-                    accumulator_updates++;
-                }
-            }
-
-            stats.cycles.back()[n] = cycles;
-            stats.weight_buff_reads.back()[n] = weight_buff_reads;
-            stats.act_buff_reads.back()[n] = act_buff_reads;
-            stats.accumulator_updates.back()[n] = accumulator_updates;
-            stats.scheduled_pe.back()[n] = scheduled_pe;
-            stats.idle_pe.back()[n] = idle_pe;
-
-        }
-
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-
-        stats.time.push_back(time_span);
-
-    }
-
-    template <typename T>
-    void Laconic<T>::computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
-
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-
-        cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation(layer.getActPrecision());
-        cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation(layer.getWgtPrecision());
-        wgt.reshape_to_4D();
-
-        if(layer.getType() == "InnerProduct") {
-            if (act.getDimensions() == 4) act.reshape_to_2D();
-            act.reshape_to_4D();
-        }
-
-        bool lstm = layer.getType() == "LSTM";
-
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-
-        uint64_t batch_size, act_channels, R;
-        if(lstm) {
-            R = act_shape[0];
-            batch_size = act_shape[1];
-            act_channels = act_shape[2];
-        } else {
-            R = 1;
-            batch_size = act_shape[0];
-            act_channels = act_shape[1];
-        }
-        if(this->FAST_MODE) batch_size = 1;
-
-        auto num_filters = wgt_shape[0];
-        auto wgt_channels = wgt_shape[1];
-
-        // Stats
-        stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.weight_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.accumulator_updates.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.scheduled_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.idle_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
-
-        int n;
-
-        #ifndef FC_MULTIPLEX_COLUMNS
-
-        // All FC in one column
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for (n = 0; n < batch_size; n++) {
-
-            uint64_t cycles = 0;
-            uint64_t weight_buff_reads = 0;
-            uint64_t act_buff_reads = 0;
-            uint64_t accumulator_updates = 0;
-
-            for (int r = 0; r < R; r++) {
-                for (int m = 0; m < num_filters; m += N_ROWS) {
-                    for (int k = 0; k < wgt_channels; k += WEIGHT_LANES) {
-                        cycles += computeLaconicColumn(n,r,0,0,0,0,k,m,0,act,wgt,0,wgt_channels,num_filters,lstm);
-                        act_buff_reads++;
-                        weight_buff_reads++;
-                    }
-                    accumulator_updates++;
-                }
-            }
-
-            stats.cycles.back()[n] = stats.cycles.back()[n];
-            stats.weight_buff_reads.back()[n] = weight_buff_reads;
-            stats.act_buff_reads.back()[n] = act_buff_reads;
-            stats.accumulator_updates.back()[n] = accumulator_updates;
-            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)WEIGHT_LANES);
-            auto idle_rows = N_ROWS - (num_filters % N_ROWS);
-            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)WEIGHT_LANES);
-
-        }
-
-        #else
-
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for (n = 0; n < batch_size; n++) {
-
-            int column_index = 0;
-            std::vector<uint64_t>column_end = std::vector<uint64_t>(N_COLUMNS, 0);
-            uint64_t cycles = 0;
-            uint64_t stall_cycles = 0;
-            uint64_t weight_buff_reads = 0;
-            uint64_t act_buff_reads = 0;
-            uint64_t accumulator_updates = 0;
-
-            for (int r = 0; r < R; r++) {
-                for (int m = 0; m < num_filters; m += N_ROWS) {
-                    for (int k = 0; k < wgt_channels; k += N_LANES) {
-                        if(cycles < column_end[column_index]) {
-                            stall_cycles = column_end[column_index] - cycles;
-                            cycles = column_end[column_index];
-                        }
-                        auto column_cycles = computeLaconicColumn(n,r,0,0,0,0,k,m,0,act,wgt,0,(int)wgt_channels,
-                                (int)num_filters,lstm, false);
-                        column_end[column_index] = cycles + column_cycles;
-                        cycles++;
-                        column_index++;
-                        if(column_index >= N_COLUMNS) column_index = 0;
-
-                        act_buff_reads++;
-                        weight_buff_reads++;
-                    }
-                    accumulator_updates++;
-                }
-            }
-
-            uint64_t last_column_end = *std::max_element(column_end.begin(), column_end.end());
-            stats.cycles.back()[n] = std::max(cycles, last_column_end);
-            stats.stall_cycles.back()[n] = stall_cycles;
-            stats.weight_buff_reads.back()[n] = weight_buff_reads;
-            stats.act_buff_reads.back()[n] = act_buff_reads;
-            stats.accumulator_updates.back()[n] = accumulator_updates;
-            stats.scheduled_pe.back()[n] = (uint64_t)(num_filters * N_ROWS * ceil(act_channels/(double)N_LANES));
-            auto idle_rows = N_ROWS - (num_filters % N_ROWS);
-            idle_rows = idle_rows == 16 ? 0 : idle_rows;
-            stats.idle_pe.back()[n] = (uint64_t)(idle_rows * ceil(act_channels/(double)N_LANES));
-
-        }
-
-        #endif
-
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-
-        stats.time.push_back(time_span);
-
-    }
-
-    template <typename T>
-    void Laconic<T>::run(const Network<T> &network) {
         // Initialize statistics
-        sys::Statistics::Stats stats;
-        sys::Statistics::initialize(stats);
+        std::string filename = "Laconic_L" + std::to_string(N_LANES) + + "_C" + std::to_string(N_COLUMNS) + "_R" +
+                std::to_string(N_ROWS)+ "_cycles";
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
-        stats.task_name = "cycles";
-        stats.net_name = network.getName();
-        stats.arch = "Laconic_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS);
+        auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
+        auto stall_cycles = stats.register_uint_t("stall_cycles", 0, sys::AverageTotal);
+        auto weight_buff_reads = stats.register_uint_t("weight_buff_reads", 0, sys::AverageTotal);
+        auto act_buff_reads = stats.register_uint_t("act_buff_reads", 0, sys::AverageTotal);
+        auto accumulator_updates = stats.register_uint_t("accumulator_updates", 0, sys::AverageTotal);
+        auto scheduled_pe = stats.register_uint_t("scheduled_pe", 0, sys::AverageTotal);
+        auto idle_pe = stats.register_uint_t("idle_pe", 0, sys::AverageTotal);
+        auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
+        auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
-        for(const Layer<T> &layer : network.getLayers()) {
-            if(layer.getType() == "Convolution") {
-                stats.layers.push_back(layer.getName());
-                computeConvolution(layer, stats);
-            } else if(layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
-                stats.layers.push_back(layer.getName());
-                computeInnerProduct(layer, stats);
+        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
+
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
+            bool conv = layer.getType() == "Convolution";
+            bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
+
+            base::Array<T> act = layer.getActivations();
+            act.powers_of_two_representation(layer.getActPrecision());
+            if(fc && act.getDimensions() == 4) act.reshape_to_2D();
+            if(fc) act.reshape_to_4D();
+
+            base::Array<T> wgt = layer.getWeights();
+            wgt.powers_of_two_representation(layer.getWgtPrecision());
+            if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+
+            int padding = layer.getPadding();
+            int stride = layer.getStride();
+
+            if (conv) act.zero_pad(padding);
+
+            if(act.getShape()[1] == 3 && stride > 1) {
+                act.reshape_first_layer_act((uint16_t)stride);
+                wgt.reshape_first_layer_wgt((uint16_t)stride);
+                stride = 1;
             }
+
+            const std::vector<size_t> &act_shape = act.getShape();
+            const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+            uint64_t batch_size, act_channels, Nx, Ny, R;
+            if (lstm) {
+                R = act_shape[0];
+                batch_size = act_shape[1];
+                act_channels = act_shape[2];
+                Nx = 1;
+                Ny = 1;
+            } else {
+                R = 1;
+                batch_size = act_shape[0];
+                act_channels = act_shape[1];
+                Nx = act_shape[2];
+                Ny = act_shape[3];
+            }
+            if(this->FAST_MODE) batch_size = 1;
+
+            auto num_filters = wgt_shape[0];
+            auto wgt_channels = wgt_shape[1];
+            auto Kx = wgt_shape[2];
+            auto Ky = wgt_shape[3];
+
+            long out_x = (Nx - Kx)/stride + 1;
+            long out_y = (Ny - Ky)/stride + 1;
+
+            auto groups = act_channels / wgt_channels;
+            auto it_per_group = num_filters / groups;;
+
+            for(int n = 0; n < batch_size; n++) {
+
+                uint64_t batch_cycles = 0;
+                uint64_t batch_stall_cycles = 0;
+                uint64_t batch_weight_buff_reads = 0;
+                uint64_t batch_act_buff_reads = 0;
+                uint64_t batch_accumulator_updates = 0;
+                uint64_t batch_scheduled_pe = 0;
+                uint64_t batch_idle_pe = 0;
+
+                if (conv) {
+
+                    std::vector<int> list_x, list_y;
+                    int x_counter = 0, y_counter = 0;
+
+                    for(int m = 0; m < num_filters; m += N_ROWS) {
+
+                        int start_group = 0;
+                        if(m >= it_per_group)
+                            start_group = (int)wgt_channels;
+
+                        bool conv2D = false;
+                        if(wgt_channels == 1 && act_channels != 1)
+                            conv2D = true;
+
+                        while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
+                            for (int i = 0; i < Kx; i++) {
+                                for (int j = 0; j < Ky; j++) {
+                                    for (int k = 0; k < wgt_channels; k += N_LANES) {
+                                        batch_cycles += computeLaconicTile(n,list_x, list_y, i, j, k, m, stride, act,
+                                                wgt, start_group, (int)wgt_channels, (int)num_filters, conv2D,
+                                                batch_stall_cycles);
+
+                                        batch_act_buff_reads++;
+                                        batch_weight_buff_reads++;
+                                        batch_scheduled_pe += list_x.size() * N_ROWS;
+                                        batch_idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
+                                    }
+                                }
+                            }
+                            batch_accumulator_updates++;
+                        }
+                    }
+
+                    cycles->value[layer_it][n] = batch_cycles;
+                    stall_cycles->value[layer_it][n] = batch_stall_cycles;
+                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads;
+                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads;
+                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates;
+                    scheduled_pe->value[layer_it][n] = batch_scheduled_pe;
+                    idle_pe->value[layer_it][n] = batch_idle_pe;
+
+                } else {
+
+                    int column_index = 0;
+                    std::vector<uint64_t>column_end = std::vector<uint64_t>(N_COLUMNS, 0);
+
+                    for (int r = 0; r < R; r++) {
+                        for (int m = 0; m < num_filters; m += N_ROWS) {
+                            for (int k = 0; k < wgt_channels; k += N_LANES) {
+                                if(batch_cycles < column_end[column_index]) {
+                                    batch_stall_cycles += column_end[column_index] - batch_cycles;
+                                    batch_cycles = column_end[column_index];
+                                }
+                                auto column_cycles = computeLaconicColumn(n,r,0,0,0,0,k,m,0,act,wgt,0,(int)wgt_channels,
+                                        (int)num_filters,lstm, false);
+                                column_end[column_index] = batch_cycles + column_cycles;
+                                batch_cycles++;
+                                column_index++;
+                                if(column_index >= N_COLUMNS) column_index = 0;
+
+                                batch_act_buff_reads++;
+                                batch_weight_buff_reads++;
+                            }
+                            batch_accumulator_updates++;
+                        }
+                    }
+
+                    uint64_t last_column_end = *std::max_element(column_end.begin(), column_end.end());
+                    cycles->value[layer_it][n] = std::max(batch_cycles, last_column_end);
+                    stall_cycles->value[layer_it][n] = batch_stall_cycles;
+                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads;
+                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads;
+                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates;
+                    scheduled_pe->value[layer_it][n] = (uint64_t)(num_filters * N_ROWS * ceil(act_channels/(double)N_LANES));
+                    auto idle_rows = N_ROWS - (num_filters % N_ROWS);
+                    idle_rows = idle_rows == 16 ? 0 : idle_rows;
+                    idle_pe->value[layer_it][n] = (uint64_t)(idle_rows * ceil(act_channels/(double)N_LANES));
+
+                }
+
+                act_prec->value[layer_it][n] = layer.getActPrecision();
+                wgt_prec->value[layer_it][n] = layer.getWgtPrecision();
+
+            }
+
         }
 
-        // Set statistics to write
-        sys::Statistics::addStats(stats);
+        //Dump statistics
+        std::string header = "Laconic Number of Cycles for " + network.getName() + "\n";
+        header += "Number of lanes/terms per PE: " + std::to_string(N_LANES) + "\n";
+        header += "Number of columns/windows in parallel: " + std::to_string(N_COLUMNS) + "\n";
+        header += "Number of rows/filters in parallel: " + std::to_string(N_ROWS) + "\n";
+
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
+
     }
 
     /* POTENTIALS */
 
     template <typename T>
-    void Laconic<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
-            const int network_bits) {
+    void Laconic<T>::potentials(const base::Network<T> &network) {
 
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+        // Initialize statistics
+        std::string filename = "Laconic_potentials";
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
-        cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation(layer.getActPrecision());
-        cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation(layer.getWgtPrecision());
-        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+        auto work_reduction = stats.register_double_t("work_reduction", 0, sys::Average);
+        auto speedup = stats.register_double_t("speedup", 0, sys::Average);
+        auto par_mult = stats.register_double_t("parallel_multiplication", 0, sys::AverageTotal);
+        auto bit_multiplications = stats.register_uint_t("bit_multiplications", 0, sys::AverageTotal);
+        auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
+        auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
+        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
 
-        auto batch_size = act_shape[0];
-        auto act_channels = act_shape[1];
-        auto Nx = act_shape[2];
-        auto Ny = act_shape[3];
-        if(this->FAST_MODE) batch_size = 1;
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
+            bool conv = layer.getType() == "Convolution";
+            bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
 
-        auto num_filters = wgt_shape[0];
-        auto wgt_channels = wgt_shape[1];
-        auto Kx = wgt_shape[2];
-        auto Ky = wgt_shape[3];
+            base::Array<T> act = layer.getActivations();
+            act.powers_of_two_representation(layer.getActPrecision());
+            if(fc && act.getDimensions() == 4) act.reshape_to_2D();
 
-        int padding = layer.getPadding();
-        int stride = layer.getStride();
+            base::Array<T> wgt = layer.getWeights();
+            wgt.powers_of_two_representation(layer.getWgtPrecision());
+            if(conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
-        act.zero_pad(padding);
-        long out_x = (Nx - Kx + 2*padding)/stride + 1;
-        long out_y = (Ny - Ky + 2*padding)/stride + 1;
+            int padding = layer.getPadding();
+            int stride = layer.getStride();
 
-        auto groups = act_channels / wgt_channels;
-        auto it_per_group = num_filters / groups;
+            if (conv) act.zero_pad(padding);
 
-        // Operations
-        const auto parallel_mult = (uint64_t)(num_filters * out_x * out_y * Kx * Ky * wgt_channels);
-        stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
-        stats.speedup.emplace_back(std::vector<double>(batch_size,0));
+            const std::vector<size_t> &act_shape = act.getShape();
+            const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int n;
+            uint64_t batch_size, act_channels, Nx, Ny, R;
+            if (lstm) {
+                R = act_shape[0];
+                batch_size = act_shape[1];
+                act_channels = act_shape[2];
+                Nx = 1;
+                Ny = 1;
+            } else {
+                R = 1;
+                batch_size = act_shape[0];
+                act_channels = act_shape[1];
+                Nx = act_shape[2];
+                Ny = act_shape[3];
+            }
 
-        // Convolution
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for(n=0; n<batch_size; n++) {
-            uint64_t bit_counter = 0;
-            for(int m=0; m<num_filters; m++) {
+            auto num_filters = wgt_shape[0];
+            auto wgt_channels = wgt_shape[1];
+            auto Kx = wgt_shape[2];
+            auto Ky = wgt_shape[3];
 
-                // Two towers alexnet
-                int start_group = 0;
-                if(m >= it_per_group)
-                    start_group = (int)wgt_channels;
+            long out_x = (Nx - Kx)/stride + 1;
+            long out_y = (Ny - Ky)/stride + 1;
 
-                // Fix for MobileNet
-                if(wgt_channels == 1 && act_channels != 1)
-                    start_group = m;
+            auto groups = act_channels / wgt_channels;
+            auto it_per_group = num_filters / groups;
 
-                for(int x = 0; x < out_x; x++) {
-                    for(int y = 0; y < out_y; y++) {
-                        for (int i = 0; i < Kx; i++) {
-                            for (int j = 0; j < Ky; j++) {
-                                for (int k = 0; k < wgt_channels; k++) {
-                                    bit_counter += computeLaconicPE(act.get(n, start_group + k, stride * x + i,
-                                            stride * y + j), wgt.get(m, k, i, j));
+            auto network_bits = network.getNetwork_bits();
+
+            // Operations
+            uint64_t parallel_mult = conv ? num_filters * out_x * out_y * Kx * Ky * wgt_channels :
+                    num_filters * wgt_channels * R;
+
+            for(int n = 0; n < batch_size; n++) {
+                double MAX_BITS = network_bits * network_bits;
+                uint64_t bit_counter = 0;
+
+                if (conv) {
+
+                    for(int m = 0; m < num_filters; m++) {
+
+                        // Two towers alexnet
+                        int start_group = 0;
+                        if(m >= it_per_group)
+                            start_group = (int)wgt_channels;
+
+                        // Fix for MobileNet
+                        if(wgt_channels == 1 && act_channels != 1)
+                            start_group = m;
+
+                        for(int x = 0; x < out_x; x++) {
+                            for(int y = 0; y < out_y; y++) {
+                                for (int i = 0; i < Kx; i++) {
+                                    for (int j = 0; j < Ky; j++) {
+                                        for (int k = 0; k < wgt_channels; k++) {
+                                            bit_counter += computeLaconicPE(act.get(n, start_group + k, stride * x + i,
+                                                    stride * y + j), wgt.get(m, k, i, j));
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            }
-            double MAX_BITS = network_bits * network_bits;
-            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
-            stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
-            stats.bit_multiplications.back()[n] = bit_counter;
-        }
 
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+                } else {
 
-        stats.time.push_back(time_span);
-        stats.parallel_multiplications.push_back(parallel_mult);
-
-    }
-
-    template <typename T>
-    void Laconic<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats,
-            const int network_bits) {
-
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-
-        cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation(layer.getActPrecision());
-        if(act.getDimensions() == 4) act.reshape_to_2D();
-        cnpy::Array<T> wgt = layer.getWeights();
-        wgt.powers_of_two_representation(layer.getWgtPrecision());
-
-        bool lstm = layer.getType() == "LSTM";
-
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-
-        auto batch_size = act_shape[0];
-        auto R = lstm ? act_shape[0] : 1;
-
-        auto num_filters = wgt_shape[0];
-        auto wgt_channels = wgt_shape[1];
-        if(this->FAST_MODE) batch_size = 1;
-
-        // Operations
-        const auto parallel_mult = (uint64_t)num_filters * wgt_channels * R;
-        stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
-        stats.speedup.emplace_back(std::vector<double>(batch_size,0));
-
-        int n;
-
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for (n = 0; n < batch_size; n++) {
-            uint64_t bit_counter = 0;
-            for (int r = 0; r < R; r++) {
-                for (int m = 0; m < num_filters; m++) {
-                    for (int k = 0; k < wgt_channels; k++) {
-                        auto act_bits = lstm ? act.get(r, n, k) : act.get(n, k);
-                        bit_counter += computeLaconicPE(act_bits, wgt.get(m, k));
+                    for (int r = 0; r < R; r++) {
+                        for (int m = 0; m < num_filters; m++) {
+                            for (int k = 0; k < wgt_channels; k++) {
+                                auto act_bits = lstm ? act.get(r, n, k) : act.get(n, k);
+                                bit_counter += computeLaconicPE(act_bits, wgt.get(m, k));
+                            }
+                        }
                     }
+
                 }
+
+                bit_multiplications->value[layer_it][n] = bit_counter;
+                work_reduction->value[layer_it][n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
+                speedup->value[layer_it][n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
+                par_mult->value[layer_it][n] = parallel_mult;
+                act_prec->value[layer_it][n] = layer.getActPrecision();
+                wgt_prec->value[layer_it][n] = layer.getWgtPrecision();
             }
-            double MAX_BITS = network_bits * network_bits;
-            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
-            stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
-            stats.bit_multiplications.back()[n] = bit_counter;
+
         }
 
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+        //Dump statistics
+        std::string header = "Laconic Potentials/Work Reduction for " + network.getName() + "\n";
+        #ifdef BOOTH_ENCODING
+        header += "Booth-like Encoding\n";
+        #endif
+        #ifdef ZERO_COUNT
+        header += "Zero count as one cycle\n";
+        #endif
 
-        stats.time.push_back(time_span);
-        stats.parallel_multiplications.push_back(parallel_mult);
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
 
-    }
-
-
-    template <typename T>
-    void Laconic<T>::potentials(const Network<T> &network) {
-        // Initialize statistics
-        sys::Statistics::Stats stats;
-        sys::Statistics::initialize(stats);
-
-        stats.task_name = "potentials";
-        stats.net_name = network.getName();
-        stats.arch = "Laconic";
-
-        for(const Layer<T> &layer : network.getLayers()) {
-            if(layer.getType() == "Convolution") {
-                stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getActPrecision());
-                stats.wgt_prec.push_back(layer.getWgtPrecision());
-                computePotentialsConvolution(layer,stats,network.getNetwork_bits());
-            } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
-                stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getActPrecision());
-                stats.wgt_prec.push_back(layer.getWgtPrecision());
-                computePotentialsInnerProduct(layer,stats,network.getNetwork_bits());
-            }
-        }
-
-        // Set statistics to write
-        sys::Statistics::addStats(stats);
     }
 
     template class Laconic<uint16_t>;

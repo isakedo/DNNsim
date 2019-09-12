@@ -2,9 +2,15 @@
 #define DNNSIM_NETWORK_H
 
 #include <sys/common.h>
-#include <core/Layer.h>
+#include <base/Layer.h>
 
-namespace core {
+typedef std::vector<std::vector<std::tuple<int,int,int,uint16_t>>> schedule;
+typedef std::vector<std::tuple<int,int,int,uint16_t>> time_schedule;
+typedef std::tuple<int,int,int,uint16_t> schedule_tuple;
+typedef std::list<std::tuple<int,int>> weights_set;
+typedef std::tuple<int,int> weight_index;
+
+namespace base {
 
     template <typename T>
     class Network {
@@ -68,6 +74,13 @@ namespace core {
         bool getForward() const { return forward; }
         bool getBackward() const { return backward; }
         bool isTensorflow_8b() const { return tensorflow_8b; }
+        uint64_t getBatches() const { return this->layers.front().getActivations().getShape()[0]; }
+        uint64_t getNumLayers() const { return this->layers.size(); }
+        std::vector<std::string> getLayersName() const {
+            std::vector<std::string> layers_name;
+            for(const auto &layer : layers) { layers_name.push_back(layer.getName()); }
+            return layers_name;
+        }
 
         /* Setters */
         std::vector<Layer<T>> &updateLayers() { return layers; }
@@ -91,12 +104,12 @@ namespace core {
                 if(tensorflow_8b) fixed_layer.setActivations(layer.getActivations().tensorflow_fixed_point());
                 else fixed_layer.setActivations(layer.getActivations().profiled_fixed_point(layer.getActMagnitude(),
                         layer.getActFraction()));
-                layer.setActivations(cnpy::Array<T>());
+                layer.setActivations(Array<T>());
 
                 if(tensorflow_8b) fixed_layer.setWeights(layer.getWeights().tensorflow_fixed_point());
                 else fixed_layer.setWeights(layer.getWeights().profiled_fixed_point(layer.getWgtMagnitude(),
                         layer.getWgtFraction()));
-                layer.setWeights(cnpy::Array<T>());
+                layer.setWeights(Array<T>());
 
                 fixed_network.updateLayers().emplace_back(fixed_layer);
             }

@@ -2,7 +2,7 @@
 #define DNNSIM_NETREADER_H
 
 #include "Interface.h"
-#include <core/Layer.h>
+#include <base/Layer.h>
 #include <caffe.pb.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/text_format.h>
@@ -29,12 +29,12 @@ namespace interface {
         /* Return the layer parsed from the caffe prototxt file
          * @param layer_caffe   prototxt layer
          */
-        core::Layer<T> read_layer_caffe(const caffe::LayerParameter &layer_caffe);
+        base::Layer<T> read_layer_caffe(const caffe::LayerParameter &layer_caffe);
 
         /* Return the layer parsed from the protobuf file
          * @param layer_proto   protobuf layer
          */
-        core::Layer<T> read_layer_proto(const protobuf::Network_Layer &layer_proto);
+        base::Layer<T> read_layer_proto(const protobuf::Network_Layer &layer_proto);
 
     public:
 
@@ -52,22 +52,22 @@ namespace interface {
         /* Load the caffe prototxt file inside the folder models and returns the network
          * @return          Network architecture
          */
-        core::Network<T> read_network_caffe();
+        base::Network<T> read_network_caffe();
 
         /* Load the trace file inside the folder models and returns the network
          * @return          Network architecture
          */
-        core::Network<T> read_network_trace_params();
+        base::Network<T> read_network_trace_params();
 
         /* Load the conv params file inside the folder models and returns the network
          * @return          Network architecture
          */
-        core::Network<T> read_network_conv_params();
+        base::Network<T> read_network_conv_params();
 
         /* Read the protobuf with the network in the models and returns the network
          * @return          Network architecture
          */
-        core::Network<T> read_network_protobuf();
+        base::Network<T> read_network_protobuf();
 
         /* Read the weights schedule from the schedule in the models folder and the schedule
          * @return          Schedule for the network
@@ -77,42 +77,42 @@ namespace interface {
         /* Read the weights into given network
          * @param network       Network with the layers already initialized
          */
-        void read_weights_npy(core::Network<T> &network);
+        void read_weights_npy(base::Network<T> &network);
 
         /* Read the activations into given network
          * @param network       Network with the layers already initialized
          */
-        void read_activations_npy(core::Network<T> &network);
+        void read_activations_npy(base::Network<T> &network);
 
         /* Read the weights from training traces into given network
          * @param network       Network with the layers already initialized
          */
-        void read_training_weights_npy(core::Network<T> &network);
+        void read_training_weights_npy(base::Network<T> &network);
 
         /* Read the activations from training traces into given network
          * @param network           Network with the layers already initialized
          */
-        void read_training_activations_npy(core::Network<T> &network);
+        void read_training_activations_npy(base::Network<T> &network);
 
         /* Read the weight gradients from training traces into given network
          * @param network       Network with the layers already initialized
          */
-        void read_training_weight_gradients_npy(core::Network<T> &network);
+        void read_training_weight_gradients_npy(base::Network<T> &network);
 
         /* Read the activation gradients from training traces into given network
          * @param network       Network with the layers already initialized
          */
-        void read_training_input_gradients_npy(core::Network<T> &network);
+        void read_training_input_gradients_npy(base::Network<T> &network);
 
         /* Read the output activation gradients from training traces into given network
          * @param network       Network with the layers already initialized
          */
-        void read_training_output_activation_gradients_npy(core::Network<T> &network);
+        void read_training_output_activation_gradients_npy(base::Network<T> &network);
 
         /* Read the precision for each layer
          * @param network       Network with the layers already initialized
          */
-        void read_precision(core::Network<T> &network);
+        void read_precision(base::Network<T> &network);
 
     };
 

@@ -18,12 +18,12 @@ endif()
 add_subdirectory(proto)
 # Add library for script support
 add_subdirectory(sys)
-# Add the math library
-add_subdirectory(cnpy)
-# Add the core library
-add_subdirectory(core)
+# Add the base library
+add_subdirectory(base)
 # Add library for load the inputs and dump the networks
 add_subdirectory(interface)
+# Add the core library
+add_subdirectory(core)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -36,7 +36,7 @@ add_executable(
 
 target_link_libraries(
         ${PROJECT_NAME}
-        PRIVATE cnpy
+        PRIVATE base
         PRIVATE core
         PRIVATE interface
         PRIVATE sys

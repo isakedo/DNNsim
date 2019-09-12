@@ -8,8 +8,6 @@ project(
 # Create library
 add_library(
         ${PROJECT_NAME}
-        include/core/Layer.h
-        include/core/Network.h
         include/core/Laconic.h
         include/core/BitPragmatic.h
         include/core/Stripes.h
@@ -46,7 +44,8 @@ target_include_directories(
 
 target_link_libraries(
         ${PROJECT_NAME}
-        PRIVATE cnpy
+        PRIVATE base
+        PRIVATE interface
         PRIVATE sys
 )
 

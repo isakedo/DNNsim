@@ -12,7 +12,7 @@ namespace core {
 
     template <typename T>
     uint8_t DynamicStripes<T>::computeDynamicStripesColumn(int batch, int recursion, int act_x, int act_y, int kernel_x,
-            int kernel_y, int init_channel, int stride, const cnpy::Array<T> &padded_act, uint16_t act_mask,
+            int kernel_y, int init_channel, int stride, const base::Array<T> &padded_act, uint16_t act_mask,
             int max_channel, bool lstm) {
 
         uint8_t max_bit = 0, min_bit = 16;
@@ -53,9 +53,9 @@ namespace core {
     template <typename T>
     void DynamicStripes<T>::computeDynamicStripesTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int stride,
-            const cnpy::Array<T> &padded_act, uint16_t act_mask, int max_channel,
+            const base::Array<T> &padded_act, uint16_t act_mask, int max_channel,
             std::vector<uint32_t> &cycles_per_group, std::vector<uint32_t> &end_previous_pallet,
-            sys::Statistics::Stats &stats) {
+            uint64_t &stall_cycles) {
 
         uint32_t N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
         uint32_t WINDOWS_PER_GROUP = N_COLUMNS / N_GROUPS;
@@ -134,7 +134,7 @@ namespace core {
                     column_cycles = end_previous_pallet[0] + 1;
                 }
             }
-            stats.stall_cycles.back()[batch] += (end_previous_pallet[0] + 1) - fastest_column;
+            stall_cycles += (end_previous_pallet[0] + 1) - fastest_column;
 
             //Update end_previous_pallet
             for(int i = 0; i < COLUMN_REGISTERS - 1; i++) {
@@ -146,7 +146,7 @@ namespace core {
             auto slowest_group = *std::max_element(cycles_per_group.begin(), cycles_per_group.end());
             auto fastest_group = *std::min_element(cycles_per_group.begin(), cycles_per_group.end());
             cycles_per_group = std::vector<uint32_t>(N_GROUPS, slowest_group);
-            stats.stall_cycles.back()[batch] += slowest_group - fastest_group;
+            stall_cycles += slowest_group - fastest_group;
         }
 
     }
@@ -154,9 +154,9 @@ namespace core {
     template <typename T>
     void DynamicStripes<T>::computeDynamicStripes2DTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_filter, int stride,
-            const cnpy::Array<T> &padded_act, const cnpy::Array<T> &wgt, uint16_t act_mask, int max_filter,
+            const base::Array<T> &padded_act, const base::Array<T> &wgt, uint16_t act_mask, int max_filter,
             std::vector<uint32_t> &cycles_per_group, std::vector<uint32_t> &end_previous_pallet,
-            sys::Statistics::Stats &stats) {
+            uint64_t &stall_cycles) {
 
         //Get the slowest column
         uint32_t N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
@@ -225,7 +225,7 @@ namespace core {
                     column_cycles = end_previous_pallet[0] + 1;
                 }
             }
-            stats.stall_cycles.back()[batch] += (end_previous_pallet[0] + 1) - fastest_column;
+            stall_cycles += (end_previous_pallet[0] + 1) - fastest_column;
 
             //Update end_previous_pallet
             for(int i = 0; i < COLUMN_REGISTERS - 1; i++) {
@@ -237,7 +237,7 @@ namespace core {
             auto slowest_group = *std::max_element(cycles_per_group.begin(), cycles_per_group.end());
             auto fastest_group = *std::min_element(cycles_per_group.begin(), cycles_per_group.end());
             cycles_per_group = std::vector<uint32_t>(N_GROUPS, slowest_group);
-            stats.stall_cycles.back()[batch] += slowest_group - fastest_group;
+            stall_cycles += slowest_group - fastest_group;
         }
 
     }
@@ -245,548 +245,333 @@ namespace core {
     /* CYCLES */
 
     template <typename T>
-    void DynamicStripes<T>::computeConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void DynamicStripes<T>::run(const base::Network<T> &network) {
 
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-
-        cnpy::Array<T> act = layer.getActivations();
-        if(!DIFFY) act.sign_magnitude_representation(layer.getActPrecision());
-        cnpy::Array<T> wgt = layer.getWeights();
-        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
-
-        int padding = layer.getPadding();
-        int stride = layer.getStride();
-
-        act.zero_pad(padding);
-
-        if(act.getShape()[1] == 3 && stride > 1) {
-            act.reshape_first_layer_act((uint16_t)stride);
-            wgt.reshape_first_layer_wgt((uint16_t)stride);
-            stride = 1;
-        }
-
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-
-        auto batch_size = act_shape[0];
-        auto act_channels = act_shape[1];
-        auto Nx = act_shape[2];
-        auto Ny = act_shape[3];
-        if(this->FAST_MODE) batch_size = 1;
-
-        auto num_filters = wgt_shape[0];
-        auto wgt_channels = wgt_shape[1];
-        auto Kx = wgt_shape[2];
-        auto Ky = wgt_shape[3];
-
-        long out_x = (Nx - Kx)/stride + 1;
-        long out_y = (Ny - Ky)/stride + 1;
-
-        auto act_prec = layer.getActPrecision();
-        auto act_mask = (uint16_t)(1u << (act_prec - 1));
-
-        auto wgt_layer_prec = layer.getWgtPrecision();
-        auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
-        auto filters_per_tile = N_ROWS/rows_per_wgt;
-
-        auto groups = act_channels / wgt_channels;
-        auto num_filters_sets = (uint32_t)ceil(num_filters/(double)filters_per_tile/groups);
-        auto baseline_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS/groups);
-
-        // Stats
-        stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.idle_rows.push_back((uint64_t)(N_ROWS - filters_per_tile*rows_per_wgt));
-        stats.rows_per_wgt.push_back((uint64_t)rows_per_wgt);
-        stats.weight_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.accumulator_updates.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.scheduled_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.idle_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
-
-        int n;
-
-        // Convolution
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for(n = 0; n < batch_size; n++) {
-
-            std::vector<int> list_x, list_y;
-            int x_counter = 0, y_counter = 0;
-            std::vector<uint32_t> end_previous_pallet = std::vector<uint32_t>(COLUMN_REGISTERS, 0);
-            std::vector<uint32_t> cycles_per_group = std::vector<uint32_t>(N_COLUMNS * 16 / PRECISION_GRANULARITY, 0);
-            uint64_t weight_buff_reads = 0;
-            uint64_t act_buff_reads = 0;
-            uint64_t accumulator_updates = 0;
-            uint64_t scheduled_pe = 0;
-            uint64_t idle_pe = 0;
-
-            while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter, y_counter, N_COLUMNS)) {
-                for (int i = 0; i < Kx; i++) {
-                    for (int j = 0; j < Ky; j++) {
-                        for (int k = 0; k < act_channels; k += N_LANES) {
-                            computeDynamicStripesTile(n, list_x, list_y, i, j, k, stride, act, act_mask,
-                                    (int)act_channels, cycles_per_group, end_previous_pallet, stats);
-
-                            act_buff_reads++;
-                            weight_buff_reads++;
-                            scheduled_pe += list_x.size() * N_ROWS;
-                            idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
-                        }
-                    }
-                }
-                accumulator_updates++;
-            }
-
-            auto batch_cycles = *std::max_element(cycles_per_group.begin(), cycles_per_group.end());
-            stats.cycles.back()[n] = batch_cycles*num_filters_sets;
-            stats.stall_cycles.back()[n] *= num_filters_sets;
-            stats.weight_buff_reads.back()[n] = weight_buff_reads * num_filters_sets;
-            stats.act_buff_reads.back()[n] = act_buff_reads * num_filters_sets;
-            stats.accumulator_updates.back()[n] = accumulator_updates * num_filters_sets;
-            stats.scheduled_pe.back()[n] = scheduled_pe * num_filters_sets;
-            stats.idle_pe.back()[n] = idle_pe * num_filters_sets;
-
-        }
-
-        auto base_cycles = (uint64_t)(out_x * out_y * ceil(act_channels/(double)N_LANES) * Kx * Ky *
-                baseline_filters_sets);
-
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-
-        stats.time.push_back(time_span);
-        stats.baseline_cycles.push_back(base_cycles);
-
-    }
-
-    template <typename T>
-    void DynamicStripes<T>::computeConvolution2D(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
-
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-
-        cnpy::Array<T> act = layer.getActivations();
-        act.sign_magnitude_representation(layer.getActPrecision());
-        cnpy::Array<T> wgt = layer.getWeights();
-        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
-
-        int padding = layer.getPadding();
-        int stride = layer.getStride();
-
-        act.zero_pad(padding);
-
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-
-        auto batch_size = act_shape[0];
-        auto Nx = act_shape[2];
-        auto Ny = act_shape[3];
-        if(this->FAST_MODE) batch_size = 1;
-
-        auto num_filters = wgt_shape[0];
-        auto wgt_channels = wgt_shape[1];
-        auto Kx = wgt_shape[2];
-        auto Ky = wgt_shape[3];
-
-        long out_x = (Nx - Kx)/stride + 1;
-        long out_y = (Ny - Ky)/stride + 1;
-
-        auto act_prec = layer.getActPrecision();
-        auto act_mask = (uint16_t)(1u << (act_prec - 1));
-
-        auto wgt_layer_prec = layer.getWgtPrecision();
-        auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
-        auto filters_per_tile = N_ROWS/rows_per_wgt;
-
-        // Stats
-        stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.idle_rows.push_back((uint64_t)(N_ROWS - filters_per_tile*rows_per_wgt));
-        stats.rows_per_wgt.push_back((uint64_t)rows_per_wgt);
-        stats.weight_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.accumulator_updates.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.scheduled_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.idle_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
-
-
-        int n;
-
-        // Convolution
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for(n = 0; n < batch_size; n++) {
-
-            std::vector<int> list_x, list_y;
-            int x_counter = 0, y_counter = 0;
-            std::vector<uint32_t> end_previous_pallet = std::vector<uint32_t>(COLUMN_REGISTERS, 0);
-            std::vector<uint32_t> cycles_per_col = std::vector<uint32_t>(N_COLUMNS, 0);
-            uint64_t weight_buff_reads = 0;
-            uint64_t act_buff_reads = 0;
-            uint64_t accumulator_updates = 0;
-            uint64_t scheduled_pe = 0;
-            uint64_t idle_pe = 0;
-
-            for(int m = 0; m < num_filters; m += filters_per_tile) {
-                while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
-                    for (int i = 0; i < Kx; i++) {
-                        for (int j = 0; j < Ky; j++) {
-                            computeDynamicStripes2DTile(n,list_x, list_y, i, j, m, stride, act, wgt, act_mask,
-                                    (int)num_filters, cycles_per_col, end_previous_pallet, stats);
-
-                            act_buff_reads++;
-                            weight_buff_reads++;
-                            scheduled_pe += list_x.size() * N_ROWS;
-                            idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
-                        }
-                    }
-                    accumulator_updates++;
-                }
-            }
-
-            stats.cycles.back()[n] = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
-            stats.weight_buff_reads.back()[n] = weight_buff_reads;
-            stats.act_buff_reads.back()[n] = act_buff_reads;
-            stats.accumulator_updates.back()[n] = accumulator_updates;
-            stats.scheduled_pe.back()[n] = scheduled_pe;
-            stats.idle_pe.back()[n] = idle_pe;
-
-        }
-
-        auto base_cycles = (uint64_t)(out_x * out_y * ceil(wgt_channels/(double)N_LANES) * Kx * Ky *
-                ceil(num_filters/(double)N_ROWS));
-
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-
-        stats.time.push_back(time_span);
-        stats.baseline_cycles.push_back(base_cycles);
-
-    }
-
-    template <typename T>
-    void DynamicStripes<T>::computeInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats) {
-
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-
-        cnpy::Array<T> act = layer.getActivations();
-        act.sign_magnitude_representation(layer.getActPrecision());
-
-        if(layer.getType() == "InnerProduct") {
-            if (act.getDimensions() == 4) act.reshape_to_2D();
-            act.reshape_to_4D();
-        }
-
-        bool lstm = layer.getType() == "LSTM";
-
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = layer.getWeights().getShape();
-
-        uint64_t batch_size, act_channels, R;
-        if(lstm) {
-            R = act_shape[0];
-            batch_size = act_shape[1];
-            act_channels = act_shape[2];
-        } else {
-            R = 1;
-            batch_size = act_shape[0];
-            act_channels = act_shape[1];
-        }
-        if(this->FAST_MODE) batch_size = 1;
-
-        auto num_filters = wgt_shape[0];
-
-        auto act_prec = layer.getActPrecision();
-        auto act_mask = (uint16_t)(1u << (act_prec - 1));
-
-        auto wgt_layer_prec = layer.getWgtPrecision();
-        auto rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
-        auto filters_per_tile = N_ROWS/rows_per_wgt;
-
-        auto num_filters_sets = (uint32_t)ceil(num_filters/(double)filters_per_tile);
-        auto baseline_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS);
-
-        // Stats
-        stats.cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.stall_cycles.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.idle_rows.push_back((uint64_t)(N_ROWS - filters_per_tile*rows_per_wgt));
-        stats.rows_per_wgt.push_back((uint64_t)rows_per_wgt);
-        stats.weight_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_buff_reads.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.accumulator_updates.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.scheduled_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.idle_pe.emplace_back(std::vector<uint64_t>(batch_size,0));
-
-        int n;
-
-        #ifndef FC_MULTIPLEX_COLUMNS
-
-        // All FC in one column
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for (n = 0; n < batch_size; n++) {
-
-            uint64_t cycles = 0;
-            uint64_t weight_buff_reads = 0;
-            uint64_t act_buff_reads = 0;
-            uint64_t accumulator_updates = 0;
-
-            for (int r = 0; r < R; r++) {
-                for (int k = 0; k < act_channels; k += WEIGHT_LANES) {
-                    cycles += computeDynamicStripesColumn(n,r,0,0,0,0,k,0,act,act_mask,act_channels,lstm);
-                    act_buff_reads++;
-                    weight_buff_reads++;
-                }
-                accumulator_updates++;
-            }
-
-            stats.cycles.back()[n] = cycles * num_filters_sets;
-            stats.weight_buff_reads.back()[n] = weight_buff_reads * num_filters_sets;
-            stats.act_buff_reads.back()[n] = act_buff_reads * num_filters_sets;
-            stats.accumulator_updates.back()[n] = accumulator_updates * num_filters_sets;
-            stats.scheduled_pe.back()[n] = num_filters * N_ROWS * ceil(act_channels/(double)WEIGHT_LANES);
-            auto idle_rows = N_ROWS - (num_filters % N_ROWS);
-            stats.idle_pe.back()[n] = idle_rows * ceil(act_channels/(double)WEIGHT_LANES);
-
-        }
-
-        #else
-
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for (n = 0; n < batch_size; n++) {
-
-            int column_index = 0;
-            std::vector<uint64_t> column_end = std::vector<uint64_t>(N_COLUMNS, 0);
-            uint64_t cycles = 0;
-            uint64_t stall_cycles = 0;
-            uint64_t weight_buff_reads = 0;
-            uint64_t act_buff_reads = 0;
-            uint64_t accumulator_updates = 0;
-
-            for (int r = 0; r < R; r++) {
-                for (int k = 0; k < act_channels; k += N_LANES) {
-                    if(cycles < column_end[column_index]) {
-                        stall_cycles = column_end[column_index] - cycles;
-                        cycles = column_end[column_index];
-                    }
-                    auto column_cycles = computeDynamicStripesColumn(n,r,0,0,0,0,k,0,act,act_mask,(int)act_channels,lstm);
-                    column_end[column_index] = cycles + column_cycles;
-                    cycles++;
-                    column_index++;
-                    if(column_index >= N_COLUMNS) column_index = 0;
-
-                    act_buff_reads++;
-                    weight_buff_reads++;
-                }
-                accumulator_updates++;
-            }
-
-            uint64_t last_column_end = *std::max_element(column_end.begin(), column_end.end());
-            uint64_t last_column_rem_cycles = last_column_end - cycles;
-            stats.cycles.back()[n] = cycles * num_filters_sets;
-            stats.cycles.back()[n] += last_column_rem_cycles;
-            stats.stall_cycles.back()[n] = stall_cycles * num_filters_sets;
-            stats.weight_buff_reads.back()[n] = weight_buff_reads * num_filters_sets;
-            stats.act_buff_reads.back()[n] = act_buff_reads * num_filters_sets;
-            stats.accumulator_updates.back()[n] = accumulator_updates * num_filters_sets;
-            stats.scheduled_pe.back()[n] = (uint64_t)(num_filters * N_ROWS * ceil(act_channels/(double)N_LANES));
-            auto idle_rows = N_ROWS - (num_filters % N_ROWS);
-            idle_rows = idle_rows == 16 ? 0 : idle_rows;
-            stats.idle_pe.back()[n] = (uint64_t)(idle_rows * ceil(act_channels/(double)N_LANES));
-
-        }
-
-        #endif
-
-        auto base_cycles = (uint64_t)(ceil(act_channels/(double)N_LANES) * baseline_filters_sets * R);
-
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-
-        stats.time.push_back(time_span);
-        stats.baseline_cycles.push_back(base_cycles);
-
-    }
-
-    template <typename T>
-    void DynamicStripes<T>::run(const Network<T> &network) {
         // Initialize statistics
-        sys::Statistics::Stats stats;
-        sys::Statistics::initialize(stats);
-
-        stats.task_name = "cycles";
-        stats.net_name = network.getName();
         std::string arch = "DynamicStripes";
         arch += (DIFFY ? "_Diffy" : "");
-        stats.arch = arch + "_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG" +
-                std::to_string(PRECISION_GRANULARITY) + "_CR" + std::to_string(COLUMN_REGISTERS) + "_BP" +
-                std::to_string(BITS_PE) + (LEADING_BIT ? "_LB" : "");
+        std::string filename = arch + "_L" + std::to_string(N_LANES) + "_C" + std::to_string(N_COLUMNS) + "_R" +
+                std::to_string(N_ROWS) + "_PG" + std::to_string(PRECISION_GRANULARITY) + "_CR" +
+                std::to_string(COLUMN_REGISTERS) + "_BP" + std::to_string(BITS_PE) + (LEADING_BIT ? "_LB" : "") +
+                "_cycles";
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
-        for(const Layer<T> &layer : network.getLayers()) {
-            if(layer.getType() == "Convolution") {
-                stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getActPrecision());
-                stats.wgt_prec.push_back(layer.getWgtPrecision());
-                if(layer.getWeights().getShape()[1] == 1 && layer.getActivations().getShape()[1] != 1)
-                    computeConvolution2D(layer, stats);
-                else
-                    computeConvolution(layer, stats);
-            } else if(layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
-                stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getActPrecision());
-                stats.wgt_prec.push_back(layer.getWgtPrecision());
-                computeInnerProduct(layer, stats);
+        auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
+        auto baseline_cycles = stats.register_uint_t("baseline_cycles", 0, sys::AverageTotal);
+        auto speedup = stats.register_double_t("speedup", 0, sys::Special);
+        auto stall_cycles = stats.register_uint_t("stall_cycles", 0, sys::AverageTotal);
+        auto idle_rows = stats.register_uint_t("idle_rows", 0, sys::AverageTotal);
+        auto rows_per_wgt = stats.register_uint_t("rows_per_wgt", 0, sys::AverageTotal);
+        auto weight_buff_reads = stats.register_uint_t("weight_buff_reads", 0, sys::AverageTotal);
+        auto act_buff_reads = stats.register_uint_t("act_buff_reads", 0, sys::AverageTotal);
+        auto accumulator_updates = stats.register_uint_t("accumulator_updates", 0, sys::AverageTotal);
+        auto scheduled_pe = stats.register_uint_t("scheduled_pe", 0, sys::AverageTotal);
+        auto idle_pe = stats.register_uint_t("idle_pe", 0, sys::AverageTotal);
+        auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
+        auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
+
+        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
+
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
+            bool conv = layer.getType() == "Convolution";
+            bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
+
+            base::Array<T> act = layer.getActivations();
+            if(!DIFFY) act.sign_magnitude_representation(layer.getActPrecision());
+            if(fc && act.getDimensions() == 4) act.reshape_to_2D();
+            if(fc) act.reshape_to_4D();
+
+            base::Array<T> wgt = layer.getWeights();
+            if(conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
+
+            int padding = layer.getPadding();
+            int stride = layer.getStride();
+
+            if (conv) act.zero_pad(padding);
+
+            if(act.getShape()[1] == 3 && stride > 1) {
+                act.reshape_first_layer_act((uint16_t)stride);
+                wgt.reshape_first_layer_wgt((uint16_t)stride);
+                stride = 1;
             }
+
+            const std::vector<size_t> &act_shape = act.getShape();
+            const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+            uint64_t batch_size, act_channels, Nx, Ny, R;
+            if (lstm) {
+                R = act_shape[0];
+                batch_size = act_shape[1];
+                act_channels = act_shape[2];
+                Nx = 1;
+                Ny = 1;
+            } else {
+                R = 1;
+                batch_size = act_shape[0];
+                act_channels = act_shape[1];
+                Nx = act_shape[2];
+                Ny = act_shape[3];
+            }
+            if(this->FAST_MODE) batch_size = 1;
+
+            auto num_filters = wgt_shape[0];
+            auto wgt_channels = wgt_shape[1];
+            auto Kx = wgt_shape[2];
+            auto Ky = wgt_shape[3];
+
+            long out_x = (Nx - Kx)/stride + 1;
+            long out_y = (Ny - Ky)/stride + 1;
+
+            auto act_layer_prec = (uint16_t)layer.getActPrecision();
+            auto act_mask = (uint16_t)(1u << (act_layer_prec - 1u));
+
+            auto wgt_layer_prec = layer.getWgtPrecision();
+            auto layer_rows_per_wgt = (int)ceil(wgt_layer_prec / (double)BITS_PE);
+            auto filters_per_tile = N_ROWS/layer_rows_per_wgt;
+
+            auto groups = act_channels / wgt_channels;
+            auto num_filters_sets = (uint32_t)ceil(num_filters/(double)filters_per_tile/groups);
+            auto baseline_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS/groups);
+
+            auto base_cycles = (uint64_t)(conv ? out_x * out_y * ceil(act_channels/(double)N_LANES) * Kx * Ky *
+                    baseline_filters_sets : ceil(act_channels/(double)N_LANES) * baseline_filters_sets * R);
+
+            for(int n = 0; n < batch_size; n++) {
+
+                uint64_t batch_cycles = 0;
+                uint64_t batch_stall_cycles = 0;
+                uint64_t batch_weight_buff_reads = 0;
+                uint64_t batch_act_buff_reads = 0;
+                uint64_t batch_accumulator_updates = 0;
+                uint64_t batch_scheduled_pe = 0;
+                uint64_t batch_idle_pe = 0;
+
+                if (conv && wgt_shape[1] == 1 && act_shape[1] != 1) {
+
+                    std::vector<int> list_x, list_y;
+                    int x_counter = 0, y_counter = 0;
+                    std::vector<uint32_t> end_previous_pallet = std::vector<uint32_t>(COLUMN_REGISTERS, 0);
+                    std::vector<uint32_t> cycles_per_group = std::vector<uint32_t>(N_COLUMNS * 16 / PRECISION_GRANULARITY, 0);
+
+                    for(int m = 0; m < num_filters; m += filters_per_tile) {
+                        while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
+                            for (int i = 0; i < Kx; i++) {
+                                for (int j = 0; j < Ky; j++) {
+                                    computeDynamicStripes2DTile(n,list_x, list_y, i, j, m, stride, act, wgt, act_mask,
+                                            (int)num_filters, cycles_per_group, end_previous_pallet, batch_stall_cycles);
+
+                                    batch_act_buff_reads++;
+                                    batch_weight_buff_reads++;
+                                    batch_scheduled_pe += list_x.size() * N_ROWS;
+                                    batch_idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
+                                }
+                            }
+                            batch_accumulator_updates++;
+                        }
+                    }
+
+                    cycles->value[layer_it][n] = *std::max_element(cycles_per_group.begin(), cycles_per_group.end());
+                    stall_cycles->value[layer_it][n] = batch_stall_cycles;
+                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads;
+                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads;
+                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates;
+                    scheduled_pe->value[layer_it][n] = batch_scheduled_pe;
+                    idle_pe->value[layer_it][n] = batch_idle_pe;
+                    speedup->value[layer_it][n] = base_cycles / (double)cycles->value[layer_it][n];
+
+                } else if (conv) {
+
+                    std::vector<int> list_x, list_y;
+                    int x_counter = 0, y_counter = 0;
+                    std::vector<uint32_t> end_previous_pallet = std::vector<uint32_t>(COLUMN_REGISTERS, 0);
+                    std::vector<uint32_t> cycles_per_group = std::vector<uint32_t>(N_COLUMNS * 16 / PRECISION_GRANULARITY, 0);
+
+                    while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, N_COLUMNS)) {
+                        for (int i = 0; i < Kx; i++) {
+                            for (int j = 0; j < Ky; j++) {
+                                for (int k = 0; k < act_channels; k += N_LANES) {
+                                    computeDynamicStripesTile(n, list_x, list_y, i, j, k, stride, act, act_mask,
+                                            (int)act_channels, cycles_per_group, end_previous_pallet, batch_stall_cycles);
+
+                                    batch_act_buff_reads++;
+                                    batch_weight_buff_reads++;
+                                    batch_scheduled_pe += list_x.size() * N_ROWS;
+                                    batch_idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
+                                }
+                            }
+                        }
+                        batch_accumulator_updates++;
+                    }
+
+                    batch_cycles = *std::max_element(cycles_per_group.begin(), cycles_per_group.end());
+                    cycles->value[layer_it][n] = batch_cycles * num_filters_sets;
+                    stall_cycles->value[layer_it][n] = batch_stall_cycles * num_filters_sets;
+                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads * num_filters_sets;
+                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads * num_filters_sets;
+                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates * num_filters_sets;
+                    scheduled_pe->value[layer_it][n] = batch_scheduled_pe * num_filters_sets;
+                    idle_pe->value[layer_it][n] = batch_idle_pe * num_filters_sets;
+                    baseline_cycles->value[layer_it][n] = base_cycles;
+                    speedup->value[layer_it][n] = base_cycles / (double)cycles->value[layer_it][n];
+
+                } else {
+
+                    int column_index = 0;
+                    std::vector<uint64_t> column_end = std::vector<uint64_t>(N_COLUMNS, 0);
+
+                    for (int r = 0; r < R; r++) {
+                        for (int k = 0; k < act_channels; k += N_LANES) {
+                            if(batch_cycles < column_end[column_index]) {
+                                batch_stall_cycles += column_end[column_index] - batch_cycles;
+                                batch_cycles = column_end[column_index];
+                            }
+                            auto column_cycles = computeDynamicStripesColumn(n,r,0,0,0,0,k,0,act,act_mask,(int)act_channels,lstm);
+                            column_end[column_index] = batch_cycles + column_cycles;
+                            batch_cycles++;
+                            column_index++;
+                            if(column_index >= N_COLUMNS) column_index = 0;
+
+                            batch_act_buff_reads++;
+                            batch_weight_buff_reads++;
+                        }
+                        batch_accumulator_updates++;
+                    }
+
+                    uint64_t last_column_end = *std::max_element(column_end.begin(), column_end.end());
+                    uint64_t last_column_rem_cycles = last_column_end - batch_cycles;
+                    cycles->value[layer_it][n] = batch_cycles * num_filters_sets;
+                    cycles->value[layer_it][n] += last_column_rem_cycles;
+                    stall_cycles->value[layer_it][n] = batch_stall_cycles * num_filters_sets;
+                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads * num_filters_sets;
+                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads * num_filters_sets;
+                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates * num_filters_sets;
+                    scheduled_pe->value[layer_it][n] = (uint64_t)(num_filters * N_ROWS * ceil(act_channels/(double)N_LANES));
+                    auto batch_idle_rows = N_ROWS - (num_filters % N_ROWS);
+                    batch_idle_rows = batch_idle_rows == 16 ? 0 : batch_idle_rows;
+                    idle_pe->value[layer_it][n] = (uint64_t)(batch_idle_rows * ceil(act_channels/(double)N_LANES));
+                    baseline_cycles->value[layer_it][n] = base_cycles;
+                    speedup->value[layer_it][n] = base_cycles / (double)cycles->value[layer_it][n];
+
+                }
+
+                idle_rows->value[layer_it][n] = N_ROWS - filters_per_tile * layer_rows_per_wgt;
+                rows_per_wgt->value[layer_it][n] = layer_rows_per_wgt;
+                act_prec->value[layer_it][n] = act_layer_prec;
+                wgt_prec->value[layer_it][n] = wgt_layer_prec;
+
+            }
+
         }
 
-        // Set statistics to write
-        sys::Statistics::addStats(stats);
+        speedup->special_value = sys::get_total(baseline_cycles->value) / (double)sys::get_total(cycles->value);
+
+        //Dump statistics
+        std::string header = "DynamicStripes Number of Cycles for " + network.getName() + "\n";
+        header += "Number of lanes/terms per PE: " + std::to_string(N_LANES) + "\n";
+        header += "Number of columns/windows in parallel: " + std::to_string(N_COLUMNS) + "\n";
+        header += "Number of rows/filters in parallel: " + std::to_string(N_ROWS) + "\n";
+        header += "Number of values per group: " + std::to_string(PRECISION_GRANULARITY) + "\n";
+        std::string ldn_bit = LEADING_BIT ? "True" : "False";
+        header += "Calculate only leading bit: " + ldn_bit + "\n";
+        header += "Number of run-ahead input registers per column: " + std::to_string(COLUMN_REGISTERS) + "\n";
+        header += "Size of the PE in bits: " + std::to_string(BITS_PE) + "\n";
+        std::string dffy = DIFFY ? "True" : "False";
+        header += "Diffy: " + dffy + "\n";
+
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
+
 
     }
 
     /* POTENTIALS */
 
     template <typename T>
-    void DynamicStripes<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
-            const int network_bits) {
+    void DynamicStripes<T>::potentials(const base::Network<T> &network) {
 
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-
-        const cnpy::Array<T> &act = layer.getActivations();
-        cnpy::Array<T> wgt = layer.getWeights();
-        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
-
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-
-        int batch_size = 1;
-        auto Nx = act_shape[2];
-        auto Ny = act_shape[3];
-
-        auto num_filters = wgt_shape[0];
-        auto wgt_channels = wgt_shape[1];
-        auto Kx = wgt_shape[2];
-        auto Ky = wgt_shape[3];
-
-        int padding = layer.getPadding();
-        int stride = layer.getStride();
-
-        long out_x = (Nx - Kx + 2*padding)/stride + 1;
-        long out_y = (Ny - Ky + 2*padding)/stride + 1;
-
-        // Operations
-        const auto parallel_mult = (uint64_t)(num_filters * out_x * out_y * Kx * Ky * wgt_channels);
-        stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
-        stats.speedup.emplace_back(std::vector<double>(batch_size,0));
-        uint64_t bit_counter = 0;
-
-        // Get layer precision
-        auto layer_prec = layer.getActPrecision();
-
-        // Convolution
-        for(int n=0; n<batch_size; n++) {
-            bit_counter = (uint64_t)computeDynamicStripesBitsPE((uint8_t)layer_prec,network_bits) * out_x * out_y * Kx *
-                    Ky * wgt_channels * num_filters;
-            double MAX_BITS = network_bits * network_bits;
-            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
-            stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
-            stats.bit_multiplications.back()[n] = bit_counter;
-        }
-
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-
-        stats.time.push_back(time_span);
-        stats.parallel_multiplications.push_back(parallel_mult);
-
-    }
-
-    template <typename T>
-    void DynamicStripes<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats,
-            const int network_bits) {
-
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-
-        cnpy::Array<T> act = layer.getActivations();
-        if(act.getDimensions() == 4) act.reshape_to_2D();
-        const cnpy::Array<T> &wgt = layer.getWeights();
-
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-
-        int batch_size = 1;
-        auto R = (layer.getType() == "LSTM") ? act_shape[0] : 1;
-
-        auto num_filters = wgt_shape[0];
-        auto wgt_channels = wgt_shape[1];
-
-        // Operations
-        const auto parallel_mult = (uint64_t)num_filters * wgt_channels * R;
-        stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
-        stats.speedup.emplace_back(std::vector<double>(batch_size,0));
-        uint64_t bit_counter = 0;
-
-        // Get layer precision
-        auto layer_prec = layer.getActPrecision();
-
-        for (int n = 0; n<batch_size; n++) {
-            bit_counter = (uint64_t)computeDynamicStripesBitsPE((uint8_t)layer_prec,network_bits) * wgt_channels *
-                    num_filters * R;
-            double MAX_BITS = network_bits * network_bits;
-            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
-            stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
-            stats.bit_multiplications.back()[n] = bit_counter;
-        }
-
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-
-        stats.time.push_back(time_span);
-        stats.parallel_multiplications.push_back(parallel_mult);
-
-    }
-
-    template <typename T>
-    void DynamicStripes<T>::potentials(const Network<T> &network) {
         // Initialize statistics
-        sys::Statistics::Stats stats;
-        sys::Statistics::initialize(stats);
+        std::string filename = "DynamicStripes_potentials";
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
-        stats.task_name = "potentials";
-        stats.net_name = network.getName();
-        stats.arch = "DynamicStripes";
+        auto work_reduction = stats.register_double_t("work_reduction", 0, sys::Average);
+        auto speedup = stats.register_double_t("speedup", 0, sys::Average);
+        auto par_mult = stats.register_double_t("parallel_multiplication", 0, sys::AverageTotal);
+        auto bit_multiplications = stats.register_uint_t("bit_multiplications", 0, sys::AverageTotal);
+        auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
+        auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
-        for(const Layer<T> &layer : network.getLayers()) {
-            if(layer.getType() == "Convolution") {
-                stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getActPrecision());
-                stats.wgt_prec.push_back(0);
-                computePotentialsConvolution(layer,stats,network.getNetwork_bits());
-            } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
-                stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getActPrecision());
-                stats.wgt_prec.push_back(0);
-                computePotentialsInnerProduct(layer,stats,network.getNetwork_bits());
+        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
+
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
+            bool conv = layer.getType() == "Convolution";
+            bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
+
+            base::Array<T> act = layer.getActivations();
+            if(fc && act.getDimensions() == 4) act.reshape_to_2D();
+
+            base::Array<T> wgt = layer.getWeights();
+            if(conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
+
+            int padding = layer.getPadding();
+            int stride = layer.getStride();
+
+            const std::vector<size_t> &act_shape = act.getShape();
+            const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+            uint64_t batch_size, act_channels, Nx, Ny, R;
+            if (lstm) {
+                R = act_shape[0];
+                batch_size = act_shape[1];
+                act_channels = act_shape[2];
+                Nx = 1;
+                Ny = 1;
+            } else {
+                R = 1;
+                batch_size = act_shape[0];
+                act_channels = act_shape[1];
+                Nx = act_shape[2];
+                Ny = act_shape[3];
             }
+
+            auto num_filters = wgt_shape[0];
+            auto wgt_channels = wgt_shape[1];
+            auto Kx = wgt_shape[2];
+            auto Ky = wgt_shape[3];
+
+            long out_x = (Nx - Kx + 2*padding)/stride + 1;
+            long out_y = (Ny - Ky + 2*padding)/stride + 1;
+
+            // Get layer precision
+            auto act_layer_prec = layer.getActPrecision();
+
+            auto network_bits = network.getNetwork_bits();
+
+            // Operations
+            uint64_t parallel_mult = conv ? num_filters * out_x * out_y * Kx * Ky * wgt_channels :
+                    num_filters * wgt_channels * R;
+
+            for(int n = 0; n < batch_size; n++) {
+                double MAX_BITS = network_bits * network_bits;
+                uint64_t bit_counter = 0;
+
+                bit_counter = (uint64_t)computeDynamicStripesBitsPE((uint8_t)act_layer_prec,network_bits);
+                bit_counter *= conv ? out_x * out_y * Kx * Ky * wgt_channels * num_filters:
+                               wgt_channels * num_filters * R;
+
+                bit_multiplications->value[layer_it][n] = bit_counter;
+                work_reduction->value[layer_it][n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
+                speedup->value[layer_it][n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
+                par_mult->value[layer_it][n] = parallel_mult;
+                act_prec->value[layer_it][n] = act_layer_prec;
+                wgt_prec->value[layer_it][n] = layer.getWgtPrecision();
+            }
+
         }
 
-        // Set statistics to write
-        sys::Statistics::addStats(stats);
+        //Dump statistics
+        std::string header = "DynamicStripes Potentials/Work Reduction for " + network.getName() + "\n";
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
     }
 
     /* AVERAGE WIDTH */
@@ -794,7 +579,7 @@ namespace core {
     template <typename T>
     std::vector<double> DynamicStripes<T>::computeAvgWidthDynamicStripesActTile(int batch, int recursion,
             const std::vector<int> &list_act_x, const std::vector<int> &list_act_y, int kernel_x, int kernel_y,
-            int init_channel, int stride, const cnpy::Array<T> &padded_act, int max_channel, uint16_t act_mask,
+            int init_channel, int stride, const base::Array<T> &padded_act, int max_channel, uint16_t act_mask,
             bool lstm) {
 
         int N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
@@ -824,10 +609,8 @@ namespace core {
                     act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
 
 
-                bool neg = false;
                 if((act_bits & act_mask) != 0) {
                     act_bits = act_bits & ~act_mask;
-                    neg = true;
                 }
 
                 const auto &min_max_act_bits = this->minMax(act_bits);
@@ -835,7 +618,7 @@ namespace core {
                 auto min_act_bit = std::get<0>(min_max_act_bits);
                 auto max_act_bit = std::get<1>(min_max_act_bits);
 
-                if(neg) max_act_bit += 1;
+                max_act_bit += 1;
 
                 if(min_act_bit < min_bit) min_bit = min_act_bit;
                 if(max_act_bit > max_bit) max_bit = max_act_bit;
@@ -861,7 +644,7 @@ namespace core {
 
     template <typename T>
     std::vector<double> DynamicStripes<T>::computeAvgWidthDynamicStripesWgtTile(int kernel_x, int kernel_y,
-            int init_channel, int init_filter, const cnpy::Array<T> &wgt, int max_channel, int max_filter,
+            int init_channel, int init_filter, const base::Array<T> &wgt, int max_channel, int max_filter,
             uint16_t wgt_mask) {
 
         int N_GROUPS = N_COLUMNS * 16 / PRECISION_GRANULARITY;
@@ -884,10 +667,8 @@ namespace core {
 
                 uint16_t wgt_bits = wgt.get(filter, channel, kernel_x, kernel_y);
 
-                bool neg = false;
                 if((wgt_bits & wgt_mask) != 0) {
                     wgt_bits = wgt_bits & ~wgt_mask;
-                    neg = true;
                 }
 
                 const auto &min_max_wgt_bits = this->minMax(wgt_bits);
@@ -895,7 +676,7 @@ namespace core {
                 auto min_wgt_bit = std::get<0>(min_max_wgt_bits);
                 auto max_wgt_bit = std::get<1>(min_max_wgt_bits);
 
-                if(neg) max_wgt_bit += 1;
+                max_wgt_bit += 1;
 
                 if(min_wgt_bit < min_bit) min_bit = min_wgt_bit;
                 if(max_wgt_bit > max_bit) max_bit = max_wgt_bit;
@@ -919,283 +700,322 @@ namespace core {
     }
 
     template <typename T>
-    void DynamicStripes<T>::computeAvgWidthLayer(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
-            const int network_bits) {
+    void DynamicStripes<T>::average_width(const base::Network<T> &network) {
 
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+        // Initialize statistics
+        std::string filename = "DynamicStripes_L" + std::to_string(N_LANES) + "_C" + std::to_string(N_COLUMNS) + "_R" +
+                std::to_string(N_ROWS) + "_PG" + std::to_string(PRECISION_GRANULARITY) + (LEADING_BIT ? "_LB" : "") +
+                "_average_width";
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
-        cnpy::Array<T> act = layer.getActivations();
-        act.sign_magnitude_representation(layer.getActPrecision());
-        cnpy::Array<T> wgt = layer.getWeights();
-        wgt.sign_magnitude_representation(layer.getWgtPrecision());
-        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+        auto act_avg_width = stats.register_double_t("act_avg_width", 0, sys::Average);
+        auto act_width_reduction = stats.register_double_t("act_width_reduction", 0, sys::Average);
+        auto act_bits_baseline = stats.register_uint_t("act_bits_baseline", 0, sys::AverageTotal);
+        auto act_bits_profiled = stats.register_uint_t("act_bits_profiled", 0, sys::AverageTotal);
+        auto act_bits_datawidth = stats.register_uint_t("act_bits_datawidth", 0, sys::AverageTotal);
+        auto act_bits_scnn = stats.register_uint_t("act_bits_scnn", 0, sys::AverageTotal);
+        auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
+        auto wgt_avg_width = stats.register_double_t("wgt_avg_width", 0, sys::Average);
+        auto wgt_width_reduction = stats.register_double_t("wgt_width_reduction", 0, sys::Average);
+        auto wgt_bits_baseline = stats.register_uint_t("wgt_bits_baseline", 0, sys::AverageTotal);
+        auto wgt_bits_profiled = stats.register_uint_t("wgt_bits_profiled", 0, sys::AverageTotal);
+        auto wgt_bits_datawidth = stats.register_uint_t("wgt_bits_datawidth", 0, sys::AverageTotal);
+        auto wgt_bits_scnn = stats.register_uint_t("wgt_bits_scnn", 0, sys::AverageTotal);
+        auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
-        int padding = layer.getPadding();
-        int stride = layer.getStride();
+        auto network_bits = network.getNetwork_bits();
+        auto act_width_need = stats.register_double_dist_t("act_width_need",0,network_bits,0.0,sys::AverageTotal);
+        auto wgt_width_need = stats.register_double_dist_t("wgt_width_need",0,network_bits,0.0,sys::AverageTotal);
 
-        if(layer.getType() == "InnerProduct") {
-            if(act.getDimensions() == 4) act.reshape_to_2D();
-            act.reshape_to_4D();
-        }
+        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
 
-        if(layer.getType() == "Convolution")
-            act.zero_pad(padding);
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
+            bool conv = layer.getType() == "Convolution";
+            bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
 
-        if(act.getShape()[1] == 3 && stride > 1) {
-            act.reshape_first_layer_act((uint16_t)stride);
-            wgt.reshape_first_layer_wgt((uint16_t)stride);
-            stride = 1;
-        }
+            base::Array<T> act = layer.getActivations();
+            act.sign_magnitude_representation(layer.getActPrecision());
+            if(fc && act.getDimensions() == 4) act.reshape_to_2D();
+            if(fc) act.reshape_to_4D();
 
-        bool lstm = layer.getType() == "LSTM";
+            base::Array<T> wgt = layer.getWeights();
+            wgt.sign_magnitude_representation(layer.getWgtPrecision());
+            if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
+            int padding = layer.getPadding();
+            int stride = layer.getStride();
 
-        uint64_t batch_size, act_channels, Nx, Ny, R;
-        if(lstm) {
-            R = act_shape[0];
-            batch_size = act_shape[1];
-            act_channels = act_shape[2];
-            Nx = 1;
-            Ny = 1;
-        } else {
-            R = 1;
-            batch_size = act_shape[0];
-            act_channels = act_shape[1];
-            Nx = act_shape[2];
-            Ny = act_shape[3];
-        }
-        if(this->FAST_MODE) batch_size = 1;
+            if(conv) act.zero_pad(padding);
 
-        auto num_filters = wgt_shape[0];
-        auto wgt_channels = wgt_shape[1];
-        auto Kx = wgt_shape[2];
-        auto Ky = wgt_shape[3];
+            if(act.getShape()[1] == 3 && stride > 1) {
+                act.reshape_first_layer_act((uint16_t)stride);
+                wgt.reshape_first_layer_wgt((uint16_t)stride);
+                stride = 1;
+            }
 
-        long out_x = (Nx - Kx)/stride + 1;
-        long out_y = (Ny - Ky)/stride + 1;
+            const std::vector<size_t> &act_shape = act.getShape();
+            const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        auto act_prec = layer.getActPrecision();
-        auto act_mask = (uint16_t)(1u << (act_prec - 1));
+            uint64_t batch_size, act_channels, Nx, Ny, R;
+            if(lstm) {
+                R = act_shape[0];
+                batch_size = act_shape[1];
+                act_channels = act_shape[2];
+                Nx = 1;
+                Ny = 1;
+            } else {
+                R = 1;
+                batch_size = act_shape[0];
+                act_channels = act_shape[1];
+                Nx = act_shape[2];
+                Ny = act_shape[3];
+            }
+            if(this->FAST_MODE) batch_size = 1;
 
-        auto wgt_prec = layer.getWgtPrecision();
-        auto wgt_mask = (uint16_t)(1u << (wgt_prec - 1));
+            auto num_filters = wgt_shape[0];
+            auto wgt_channels = wgt_shape[1];
+            auto Kx = wgt_shape[2];
+            auto Ky = wgt_shape[3];
 
-        // Stats
-        stats.act_avg_width.emplace_back(std::vector<double>(batch_size,0));
-        stats.act_width_reduction.emplace_back(std::vector<double>(batch_size,0));
-        stats.act_bits_baseline.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_bits_profiled.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_bits_datawidth.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_bits_scnn.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.wgt_avg_width.emplace_back(std::vector<double>(batch_size,0));
-        stats.wgt_width_reduction.emplace_back(std::vector<double>(batch_size,0));
-        stats.wgt_bits_baseline.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.wgt_bits_profiled.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.wgt_bits_datawidth.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.wgt_bits_scnn.emplace_back(std::vector<uint64_t>(batch_size,0));
+            long out_x = (Nx - Kx)/stride + 1;
+            long out_y = (Ny - Ky)/stride + 1;
 
-        for(int i = 0; i <= 16; i++) {
-            stats.act_width_need[i].emplace_back(std::vector<double>(batch_size, 0));
-            stats.wgt_width_need[i].emplace_back(std::vector<double>(batch_size, 0));
-        }
+            auto act_layer_prec = layer.getActPrecision();
+            auto act_mask = (uint16_t)(1u << (act_layer_prec - 1));
 
-        // Activations
-        for(int n=0; n<batch_size; n++) {
+            auto wgt_layer_prec = layer.getWgtPrecision();
+            auto wgt_mask = (uint16_t)(1u << (wgt_layer_prec - 1));
 
-            std::vector<int> list_x, list_y;
-            int x_counter = 0, y_counter = 0;
-            std::vector<double> act_width;
+            // Activations
+            for(int n=0; n<batch_size; n++) {
 
-            for(int r = 0; r < R; r++) {
-                while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, N_COLUMNS)) {
-                    for (int i = 0; i < Kx; i++) {
-                        for (int j = 0; j < Ky; j++) {
-                            for (int k = 0; k < act_channels; k += N_LANES) {
-                                auto tile_act_width = computeAvgWidthDynamicStripesActTile(n, r, list_x, list_y, i, j,
-                                        k, stride, act, (int)act_channels, act_mask, lstm);
-                                act_width.insert(act_width.end(), tile_act_width.begin(), tile_act_width.end());
+                std::vector<int> list_x, list_y;
+                int x_counter = 0, y_counter = 0;
+                std::vector<double> act_width;
+
+                for(int r = 0; r < R; r++) {
+                    while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, N_COLUMNS)) {
+                        for (int i = 0; i < Kx; i++) {
+                            for (int j = 0; j < Ky; j++) {
+                                for (int k = 0; k < act_channels; k += N_LANES) {
+                                    auto tile_act_width = computeAvgWidthDynamicStripesActTile(n, r, list_x, list_y, i,
+                                            j, k, stride, act, (int)act_channels, act_mask, lstm);
+                                    act_width.insert(act_width.end(), tile_act_width.begin(), tile_act_width.end());
+                                }
                             }
                         }
                     }
                 }
+
+                double batch_act_avg_width = sys::get_average(act_width);
+
+                // Calculate bits needed
+                std::vector<uint64_t> batch_act_width_need (network_bits + 1, 0);
+                std::vector<double> act_width_need_per (network_bits + 1 ,0);
+                for(auto act_group : act_width)
+                    for(auto a = (int)act_group; a <= network_bits; a++)
+                        batch_act_width_need[a]++;
+                for(int a = 0; a < batch_act_width_need.size(); a++)
+                    act_width_need_per[a] = batch_act_width_need[a] / (double)act_width.size() * 100.;
+
+                act_avg_width->value[layer_it][n] = batch_act_avg_width;
+                act_width_reduction->value[layer_it][n] = (act_layer_prec - batch_act_avg_width) * 100. / act_layer_prec;
+
+                for(int i = 0; i <= network_bits; i++)
+                    act_width_need->value[i][layer_it][n] = act_width_need_per[i];
+
             }
 
-            double act_avg_width = stats.get_average(act_width);
+            for(int n = 0; n < batch_size; n++) {
 
-            // Calculate bits needed
-            std::vector<uint64_t> act_width_need (network_bits + 1, 0);
-            std::vector<double> act_width_need_per (network_bits + 1 ,0);
-            for(auto act_group : act_width)
-                for(auto a = (int)act_group; a <= network_bits; a++)
-                    act_width_need[a]++;
-            for(int a = 0; a < act_width_need.size(); a++)
-                act_width_need_per[a] = act_width_need[a] / (double)act_width.size() * 100.;
+                uint64_t batch_act_bits_datawidth = 0;
+                uint64_t batch_act_bits_datawidth_non_zeros = 0;
+                for(int r = 0; r < R; r++) {
+                    for (int k = 0; k < act_channels; k += N_LANES) {
+                        for (int j = 0; j < Ny; j++) {
+                            for (int i = 0; i < Nx; i++) {
+                                uint8_t max_bit = 0, min_bit = 16, non_zeroes = 0;
+                                for(int channel = k; channel < std::min(k + (int)N_LANES,(int)act_channels); channel++) {
+                                    uint16_t act_bits;
+                                    if(lstm)
+                                        act_bits = act.get(r, n, channel);
+                                    else
+                                        act_bits = act.get(n, channel, i, j);
 
-            stats.act_avg_width.back()[n] = act_avg_width;
-            stats.act_width_reduction.back()[n] = (act_prec - act_avg_width) * 100. / act_prec;
+                                    if(act_bits != 0) non_zeroes++;
 
-            for(int i = 0; i <= network_bits; i++)
-                stats.act_width_need[i].back()[n] = act_width_need_per[i];
+                                    bool neg = false;
+                                    if((act_bits & act_mask) != 0) {
+                                        act_bits = act_bits & ~act_mask;
+                                        neg = true;
+                                    }
 
-        }
+                                    const auto &min_max_act_bits = this->minMax(act_bits);
 
-        for(int n=0; n<batch_size; n++) {
+                                    auto min_act_bit = std::get<0>(min_max_act_bits);
+                                    auto max_act_bit = std::get<1>(min_max_act_bits);
 
-            uint64_t act_bits_datawidth = 0;
-            for(int r = 0; r < R; r++) {
-                for (int k = 0; k < act_channels; k += N_LANES) {
-                    for (int j = 0; j < Ny; j++) {
-                        for (int i = 0; i < Nx; i++) {
+                                    if(neg) max_act_bit += 1;
+
+                                    if(min_act_bit < min_bit) min_bit = min_act_bit;
+                                    if(max_act_bit > max_bit) max_bit = max_act_bit;
+
+                                }
+                                int width;
+                                if(!LEADING_BIT) width = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
+                                else width = max_bit + 1;
+                                batch_act_bits_datawidth_non_zeros += (width * non_zeroes);
+                                batch_act_bits_datawidth += (width * N_LANES);
+                            }
+                        }
+                    }
+                }
+
+                // Calculate data from off-chip
+                auto num_act = R * Nx * Ny * act_channels;
+                act_bits_baseline->value[layer_it][n] = num_act * network_bits;
+                act_bits_profiled->value[layer_it][n] = 4 + num_act * act_layer_prec;
+                auto overhead_non_zeros = (uint64_t)((16 + log2(network_bits)) * ceil(num_act / 16.));
+                auto overhead = (uint64_t)(log2(network_bits) * ceil(num_act / 16.));
+                act_bits_datawidth->value[layer_it][n] = std::min(overhead + batch_act_bits_datawidth,
+                        overhead_non_zeros + batch_act_bits_datawidth_non_zeros);
+
+            }
+
+            // Weights
+            std::vector<double> wgt_width;
+            for(int m = 0; m < num_filters; m += N_ROWS) {
+
+                for (int i = 0; i < Kx; i++) {
+                    for (int j = 0; j < Ky; j++) {
+                        for (int k = 0; k < wgt_channels; k += N_LANES) {
+                            auto tile_wgt_width = computeAvgWidthDynamicStripesWgtTile(i,j,k,m,wgt,(int)wgt_channels,
+                                    (int)num_filters, wgt_mask);
+                            wgt_width.insert(wgt_width.end(),tile_wgt_width.begin(),tile_wgt_width.end());
+
+                        }
+                    }
+
+                }
+            }
+
+            uint64_t batch_wgt_bits_datawidth = 0;
+            uint64_t batch_wgt_bits_datawidth_non_zeros = 0;
+            for(int m = 0; m < num_filters; m++) {
+                for (int k = 0; k < wgt_channels; k += N_LANES) {
+                    for (int j = 0; j < Ky; j++) {
+                        for (int i = 0; i < Kx; i++) {
                             uint8_t max_bit = 0, min_bit = 16, non_zeroes = 0;
-                            for(int channel = k; channel < std::min(k + (int)N_LANES,(int)act_channels); channel++) {
-                                uint16_t act_bits;
-                                if(lstm)
-                                    act_bits = act.get(r, n, channel);
-                                else
-                                    act_bits = act.get(n, channel, i, j);
+                            for(int channel = k; channel < std::min(k + (int)N_LANES,(int)wgt_channels); channel++) {
 
-                                if(act_bits != 0) non_zeroes++;
+                                uint16_t wgt_bits = wgt.get(m, channel, i, j);
+
+                                if(wgt_bits != 0) non_zeroes++;
 
                                 bool neg = false;
-                                if((act_bits & act_mask) != 0) {
-                                    act_bits = act_bits & ~act_mask;
+                                if((wgt_bits & wgt_mask) != 0) {
+                                    wgt_bits = wgt_bits & ~wgt_mask;
                                     neg = true;
                                 }
 
-                                const auto &min_max_act_bits = this->minMax(act_bits);
+                                const auto &min_max_wgt_bits = this->minMax(wgt_bits);
 
-                                auto min_act_bit = std::get<0>(min_max_act_bits);
-                                auto max_act_bit = std::get<1>(min_max_act_bits);
+                                auto min_wgt_bit = std::get<0>(min_max_wgt_bits);
+                                auto max_wgt_bit = std::get<1>(min_max_wgt_bits);
 
-                                if(neg) max_act_bit += 1;
+                                if(neg) max_wgt_bit += 1;
 
-                                if(min_act_bit < min_bit) min_bit = min_act_bit;
-                                if(max_act_bit > max_bit) max_bit = max_act_bit;
+                                if(min_wgt_bit < min_bit) min_bit = min_wgt_bit;
+                                if(max_wgt_bit > max_bit) max_bit = max_wgt_bit;
 
                             }
                             int width;
                             if(!LEADING_BIT) width = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
                             else width = max_bit + 1;
-                            act_bits_datawidth = act_bits_datawidth + (width * non_zeroes);
+                            batch_wgt_bits_datawidth_non_zeros += (width * non_zeroes);
+                            batch_wgt_bits_datawidth += (width * N_LANES);
                         }
                     }
+
                 }
             }
 
-            // Calculate data from off-chip
-            auto num_act = R * Nx * Ny * act_channels;
-            stats.act_bits_baseline.back()[n] = num_act * network_bits;
-            stats.act_bits_profiled.back()[n] = 4 + num_act * act_prec;
-            auto overhead = (uint64_t)((16 + log2(network_bits)) * ceil(num_act / 16.));
-            stats.act_bits_datawidth.back()[n] = overhead + act_bits_datawidth;
+            double batch_wgt_avg_width = sys::get_average(wgt_width);
 
-        }
+            // Calculate bits needed
+            std::vector<uint64_t> batch_wgt_width_need (network_bits + 1, 0);
+            std::vector<double> wgt_width_need_per (network_bits + 1, 0);
+            for(auto wgt_group : wgt_width)
+                for(auto w = (int)wgt_group; w <= network_bits; w++)
+                    batch_wgt_width_need[w]++;
+            for(int w = 0; w < batch_wgt_width_need.size(); w++)
+                wgt_width_need_per[w] = batch_wgt_width_need[w] / (double)wgt_width.size() * 100.;
 
-        // Weights
-        std::vector<double> wgt_width;
-        for(int m=0; m<num_filters; m+=N_ROWS) {
+            for(int n=0; n<batch_size; n++) {
 
-            for (int i = 0; i < Kx; i++) {
-                for (int j = 0; j < Ky; j++) {
-                    for (int k = 0; k < wgt_channels; k += N_LANES) {
-                        auto tile_wgt_width = computeAvgWidthDynamicStripesWgtTile(i,j,k,m,wgt,(int)wgt_channels,
-                                (int)num_filters, wgt_mask);
-                        wgt_width.insert(wgt_width.end(),tile_wgt_width.begin(),tile_wgt_width.end());
+                // Calculate data from off-chip
+                auto num_wgt = wgt.getMax_index();
+                wgt_bits_baseline->value[layer_it][n] = num_wgt * network_bits;
+                wgt_bits_profiled->value[layer_it][n] = 4 + num_wgt * wgt_layer_prec;
+                auto overhead_non_zeros = (uint64_t)((16 + log2(network_bits)) * ceil(num_wgt / 16.));
+                auto overhead = (uint64_t)(log2(network_bits) * ceil(num_wgt / 16.));
+                wgt_bits_datawidth->value[layer_it][n] = std::min(overhead + batch_wgt_bits_datawidth,
+                        overhead_non_zeros + batch_wgt_bits_datawidth_non_zeros);
 
-                    }
+                wgt_avg_width->value[layer_it][n] = batch_wgt_avg_width;
+                wgt_width_reduction->value[layer_it][n] = (wgt_layer_prec - batch_wgt_avg_width) * 100. / wgt_layer_prec;
+
+                for (int i = 0; i <= network_bits; i++) {
+                    wgt_width_need->value[i][layer_it][n] = wgt_width_need_per[i];
                 }
-
             }
-        }
 
-        uint64_t wgt_bits_datawidth = 0;
-        for(int m=0; m<num_filters; m++) {
-            for (int k = 0; k < wgt_channels; k += N_LANES) {
-                for (int j = 0; j < Ky; j++) {
-                    for (int i = 0; i < Kx; i++) {
-                        uint8_t max_bit = 0, min_bit = 16, non_zeroes = 0;
-                        for(int channel = k; channel < std::min(k + (int)N_LANES,(int)wgt_channels); channel++) {
+            // SCNN
+            for(int n = 0; n < batch_size; n++) {
 
-                            uint16_t wgt_bits = wgt.get(m, channel, i, j);
-
-                            if(wgt_bits != 0) non_zeroes++;
-
-                            bool neg = false;
-                            if((wgt_bits & wgt_mask) != 0) {
-                                wgt_bits = wgt_bits & ~wgt_mask;
-                                neg = true;
+                int skips = 0;
+                uint64_t batch_act_bits_scnn = 0;
+                for(int r = 0; r < R; r++) {
+                    for (int k = 0; k < act_channels; k++) {
+                        for (int y = 0; y < Ny; y++) {
+                            for (int x = 0; x < Nx; x++) {
+                                T act_bits;
+                                if(lstm) act_bits = act.get(r, n, k);
+                                else act_bits = act.get(n, k, x, y);
+                                if (act_bits != 0) {
+                                    batch_act_bits_scnn += network_bits + 4;
+                                    skips = 0;
+                                } else {
+                                    skips++;
+                                    if (skips == 16) {
+                                        batch_act_bits_scnn += network_bits + 4;
+                                        skips = 0;
+                                    }
+                                }
                             }
-
-                            const auto &min_max_wgt_bits = this->minMax(wgt_bits);
-
-                            auto min_wgt_bit = std::get<0>(min_max_wgt_bits);
-                            auto max_wgt_bit = std::get<1>(min_max_wgt_bits);
-
-                            if(neg) max_wgt_bit += 1;
-
-                            if(min_wgt_bit < min_bit) min_bit = min_wgt_bit;
-                            if(max_wgt_bit > max_bit) max_bit = max_wgt_bit;
-
                         }
-                        int width;
-                        if(!LEADING_BIT) width = (min_bit > max_bit) ? 0 : max_bit - min_bit + 1;
-                        else width = max_bit + 1;
-                        wgt_bits_datawidth = wgt_bits_datawidth + (width * non_zeroes);
                     }
                 }
 
+                act_bits_scnn->value[layer_it][n] = batch_act_bits_scnn;
             }
-        }
-
-        double wgt_avg_width = stats.get_average(wgt_width);
-
-        // Calculate bits needed
-        std::vector<uint64_t> wgt_width_need (network_bits + 1, 0);
-        std::vector<double> wgt_width_need_per (network_bits + 1, 0);
-        for(auto wgt_group : wgt_width)
-            for(auto w = (int)wgt_group; w <= network_bits; w++)
-                wgt_width_need[w]++;
-        for(int w = 0; w < wgt_width_need.size(); w++)
-            wgt_width_need_per[w] = wgt_width_need[w] / (double)wgt_width.size() * 100.;
-
-        for(int n=0; n<batch_size; n++) {
-
-            // Calculate data from off-chip
-            auto num_wgt = wgt.getMax_index();
-            stats.wgt_bits_baseline.back()[n] = num_wgt * network_bits;
-            stats.wgt_bits_profiled.back()[n] = 4 + num_wgt * wgt_prec;
-            auto overhead = (uint64_t)((16 + log2(network_bits)) * ceil(num_wgt / 16.));
-            stats.wgt_bits_datawidth.back()[n] = overhead + wgt_bits_datawidth;
-
-            stats.wgt_avg_width.back()[n] = wgt_avg_width;
-            stats.wgt_width_reduction.back()[n] = (wgt_prec - wgt_avg_width) * 100. / wgt_prec;
-
-            for (int i = 0; i <= network_bits; i++) {
-                stats.wgt_width_need[i].back()[n] = wgt_width_need_per[i];
-            }
-        }
-
-        // SCNN
-        for(int n=0; n < batch_size; n++) {
 
             int skips = 0;
-            uint64_t act_bits_scnn = 0;
-            for(int r = 0; r < R; r++) {
-                for (int k = 0; k < act_channels; k++) {
-                    for (int y = 0; y < Ny; y++) {
-                        for (int x = 0; x < Nx; x++) {
-                            T act_bits;
-                            if(lstm) act_bits = act.get(r, n, k);
-                            else act_bits = act.get(n, k, x, y);
-                            if (act_bits != 0) {
-                                act_bits_scnn += network_bits + 4;
+            uint64_t batch_wgt_bits_scnn = 0;
+            for(int m = 0; m < num_filters; m++) {
+
+                for (int k = 0; k < wgt_channels; k++) {
+                    for (int y = 0; y < Ky; y++) {
+                        for (int x = 0; x < Kx; x++) {
+                            auto act_bits = wgt.get(m, k, x, y);
+                            if(act_bits != 0) {
+                                batch_wgt_bits_scnn += network_bits + 4;
                                 skips = 0;
                             } else {
                                 skips++;
-                                if (skips == 16) {
-                                    act_bits_scnn += network_bits + 4;
+                                if(skips == 16) {
+                                    batch_wgt_bits_scnn += network_bits + 4;
                                     skips = 0;
                                 }
                             }
@@ -1204,67 +1024,22 @@ namespace core {
                 }
             }
 
-            stats.act_bits_scnn.back()[n] = act_bits_scnn;
+            for(int n = 0; n < batch_size; n++)
+                wgt_bits_scnn->value[layer_it][n] = batch_wgt_bits_scnn;
+
         }
 
-        int skips = 0;
-        uint64_t wgt_bits_scnn = 0;
-        for(int m=0; m < num_filters; m++) {
+        //Dump statistics
+        std::string header = "DynamicStripes Average Width for " + network.getName() + "\n";
+        header += "Number of lanes/terms per PE: " + std::to_string(N_LANES) + "\n";
+        header += "Number of columns/windows in parallel: " + std::to_string(N_COLUMNS) + "\n";
+        header += "Number of rows/filters in parallel: " + std::to_string(N_ROWS) + "\n";
+        header += "Number of values per group: " + std::to_string(PRECISION_GRANULARITY) + "\n";
+        std::string ldn_bit = LEADING_BIT ? "True" : "False";
+        header += "Calculate only leading bit: " + ldn_bit + "\n";
 
-            for (int k = 0; k < wgt_channels; k++) {
-                for (int y = 0; y < Ky; y++) {
-                    for (int x = 0; x < Kx; x++) {
-                        auto act_bits = wgt.get(m, k, x, y);
-                        if(act_bits != 0) {
-                            wgt_bits_scnn += network_bits + 4;
-                            skips = 0;
-                        } else {
-                            skips++;
-                            if(skips == 16) {
-                                wgt_bits_scnn += network_bits + 4;
-                                skips = 0;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
 
-        for(int n = 0; n < batch_size; n++)
-            stats.wgt_bits_scnn.back()[n] = wgt_bits_scnn;
-
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-
-        stats.time.push_back(time_span);
-
-    }
-
-    template <typename T>
-    void DynamicStripes<T>::average_width(const Network<T> &network) {
-        // Initialize statistics
-        sys::Statistics::Stats stats;
-        sys::Statistics::initialize(stats);
-
-        stats.task_name = "average_width";
-        stats.net_name = network.getName();
-        stats.arch = "DynamicStripes_C" + std::to_string(N_COLUMNS) + "_R" + std::to_string(N_ROWS) + "_PG" +
-                std::to_string(PRECISION_GRANULARITY) + (LEADING_BIT ? "_LB" : "");
-
-        stats.act_width_need = std::vector<std::vector<std::vector<double>>>(16 + 1);
-        stats.wgt_width_need = std::vector<std::vector<std::vector<double>>>(16 + 1);
-
-        for(const Layer<T> &layer : network.getLayers()) {
-            if(layer.getType() == "Convolution" || layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
-                stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getActPrecision());
-                stats.wgt_prec.push_back(layer.getWgtPrecision());
-                computeAvgWidthLayer(layer, stats, network.getNetwork_bits());
-            }
-        }
-
-        // Set statistics to write
-        sys::Statistics::addStats(stats);
     }
 
     /* ON CHIP */
@@ -1272,14 +1047,14 @@ namespace core {
     const uint64_t GROUP_SIZE = 16;
 
     uint16_t get_value(std::map<uint64_t, uint16_t> &memory_map, uint64_t block_offset, uint64_t mem_pointer,
-            uint16_t width) {
+            uint16_t width, int network_bits) {
 
-        if ((width + mem_pointer) > 15) {
+        if ((width + mem_pointer) > (network_bits - 1)) {
 
             uint16_t block = memory_map[block_offset];
             uint16_t next_block = memory_map[block_offset + GROUP_SIZE];
 
-            uint16_t width_msb = (width + mem_pointer) % 16;
+            uint16_t width_msb = (width + mem_pointer) % network_bits;
             uint16_t width_lsb = width - width_msb;
             uint16_t value = 0;
 
@@ -1308,712 +1083,729 @@ namespace core {
     }
 
     template <typename T>
-    void DynamicStripes<T>::computeOnChipLayer(const Layer<T> &layer, sys::Statistics::Stats &stats, int network_bits) {
+    void DynamicStripes<T>::on_chip(const base::Network<T> &network) {
 
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+        // Initialize statistics
+        std::string filename = "DynamicStripes_on_chip";
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
-        cnpy::Array<T> act = layer.getActivations();
-        act.sign_magnitude_representation(layer.getActPrecision());
-        cnpy::Array<T> wgt = layer.getWeights();
-        wgt.sign_magnitude_representation(layer.getWgtPrecision());
-        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+        auto act_baseline_size = stats.register_uint_t("act_baseline_size", 0, sys::AverageTotal);
+        auto act_profiled_size = stats.register_uint_t("act_profiled_size", 0, sys::AverageTotal);
+        auto act_datawidth_size = stats.register_uint_t("act_datawidth_size", 0, sys::AverageTotal);
+        auto act_datawidth_groups = stats.register_uint_t("act_datawidth_groups", 0, sys::AverageTotal);
+        auto act_datawidth_padding = stats.register_uint_t("act_datawidth_padding", 0, sys::AverageTotal);
+        auto act_datawidth_overhead = stats.register_uint_t("act_datawidth_overhead", 0, sys::AverageTotal);
+        auto act_datawidth_row_overhead = stats.register_uint_t("act_datawidth_row_overhead", 0, sys::AverageTotal);
+        auto act_datawidth_max_overhead = stats.register_uint_t("act_datawidth_max_overhead", 0, sys::AverageTotal);
+        auto act_max_rel_pointer = stats.register_uint_t("act_max_rel_pointer", 0, sys::Max);
+        auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
 
-        int padding = layer.getPadding();
-        int stride = layer.getStride();
+        auto wgt_baseline_size = stats.register_uint_t("wgt_baseline_size", 0, sys::AverageTotal);
+        auto wgt_profiled_size = stats.register_uint_t("wgt_profiled_size", 0, sys::AverageTotal);
+        auto wgt_datawidth_size = stats.register_uint_t("wgt_datawidth_size", 0, sys::AverageTotal);
+        auto wgt_datawidth_groups = stats.register_uint_t("wgt_datawidth_groups", 0, sys::AverageTotal);
+        auto wgt_datawidth_padding = stats.register_uint_t("wgt_datawidth_padding", 0, sys::AverageTotal);
+        auto wgt_datawidth_overhead = stats.register_uint_t("wgt_datawidth_overhead", 0, sys::AverageTotal);
+        auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
-        if(layer.getType() == "InnerProduct") {
-            if(act.getDimensions() == 4) act.reshape_to_2D();
-            act.reshape_to_4D();
-        }
+        auto network_bits = network.getNetwork_bits();
 
-        if(layer.getType() == "Convolution")
-            act.zero_pad(padding);
+        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
 
-        if(wgt.getShape()[2] > 1 && stride > 1) {
-            act.reshape_first_layer_act((uint16_t)stride);
-            wgt.reshape_first_layer_wgt((uint16_t)stride);
-            stride = 1;
-        }
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
+            bool conv = layer.getType() == "Convolution";
+            bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
 
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
+            if (!conv) continue;
 
-        auto batch_size = act_shape[0];
-        auto act_channels = act_shape[1];
-        auto Nx = act_shape[2];
-        auto Ny = act_shape[3];
-        if(this->FAST_MODE) batch_size = 1;
+            base::Array<T> act = layer.getActivations();
+            act.sign_magnitude_representation(layer.getActPrecision());
+            if(fc && act.getDimensions() == 4) act.reshape_to_2D();
+            if(fc) act.reshape_to_4D();
 
-        auto num_filters = wgt_shape[0];
-        auto wgt_channels = wgt_shape[1];
-        auto Kx = wgt_shape[2];
-        auto Ky = wgt_shape[3];
+            base::Array<T> wgt = layer.getWeights();
+            wgt.sign_magnitude_representation(layer.getWgtPrecision());
+            if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
-        long out_x = (Nx - Kx)/stride + 1;
-        long out_y = (Ny - Ky)/stride + 1;
+            int padding = layer.getPadding();
+            int stride = layer.getStride();
 
-        auto act_prec = (uint16_t)layer.getActPrecision();
-        auto act_mask = (uint16_t)(1u << (act_prec - 1u));
+            if(conv) act.zero_pad(padding);
 
-        auto wgt_prec = (uint16_t)layer.getWgtPrecision();
-        auto wgt_mask = (uint16_t)(1u << (wgt_prec - 1u));
+            if(act.getShape()[1] == 3 && stride > 1) {
+                act.reshape_first_layer_act((uint16_t)stride);
+                wgt.reshape_first_layer_wgt((uint16_t)stride);
+                stride = 1;
+            }
 
-        // Stats
-        stats.act_baseline_size.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_profiled_size.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_datawidth_size.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_datawidth_groups.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_datawidth_padding.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_datawidth_overhead.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_datawidth_row_overhead.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_datawidth_max_overhead.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.act_max_rel_pointer.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.wgt_baseline_size.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.wgt_profiled_size.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.wgt_datawidth_size.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.wgt_datawidth_groups.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.wgt_datawidth_padding.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.wgt_datawidth_overhead.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.wgt_max_rel_pointer.emplace_back(std::vector<uint64_t>(batch_size,0));
+            const std::vector<size_t> &act_shape = act.getShape();
+            const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        std::map<uint64_t, uint16_t> wgt_memory_map;
-        std::map<uint64_t, std::vector<std::tuple<uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint8_t, bool>>> metadata;
+            uint64_t batch_size, act_channels, Nx, Ny, R;
+            if(lstm) {
+                R = act_shape[0];
+                batch_size = act_shape[1];
+                act_channels = act_shape[2];
+                Nx = 1;
+                Ny = 1;
+            } else {
+                R = 1;
+                batch_size = act_shape[0];
+                act_channels = act_shape[1];
+                Nx = act_shape[2];
+                Ny = act_shape[3];
+            }
+            if(this->FAST_MODE) batch_size = 1;
 
-        // Weights compressed
-        uint64_t wgt_data_start = 0xA0000000;
-        uint64_t wgt_group_start = 0xF0000000;
-        uint8_t wgt_data_pt = 0u;
-        uint8_t wgt_group_pt = 0u;
+            auto num_filters = wgt_shape[0];
+            auto wgt_channels = wgt_shape[1];
+            auto Kx = wgt_shape[2];
+            auto Ky = wgt_shape[3];
 
-        uint64_t wgt_group_size = 0;
-        uint64_t wgt_padding_size = 0;
-        uint64_t wgt_datawidth_size = 0;
-        uint64_t wgt_data_offset = 0;
-        uint64_t wgt_group_offset = 0;
+            long out_x = (Nx - Kx)/stride + 1;
+            long out_y = (Ny - Ky)/stride + 1;
 
-        std::cout << layer.getName() << std::endl;
+            auto groups = act_channels / wgt_channels;
+            auto it_per_group = num_filters / groups;
 
-        auto wgt_filter_position = std::vector<uint64_t>(num_filters);
+            auto act_layer_prec = layer.getActPrecision();
+            auto act_mask = (uint16_t)(1u << (act_layer_prec - 1));
 
-        for(int m = 0; m < num_filters; m++) {
+            auto wgt_layer_prec = layer.getWgtPrecision();
+            auto wgt_mask = (uint16_t)(1u << (wgt_layer_prec - 1));
 
-            // Generated statically
-            wgt_filter_position[m] = wgt_data_offset + wgt_data_start;
+            std::map<uint64_t, uint16_t> wgt_memory_map;
+            std::map<uint64_t, std::vector<std::tuple<uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint8_t, bool>>> metadata;
 
-            for (int y = 0; y < Ky; ++y) {
+            // Weights compressed
+            uint64_t wgt_data_start = 0xA0000000;
+            uint64_t wgt_group_start = 0xF0000000;
+            uint8_t wgt_data_pt = 0u;
+            uint8_t wgt_group_pt = 0u;
 
-                for (int x = 0; x < Kx; ++x) {
+            uint64_t batch_wgt_group_size = 0;
+            uint64_t batch_wgt_padding_size = 0;
+            uint64_t batch_wgt_datawidth_size = 0;
+            uint64_t wgt_data_offset = 0;
+            uint64_t wgt_group_offset = 0;
 
-                    for (int k = 0; k < wgt_channels; k += GROUP_SIZE) {
+            std::cout << layer.getName() << std::endl;
 
-                        uint8_t max_bit = 0;
-                        for (int ss = k; ss < std::min((uint64_t) (k + GROUP_SIZE), wgt_channels); ++ss) {
+            auto wgt_filter_position = std::vector<uint64_t>(num_filters);
 
-                            uint16_t wgt_bits = wgt.get(m, ss, x, y);
+            for(int m = 0; m < num_filters; m++) {
 
-                            if ((wgt_bits & wgt_mask) != 0) {
-                                wgt_bits = wgt_bits & ~wgt_mask;
-                            }
+                // Generated statically
+                wgt_filter_position[m] = wgt_data_offset + wgt_data_start;
 
-                            const auto &min_max_wgt_bits = this->minMax(wgt_bits);
-                            auto max_wgt_bit = std::get<1>(min_max_wgt_bits);
-                            max_wgt_bit += 1;
+                for (int y = 0; y < Ky; ++y) {
 
-                            if (max_wgt_bit > max_bit) max_bit = max_wgt_bit;
-                        }
+                    for (int x = 0; x < Kx; ++x) {
 
-                        uint8_t width = max_bit + 1u;
-                        auto width_mask = (uint16_t)(1u << (width - 1u));
+                        for (int k = 0; k < wgt_channels; k += GROUP_SIZE) {
 
-                        // Store group
-                        auto metadata_grp = std::make_tuple(m, k, x, y, width, 4, false);
-                        uint16_t shifted_group = (width - 1u) << wgt_group_pt;
-                        wgt_memory_map[wgt_group_start + wgt_group_offset] |= shifted_group;
-                        metadata[wgt_group_start + wgt_group_offset].emplace_back(metadata_grp);
-                        wgt_group_pt += 4;
-                        if (wgt_group_pt == 16) {
-                            wgt_group_pt = 0;
-                            wgt_group_offset += 1;
-                        }
+                            uint8_t max_bit = 0;
+                            for (int ss = k; ss < std::min((uint64_t) (k + GROUP_SIZE), wgt_channels); ++ss) {
 
-                        // Store data
-                        bool split = width + wgt_data_pt > 15;
-                        for (int ss = 0; ss < GROUP_SIZE; ++ss) {
+                                uint16_t wgt_bits = wgt.get(m, ss, x, y);
 
-                            if ((ss + k) < wgt_channels) {
-                                uint16_t weight = wgt.get(m, ss + k, x, y);
-                                auto metadata_tuple = std::make_tuple(m, ss + k, x, y, weight, width, false);
-
-                                if ((weight & wgt_mask) != 0) {
-                                    weight &= ~wgt_mask;
-                                    weight |= width_mask;
+                                if ((wgt_bits & wgt_mask) != 0) {
+                                    wgt_bits = wgt_bits & ~wgt_mask;
                                 }
 
-                                uint16_t shifted_weight = weight << wgt_data_pt;
-                                wgt_memory_map[wgt_data_start + wgt_data_offset + ss] |= shifted_weight;
-                                metadata[wgt_data_start + wgt_data_offset + ss].emplace_back(metadata_tuple);
+                                const auto &min_max_wgt_bits = this->minMax(wgt_bits);
+                                auto max_wgt_bit = std::get<1>(min_max_wgt_bits);
+                                max_wgt_bit += 1;
 
-                                if (split) {
-                                    uint16_t rem_weight = weight >> (16u - wgt_data_pt);
-                                    wgt_memory_map[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss] = rem_weight;
-                                    metadata[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
-                                }
-                            } else {
-                                auto metadata_tuple = std::make_tuple(m, ss + k, x, y, 0, width, false);
-                                wgt_memory_map[wgt_data_start + wgt_data_offset + ss] |= 0;
-                                metadata[wgt_data_start + wgt_data_offset + ss].emplace_back(metadata_tuple);
-                                if (split) metadata[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
+                                if (max_wgt_bit > max_bit) max_bit = max_wgt_bit;
                             }
+
+                            uint8_t width = max_bit + 1u;
+                            auto width_mask = (uint16_t)(1u << (width - 1u));
+
+                            if (width > network_bits) {
+                                throw std::runtime_error("OnChip dynamic size bigger than network size");
+                            }
+
+                            // Store group
+                            auto metadata_grp = std::make_tuple(m, k, x, y, width, 4, false);
+                            uint16_t shifted_group = (width - 1u) << wgt_group_pt;
+                            wgt_memory_map[wgt_group_start + wgt_group_offset] |= shifted_group;
+                            metadata[wgt_group_start + wgt_group_offset].emplace_back(metadata_grp);
+                            wgt_group_pt += 4;
+                            if (wgt_group_pt == network_bits) {
+                                wgt_group_pt = 0;
+                                wgt_group_offset += 1;
+                            }
+
+                            // Store data
+                            bool split = width + wgt_data_pt > (network_bits - 1);
+                            for (int ss = 0; ss < GROUP_SIZE; ++ss) {
+
+                                if ((ss + k) < wgt_channels) {
+                                    uint16_t weight = wgt.get(m, ss + k, x, y);
+                                    auto metadata_tuple = std::make_tuple(m, ss + k, x, y, weight, width, false);
+
+                                    if ((weight & wgt_mask) != 0) {
+                                        weight &= ~wgt_mask;
+                                        weight |= width_mask;
+                                    }
+
+                                    uint16_t shifted_weight = weight << wgt_data_pt;
+                                    wgt_memory_map[wgt_data_start + wgt_data_offset + ss] |= shifted_weight;
+                                    metadata[wgt_data_start + wgt_data_offset + ss].emplace_back(metadata_tuple);
+
+                                    if (split) {
+                                        uint16_t rem_weight = weight >> (network_bits - wgt_data_pt);
+                                        wgt_memory_map[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss] = rem_weight;
+                                        metadata[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
+                                    }
+                                } else {
+                                    auto metadata_tuple = std::make_tuple(m, ss + k, x, y, 0, width, false);
+                                    wgt_memory_map[wgt_data_start + wgt_data_offset + ss] |= 0;
+                                    metadata[wgt_data_start + wgt_data_offset + ss].emplace_back(metadata_tuple);
+                                    if (split) metadata[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
+                                }
+                            }
+
+                            batch_wgt_group_size += log2(network_bits);
+                            batch_wgt_datawidth_size += GROUP_SIZE * width;
+                            wgt_data_pt = (wgt_data_pt + width) % network_bits;
+                            if (split || wgt_data_pt == 0)
+                                wgt_data_offset += GROUP_SIZE;
+
                         }
-
-                        wgt_group_size += 4;
-                        wgt_datawidth_size += GROUP_SIZE * width;
-                        wgt_data_pt = (wgt_data_pt + width) % 16;
-                        if (split || wgt_data_pt == 0)
-                            wgt_data_offset += GROUP_SIZE;
-
                     }
+                }
+
+                if (wgt_data_pt != 0) {
+                    batch_wgt_padding_size += (network_bits - wgt_data_pt) * GROUP_SIZE;
+                    wgt_data_offset += GROUP_SIZE;
+                    wgt_data_pt = 0;
                 }
             }
 
-            if (wgt_data_pt != 0) {
-                wgt_padding_size += (16 - wgt_data_pt) * GROUP_SIZE;
-                wgt_data_offset += GROUP_SIZE;
-                wgt_data_pt = 0;
-            }
-        }
+            for(int n = 0; n < batch_size; n++) {
 
-        for(int n = 0; n < batch_size; n++) {
+                std::map<uint64_t, uint16_t> memory_map = wgt_memory_map;
 
-            std::map<uint64_t, uint16_t> memory_map = wgt_memory_map;
+                // Activations compressed
+                uint64_t act_data_start = 0x20000000;
+                uint64_t act_group_start = 0x40000000;
+                uint8_t act_data_pt = 0u;
+                uint8_t act_group_pt = 0u;
 
-            // Activations compressed
-            uint64_t act_data_start = 0x20000000;
-            uint64_t act_group_start = 0x40000000;
-            uint8_t act_data_pt = 0u;
-            uint8_t act_group_pt = 0u;
+                uint64_t batch_act_group_size = 0;
+                uint64_t batch_act_padding_size = 0;
+                uint64_t batch_act_datawidth_size = 0;
+                uint64_t act_data_offset = 0;
+                uint64_t act_group_offset = 0;
 
-            uint64_t act_group_size = 0;
-            uint64_t act_padding_size = 0;
-            uint64_t act_datawidth_size = 0;
-            uint64_t act_data_offset = 0;
-            uint64_t act_group_offset = 0;
+                auto act_positions = std::vector<std::vector<uint64_t>>(Ny, std::vector<uint64_t>(Nx, 0));
 
-            auto act_positions = std::vector<std::vector<uint64_t>>(Ny, std::vector<uint64_t>(Nx, 0));
+                for (int y = 0; y < Ny; ++y) {
 
-            for (int y = 0; y < Ny; ++y) {
+                    for (int x = 0; x < Nx; ++x) {
 
-                for (int x = 0; x < Nx; ++x) {
+                        // Generated from "previous" layer
+                        act_positions[y][x] = act_data_offset + act_data_start;
 
-                    // Generated from "previous" layer
-                    act_positions[y][x] = act_data_offset + act_data_start;
+                        for (int k = 0; k < act_channels; k += GROUP_SIZE) {
 
-                    for (int k = 0; k < act_channels; k += GROUP_SIZE) {
+                            uint8_t max_bit = 0;
+                            for (int ss = k; ss < std::min((uint64_t) (k + GROUP_SIZE), act_channels); ++ss) {
 
-                        uint8_t max_bit = 0;
-                        for (int ss = k; ss < std::min((uint64_t) (k + GROUP_SIZE), act_channels); ++ss) {
+                                uint16_t act_bits = act.get(n, ss, x, y);
 
-                            uint16_t act_bits = act.get(n, ss, x, y);
-
-                            if ((act_bits & act_mask) != 0) {
-                                act_bits = act_bits & ~act_mask;
-                            }
-
-                            const auto &min_max_act_bits = this->minMax(act_bits);
-                            auto max_act_bit = std::get<1>(min_max_act_bits);
-                            max_act_bit += 1;
-
-                            if (max_act_bit > max_bit) max_bit = max_act_bit;
-                        }
-
-                        uint8_t width = max_bit + 1u;
-                        auto width_mask = (uint16_t)(1u << (width - 1u));
-
-                        // Store group
-                        auto metadata_grp = std::make_tuple(n, k, x, y, width, 4, true);
-                        uint16_t shifted_group = (width - 1u) << act_group_pt;
-                        memory_map[act_group_start + act_group_offset] |= shifted_group;
-                        metadata[act_group_start + act_group_offset].emplace_back(metadata_grp);
-                        act_group_pt += 4;
-                        if (act_group_pt == 16) {
-                            act_group_pt = 0;
-                            act_group_offset += 1;
-                        }
-
-                        // Store data
-                        bool split = width + act_data_pt > 15;
-                        for (int ss = 0; ss < GROUP_SIZE; ++ss) {
-
-                            if ((ss + k) < act_channels) {
-                                uint16_t activation = act.get(n, ss + k, x, y);
-                                auto metadata_tuple = std::make_tuple(n, ss + k, x, y, activation, width, true);
-
-                                if ((activation & act_mask) != 0) {
-                                    activation &= ~act_mask;
-                                    activation |= width_mask;
+                                if ((act_bits & act_mask) != 0) {
+                                    act_bits = act_bits & ~act_mask;
                                 }
 
-                                uint16_t shifted_activation = activation << act_data_pt;
-                                memory_map[act_data_start + act_data_offset + ss] |= shifted_activation;
-                                metadata[act_data_start + act_data_offset + ss].emplace_back(metadata_tuple);
+                                const auto &min_max_act_bits = this->minMax(act_bits);
+                                auto max_act_bit = std::get<1>(min_max_act_bits);
+                                max_act_bit += 1;
 
-                                if (split) {
-                                    uint16_t rem_activation = activation >> (16u - act_data_pt);
-                                    memory_map[act_data_start + act_data_offset + GROUP_SIZE + ss] = rem_activation;
-                                    metadata[act_data_start + act_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
-                                }
-                            } else {
-                                auto metadata_tuple = std::make_tuple(n, ss + k, x, y, 0, width, true);
-                                memory_map[act_data_start + act_data_offset + ss] |= 0;
-                                metadata[act_data_start + act_data_offset + ss].emplace_back(metadata_tuple);
-                                if (split) metadata[act_data_start + act_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
+                                if (max_act_bit > max_bit) max_bit = max_act_bit;
                             }
+
+                            uint8_t width = max_bit + 1u;
+                            auto width_mask = (uint16_t) (1u << (width - 1u));
+
+                            if (width > network_bits) {
+                                throw std::runtime_error("OnChip dynamic size bigger than network size");
+                            }
+
+                            // Store group
+                            auto metadata_grp = std::make_tuple(n, k, x, y, width, 4, true);
+                            uint16_t shifted_group = (width - 1u) << act_group_pt;
+                            memory_map[act_group_start + act_group_offset] |= shifted_group;
+                            metadata[act_group_start + act_group_offset].emplace_back(metadata_grp);
+                            act_group_pt += 4;
+                            if (act_group_pt == network_bits) {
+                                act_group_pt = 0;
+                                act_group_offset += 1;
+                            }
+
+                            // Store data
+                            bool split = width + act_data_pt > (network_bits - 1);
+                            for (int ss = 0; ss < GROUP_SIZE; ++ss) {
+
+                                if ((ss + k) < act_channels) {
+                                    uint16_t activation = act.get(n, ss + k, x, y);
+                                    auto metadata_tuple = std::make_tuple(n, ss + k, x, y, activation, width, true);
+
+                                    if ((activation & act_mask) != 0) {
+                                        activation &= ~act_mask;
+                                        activation |= width_mask;
+                                    }
+
+                                    uint16_t shifted_activation = activation << act_data_pt;
+                                    memory_map[act_data_start + act_data_offset + ss] |= shifted_activation;
+                                    metadata[act_data_start + act_data_offset + ss].emplace_back(metadata_tuple);
+
+                                    if (split) {
+                                        uint16_t rem_activation = activation >> (network_bits - act_data_pt);
+                                        memory_map[act_data_start + act_data_offset + GROUP_SIZE + ss] = rem_activation;
+                                        metadata[act_data_start + act_data_offset + GROUP_SIZE + ss].emplace_back(
+                                                metadata_tuple);
+                                    }
+                                } else {
+                                    auto metadata_tuple = std::make_tuple(n, ss + k, x, y, 0, width, true);
+                                    memory_map[act_data_start + act_data_offset + ss] |= 0;
+                                    metadata[act_data_start + act_data_offset + ss].emplace_back(metadata_tuple);
+                                    if (split)
+                                        metadata[act_data_start + act_data_offset + GROUP_SIZE + ss].emplace_back(
+                                                metadata_tuple);
+                                }
+                            }
+
+                            batch_act_group_size += log2(network_bits);
+                            batch_act_datawidth_size += GROUP_SIZE * width;
+                            act_data_pt = (act_data_pt + width) % network_bits;
+                            if (split || act_data_pt == 0)
+                                act_data_offset += GROUP_SIZE;
+
                         }
 
-                        act_group_size += 4;
-                        act_datawidth_size += GROUP_SIZE * width;
-                        act_data_pt = (act_data_pt + width) % 16;
-                        if (split || act_data_pt == 0)
+                        if (act_data_pt != 0) {
+                            batch_act_padding_size += (network_bits - act_data_pt) * GROUP_SIZE;
                             act_data_offset += GROUP_SIZE;
+                            act_data_pt = 0;
+                        }
 
-                    }
-
-                    if (act_data_pt != 0) {
-                        act_padding_size += (16 - act_data_pt) * GROUP_SIZE;
-                        act_data_offset += GROUP_SIZE;
-                        act_data_pt = 0;
                     }
 
                 }
 
-            }
+                if (true) {
 
-            if (!this->FAST_MODE) {
+                    auto output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
+                            std::vector<std::vector<uint32_t>>(out_x,std::vector<uint32_t>(out_y,0)));
 
-                auto output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
-                        std::vector<std::vector<uint32_t>>(out_x, std::vector<uint32_t>(out_y, 0)));
+                    // Actual convolution
+                    for (int m = 0; m < num_filters; m++) {
 
-                // Actual convolution
-                for (int m = 0; m < num_filters; m++) {
-
-                    for (int x = 0; x < out_x; x++) {
-                        for (int y = 0; y < out_y; y++) {
-                            uint32_t sum = 0;
-                            for (int i = 0; i < Kx; i++) {
-                                for (int j = 0; j < Ky; j++) {
-                                    for (int k = 0; k < wgt_channels; k++) {
-                                        sum += act.get(n, k, stride * x + i, stride * y + j) * wgt.get(m, k, i, j);
+                        for (int x = 0; x < out_x; x++) {
+                            for (int y = 0; y < out_y; y++) {
+                                uint32_t sum = 0;
+                                for (int i = 0; i < Kx; i++) {
+                                    for (int j = 0; j < Ky; j++) {
+                                        for (int k = 0; k < wgt_channels; k++) {
+                                            sum += act.get(n, k, stride * x + i, stride * y + j) * wgt.get(m, k, i, j);
+                                        }
                                     }
                                 }
+                                output_activations[m][x][y] = sum;
                             }
-                            output_activations[m][x][y] = sum;
-                        }
-                    }
-                }
-
-                // Compressed Memory Convolution
-                auto compressed_output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
-                        std::vector<std::vector<uint32_t>>(out_x, std::vector<uint32_t>(out_y, 0)));
-                uint32_t act_max_rel_pointer = 0;
-
-                if (stride > 1) {
-
-                    uint32_t wgt_next_blk = 0;
-
-                    // Activations starting positions
-                    auto channel_groups = (uint64_t) ceil(act_channels / (double) GROUP_SIZE);
-
-                    auto num_windows = out_x * out_y;
-                    auto windows_per_column = (uint16_t) ceil(num_windows / (double) N_COLUMNS);
-
-                    for (int w = 0; w < windows_per_column; ++w) {
-
-                        for (int m = 0; m < num_filters; m++) {
-
-                            for (int C = 0; C < N_COLUMNS; C++) { // Windows in parallel
-
-                                // Weights starting positions
-                                wgt_next_blk = 0;
-                                uint8_t wgt_blk_index = 0;
-                                uint64_t wgt_base_addr = wgt_filter_position[m]; //[m];
-
-                                // Window starting positions
-                                auto flatten_pos = C * windows_per_column + w;
-
-                                // Last window may finish earlier
-                                if (flatten_pos >= (out_x * out_y))
-                                    continue;
-
-                                int y = flatten_pos / out_x;
-                                int x = flatten_pos % out_x;
-
-                                for (int ky = 0; ky < Ky; ky++) {
-
-                                    auto act_next_blk = act_positions[stride * y + ky][stride * x];
-
-                                    for (int kx = 0; kx < Kx; kx++) {
-
-                                        uint8_t act_blk_index = 0;
-
-                                        for (int ch = 0; ch < channel_groups; ++ch) {
-
-                                            // Activations width
-                                            auto act_group_index = (stride * y + ky) * Nx * channel_groups +
-                                                                   (stride * x + kx) * channel_groups + ch;
-                                            uint32_t act_block_offset = act_group_index * 4 / 16 + act_group_start;
-                                            uint32_t act_mem_pointer = act_group_index * 4 % 16;
-                                            int act_width = get_value(memory_map, act_block_offset, act_mem_pointer, 4) + 1;
-                                            auto act_width_mask = (uint16_t) (1u << (act_width - 1u));
-
-
-                                            // Weights width
-                                            auto wgt_group_index = m * Kx * Ky * channel_groups +
-                                                    ky * Kx * channel_groups + kx * channel_groups + ch;
-                                            uint32_t wgt_block_offset = wgt_group_index * 4 / 16 + wgt_group_start;
-                                            uint32_t wgt_mem_pointer = wgt_group_index * 4 % 16;
-                                            int wgt_width = get_value(memory_map, wgt_block_offset, wgt_mem_pointer, 4) + 1;
-                                            auto wgt_width_mask = (uint16_t) (1u << (wgt_width - 1u));
-
-                                            for (int ss = 0; ss < GROUP_SIZE; ++ss) {
-
-                                                // Activations values
-                                                act_block_offset = ss + act_next_blk;
-                                                uint16_t ch_act = get_value(memory_map, act_block_offset, act_blk_index,
-                                                        act_width);
-
-                                                if ((ch_act & act_width_mask) != 0) {
-                                                    ch_act &= ~act_width_mask;
-                                                    ch_act |= act_mask;
-                                                }
-
-                                                // Weights values
-                                                wgt_block_offset = ss + wgt_next_blk + wgt_base_addr;
-                                                uint16_t ch_wgt = get_value(memory_map, wgt_block_offset, wgt_blk_index,
-                                                        wgt_width);
-
-                                                if ((ch_wgt & wgt_width_mask) != 0) {
-                                                    ch_wgt &= ~wgt_width_mask;
-                                                    ch_wgt |= wgt_mask;
-                                                }
-
-                                                // Multiply - Accumulate
-                                                compressed_output_activations[m][x][y] += ch_act * ch_wgt;
-
-                                            }
-
-                                            if ((act_width + act_blk_index) > 15) {
-                                                act_next_blk += GROUP_SIZE;
-                                            }
-                                            act_blk_index = (act_blk_index + act_width) % 16;
-
-                                            if ((wgt_width + wgt_blk_index) > 15) {
-                                                wgt_next_blk += GROUP_SIZE;
-                                            }
-                                            wgt_blk_index = (wgt_blk_index + wgt_width) % 16;
-
-                                        }
-
-                                        if (act_blk_index != 0) act_next_blk += GROUP_SIZE;
-
-                                    } // Kernel X
-
-                                } // Kernel Y
-
-                            } // Parallel windows
-
-                        } // Filters
-
-                    } // Required window sets for convolution
-
-                } else {
-
-                    uint32_t wgt_next_blk = 0;
-                    std::vector<uint32_t> act_next_blk = std::vector<uint32_t>(N_COLUMNS);
-
-                    // Activations starting positions
-                    auto channel_groups = (uint64_t) ceil(act_channels / (double) GROUP_SIZE);
-                    std::vector<std::vector<uint32_t>> act_column_offsets = std::vector<std::vector<uint32_t>>(
-                            N_COLUMNS,
-                            std::vector<uint32_t>(Ky, 0));
-                    std::vector<std::vector<uint32_t>> act_registers = std::vector<std::vector<uint32_t>>(N_COLUMNS,
-                            std::vector<uint32_t>(Ky, 0));
-
-                    auto num_windows = out_x * out_y;
-                    auto windows_per_column = (uint16_t) ceil(num_windows / (double) N_COLUMNS);
-                    std::vector<uint64_t> act_base_addr = std::vector<uint64_t>(N_COLUMNS, 0);
-                    for (int C = 0; C < N_COLUMNS; ++C) {
-
-                        auto flatten_pos = C * windows_per_column;
-
-                        // Not all windows required
-                        if (flatten_pos >= (out_x * out_y))
-                            continue;
-
-                        int row = flatten_pos / out_x;
-                        int column = flatten_pos % out_x;
-                        act_base_addr[C] = act_positions[row][0];
-
-                        for (int i = 0; i < Ky; ++i) {
-                            act_column_offsets[C][i] = act_positions[row + i][0] - act_base_addr[C];
-                            act_registers[C][i] = act_positions[row + i][column] - act_base_addr[C];
-                            if (act_registers[C][i] > act_max_rel_pointer)
-                                act_max_rel_pointer = act_registers[C][i];
                         }
                     }
 
-                    for (int w = 0; w < windows_per_column; ++w) {
+                    // Compressed Memory Convolution
+                    auto compressed_output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
+                            std::vector<std::vector<uint32_t>>(out_x,std::vector<uint32_t>(out_y,0)));
+                    uint32_t batch_act_max_rel_pointer = 0;
 
-                        for (int m = 0; m < num_filters; m++) {
+                    if (stride > 1) {
 
-                            for (int C = 0; C < N_COLUMNS; C++) { // Windows in parallel
+                        uint32_t wgt_next_blk = 0;
 
-                                // Weights starting positions
-                                wgt_next_blk = 0;
-                                uint8_t wgt_blk_index = 0;
-                                uint64_t wgt_base_addr = wgt_filter_position[m]; //[m];
+                        // Activations starting positions
+                        auto channel_groups = (uint64_t) ceil(act_channels / (double) GROUP_SIZE);
 
-                                // Window starting positions
-                                auto flatten_pos = C * windows_per_column + w;
+                        auto num_windows = out_x * out_y;
+                        auto windows_per_column = (uint16_t) ceil(num_windows / (double) N_COLUMNS);
 
-                                // Last window may finish earlier
-                                if (flatten_pos >= (out_x * out_y))
-                                    continue;
+                        for (int w = 0; w < windows_per_column; ++w) {
 
-                                int y = flatten_pos / out_x;
-                                int x = flatten_pos % out_x;
+                            for (int m = 0; m < num_filters; m++) {
 
-                                for (int ky = 0; ky < Ky; ky++) {
+                                for (int C = 0; C < N_COLUMNS; C++) { // Windows in parallel
 
-                                    act_next_blk[C] = act_registers[C][ky];
+                                    // Weights starting positions
+                                    wgt_next_blk = 0;
+                                    uint8_t wgt_blk_index = 0;
+                                    uint64_t wgt_base_addr = wgt_filter_position[m]; //[m];
 
-                                    for (int kx = 0; kx < Kx; kx++) {
+                                    // Window starting positions
+                                    auto flatten_pos = C * windows_per_column + w;
 
-                                        uint8_t act_blk_index = 0;
+                                    // Last window may finish earlier
+                                    if (flatten_pos >= (out_x * out_y))
+                                        continue;
 
-                                        for (int ch = 0; ch < channel_groups; ++ch) {
+                                    int y = flatten_pos / out_x;
+                                    int x = flatten_pos % out_x;
 
-                                            // Activations width
-                                            auto act_group_index = (y + ky) * Nx * channel_groups +
-                                                    (x + kx) * channel_groups + ch;
-                                            uint32_t act_block_offset = act_group_index * 4 / 16 + act_group_start;
-                                            uint32_t act_mem_pointer = act_group_index * 4 % 16;
-                                            int act_width = get_value(memory_map, act_block_offset, act_mem_pointer, 4) + 1;
-                                            auto act_width_mask = (uint16_t) (1u << (act_width - 1u));
+                                    for (int ky = 0; ky < Ky; ky++) {
 
-                                            // Weights width
-                                            auto wgt_group_index = m * Kx * Ky * channel_groups +
-                                                    ky * Kx * channel_groups + kx * channel_groups + ch;
-                                            uint32_t wgt_block_offset = wgt_group_index * 4 / 16 + wgt_group_start;
-                                            uint32_t wgt_mem_pointer = wgt_group_index * 4 % 16;
-                                            int wgt_width = get_value(memory_map, wgt_block_offset, wgt_mem_pointer, 4) + 1;
-                                            auto wgt_width_mask = (uint16_t) (1u << (wgt_width - 1u));
+                                        auto act_next_blk = act_positions[stride * y + ky][stride * x];
 
-                                            /*int act_index = act_mem_pointer / 4;
-                                            auto act_metadata = metadata[act_block_offset];
-                                            if (std::get<1>(act_metadata[act_index]) != (ch * GROUP_SIZE))
-                                                exit(-1);
-                                            if (std::get<2>(act_metadata[act_index]) != (x + kx))
-                                                exit(-1);
-                                            if (std::get<3>(act_metadata[act_index]) != (y + ky))
-                                                exit(-1);
-                                            if (std::get<4>(act_metadata[act_index]) != act_width)
-                                                exit(-1);
+                                        for (int kx = 0; kx < Kx; kx++) {
 
-                                            int wgt_index = wgt_mem_pointer / 4;
-                                            auto wgt_metadata = metadata[wgt_block_offset];
-                                            if (std::get<0>(wgt_metadata[wgt_index]) != m)
-                                                exit(-1);
-                                            if (std::get<1>(wgt_metadata[wgt_index]) != (ch * GROUP_SIZE))
-                                                exit(-1);
-                                            if (std::get<2>(wgt_metadata[wgt_index]) != kx)
-                                                exit(-1);
-                                            if (std::get<3>(wgt_metadata[wgt_index]) != ky)
-                                                exit(-1);
-                                            if (std::get<4>(wgt_metadata[wgt_index]) != wgt_width)
-                                                exit(-1);*/
+                                            uint8_t act_blk_index = 0;
 
-                                            for (int ss = 0; ss < GROUP_SIZE; ++ss) {
+                                            for (int ch = 0; ch < channel_groups; ++ch) {
 
-                                                // Activations values
-                                                act_block_offset = ss + act_next_blk[C] + act_base_addr[C];
-                                                uint16_t ch_act = get_value(memory_map, act_block_offset, act_blk_index,
-                                                        act_width);
+                                                // Activations width
+                                                auto act_group_index = (stride * y + ky) * Nx * channel_groups +
+                                                        (stride * x + kx) * channel_groups + ch;
+                                                uint32_t act_block_offset = act_group_index * 4 / network_bits + act_group_start;
+                                                uint32_t act_mem_pointer = act_group_index * 4 % network_bits;
+                                                int act_width = get_value(memory_map, act_block_offset, act_mem_pointer,
+                                                        4, network_bits) + 1;
+                                                auto act_width_mask = (uint16_t) (1u << (act_width - 1u));
 
-                                                if ((ch_act & act_width_mask) != 0) {
-                                                    ch_act &= ~act_width_mask;
-                                                    ch_act |= act_mask;
+
+                                                // Weights width
+                                                auto wgt_group_index = m * Kx * Ky * channel_groups +
+                                                        ky * Kx * channel_groups + kx * channel_groups + ch;
+                                                uint32_t wgt_block_offset = wgt_group_index * 4 / network_bits + wgt_group_start;
+                                                uint32_t wgt_mem_pointer = wgt_group_index * 4 % network_bits;
+                                                int wgt_width = get_value(memory_map, wgt_block_offset, wgt_mem_pointer,
+                                                        4, network_bits) + 1;
+                                                auto wgt_width_mask = (uint16_t) (1u << (wgt_width - 1u));
+
+                                                for (int ss = 0; ss < GROUP_SIZE; ++ss) {
+
+                                                    // Activations values
+                                                    act_block_offset = ss + act_next_blk;
+                                                    uint16_t ch_act = get_value(memory_map, act_block_offset,
+                                                            act_blk_index, act_width, network_bits);
+
+                                                    if ((ch_act & act_width_mask) != 0) {
+                                                        ch_act &= ~act_width_mask;
+                                                        ch_act |= act_mask;
+                                                    }
+
+                                                    // Weights values
+                                                    wgt_block_offset = ss + wgt_next_blk + wgt_base_addr;
+                                                    uint16_t ch_wgt = get_value(memory_map, wgt_block_offset,
+                                                            wgt_blk_index, wgt_width, network_bits);
+
+                                                    if ((ch_wgt & wgt_width_mask) != 0) {
+                                                        ch_wgt &= ~wgt_width_mask;
+                                                        ch_wgt |= wgt_mask;
+                                                    }
+
+                                                    // Multiply - Accumulate
+                                                    compressed_output_activations[m][x][y] += ch_act * ch_wgt;
+
                                                 }
 
-                                                // Weights values
-                                                wgt_block_offset = ss + wgt_next_blk + wgt_base_addr;
-                                                uint16_t ch_wgt = get_value(memory_map, wgt_block_offset, wgt_blk_index,
-                                                        wgt_width);
-
-                                                if ((ch_wgt & wgt_width_mask) != 0) {
-                                                    ch_wgt &= ~wgt_width_mask;
-                                                    ch_wgt |= wgt_mask;
+                                                if ((act_width + act_blk_index) > (network_bits - 1)) {
+                                                    act_next_blk += GROUP_SIZE;
                                                 }
+                                                act_blk_index = (act_blk_index + act_width) % network_bits;
 
-                                                /*act_metadata = metadata[act_block_offset];
-                                                if (((ch * GROUP_SIZE) + ss) < act_channels &&
-                                                    act.get(n, (ch * GROUP_SIZE) + ss, x + kx, y + ky) != ch_act)
+                                                if ((wgt_width + wgt_blk_index) > (network_bits - 1)) {
+                                                    wgt_next_blk += GROUP_SIZE;
+                                                }
+                                                wgt_blk_index = (wgt_blk_index + wgt_width) % network_bits;
+
+                                            }
+
+                                            if (act_blk_index != 0) act_next_blk += GROUP_SIZE;
+
+                                        } // Kernel X
+
+                                    } // Kernel Y
+
+                                } // Parallel windows
+
+                            } // Filters
+
+                        } // Required window sets for convolution
+
+                    } else {
+
+                        uint32_t wgt_next_blk = 0;
+                        std::vector<uint32_t> act_next_blk = std::vector<uint32_t>(N_COLUMNS);
+
+                        // Activations starting positions
+                        auto channel_groups = (uint64_t) ceil(act_channels / (double) GROUP_SIZE);
+                        std::vector<std::vector<uint32_t>> act_column_offsets = std::vector<std::vector<uint32_t>>(
+                                N_COLUMNS, std::vector<uint32_t>(Ky, 0));
+                        std::vector<std::vector<uint32_t>> act_registers = std::vector<std::vector<uint32_t>>(N_COLUMNS,
+                                std::vector<uint32_t>(Ky,0));
+
+                        auto num_windows = out_x * out_y;
+                        auto windows_per_column = (uint16_t) ceil(num_windows / (double) N_COLUMNS);
+                        std::vector<uint64_t> act_base_addr = std::vector<uint64_t>(N_COLUMNS, 0);
+                        for (int C = 0; C < N_COLUMNS; ++C) {
+
+                            auto flatten_pos = C * windows_per_column;
+
+                            // Not all windows required
+                            if (flatten_pos >= (out_x * out_y))
+                                continue;
+
+                            int row = flatten_pos / out_x;
+                            int column = flatten_pos % out_x;
+                            act_base_addr[C] = act_positions[row][0];
+
+                            for (int i = 0; i < Ky; ++i) {
+                                act_column_offsets[C][i] = act_positions[row + i][0] - act_base_addr[C];
+                                act_registers[C][i] = act_positions[row + i][column] - act_base_addr[C];
+                                if (act_registers[C][i] > batch_act_max_rel_pointer)
+                                    batch_act_max_rel_pointer = act_registers[C][i];
+                            }
+                        }
+
+                        for (int w = 0; w < windows_per_column; ++w) {
+
+                            for (int m = 0; m < num_filters; m++) {
+
+                                for (int C = 0; C < N_COLUMNS; C++) { // Windows in parallel
+
+                                    // Weights starting positions
+                                    wgt_next_blk = 0;
+                                    uint8_t wgt_blk_index = 0;
+                                    uint64_t wgt_base_addr = wgt_filter_position[m]; //[m];
+
+                                    // Window starting positions
+                                    auto flatten_pos = C * windows_per_column + w;
+
+                                    // Last window may finish earlier
+                                    if (flatten_pos >= (out_x * out_y))
+                                        continue;
+
+                                    int y = flatten_pos / out_x;
+                                    int x = flatten_pos % out_x;
+
+                                    for (int ky = 0; ky < Ky; ky++) {
+
+                                        act_next_blk[C] = act_registers[C][ky];
+
+                                        for (int kx = 0; kx < Kx; kx++) {
+
+                                            uint8_t act_blk_index = 0;
+
+                                            for (int ch = 0; ch < channel_groups; ++ch) {
+
+                                                // Activations width
+                                                auto act_group_index = (y + ky) * Nx * channel_groups +
+                                                        (x + kx) * channel_groups + ch;
+                                                uint32_t act_block_offset = act_group_index * 4 / network_bits + act_group_start;
+                                                uint32_t act_mem_pointer = act_group_index * 4 % network_bits;
+                                                int act_width = get_value(memory_map, act_block_offset, act_mem_pointer,
+                                                        4, network_bits) + 1;
+                                                auto act_width_mask = (uint16_t) (1u << (act_width - 1u));
+
+                                                // Weights width
+                                                auto wgt_group_index = m * Kx * Ky * channel_groups +
+                                                        ky * Kx * channel_groups + kx * channel_groups + ch;
+                                                uint32_t wgt_block_offset = wgt_group_index * 4 / network_bits + wgt_group_start;
+                                                uint32_t wgt_mem_pointer = wgt_group_index * 4 % network_bits;
+                                                int wgt_width = get_value(memory_map, wgt_block_offset, wgt_mem_pointer,
+                                                        4, network_bits) + 1;
+                                                auto wgt_width_mask = (uint16_t) (1u << (wgt_width - 1u));
+
+                                                /*int act_index = act_mem_pointer / 4;
+                                                auto act_metadata = metadata[act_block_offset];
+                                                if (std::get<1>(act_metadata[act_index]) != (ch * GROUP_SIZE))
+                                                    exit(-1);
+                                                if (std::get<2>(act_metadata[act_index]) != (x + kx))
+                                                    exit(-1);
+                                                if (std::get<3>(act_metadata[act_index]) != (y + ky))
+                                                    exit(-1);
+                                                if (std::get<4>(act_metadata[act_index]) != act_width)
                                                     exit(-1);
 
-
-                                                wgt_metadata = metadata[wgt_block_offset];
-                                                if (((ch * GROUP_SIZE) + ss) < wgt_channels &&
-                                                    wgt.get(m, (ch * GROUP_SIZE) + ss, kx, ky) != ch_wgt)
+                                                int wgt_index = wgt_mem_pointer / 4;
+                                                auto wgt_metadata = metadata[wgt_block_offset];
+                                                if (std::get<0>(wgt_metadata[wgt_index]) != m)
+                                                    exit(-1);
+                                                if (std::get<1>(wgt_metadata[wgt_index]) != (ch * GROUP_SIZE))
+                                                    exit(-1);
+                                                if (std::get<2>(wgt_metadata[wgt_index]) != kx)
+                                                    exit(-1);
+                                                if (std::get<3>(wgt_metadata[wgt_index]) != ky)
+                                                    exit(-1);
+                                                if (std::get<4>(wgt_metadata[wgt_index]) != wgt_width)
                                                     exit(-1);*/
 
-                                                // Multiply - Accumulate
-                                                compressed_output_activations[m][x][y] += ch_act * ch_wgt;
+                                                for (int ss = 0; ss < GROUP_SIZE; ++ss) {
+
+                                                    // Activations values
+                                                    act_block_offset = ss + act_next_blk[C] + act_base_addr[C];
+                                                    uint16_t ch_act = get_value(memory_map, act_block_offset,
+                                                            act_blk_index, act_width, network_bits);
+
+                                                    if ((ch_act & act_width_mask) != 0) {
+                                                        ch_act &= ~act_width_mask;
+                                                        ch_act |= act_mask;
+                                                    }
+
+                                                    // Weights values
+                                                    wgt_block_offset = ss + wgt_next_blk + wgt_base_addr;
+                                                    uint16_t ch_wgt = get_value(memory_map, wgt_block_offset,
+                                                            wgt_blk_index, wgt_width, network_bits);
+
+                                                    if ((ch_wgt & wgt_width_mask) != 0) {
+                                                        ch_wgt &= ~wgt_width_mask;
+                                                        ch_wgt |= wgt_mask;
+                                                    }
+
+                                                    /*act_metadata = metadata[act_block_offset];
+                                                    if (((ch * GROUP_SIZE) + ss) < act_channels &&
+                                                        act.get(n, (ch * GROUP_SIZE) + ss, x + kx, y + ky) != ch_act)
+                                                        exit(-1);
+
+
+                                                    wgt_metadata = metadata[wgt_block_offset];
+                                                    if (((ch * GROUP_SIZE) + ss) < wgt_channels &&
+                                                        wgt.get(m, (ch * GROUP_SIZE) + ss, kx, ky) != ch_wgt)
+                                                        exit(-1);*/
+
+                                                    // Multiply - Accumulate
+                                                    compressed_output_activations[m][x][y] += ch_act * ch_wgt;
+
+                                                }
+
+                                                if ((act_width + act_blk_index) > (network_bits - 1)) {
+                                                    act_next_blk[C] += GROUP_SIZE;
+                                                }
+                                                act_blk_index = (act_blk_index + act_width) % network_bits;
+
+                                                if ((wgt_width + wgt_blk_index) > (network_bits - 1)) {
+                                                    wgt_next_blk += GROUP_SIZE;
+                                                }
+                                                wgt_blk_index = (wgt_blk_index + wgt_width) % network_bits;
 
                                             }
 
-                                            if ((act_width + act_blk_index) > 15) {
-                                                act_next_blk[C] += GROUP_SIZE;
+                                            if (act_blk_index != 0) act_next_blk[C] += GROUP_SIZE;
+
+                                            // Update pointer to next window after last filter
+                                            if (m == (num_filters - 1) && (kx == (stride - 1) || Kx == 1)) {
+                                                act_registers[C][ky] = act_next_blk[C];
                                             }
-                                            act_blk_index = (act_blk_index + act_width) % 16;
 
-                                            if ((wgt_width + wgt_blk_index) > 15) {
-                                                wgt_next_blk += GROUP_SIZE;
+                                        } // Kernel X
+
+                                    } // Kernel Y
+
+                                    // Update column offsets
+                                    if (x == (out_x - 1) && m == (num_filters - 1)) { // Last X window for last filter
+                                        if (Kx != 1) {
+                                            auto prev_offset = act_column_offsets[C][stride];
+                                            act_base_addr[C] = act_base_addr[C] + act_column_offsets[C][stride];
+                                            for (int ky = 0; ky < (Ky - 1); ++ky) {
+                                                act_column_offsets[C][ky] = act_column_offsets[C][ky + 1] - prev_offset;
                                             }
-                                            wgt_blk_index = (wgt_blk_index + wgt_width) % 16;
-
+                                            act_column_offsets[C][Ky - 1] = act_next_blk[C] - prev_offset;
+                                        } else {
+                                            act_base_addr[C] += act_next_blk[C];
+                                            act_column_offsets[C][0] = 0;
                                         }
 
-                                        if (act_blk_index != 0) act_next_blk[C] += GROUP_SIZE;
-
-                                        // Update pointer to next window after last filter
-                                        if (m == (num_filters - 1) && (kx == (stride - 1) || Kx == 1)) {
-                                            act_registers[C][ky] = act_next_blk[C];
+                                        // Update registers
+                                        for (int i = 0; i < Ky; i++) {
+                                            act_registers[C][i] = act_column_offsets[C][i];
+                                            if (act_registers[C][i] > batch_act_max_rel_pointer)
+                                                batch_act_max_rel_pointer = act_registers[C][i];
                                         }
-
-                                    } // Kernel X
-
-                                } // Kernel Y
-
-                                // Update column offsets
-                                if (x == (out_x - 1) && m == (num_filters - 1)) { // Last X window for last filter
-                                    if (Kx != 1) {
-                                        auto prev_offset = act_column_offsets[C][stride];
-                                        act_base_addr[C] = act_base_addr[C] + act_column_offsets[C][stride];
-                                        for (int ky = 0; ky < (Ky - 1); ++ky) {
-                                            act_column_offsets[C][ky] = act_column_offsets[C][ky + 1] - prev_offset;
-                                        }
-                                        act_column_offsets[C][Ky - 1] = act_next_blk[C] - prev_offset;
-                                    } else {
-                                        act_base_addr[C] += act_next_blk[C];
-                                        act_column_offsets[C][0] = 0;
                                     }
 
-                                    // Update registers
-                                    for (int i = 0; i < Ky; i++) {
-                                        act_registers[C][i] = act_column_offsets[C][i];
-                                        if (act_registers[C][i] > act_max_rel_pointer)
-                                            act_max_rel_pointer = act_registers[C][i];
-                                    }
-                                }
+                                } // Parallel windows
 
-                            } // Parallel windows
+                            } // Filters
 
-                        } // Filters
+                        } // Required window sets for convolution
 
-                    } // Required window sets for convolution
+                    }
 
-                }
-
-                // Check values
-                for (int ch = 0; ch < num_filters; ++ch) {
-                    for (int x = 0; x < out_x; ++x) {
-                        for (int y = 0; y < out_y; ++y) {
-                            auto actual_value = output_activations[ch][x][y];
-                            auto compressed_value = compressed_output_activations[ch][x][y];
-                            if (actual_value != compressed_value)
-                                throw std::runtime_error("On-Chip compressed wrong value.");
+                    // Check values
+                    for (int ch = 0; ch < num_filters; ++ch) {
+                        for (int x = 0; x < out_x; ++x) {
+                            for (int y = 0; y < out_y; ++y) {
+                                auto actual_value = output_activations[ch][x][y];
+                                auto compressed_value = compressed_output_activations[ch][x][y];
+                                if (actual_value != compressed_value)
+                                    throw std::runtime_error("On-Chip compressed wrong value.");
+                            }
                         }
                     }
+
+                    act_max_rel_pointer->value[layer_it][n] = batch_act_max_rel_pointer;
+
                 }
 
-                stats.act_max_rel_pointer.back()[n] = act_max_rel_pointer;
+                // Act Bits
+                auto num_act = (uint64_t) (Nx * Ny * ceil(act_channels / (double) GROUP_SIZE) * GROUP_SIZE);
+                act_baseline_size->value[layer_it][n] = num_act * network_bits;
 
-            }
+                auto proteus_size = ceil(act_channels / (double) GROUP_SIZE) * act_layer_prec;
+                act_profiled_size->value[layer_it][n] = Nx * Ny * (uint64_t)ceil(proteus_size / (double)network_bits) * network_bits * GROUP_SIZE;
 
-            // Act Bits
-            auto num_act = (uint64_t)(Nx * Ny * ceil(act_channels / (double)GROUP_SIZE) * GROUP_SIZE);
-            stats.act_baseline_size.back()[n] = num_act * network_bits;
+                act_datawidth_size->value[layer_it][n] = batch_act_datawidth_size;
+                act_datawidth_groups->value[layer_it][n] = batch_act_group_size;
+                act_datawidth_padding->value[layer_it][n] = batch_act_padding_size;
 
-            auto proteus_size = ceil(act_channels / (double)GROUP_SIZE) * act_prec;
-            stats.act_profiled_size.back()[n] = Nx * Ny * (uint64_t)ceil(proteus_size / 16.) * 16 * GROUP_SIZE;
+                uint64_t row_overhead = 0;
+                if (N_COLUMNS > out_y) {
+                    auto full_rows = N_COLUMNS / out_y;
+                    auto partial_rows = N_COLUMNS % out_y + (Ky - 1);
+                    row_overhead = Ny * full_rows * 32 + partial_rows * 32;
+                } else {
+                    row_overhead = Ny * 32;
+                }
 
-            stats.act_datawidth_size.back()[n] = act_datawidth_size;
-            stats.act_datawidth_groups.back()[n] = act_group_size;
-            stats.act_datawidth_padding.back()[n] = act_padding_size;
+                if (stride > 1 && Kx <= stride) {
+                    act_datawidth_overhead->value[layer_it][n] = out_y * out_x * 32;
+                    act_datawidth_row_overhead->value[layer_it][n] = out_y * out_x * 32;
+                    act_datawidth_max_overhead->value[layer_it][n] = out_y * out_x * 32;
+                } else if (stride > 1) {
+                    act_datawidth_overhead->value[layer_it][n] = N_COLUMNS * (16 * Ky) + row_overhead;
+                    act_datawidth_row_overhead->value[layer_it][n] = N_COLUMNS * (16 * Ky) + row_overhead;
+                    act_datawidth_max_overhead->value[layer_it][n] = Ny * out_x * 32;
+                } else {
+                    act_datawidth_overhead->value[layer_it][n] = N_COLUMNS * ((16 * Ky) + (16 * Ky) + 32);
+                    act_datawidth_row_overhead->value[layer_it][n] = N_COLUMNS * (16 * Ky) + row_overhead;
+                    act_datawidth_max_overhead->value[layer_it][n] = Ny * out_x * 32;
+                }
 
-            uint64_t row_overhead = 0;
-            if (N_COLUMNS > out_y) {
-                auto full_rows = N_COLUMNS / out_y;
-                auto partial_rows = N_COLUMNS % out_y + (Ky - 1);
-                row_overhead = Ny * full_rows * 32 + partial_rows * 32;
-            } else {
-                row_overhead = Ny * 32;
-            }
+                // Wgt Bits
+                auto num_wgt = (uint64_t) (num_filters * Kx * Ky * ceil(wgt_channels/(double)GROUP_SIZE) * GROUP_SIZE);
+                wgt_baseline_size->value[layer_it][n] = num_wgt * network_bits;
 
-            if(stride > 1 && Kx <= stride) {
-                stats.act_datawidth_overhead.back()[n] = out_y * out_x * 32;
-                stats.act_datawidth_row_overhead.back()[n] = out_y * out_x * 32;
-                stats.act_datawidth_max_overhead.back()[n] = out_y * out_x * 32;
-            } else if (stride > 1) {
-                stats.act_datawidth_overhead.back()[n] = N_COLUMNS * (16 * Ky) + row_overhead;
-                stats.act_datawidth_row_overhead.back()[n] = N_COLUMNS * (16 * Ky) + row_overhead;
-                stats.act_datawidth_max_overhead.back()[n] = Ny * out_x * 32;
-            } else {
-                stats.act_datawidth_overhead.back()[n] = N_COLUMNS * ((16 * Ky) + (16 * Ky) + 32);
-                stats.act_datawidth_row_overhead.back()[n] = N_COLUMNS * (16 * Ky) + row_overhead;
-                stats.act_datawidth_max_overhead.back()[n] = Ny * out_x * 32;
-            }
+                auto filter_size = (uint64_t) (Kx * Ky * ceil(wgt_channels / (double) GROUP_SIZE) * GROUP_SIZE);
+                wgt_profiled_size->value[layer_it][n] = num_filters * (uint64_t)ceil(filter_size * wgt_layer_prec / 16.) * 16;
+                wgt_datawidth_size->value[layer_it][n] = batch_wgt_datawidth_size;
+                wgt_datawidth_groups->value[layer_it][n] = batch_wgt_group_size;
+                wgt_datawidth_padding->value[layer_it][n] = batch_wgt_padding_size;
+                wgt_datawidth_overhead->value[layer_it][n] = num_filters * 32;
+                act_prec->value[layer_it][n] = act_layer_prec;
+                wgt_prec->value[layer_it][n] = wgt_layer_prec;
 
-            // Wgt Bits
-            auto num_wgt = (uint64_t)(num_filters * Kx * Ky * ceil(wgt_channels / (double)GROUP_SIZE) * GROUP_SIZE);
-            stats.wgt_baseline_size.back()[n] = num_wgt * network_bits;
-
-            auto filter_size = (uint64_t)(Kx * Ky * ceil(wgt_channels / (double)GROUP_SIZE) * GROUP_SIZE);
-            stats.wgt_profiled_size.back()[n] = num_filters * (uint64_t)ceil(filter_size * wgt_prec / 16.) * 16;
-            stats.wgt_datawidth_size.back()[n] = wgt_datawidth_size;
-            stats.wgt_datawidth_groups.back()[n] = wgt_group_size;
-            stats.wgt_datawidth_padding.back()[n] = wgt_padding_size;
-            stats.wgt_datawidth_overhead.back()[n] = num_filters * 32;
-
-        }
-
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-
-        stats.time.push_back(time_span);
-
-    }
-
-    template <typename T>
-    void DynamicStripes<T>::on_chip(const core::Network<T> &network) {
-        // Initialize statistics
-        sys::Statistics::Stats stats;
-        sys::Statistics::initialize(stats);
-
-        stats.task_name = "on_chip";
-        stats.net_name = network.getName();
-        stats.arch = "DynamicStripes";
-
-        for(const Layer<T> &layer : network.getLayers()) {
-            if(layer.getType() == "Convolution") {
-                stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getActPrecision());
-                stats.wgt_prec.push_back(layer.getWgtPrecision());
-                computeOnChipLayer(layer, stats, network.getNetwork_bits());
             }
         }
 
-        // Set statistics to write
-        sys::Statistics::addStats(stats);
+        //Dump statistics
+        std::string header = "DynamicStripes On Chip Compression for " + network.getName() + "\n";
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
+
     }
 
     template class DynamicStripes<uint16_t>;

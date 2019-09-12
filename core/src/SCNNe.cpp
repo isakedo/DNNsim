@@ -22,9 +22,9 @@ namespace core {
         act_bits = this->booth_encoding(act_bits);
         #endif
 
-        uint8_t act_effectual_bits = this->effectualBits(act_bits);
+        uint16_t act_effectual_bits = this->effectualBits(act_bits);
 
-        uint8_t bit_multiplications = act_effectual_bits * (uint8_t)network_bits;
+        uint16_t bit_multiplications = act_effectual_bits * (uint8_t)network_bits;
         #ifdef ZERO_COUNT
         if(bit_multiplications == 0) bit_multiplications = 1;
         #endif
@@ -115,9 +115,25 @@ namespace core {
     }
 
     template <typename T>
-    void SCNNe<T>::computeSCNNeTile(int n, int ct, int ck, int kc, int tw, int th, uint64_t X, uint64_t Y, int Kc,
-            uint64_t K, uint64_t W, uint64_t H, uint64_t R, uint64_t S, int stride, int padding,
-            const cnpy::Array<T> &act, const cnpy::Array<T> &wgt, sys::Statistics::Stats &stats) {
+    typename SCNNe<T>::Tile_stats SCNNe<T>::computeSCNNeTile(int n, int ct, int ck, int kc, int tw, int th, uint64_t X,
+            uint64_t Y, int Kc, uint64_t K, uint64_t W, uint64_t H, uint64_t R, uint64_t S, int stride, int padding,
+            const base::Array<T> &act, const base::Array<T> &wgt) {
+
+        Tile_stats tile_stats;
+        tile_stats.cycles = 0;
+        tile_stats.dense_cycles = 0;
+        tile_stats.mults = 0;
+        tile_stats.idle_bricks = 0;
+        tile_stats.idle_conflicts = 0;
+        tile_stats.idle_column_cycles = 0;
+        tile_stats.column_stalls = 0;
+        tile_stats.idle_pe = 0;
+        tile_stats.weight_buff_reads = 0;
+        tile_stats.act_buff_reads = 0;
+        tile_stats.accumulator_updates = 0;
+        tile_stats.i_loop = 0;
+        tile_stats.f_loop = 0;
+        tile_stats.offchip_weight_reads = 0;
 
         std::vector<uint32_t> tile_cycles;
         std::vector<uint32_t> tile_dense_cycles;
@@ -195,9 +211,8 @@ namespace core {
                         PE_i_loop += pe_stats.i_loop;
                         PE_f_loop += pe_stats.f_loop;
 
-                        stats.weight_buff_reads.back()[n] += stride_wgt_size;
-                        stats.act_buff_reads.back()[n] += (uint64_t)(ceil(act_queue[sx][sy].size() /
-                                (double)this->I)) *this->I;
+                        tile_stats.weight_buff_reads += stride_wgt_size;
+                        tile_stats.act_buff_reads += (uint64_t)(ceil(act_queue[sx][sy].size()/(double)this->I))*this->I;
                     }
                 }
                 wgt_size = PE_wgt_size;
@@ -205,14 +220,14 @@ namespace core {
                 tile_dense_cycles.push_back(PE_dense_cycles);
                 tile_i_loop.push_back(PE_i_loop);
 
-                stats.idle_bricks.back()[n] += PE_f_loop * this->I * this->F - PE_mults;
-                stats.mults.back()[n] += PE_mults;
-                stats.idle_conflicts.back()[n] += PE_idle_conflicts;
-                stats.idle_column_cycles.back()[n] += PE_idle_column_cycles;
-                stats.column_stalls.back()[n] += PE_column_stalls;
-                stats.accumulator_updates.back()[n] += PE_accumulator_updates;
-                stats.i_loop.back()[n] += PE_i_loop;
-                stats.f_loop.back()[n] += PE_f_loop;
+                tile_stats.idle_bricks += PE_f_loop * this->I * this->F - PE_mults;
+                tile_stats.mults += PE_mults;
+                tile_stats.idle_conflicts += PE_idle_conflicts;
+                tile_stats.idle_column_cycles += PE_idle_column_cycles;
+                tile_stats.column_stalls += PE_column_stalls;
+                tile_stats.accumulator_updates += PE_accumulator_updates;
+                tile_stats.i_loop += PE_i_loop;
+                tile_stats.f_loop += PE_f_loop;
             }
         }
 
@@ -222,359 +237,326 @@ namespace core {
             tile_idle_pe += tile_max_cycles - PE_cycles;
         auto tile_max_i_loop =  *std::max_element(tile_i_loop.begin(), tile_i_loop.end());
 
-        stats.cycles.back()[n] += tile_max_cycles;
-        stats.dense_cycles.back()[n] += *std::max_element(tile_dense_cycles.begin(), tile_dense_cycles.end());
-        stats.idle_pe.back()[n] += tile_idle_pe * this->I * this->F;
-        stats.offchip_weight_reads.back()[n] += tile_max_i_loop * wgt_size;
+        tile_stats.cycles += tile_max_cycles;
+        tile_stats.dense_cycles += *std::max_element(tile_dense_cycles.begin(), tile_dense_cycles.end());
+        tile_stats.idle_pe += tile_idle_pe * this->I * this->F;
+        tile_stats.offchip_weight_reads += tile_max_i_loop * wgt_size;
+
+        return tile_stats;
 
     }
 
     /* CYCLES */
 
     template <typename T>
-    void SCNNe<T>::computeSCNNeLayer(const core::Layer<T> &layer, sys::Statistics::Stats &stats) {
+    void SCNNe<T>::run(const base::Network<T> &network) {
 
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-
-        cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation(layer.getActPrecision());
-        cnpy::Array<T> wgt = layer.getWeights();
-        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
-
-        if(layer.getType() == "InnerProduct" || act.getDimensions() == 2) {
-            if(act.getDimensions() == 4) act.reshape_to_2D();
-            act.reshape_to_4D();
-            auto C = (int)act.getShape()[1];
-            C = (int)(ceil(C/(double)256))*256;
-            act.channel_zero_pad(C);
-            act.split_4D(C / 256, 16, 16);
-
-            auto Ck = (int)wgt.getShape()[1];
-            Ck = (int)(ceil(Ck/(double)256))*256;
-            wgt.channel_zero_pad(Ck);
-            wgt.split_4D(Ck / 256, 16, 16);
-        }
-
-        int padding = layer.getPadding();
-        int stride = layer.getStride();
-
-        act.zero_pad(padding);
-
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-
-        auto N = act_shape[0];
-        auto C = act_shape[1];
-        auto X = act_shape[2];
-        auto Y = act_shape[3];
-        if(this->FAST_MODE) N = 1;
-
-        auto K = wgt_shape[0];
-        auto Ck = wgt_shape[1];
-        auto R = wgt_shape[2];
-        auto S = wgt_shape[3];
-
-        auto W = (X - R)/stride + 1;
-        auto H = (Y - S)/stride + 1;
-
-        auto groups = C / Ck;
-        auto Kg = K / groups;
-
-        auto W_round = (int)(ceil(W/(double)this->Wt))*this->Wt;
-        auto H_round = (int)(ceil(H/(double)this->Ht))*this->Ht;
-        auto tw = W_round/this->Wt;
-        auto th = H_round/this->Ht;
-        auto Kc = (int)floor(this->out_acc_size/(double)(th*tw));
-
-        // Fix for MobileNet
-        if(Ck == 1 && C != 1) Kc = 1;
-
-        // Stats
-        stats.cycles.emplace_back(std::vector<uint64_t>(N,0));
-        stats.dense_cycles.emplace_back(std::vector<uint64_t>(N,0));
-        stats.mults.emplace_back(std::vector<uint64_t>(N,0));
-        stats.idle_bricks.emplace_back(std::vector<uint64_t>(N,0));
-        stats.idle_conflicts.emplace_back(std::vector<uint64_t>(N,0));
-        stats.idle_column_cycles.emplace_back(std::vector<uint64_t>(N,0));
-        stats.column_stalls.emplace_back(std::vector<uint64_t>(N,0));
-        stats.idle_pe.emplace_back(std::vector<uint64_t>(N,0));
-        stats.idle_halo.emplace_back(std::vector<uint64_t>(N,0));
-        stats.total_mult_cycles.emplace_back(std::vector<uint64_t>(N,0));
-        stats.halo_transfers.emplace_back(std::vector<uint64_t>(N,0));
-        stats.weight_buff_reads.emplace_back(std::vector<uint64_t>(N,0));
-        stats.act_buff_reads.emplace_back(std::vector<uint64_t>(N,0));
-        stats.accumulator_updates.emplace_back(std::vector<uint64_t>(N,0));
-        stats.i_loop.emplace_back(std::vector<uint64_t>(N,0));
-        stats.f_loop.emplace_back(std::vector<uint64_t>(N,0));
-        stats.offchip_weight_reads.emplace_back(std::vector<uint64_t>(N,0));
-
-        X = (int)(ceil(X/(double)this->Wt))*this->Wt;
-        Y = (int)(ceil(Y/(double)this->Ht))*this->Ht;
-        tw = (uint32_t)X/this->Wt;
-        th = (uint32_t)Y/this->Wt;
-
-        act.grid_zero_pad(X ,Y);
-
-        int n;
-
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for(n = 0; n < N; n++) {
-            for(int kc = 0; kc < K; kc += Kc) {
-
-                // Two towers alexnet
-                int ct = 0;
-                if(kc >= Kg) ct = (int)Ck;
-
-                // Fix for MobileNet
-                if(Ck == 1 && C != 1) ct = kc;
-
-                for(int ck = 0; ck < Ck; ck++) {
-                    computeSCNNeTile(n,ct,ck,kc,tw,th,X,Y,Kc,K,W,H,R,S,stride,padding,act,wgt,stats);
-                }
-
-                // resolve halos
-                // compute the areas of the halo regions around a non edge PE
-                // that is, how many psums need to get transferred
-
-                const int DIM = 3;
-                int x_vec[] = {(int)R - 1 - padding, (int)tw, padding};
-                int y_vec[] = {(int)S - 1 - padding, (int)th, padding};
-                int max_psum = 0;
-                uint32_t halo_transfers = 0;
-
-                for(int x = 0; x < DIM; x++) {
-                    for (int y = 0; y < DIM; y++) {
-                        int psum = x_vec[x] * y_vec[y];
-                        if(x != 1 || y != 1)  {
-                            halo_transfers += psum;
-                            if(psum > max_psum)
-                                max_psum = psum;
-                        }
-                    }
-                }
-                auto max_psums = max_psum * std::min(Kc, (int)K - kc);
-
-                stats.cycles.back()[n] += max_psums;
-                stats.dense_cycles.back()[n] += max_psums;
-                stats.idle_halo.back()[n] += max_psums * this->Ht * this->Wt * this->I * this->F;
-                stats.halo_transfers.back()[n] += halo_transfers;
-            }
-            stats.total_mult_cycles.back()[n] = stats.mults.back()[n] + stats.idle_bricks.back()[n] +
-                    stats.idle_conflicts.back()[n] + stats.idle_pe.back()[n] + stats.idle_halo.back()[n];
-        }
-
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-
-        stats.time.push_back(time_span);
-
-    }
-
-    template <typename T>
-    void SCNNe<T>::run(const Network<T> &network) {
         // Initialize statistics
-        sys::Statistics::Stats stats;
-        sys::Statistics::initialize(stats);
-
-        stats.task_name = "cycles";
-        stats.net_name = network.getName();
-        stats.arch = "SCNNe_Wt" + std::to_string(this->Wt) + "_Ht" + std::to_string(this->Ht) + "_I" +
+        std::string filename = "SCNNe_Wt" + std::to_string(this->Wt) + "_Ht" + std::to_string(this->Ht) + "_I" +
                 std::to_string(this->I) + "_F" + std::to_string(this->F) + "_acc_out" +
                 std::to_string(this->out_acc_size) + "_B" + std::to_string(this->BANKS) + "_PSB" +
-                std::to_string(PE_SERIAL_BITS);
+                std::to_string(PE_SERIAL_BITS) + "_cycles";
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
-        for(const Layer<T> &layer : network.getLayers()) {
-            if(layer.getType() == "Convolution" || layer.getType() == "InnerProduct") {
-                stats.layers.push_back(layer.getName());
-                computeSCNNeLayer(layer, stats);
+        auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
+        auto dense_cycles = stats.register_uint_t("dense_cycles", 0, sys::AverageTotal);
+        auto mults = stats.register_uint_t("mults", 0, sys::AverageTotal);
+        auto idle_bricks = stats.register_uint_t("idle_bricks", 0, sys::AverageTotal);
+        auto idle_conflicts = stats.register_uint_t("idle_conflicts", 0, sys::AverageTotal);
+        auto idle_column_cycles = stats.register_uint_t("idle_column_cycles", 0, sys::AverageTotal);
+        auto column_stalls = stats.register_uint_t("column_stalls", 0, sys::AverageTotal);
+        auto idle_pe = stats.register_uint_t("idle_pe", 0, sys::AverageTotal);
+        auto idle_halo = stats.register_uint_t("idle_halo", 0, sys::AverageTotal);
+        auto total_mult_cycles = stats.register_uint_t("total_mult_cycles", 0, sys::AverageTotal);
+        auto halo_transfers = stats.register_uint_t("halo_transfers", 0, sys::AverageTotal);
+        auto weight_buff_reads = stats.register_uint_t("weight_buff_reads", 0, sys::AverageTotal);
+        auto act_buff_reads = stats.register_uint_t("act_buff_reads", 0, sys::AverageTotal);
+        auto accumulator_updates = stats.register_uint_t("accumulator_updates", 0, sys::AverageTotal);
+        auto i_loop = stats.register_uint_t("i_loop", 0, sys::AverageTotal);
+        auto f_loop = stats.register_uint_t("f_loop", 0, sys::AverageTotal);
+        auto offchip_weight_reads = stats.register_uint_t("offchip_weight_reads", 0, sys::AverageTotal);
+
+        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
+
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
+            bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
+
+            if (lstm) continue;
+
+            base::Array<T> act = layer.getActivations();
+            act.powers_of_two_representation(layer.getActPrecision());
+            base::Array<T> wgt = layer.getWeights();
+            if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+
+            if(fc || act.getDimensions() == 2) {
+                if(act.getDimensions() == 4) act.reshape_to_2D();
+                act.reshape_to_4D();
+                auto C = (int)act.getShape()[1];
+                C = (int)(ceil(C/(double)256))*256;
+                act.channel_zero_pad(C);
+                act.split_4D(C / 256, 16, 16);
+
+                auto Ck = (int)wgt.getShape()[1];
+                Ck = (int)(ceil(Ck/(double)256))*256;
+                wgt.channel_zero_pad(Ck);
+                wgt.split_4D(Ck / 256, 16, 16);
             }
+
+            int padding = layer.getPadding();
+            int stride = layer.getStride();
+
+            act.zero_pad(padding);
+
+            const std::vector<size_t> &act_shape = act.getShape();
+            const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+            auto N = act_shape[0];
+            auto C = act_shape[1];
+            auto X = act_shape[2];
+            auto Y = act_shape[3];
+            if(this->FAST_MODE) N = 1;
+
+            auto K = wgt_shape[0];
+            auto Ck = wgt_shape[1];
+            auto R = wgt_shape[2];
+            auto S = wgt_shape[3];
+
+            auto W = (X - R)/stride + 1;
+            auto H = (Y - S)/stride + 1;
+
+            auto groups = C / Ck;
+            auto Kg = K / groups;
+
+            auto W_round = (int)(ceil(W/(double)this->Wt)) * this->Wt;
+            auto H_round = (int)(ceil(H/(double)this->Ht)) * this->Ht;
+            auto tw = W_round / this->Wt;
+            auto th = H_round / this->Ht;
+            auto Kc = (int)floor(this->out_acc_size/(double)(th*tw));
+
+            // Fix for MobileNet
+            if(Ck == 1 && C != 1) Kc = 1;
+
+            X = (int)(ceil(X / (double)this->Wt)) * this->Wt;
+            Y = (int)(ceil(Y / (double)this->Ht)) * this->Ht;
+            tw = (uint32_t)X / this->Wt;
+            th = (uint32_t)Y / this->Wt;
+
+            act.grid_zero_pad(X ,Y);
+
+            for(int n = 0; n < N; n++) {
+                for(int kc = 0; kc < K; kc += Kc) {
+
+                    // Two towers alexnet
+                    int ct = 0;
+                    if(kc >= Kg) ct = (int)Ck;
+
+                    // Fix for MobileNet
+                    if(Ck == 1 && C != 1) ct = kc;
+
+                    for(int ck = 0; ck < Ck; ck++) {
+                        auto tile_stats = computeSCNNeTile(n,ct,ck,kc,tw,th,X,Y,Kc,K,W,H,R,S,stride,padding,act,wgt);
+
+                        cycles->value[layer_it][n] += tile_stats.cycles;
+                        dense_cycles->value[layer_it][n] += tile_stats.dense_cycles;
+                        mults->value[layer_it][n] += tile_stats.mults;
+                        idle_bricks->value[layer_it][n] += tile_stats.idle_bricks;
+                        idle_conflicts->value[layer_it][n] += tile_stats.idle_conflicts;
+                        idle_column_cycles->value[layer_it][n] += tile_stats.idle_column_cycles;
+                        column_stalls->value[layer_it][n] += tile_stats.column_stalls;
+                        idle_pe->value[layer_it][n] += tile_stats.idle_pe;
+                        weight_buff_reads->value[layer_it][n] += tile_stats.weight_buff_reads;
+                        act_buff_reads->value[layer_it][n] += tile_stats.act_buff_reads;
+                        accumulator_updates->value[layer_it][n] += tile_stats.accumulator_updates;
+                        i_loop->value[layer_it][n] += tile_stats.i_loop;
+                        f_loop->value[layer_it][n] += tile_stats.f_loop;
+                        offchip_weight_reads->value[layer_it][n] += tile_stats.offchip_weight_reads;
+                    }
+
+                    // resolve halos
+                    // compute the areas of the halo regions around a non edge PE
+                    // that is, how many psums need to get transferred
+
+                    const int DIM = 3;
+                    int x_vec[] = {(int)R - 1 - padding, (int)tw, padding};
+                    int y_vec[] = {(int)S - 1 - padding, (int)th, padding};
+                    int max_psum = 0;
+                    uint32_t batch_halo_transfers = 0;
+
+                    for(int x = 0; x < DIM; x++) {
+                        for (int y = 0; y < DIM; y++) {
+                            int psum = x_vec[x] * y_vec[y];
+                            if(x != 1 || y != 1)  {
+                                batch_halo_transfers += psum;
+                                if(psum > max_psum)
+                                    max_psum = psum;
+                            }
+                        }
+                    }
+                    auto max_psums = max_psum * std::min(Kc, (int)K - kc);
+
+                    cycles->value[layer_it][n] += max_psums;
+                    dense_cycles->value[layer_it][n] += max_psums;
+                    idle_halo->value[layer_it][n] += max_psums * this->Ht * this->Wt * this->I * this->F;
+                    halo_transfers->value[layer_it][n] += batch_halo_transfers;
+                }
+                total_mult_cycles->value[layer_it][n] = mults->value[layer_it][n] + idle_bricks->value[layer_it][n] +
+                        idle_conflicts->value[layer_it][n] + idle_pe->value[layer_it][n] + idle_halo->value[layer_it][n];
+            }
+
+
         }
 
-        // Set statistics to write
-        sys::Statistics::addStats(stats);
+        //Dump statistics
+        std::string header = "SCNNe Number of Cycles for " + network.getName() + "\n";
+        header += "Number of PE columns: " + std::to_string(this->Wt) + "\n";
+        header += "Number of PE rows: " + std::to_string(this->Ht) + "\n";
+        header += "Column multipliers per PE: " + std::to_string(this->I) + "\n";
+        header += "Row multipliers per PE: " + std::to_string(this->F) + "\n";
+        header += "Output accumulator size: " + std::to_string(this->out_acc_size) + "\n";
+        header += "Number of banks: " + std::to_string(this->BANKS) + "\n";
+        header += "Number of activations processing bits per PE: " + std::to_string(PE_SERIAL_BITS) + "\n";
+
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
+
     }
 
     /* POTENTIALS */
 
     template <typename T>
-    void SCNNe<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
-            const int network_bits) {
+    void SCNNe<T>::potentials(const base::Network<T> &network) {
 
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+        // Initialize statistics
+        std::string filename = "SCNNe_potentials";
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
-        cnpy::Array<T> act = layer.getActivations();
-        act.powers_of_two_representation(layer.getActPrecision());
-        cnpy::Array<T> wgt = layer.getWeights();
-        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+        auto work_reduction = stats.register_double_t("work_reduction", 0, sys::Average);
+        auto speedup = stats.register_double_t("speedup", 0, sys::Average);
+        auto par_mult = stats.register_double_t("parallel_multiplication", 0, sys::AverageTotal);
+        auto bit_multiplications = stats.register_uint_t("bit_multiplications", 0, sys::AverageTotal);
+        auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
+        auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
+        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
 
-        auto batch_size = act_shape[0];
-        auto act_channels = act_shape[1];
-        auto Nx = act_shape[2];
-        auto Ny = act_shape[3];
-        if(this->FAST_MODE) batch_size = 1;
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
+            bool conv = layer.getType() == "Convolution";
+            bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
 
-        auto num_filters = wgt_shape[0];
-        auto wgt_channels = wgt_shape[1];
-        auto Kx = wgt_shape[2];
-        auto Ky = wgt_shape[3];
+            base::Array<T> act = layer.getActivations();
+            act.powers_of_two_representation(layer.getActPrecision());
+            if(fc && act.getDimensions() == 4) act.reshape_to_2D();
 
-        int padding = layer.getPadding();
-        int stride = layer.getStride();
+            base::Array<T> wgt = layer.getWeights();
+            if(conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
-        act.zero_pad(padding);
-        long out_x = (Nx - Kx + 2*padding)/stride + 1;
-        long out_y = (Ny - Ky + 2*padding)/stride + 1;
+            int padding = layer.getPadding();
+            int stride = layer.getStride();
 
-        auto groups = act_channels / wgt_channels;
-        auto it_per_group = num_filters / groups;
+            if (conv) act.zero_pad(padding);
 
-        // Operations
-        const auto parallel_mult = (uint64_t)(num_filters * out_x * out_y * Kx * Ky * wgt_channels);
-        stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
-        stats.speedup.emplace_back(std::vector<double>(batch_size,0));
+            const std::vector<size_t> &act_shape = act.getShape();
+            const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        int n;
+            uint64_t batch_size, act_channels, Nx, Ny, R;
+            if (lstm) {
+                R = act_shape[0];
+                batch_size = act_shape[1];
+                act_channels = act_shape[2];
+                Nx = 1;
+                Ny = 1;
+            } else {
+                R = 1;
+                batch_size = act_shape[0];
+                act_channels = act_shape[1];
+                Nx = act_shape[2];
+                Ny = act_shape[3];
+            }
 
-        // Convolution
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for(n = 0; n < batch_size; n++) {
-            uint64_t bit_counter = 0;
-            for(int m = 0; m < num_filters; m++) {
+            auto num_filters = wgt_shape[0];
+            auto wgt_channels = wgt_shape[1];
+            auto Kx = wgt_shape[2];
+            auto Ky = wgt_shape[3];
 
-                // Two towers alexnet
-                int start_group = 0;
-                if(m >= it_per_group)
-                    start_group = (int)wgt_channels;
+            long out_x = (Nx - Kx)/stride + 1;
+            long out_y = (Ny - Ky)/stride + 1;
 
-                // Fix for MobileNet
-                if(wgt_channels == 1 && act_channels != 1)
-                    start_group = m;
+            auto groups = act_channels / wgt_channels;
+            auto it_per_group = num_filters / groups;
 
-                for(int x = 0; x < out_x; x++) {
-                    for(int y = 0; y < out_y; y++) {
-                        for (int i = 0; i < Kx; i++) {
-                            for (int j = 0; j < Ky; j++) {
-                                for (int k = 0; k < wgt_channels; k++) {
-                                    bit_counter += computeSCNNeBitsPE(act.get(n, start_group + k, stride * x + i,
-                                            stride * y + j), wgt.get(m, k, i, j), network_bits);
+            auto network_bits = network.getNetwork_bits();
+
+            // Operations
+            uint64_t parallel_mult = conv ? num_filters * out_x * out_y * Kx * Ky * wgt_channels :
+                    num_filters * wgt_channels * R;
+
+            for(int n = 0; n < batch_size; n++) {
+                double MAX_BITS = network_bits * network_bits;
+                uint64_t bit_counter = 0;
+
+                if (conv) {
+
+                    for(int m = 0; m < num_filters; m++) {
+
+                        // Two towers alexnet
+                        int start_group = 0;
+                        if(m >= it_per_group)
+                            start_group = (int)wgt_channels;
+
+                        // Fix for MobileNet
+                        if(wgt_channels == 1 && act_channels != 1)
+                            start_group = m;
+
+                        for(int x = 0; x < out_x; x++) {
+                            for(int y = 0; y < out_y; y++) {
+                                for (int i = 0; i < Kx; i++) {
+                                    for (int j = 0; j < Ky; j++) {
+                                        for (int k = 0; k < wgt_channels; k++) {
+                                            bit_counter += computeSCNNeBitsPE(act.get(n, start_group + k, stride * x + i,
+                                                    stride * y + j), wgt.get(m, k, i, j), network_bits);
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            }
-            double MAX_BITS = network_bits * network_bits;
-            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
-            stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
-            stats.bit_multiplications.back()[n] = bit_counter;
-        }
 
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+                } else {
 
-        stats.time.push_back(time_span);
-        stats.parallel_multiplications.push_back(parallel_mult);
-
-    }
-
-    template <typename T>
-    void SCNNe<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats,
-            const int network_bits) {
-
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-
-        cnpy::Array<T> act = layer.getActivations();
-        if(act.getDimensions() == 4) act.reshape_to_2D();
-        const cnpy::Array<T> &wgt = layer.getWeights();
-
-        bool lstm = layer.getType() == "LSTM";
-
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-
-        auto batch_size = act_shape[0];
-        auto R = lstm ? act_shape[0] : 1;
-
-        auto num_filters = wgt_shape[0];
-        auto wgt_channels = wgt_shape[1];
-        if(this->FAST_MODE) batch_size = 1;
-
-        // Operations
-        const auto parallel_mult = (uint64_t)num_filters * wgt_channels * R;
-        stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
-        stats.speedup.emplace_back(std::vector<double>(batch_size,0));
-
-        int n;
-
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for (n = 0; n < batch_size; n++) {
-            uint64_t bit_counter = 0;
-            for (int r = 0; r < R; r++) {
-                for (int m = 0; m < num_filters; m++) {
-                    for (int k = 0; k < wgt_channels; k++) {
-                        auto act_bits = lstm ? act.get(r, n, k) : act.get(n, k);
-                        bit_counter += computeSCNNeBitsPE(act_bits, wgt.get(m, k), network_bits);
+                    for (int r = 0; r < R; r++) {
+                        for (int m = 0; m < num_filters; m++) {
+                            for (int k = 0; k < wgt_channels; k++) {
+                                auto act_bits = lstm ? act.get(r, n, k) : act.get(n, k);
+                                bit_counter += computeSCNNeBitsPE(act_bits, wgt.get(m, k), network_bits);
+                            }
+                        }
                     }
+
                 }
+
+                bit_multiplications->value[layer_it][n] = bit_counter;
+                work_reduction->value[layer_it][n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
+                speedup->value[layer_it][n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
+                par_mult->value[layer_it][n] = parallel_mult;
+                act_prec->value[layer_it][n] = layer.getActPrecision();
+                wgt_prec->value[layer_it][n] = layer.getWgtPrecision();
+
             }
-            double MAX_BITS = network_bits * network_bits;
-            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
-            stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
-            stats.bit_multiplications.back()[n] = bit_counter;
+
         }
 
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+        //Dump statistics
+        std::string header = "SCNNe Potentials/Work Reduction for " + network.getName() + "\n";
+        #ifdef BOOTH_ENCODING
+        header += "Booth-like Encoding\n";
+        #endif
+        #ifdef ZERO_COUNT
+        header += "Zero count as one cycle\n";
+        #endif
 
-        stats.time.push_back(time_span);
-        stats.parallel_multiplications.push_back(parallel_mult);
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
 
-    }
-
-
-    template <typename T>
-    void SCNNe<T>::potentials(const Network<T> &network) {
-        // Initialize statistics
-        sys::Statistics::Stats stats;
-        sys::Statistics::initialize(stats);
-
-        stats.task_name = "potentials";
-        stats.net_name = network.getName();
-        stats.arch = "SCNNe";
-
-        for(const Layer<T> &layer : network.getLayers()) {
-            if(layer.getType() == "Convolution") {
-                stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getActPrecision());
-                stats.wgt_prec.push_back(0);
-                computePotentialsConvolution(layer,stats,network.getNetwork_bits());
-            } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
-                stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getActPrecision());
-                stats.wgt_prec.push_back(0);
-                computePotentialsInnerProduct(layer,stats,network.getNetwork_bits());
-            }
-        }
-
-        // Set statistics to write
-        sys::Statistics::addStats(stats);
     }
 
     template class SCNNe<uint16_t>;

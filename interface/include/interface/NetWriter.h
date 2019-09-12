@@ -17,7 +17,7 @@ namespace interface {
          * @param layer_proto   Pointer to a protobuf layer
          * @param layer         Layer of the network that want to be stored
          */
-        void fill_layer(protobuf::Network_Layer* layer_proto, const core::Layer<T> &layer);
+        void fill_layer(protobuf::Network_Layer* layer_proto, const base::Layer<T> &layer);
 
         /* Store the a tuple of the scheduler into a protobuf tuple
          * @param schedule_tuple_proto  Schedule tuple for protobuf
@@ -39,7 +39,7 @@ namespace interface {
         /* Store the network in protobuf format
          * @param network       Network that want to be stored
          */
-        void write_network_protobuf(const core::Network<T> &network);
+        void write_network_protobuf(const base::Network<T> &network);
 
         /* Store the scheduler in protobuf format
          * @param network_schedule  Network schedule that want to be stored
