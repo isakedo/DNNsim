@@ -18,7 +18,7 @@ add_library(
         include/core/BitTacticalP.h
         include/core/BitTacticalE.h
         include/core/SCNN.h
-        #include/core/SCNNp.h
+        include/core/SCNNp.h
         include/core/SCNNe.h
         include/core/BitFusion.h
         src/Simulator.cpp
@@ -32,7 +32,7 @@ add_library(
         src/DynamicStripesFP.cpp
         src/Loom.cpp
         src/SCNN.cpp
-        #src/SCNNp.cpp
+        src/SCNNp.cpp
         src/SCNNe.cpp
         src/BitFusion.cpp
 )

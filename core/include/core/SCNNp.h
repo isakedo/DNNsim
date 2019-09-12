@@ -85,7 +85,7 @@ namespace core {
          */
         Tile_stats computeSCNNpTile(int n, int ct, int ck, int kc, int tw, int th, uint64_t X, uint64_t Y, int Kc,
                 uint64_t K, uint64_t W, uint64_t H, uint64_t R, uint64_t S, int stride, int padding,
-                const cnpy::Array<T> &act, const cnpy::Array<T> &wgt);
+                const base::Array<T> &act, const base::Array<T> &wgt);
 
     public:
 

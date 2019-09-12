@@ -420,6 +420,7 @@ namespace core {
         stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
 
     }
+
     /* POTENTIALS */
 
     template <typename T>
