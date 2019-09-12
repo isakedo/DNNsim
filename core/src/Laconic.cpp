@@ -292,8 +292,8 @@ namespace core {
             if(fc && act.getDimensions() == 4) act.reshape_to_2D();
 
             base::Array<T> wgt = layer.getWeights();
-            if(conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
             wgt.powers_of_two_representation(layer.getWgtPrecision());
+            if(conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
             int padding = layer.getPadding();
             int stride = layer.getStride();

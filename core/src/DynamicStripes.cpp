@@ -1047,14 +1047,14 @@ namespace core {
     const uint64_t GROUP_SIZE = 16;
 
     uint16_t get_value(std::map<uint64_t, uint16_t> &memory_map, uint64_t block_offset, uint64_t mem_pointer,
-            uint16_t width) {
+            uint16_t width, int network_bits) {
 
-        if ((width + mem_pointer) > 15) {
+        if ((width + mem_pointer) > (network_bits - 1)) {
 
             uint16_t block = memory_map[block_offset];
             uint16_t next_block = memory_map[block_offset + GROUP_SIZE];
 
-            uint16_t width_msb = (width + mem_pointer) % 16;
+            uint16_t width_msb = (width + mem_pointer) % network_bits;
             uint16_t width_lsb = width - width_msb;
             uint16_t value = 0;
 
@@ -1166,6 +1166,9 @@ namespace core {
             long out_x = (Nx - Kx)/stride + 1;
             long out_y = (Ny - Ky)/stride + 1;
 
+            auto groups = act_channels / wgt_channels;
+            auto it_per_group = num_filters / groups;
+
             auto act_layer_prec = layer.getActPrecision();
             auto act_mask = (uint16_t)(1u << (act_layer_prec - 1));
 
@@ -1221,19 +1224,23 @@ namespace core {
                             uint8_t width = max_bit + 1u;
                             auto width_mask = (uint16_t)(1u << (width - 1u));
 
+                            if (width > network_bits) {
+                                throw std::runtime_error("OnChip dynamic size bigger than network size");
+                            }
+
                             // Store group
                             auto metadata_grp = std::make_tuple(m, k, x, y, width, 4, false);
                             uint16_t shifted_group = (width - 1u) << wgt_group_pt;
                             wgt_memory_map[wgt_group_start + wgt_group_offset] |= shifted_group;
                             metadata[wgt_group_start + wgt_group_offset].emplace_back(metadata_grp);
                             wgt_group_pt += 4;
-                            if (wgt_group_pt == 16) {
+                            if (wgt_group_pt == network_bits) {
                                 wgt_group_pt = 0;
                                 wgt_group_offset += 1;
                             }
 
                             // Store data
-                            bool split = width + wgt_data_pt > 15;
+                            bool split = width + wgt_data_pt > (network_bits - 1);
                             for (int ss = 0; ss < GROUP_SIZE; ++ss) {
 
                                 if ((ss + k) < wgt_channels) {
@@ -1250,7 +1257,7 @@ namespace core {
                                     metadata[wgt_data_start + wgt_data_offset + ss].emplace_back(metadata_tuple);
 
                                     if (split) {
-                                        uint16_t rem_weight = weight >> (16u - wgt_data_pt);
+                                        uint16_t rem_weight = weight >> (network_bits - wgt_data_pt);
                                         wgt_memory_map[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss] = rem_weight;
                                         metadata[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
                                     }
@@ -1262,9 +1269,9 @@ namespace core {
                                 }
                             }
 
-                            batch_wgt_group_size += 4;
+                            batch_wgt_group_size += log2(network_bits);
                             batch_wgt_datawidth_size += GROUP_SIZE * width;
-                            wgt_data_pt = (wgt_data_pt + width) % 16;
+                            wgt_data_pt = (wgt_data_pt + width) % network_bits;
                             if (split || wgt_data_pt == 0)
                                 wgt_data_offset += GROUP_SIZE;
 
@@ -1273,7 +1280,7 @@ namespace core {
                 }
 
                 if (wgt_data_pt != 0) {
-                    batch_wgt_padding_size += (16 - wgt_data_pt) * GROUP_SIZE;
+                    batch_wgt_padding_size += (network_bits - wgt_data_pt) * GROUP_SIZE;
                     wgt_data_offset += GROUP_SIZE;
                     wgt_data_pt = 0;
                 }
@@ -1325,19 +1332,23 @@ namespace core {
                             uint8_t width = max_bit + 1u;
                             auto width_mask = (uint16_t) (1u << (width - 1u));
 
+                            if (width > network_bits) {
+                                throw std::runtime_error("OnChip dynamic size bigger than network size");
+                            }
+
                             // Store group
                             auto metadata_grp = std::make_tuple(n, k, x, y, width, 4, true);
                             uint16_t shifted_group = (width - 1u) << act_group_pt;
                             memory_map[act_group_start + act_group_offset] |= shifted_group;
                             metadata[act_group_start + act_group_offset].emplace_back(metadata_grp);
                             act_group_pt += 4;
-                            if (act_group_pt == 16) {
+                            if (act_group_pt == network_bits) {
                                 act_group_pt = 0;
                                 act_group_offset += 1;
                             }
 
                             // Store data
-                            bool split = width + act_data_pt > 15;
+                            bool split = width + act_data_pt > (network_bits - 1);
                             for (int ss = 0; ss < GROUP_SIZE; ++ss) {
 
                                 if ((ss + k) < act_channels) {
@@ -1354,7 +1365,7 @@ namespace core {
                                     metadata[act_data_start + act_data_offset + ss].emplace_back(metadata_tuple);
 
                                     if (split) {
-                                        uint16_t rem_activation = activation >> (16u - act_data_pt);
+                                        uint16_t rem_activation = activation >> (network_bits - act_data_pt);
                                         memory_map[act_data_start + act_data_offset + GROUP_SIZE + ss] = rem_activation;
                                         metadata[act_data_start + act_data_offset + GROUP_SIZE + ss].emplace_back(
                                                 metadata_tuple);
@@ -1369,16 +1380,16 @@ namespace core {
                                 }
                             }
 
-                            batch_act_group_size += 4;
+                            batch_act_group_size += log2(network_bits);
                             batch_act_datawidth_size += GROUP_SIZE * width;
-                            act_data_pt = (act_data_pt + width) % 16;
+                            act_data_pt = (act_data_pt + width) % network_bits;
                             if (split || act_data_pt == 0)
                                 act_data_offset += GROUP_SIZE;
 
                         }
 
                         if (act_data_pt != 0) {
-                            batch_act_padding_size += (16 - act_data_pt) * GROUP_SIZE;
+                            batch_act_padding_size += (network_bits - act_data_pt) * GROUP_SIZE;
                             act_data_offset += GROUP_SIZE;
                             act_data_pt = 0;
                         }
@@ -1387,7 +1398,7 @@ namespace core {
 
                 }
 
-                if (!this->FAST_MODE) {
+                if (true) {
 
                     auto output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
                             std::vector<std::vector<uint32_t>>(out_x,std::vector<uint32_t>(out_y,0)));
@@ -1459,18 +1470,20 @@ namespace core {
                                                 // Activations width
                                                 auto act_group_index = (stride * y + ky) * Nx * channel_groups +
                                                         (stride * x + kx) * channel_groups + ch;
-                                                uint32_t act_block_offset = act_group_index * 4 / 16 + act_group_start;
-                                                uint32_t act_mem_pointer = act_group_index * 4 % 16;
-                                                int act_width = get_value(memory_map, act_block_offset, act_mem_pointer, 4) + 1;
+                                                uint32_t act_block_offset = act_group_index * 4 / network_bits + act_group_start;
+                                                uint32_t act_mem_pointer = act_group_index * 4 % network_bits;
+                                                int act_width = get_value(memory_map, act_block_offset, act_mem_pointer,
+                                                        4, network_bits) + 1;
                                                 auto act_width_mask = (uint16_t) (1u << (act_width - 1u));
 
 
                                                 // Weights width
                                                 auto wgt_group_index = m * Kx * Ky * channel_groups +
                                                         ky * Kx * channel_groups + kx * channel_groups + ch;
-                                                uint32_t wgt_block_offset = wgt_group_index * 4 / 16 + wgt_group_start;
-                                                uint32_t wgt_mem_pointer = wgt_group_index * 4 % 16;
-                                                int wgt_width = get_value(memory_map, wgt_block_offset, wgt_mem_pointer, 4) + 1;
+                                                uint32_t wgt_block_offset = wgt_group_index * 4 / network_bits + wgt_group_start;
+                                                uint32_t wgt_mem_pointer = wgt_group_index * 4 % network_bits;
+                                                int wgt_width = get_value(memory_map, wgt_block_offset, wgt_mem_pointer,
+                                                        4, network_bits) + 1;
                                                 auto wgt_width_mask = (uint16_t) (1u << (wgt_width - 1u));
 
                                                 for (int ss = 0; ss < GROUP_SIZE; ++ss) {
@@ -1478,7 +1491,7 @@ namespace core {
                                                     // Activations values
                                                     act_block_offset = ss + act_next_blk;
                                                     uint16_t ch_act = get_value(memory_map, act_block_offset,
-                                                            act_blk_index, act_width);
+                                                            act_blk_index, act_width, network_bits);
 
                                                     if ((ch_act & act_width_mask) != 0) {
                                                         ch_act &= ~act_width_mask;
@@ -1488,7 +1501,7 @@ namespace core {
                                                     // Weights values
                                                     wgt_block_offset = ss + wgt_next_blk + wgt_base_addr;
                                                     uint16_t ch_wgt = get_value(memory_map, wgt_block_offset,
-                                                                                wgt_blk_index, wgt_width);
+                                                            wgt_blk_index, wgt_width, network_bits);
 
                                                     if ((ch_wgt & wgt_width_mask) != 0) {
                                                         ch_wgt &= ~wgt_width_mask;
@@ -1500,15 +1513,15 @@ namespace core {
 
                                                 }
 
-                                                if ((act_width + act_blk_index) > 15) {
+                                                if ((act_width + act_blk_index) > (network_bits - 1)) {
                                                     act_next_blk += GROUP_SIZE;
                                                 }
-                                                act_blk_index = (act_blk_index + act_width) % 16;
+                                                act_blk_index = (act_blk_index + act_width) % network_bits;
 
-                                                if ((wgt_width + wgt_blk_index) > 15) {
+                                                if ((wgt_width + wgt_blk_index) > (network_bits - 1)) {
                                                     wgt_next_blk += GROUP_SIZE;
                                                 }
-                                                wgt_blk_index = (wgt_blk_index + wgt_width) % 16;
+                                                wgt_blk_index = (wgt_blk_index + wgt_width) % network_bits;
 
                                             }
 
@@ -1593,18 +1606,19 @@ namespace core {
                                                 // Activations width
                                                 auto act_group_index = (y + ky) * Nx * channel_groups +
                                                         (x + kx) * channel_groups + ch;
-                                                uint32_t act_block_offset = act_group_index * 4 / 16 + act_group_start;
-                                                uint32_t act_mem_pointer = act_group_index * 4 % 16;
-                                                int act_width = get_value(memory_map, act_block_offset, act_mem_pointer, 4) + 1;
+                                                uint32_t act_block_offset = act_group_index * 4 / network_bits + act_group_start;
+                                                uint32_t act_mem_pointer = act_group_index * 4 % network_bits;
+                                                int act_width = get_value(memory_map, act_block_offset, act_mem_pointer,
+                                                        4, network_bits) + 1;
                                                 auto act_width_mask = (uint16_t) (1u << (act_width - 1u));
 
                                                 // Weights width
                                                 auto wgt_group_index = m * Kx * Ky * channel_groups +
                                                         ky * Kx * channel_groups + kx * channel_groups + ch;
-                                                uint32_t wgt_block_offset = wgt_group_index * 4 / 16 + wgt_group_start;
-                                                uint32_t wgt_mem_pointer = wgt_group_index * 4 % 16;
-                                                int wgt_width =
-                                                        get_value(memory_map, wgt_block_offset, wgt_mem_pointer, 4) + 1;
+                                                uint32_t wgt_block_offset = wgt_group_index * 4 / network_bits + wgt_group_start;
+                                                uint32_t wgt_mem_pointer = wgt_group_index * 4 % network_bits;
+                                                int wgt_width = get_value(memory_map, wgt_block_offset, wgt_mem_pointer,
+                                                        4, network_bits) + 1;
                                                 auto wgt_width_mask = (uint16_t) (1u << (wgt_width - 1u));
 
                                                 /*int act_index = act_mem_pointer / 4;
@@ -1636,7 +1650,7 @@ namespace core {
                                                     // Activations values
                                                     act_block_offset = ss + act_next_blk[C] + act_base_addr[C];
                                                     uint16_t ch_act = get_value(memory_map, act_block_offset,
-                                                                                act_blk_index, act_width);
+                                                            act_blk_index, act_width, network_bits);
 
                                                     if ((ch_act & act_width_mask) != 0) {
                                                         ch_act &= ~act_width_mask;
@@ -1646,7 +1660,7 @@ namespace core {
                                                     // Weights values
                                                     wgt_block_offset = ss + wgt_next_blk + wgt_base_addr;
                                                     uint16_t ch_wgt = get_value(memory_map, wgt_block_offset,
-                                                                                wgt_blk_index, wgt_width);
+                                                            wgt_blk_index, wgt_width, network_bits);
 
                                                     if ((ch_wgt & wgt_width_mask) != 0) {
                                                         ch_wgt &= ~wgt_width_mask;
@@ -1669,15 +1683,15 @@ namespace core {
 
                                                 }
 
-                                                if ((act_width + act_blk_index) > 15) {
+                                                if ((act_width + act_blk_index) > (network_bits - 1)) {
                                                     act_next_blk[C] += GROUP_SIZE;
                                                 }
-                                                act_blk_index = (act_blk_index + act_width) % 16;
+                                                act_blk_index = (act_blk_index + act_width) % network_bits;
 
-                                                if ((wgt_width + wgt_blk_index) > 15) {
+                                                if ((wgt_width + wgt_blk_index) > (network_bits - 1)) {
                                                     wgt_next_blk += GROUP_SIZE;
                                                 }
-                                                wgt_blk_index = (wgt_blk_index + wgt_width) % 16;
+                                                wgt_blk_index = (wgt_blk_index + wgt_width) % network_bits;
 
                                             }
 
@@ -1743,7 +1757,7 @@ namespace core {
                 act_baseline_size->value[layer_it][n] = num_act * network_bits;
 
                 auto proteus_size = ceil(act_channels / (double) GROUP_SIZE) * act_layer_prec;
-                act_profiled_size->value[layer_it][n] = Nx * Ny * (uint64_t) ceil(proteus_size / 16.) * 16 * GROUP_SIZE;
+                act_profiled_size->value[layer_it][n] = Nx * Ny * (uint64_t)ceil(proteus_size / (double)network_bits) * network_bits * GROUP_SIZE;
 
                 act_datawidth_size->value[layer_it][n] = batch_act_datawidth_size;
                 act_datawidth_groups->value[layer_it][n] = batch_act_group_size;
@@ -1777,8 +1791,7 @@ namespace core {
                 wgt_baseline_size->value[layer_it][n] = num_wgt * network_bits;
 
                 auto filter_size = (uint64_t) (Kx * Ky * ceil(wgt_channels / (double) GROUP_SIZE) * GROUP_SIZE);
-                wgt_profiled_size->value[layer_it][n] = num_filters *
-                        (uint64_t)ceil(filter_size * wgt_layer_prec / 16.) * 16;
+                wgt_profiled_size->value[layer_it][n] = num_filters * (uint64_t)ceil(filter_size * wgt_layer_prec / 16.) * 16;
                 wgt_datawidth_size->value[layer_it][n] = batch_wgt_datawidth_size;
                 wgt_datawidth_groups->value[layer_it][n] = batch_wgt_group_size;
                 wgt_datawidth_padding->value[layer_it][n] = batch_wgt_padding_size;

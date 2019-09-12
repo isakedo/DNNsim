@@ -33,7 +33,7 @@ THE SOFTWARE.
 #include <core/Laconic.h>
 #include <core/BitTacticalP.h>
 #include <core/BitTacticalE.h>
-//#include <core/SCNN.h>
+#include <core/SCNN.h>
 //#include <core/SCNNp.h>
 //#include <core/SCNNe.h>
 #include <core/BitFusion.h>
@@ -208,12 +208,12 @@ int main(int argc, char *argv[]) {
 		                    if(experiment.architecture == "None") {
 		                    	core::Simulator<float> DNNsim(N_THREADS,FAST_MODE,QUIET);
 		                        if (experiment.task == "Sparsity") DNNsim.sparsity(network);
-		                    } /*else if (experiment.architecture == "SCNN") {
+		                    } else if (experiment.architecture == "SCNN") {
 		                        core::SCNN<float> DNNsim(experiment.Wt, experiment.Ht, experiment.I, experiment.F,
-		                                experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE);
+		                                experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE, QUIET);
 		                        if (experiment.task == "Cycles") DNNsim.run(network);
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
-		                    }*/
+		                    }
 		                }
 		            } else if (simulate.data_type == "Fixed16") {
                         base::Network<uint16_t> network;
@@ -308,13 +308,13 @@ int main(int argc, char *argv[]) {
 		                            DNNsim.run(network, std::vector<schedule>(network.getNumLayers(), schedule()));
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
-		                    /*} else if (experiment.architecture == "SCNN") {
+		                    } else if (experiment.architecture == "SCNN") {
 		                        core::SCNN<uint16_t> DNNsim(experiment.Wt, experiment.Ht, experiment.I, experiment.F,
-		                                experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE);
+		                                experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE, QUIET);
 		                        if (experiment.task == "Cycles") DNNsim.run(network);
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 
-		                    } else if (experiment.architecture == "SCNNp") {
+		                    /*} else if (experiment.architecture == "SCNNp") {
 		                        core::SCNNp<uint16_t> DNNsim(experiment.Wt, experiment.Ht, experiment.I, experiment.F,
 		                                experiment.out_acc_size, experiment.banks, experiment.pe_serial_bits,
 		                                N_THREADS, FAST_MODE);

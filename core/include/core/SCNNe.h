@@ -71,28 +71,6 @@ namespace core {
                 uint64_t W, uint64_t H, uint64_t R, uint64_t S, int stride, int padding, const cnpy::Array<T> &act,
                 const cnpy::Array<T> &wgt, sys::Statistics::Stats &stats);
 
-        /* Compute the timing for a layer
-         * @param layer     Layer for which we want to calculate the outputs
-         * @param stats     Statistics to fill
-         */
-        void computeSCNNeLayer(const Layer<T> &layer, sys::Statistics::Stats &stats);
-
-        /* Compute the potentials for a convolutional layer
-         * @param layer         Layer for which we want to calculate potentials
-         * @param stats         Statistics to fill
-         * @param network_bits  Max bits network
-         */
-        void computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats, int network_bits)
-            override;
-
-        /* Compute the potentials for a inner product layer
-         * @param layer         Layer for which we want to calculate potentials
-         * @param stats         Statistics to fill
-         * @param network_bits  Max bits network
-         */
-        void computePotentialsInnerProduct(const core::Layer<T> &layer, sys::Statistics::Stats &stats, int network_bits)
-            override;
-
     public:
 
         /* Constructor
@@ -105,20 +83,22 @@ namespace core {
          * @param _PE_SERIAL_BITS   Number of bits in series that the PE process
          * @param _N_THREADS        Number of parallel threads for multi-threading execution
          * @param _FAST_MODE        Enable fast mode to simulate only one image
+         * @param _QUIET            Avoid std::out messages
          */
         SCNNe(uint32_t _Wt, uint32_t _Ht, uint32_t _I, uint32_t _F, uint32_t _out_acc_size, uint32_t _BANKS,
-                uint32_t _PE_SERIAL_BITS, uint8_t _N_THREADS, bool _FAST_MODE) : SCNN<T>(_Wt,_Ht,_I,_F,_out_acc_size,
-                _BANKS,_N_THREADS, _FAST_MODE), PE_SERIAL_BITS(_PE_SERIAL_BITS) {}
+                uint32_t _PE_SERIAL_BITS, uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET) :
+                SCNN<T>(_Wt,_Ht,_I,_F,_out_acc_size,_BANKS,_N_THREADS,_FAST_MODE,_QUIET),
+                PE_SERIAL_BITS(_PE_SERIAL_BITS) {}
 
         /* Run the timing simulator of the architecture
          * @param network   Network we want to simulate
          */
-        void run(const Network<T> &network) override;
+        void run(const base::Network<T> &network) override;
 
         /* Calculate potentials for the given network
          * @param network   Network we want to calculate work reduction
          */
-        void potentials(const Network<T> &network) override;
+        void potentials(const base::Network<T> &network) override;
 
     };
 

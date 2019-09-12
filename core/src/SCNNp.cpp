@@ -15,7 +15,7 @@ namespace core {
         if(wgt == 0) return 0;
         else if(act == 0) return 0;
         #endif
-        else return (uint8_t)(act_layer_prec * network_bits);
+        else return (uint16_t)(act_layer_prec * network_bits);
     }
 
     template <typename T>
@@ -391,187 +391,140 @@ namespace core {
     /* POTENTIALS */
 
     template <typename T>
-    void SCNNp<T>::computePotentialsConvolution(const core::Layer<T> &layer, sys::Statistics::Stats &stats,
-            const int network_bits) {
+    void SCNNp<T>::potentials(const base::Network<T> &network) {
 
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+        // Initialize statistics
+        std::string filename = "SCNNe_potentials";
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
-        cnpy::Array<T> act = layer.getActivations();
-        cnpy::Array<T> wgt = layer.getWeights();
-        if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+        auto work_reduction = stats.register_double_t("work_reduction", 0, sys::Average);
+        auto speedup = stats.register_double_t("speedup", 0, sys::Average);
+        auto par_mult = stats.register_double_t("parallel_multiplication", 0, sys::AverageTotal);
+        auto bit_multiplications = stats.register_uint_t("bit_multiplications", 0, sys::AverageTotal);
+        auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
+        auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
+        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
 
-        auto batch_size = act_shape[0];
-        auto act_channels = act_shape[1];
-        auto Nx = act_shape[2];
-        auto Ny = act_shape[3];
-        if(this->FAST_MODE) batch_size = 1;
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
+            bool conv = layer.getType() == "Convolution";
+            bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
 
-        auto num_filters = wgt_shape[0];
-        auto wgt_channels = wgt_shape[1];
-        auto Kx = wgt_shape[2];
-        auto Ky = wgt_shape[3];
+            base::Array<T> act = layer.getActivations();
+            if(fc && act.getDimensions() == 4) act.reshape_to_2D();
 
-        int padding = layer.getPadding();
-        int stride = layer.getStride();
+            base::Array<T> wgt = layer.getWeights();
+            if(conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
-        act.zero_pad(padding);
-        long out_x = (Nx - Kx + 2*padding)/stride + 1;
-        long out_y = (Ny - Ky + 2*padding)/stride + 1;
+            int padding = layer.getPadding();
+            int stride = layer.getStride();
 
-        auto groups = act_channels / wgt_channels;
-        auto it_per_group = num_filters / groups;
+            if (conv) act.zero_pad(padding);
 
-        // Get layer precision
-        auto act_layer_prec = layer.getActPrecision();
+            const std::vector<size_t> &act_shape = act.getShape();
+            const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-        // Operations
-        const auto parallel_mult = (uint64_t)(num_filters * out_x * out_y * Kx * Ky * wgt_channels);
-        stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
-        stats.speedup.emplace_back(std::vector<double>(batch_size,0));
+            uint64_t batch_size, act_channels, Nx, Ny, R;
+            if (lstm) {
+                R = act_shape[0];
+                batch_size = act_shape[1];
+                act_channels = act_shape[2];
+                Nx = 1;
+                Ny = 1;
+            } else {
+                R = 1;
+                batch_size = act_shape[0];
+                act_channels = act_shape[1];
+                Nx = act_shape[2];
+                Ny = act_shape[3];
+            }
 
-        int n;
+            auto num_filters = wgt_shape[0];
+            auto wgt_channels = wgt_shape[1];
+            auto Kx = wgt_shape[2];
+            auto Ky = wgt_shape[3];
 
-        // Convolution
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for(n = 0; n < batch_size; n++) {
-            uint64_t bit_counter = 0;
-            for(int m = 0; m < num_filters; m++) {
+            long out_x = (Nx - Kx)/stride + 1;
+            long out_y = (Ny - Ky)/stride + 1;
 
-                // Two towers alexnet
-                int start_group = 0;
-                if(m >= it_per_group)
-                    start_group = (int)wgt_channels;
+            auto groups = act_channels / wgt_channels;
+            auto it_per_group = num_filters / groups;
 
-                // Fix for MobileNet
-                if(wgt_channels == 1 && act_channels != 1)
-                    start_group = m;
+            // Get layer precision
+            auto act_layer_prec = layer.getActPrecision();
 
-                for(int x=0; x<out_x; x++) {
-                    for(int y=0; y<out_y; y++) {
-                        for (int i = 0; i < Kx; i++) {
-                            for (int j = 0; j < Ky; j++) {
-                                for (int k = 0; k < wgt_channels; k++) {
-                                    bit_counter += computeSCNNpBitsPE(act.get(n, start_group + k, stride * x + i,
-                                            stride * y + j), wgt.get(m, k, i, j), (uint8_t)act_layer_prec,
-                                            network_bits);
+            auto network_bits = network.getNetwork_bits();
+
+            // Operations
+            uint64_t parallel_mult = conv ? num_filters * out_x * out_y * Kx * Ky * wgt_channels :
+                    num_filters * wgt_channels * R;
+
+            for(int n = 0; n < batch_size; n++) {
+                double MAX_BITS = network_bits * network_bits;
+                uint64_t bit_counter = 0;
+
+                if (conv) {
+
+                    for(int m = 0; m < num_filters; m++) {
+
+                        // Two towers alexnet
+                        int start_group = 0;
+                        if(m >= it_per_group)
+                            start_group = (int)wgt_channels;
+
+                        // Fix for MobileNet
+                        if(wgt_channels == 1 && act_channels != 1)
+                            start_group = m;
+
+                        for(int x=0; x<out_x; x++) {
+                            for(int y=0; y<out_y; y++) {
+                                for (int i = 0; i < Kx; i++) {
+                                    for (int j = 0; j < Ky; j++) {
+                                        for (int k = 0; k < wgt_channels; k++) {
+                                            bit_counter += computeSCNNpBitsPE(act.get(n, start_group + k, stride * x + i,
+                                                    stride * y + j), wgt.get(m, k, i, j), (uint8_t)act_layer_prec,
+                                                    network_bits);
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            }
-            double MAX_BITS = network_bits * network_bits;
-            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
-            stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
-            stats.bit_multiplications.back()[n] = bit_counter;
-        }
 
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+                } else {
 
-        stats.time.push_back(time_span);
-        stats.parallel_multiplications.push_back(parallel_mult);
-
-    }
-
-    template <typename T>
-    void SCNNp<T>::computePotentialsInnerProduct(const Layer<T> &layer, sys::Statistics::Stats &stats,
-            const int network_bits) {
-
-        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-
-        cnpy::Array<T> act = layer.getActivations();
-        if(act.getDimensions() == 4) act.reshape_to_2D();
-        const cnpy::Array<T> &wgt = layer.getWeights();
-
-        bool lstm = layer.getType() == "LSTM";
-
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
-
-        auto batch_size = act_shape[0];
-        auto R = lstm ? act_shape[0] : 1;
-
-        auto num_filters = wgt_shape[0];
-        auto wgt_channels = wgt_shape[1];
-        if(this->FAST_MODE) batch_size = 1;
-
-        // Get layer precision
-        auto act_layer_prec = layer.getActPrecision();
-
-        // Operations
-        const auto parallel_mult = (uint64_t)num_filters * wgt_channels * R;
-        stats.bit_multiplications.emplace_back(std::vector<uint64_t>(batch_size,0));
-        stats.work_reduction.emplace_back(std::vector<double>(batch_size,0));
-        stats.speedup.emplace_back(std::vector<double>(batch_size,0));
-
-        int n;
-
-        #ifdef OPENMP
-        auto max_threads = omp_get_max_threads();
-        omp_set_num_threads(std::min(max_threads,this->N_THREADS));
-        #pragma omp parallel for private(n)
-        #endif
-        for (n = 0; n < batch_size; n++) {
-            uint64_t bit_counter = 0;
-            for (int r = 0; r < R; r++) {
-                for (int m = 0; m < num_filters; m++) {
-                    for (int k = 0; k < wgt_channels; k++) {
-                        auto act_bits = lstm ? act.get(r, n, k) : act.get(n, k);
-                        bit_counter += computeSCNNpBitsPE(act_bits, wgt.get(m, k), (uint8_t) act_layer_prec,
-                                network_bits);
+                    for (int r = 0; r < R; r++) {
+                        for (int m = 0; m < num_filters; m++) {
+                            for (int k = 0; k < wgt_channels; k++) {
+                                auto act_bits = lstm ? act.get(r, n, k) : act.get(n, k);
+                                bit_counter += computeSCNNpBitsPE(act_bits, wgt.get(m, k), (uint8_t)act_layer_prec,
+                                        network_bits);
+                            }
+                        }
                     }
+
                 }
+
+                bit_multiplications->value[layer_it][n] = bit_counter;
+                work_reduction->value[layer_it][n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
+                speedup->value[layer_it][n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
+                par_mult->value[layer_it][n] = parallel_mult;
+                act_prec->value[layer_it][n] = act_layer_prec;
+                wgt_prec->value[layer_it][n] = layer.getWgtPrecision();
+
             }
-            double MAX_BITS = network_bits * network_bits;
-            stats.work_reduction.back()[n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
-            stats.speedup.back()[n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
-            stats.bit_multiplications.back()[n] = bit_counter;
+
         }
 
-        std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+        //Dump statistics
+        std::string header = "SCNNp Potentials/Work Reduction for " + network.getName() + "\n";
+        #ifdef ZERO_COUNT
+        header += "Zero count as one cycle\n";
+        #endif
 
-        stats.time.push_back(time_span);
-        stats.parallel_multiplications.push_back(parallel_mult);
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
 
-    }
-
-
-    template <typename T>
-    void SCNNp<T>::potentials(const Network<T> &network) {
-        // Initialize statistics
-        sys::Statistics::Stats stats;
-        sys::Statistics::initialize(stats);
-
-        stats.task_name = "potentials";
-        stats.net_name = network.getName();
-        stats.arch = "SCNNp";
-
-        for(const Layer<T> &layer : network.getLayers()) {
-            if(layer.getType() == "Convolution") {
-                stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getActPrecision());
-                stats.wgt_prec.push_back(0);
-                computePotentialsConvolution(layer,stats,network.getNetwork_bits());
-            } else if (layer.getType() == "InnerProduct" || layer.getType() == "LSTM") {
-                stats.layers.push_back(layer.getName());
-                stats.act_prec.push_back(layer.getActPrecision());
-                stats.wgt_prec.push_back(0);
-                computePotentialsInnerProduct(layer,stats,network.getNetwork_bits());
-            }
-        }
-
-        // Set statistics to write
-        sys::Statistics::addStats(stats);
     }
 
     template class SCNNp<uint16_t>;
