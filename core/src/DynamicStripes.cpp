@@ -1091,8 +1091,10 @@ namespace core {
 
         auto act_baseline_size = stats.register_uint_t("act_baseline_size", 0, sys::AverageTotal);
         auto act_profiled_size = stats.register_uint_t("act_profiled_size", 0, sys::AverageTotal);
+        auto act_profiled_padding = stats.register_uint_t("act_profiled_padding", 0, sys::AverageTotal);
         auto act_datawidth_size = stats.register_uint_t("act_datawidth_size", 0, sys::AverageTotal);
         auto act_datawidth_groups = stats.register_uint_t("act_datawidth_groups", 0, sys::AverageTotal);
+        auto act_datawidth_groups_diff = stats.register_uint_t("act_datawidth_groups_diff", 0, sys::AverageTotal);
         auto act_datawidth_padding = stats.register_uint_t("act_datawidth_padding", 0, sys::AverageTotal);
         auto act_datawidth_overhead = stats.register_uint_t("act_datawidth_overhead", 0, sys::AverageTotal);
         auto act_datawidth_row_overhead = stats.register_uint_t("act_datawidth_row_overhead", 0, sys::AverageTotal);
@@ -1102,8 +1104,10 @@ namespace core {
 
         auto wgt_baseline_size = stats.register_uint_t("wgt_baseline_size", 0, sys::AverageTotal);
         auto wgt_profiled_size = stats.register_uint_t("wgt_profiled_size", 0, sys::AverageTotal);
+        auto wgt_profiled_padding = stats.register_uint_t("wgt_profiled_padding", 0, sys::AverageTotal);
         auto wgt_datawidth_size = stats.register_uint_t("wgt_datawidth_size", 0, sys::AverageTotal);
         auto wgt_datawidth_groups = stats.register_uint_t("wgt_datawidth_groups", 0, sys::AverageTotal);
+        auto wgt_datawidth_groups_diff = stats.register_uint_t("wgt_datawidth_groups_diff", 0, sys::AverageTotal);
         auto wgt_datawidth_padding = stats.register_uint_t("wgt_datawidth_padding", 0, sys::AverageTotal);
         auto wgt_datawidth_overhead = stats.register_uint_t("wgt_datawidth_overhead", 0, sys::AverageTotal);
         auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
@@ -1117,7 +1121,7 @@ namespace core {
             bool lstm = layer.getType() == "LSTM";
             bool fc = layer.getType() == "InnerProduct";
 
-            if (!conv) continue;
+            if (lstm) continue;
 
             base::Array<T> act = layer.getActivations();
             act.sign_magnitude_representation(layer.getActPrecision());
@@ -1166,8 +1170,7 @@ namespace core {
             long out_x = (Nx - Kx)/stride + 1;
             long out_y = (Ny - Ky)/stride + 1;
 
-            auto groups = act_channels / wgt_channels;
-            auto it_per_group = num_filters / groups;
+            auto channels_per_column = (uint64_t)ceil(act_channels / (double)N_COLUMNS);
 
             auto act_layer_prec = layer.getActPrecision();
             auto act_mask = (uint16_t)(1u << (act_layer_prec - 1));
@@ -1181,20 +1184,28 @@ namespace core {
             // Weights compressed
             uint64_t wgt_data_start = 0xA0000000;
             uint64_t wgt_group_start = 0xF0000000;
-            uint8_t wgt_data_pt = 0u;
-            uint8_t wgt_group_pt = 0u;
+
+            uint64_t proteus_wgt_size = 0;
+            uint64_t proteus_wgt_padding = 0;
+            uint8_t proteus_wgt_data_pt = 0;
 
             uint64_t batch_wgt_group_size = 0;
+            uint64_t batch_wgt_group_diff_size = 0;
             uint64_t batch_wgt_padding_size = 0;
             uint64_t batch_wgt_datawidth_size = 0;
             uint64_t wgt_data_offset = 0;
             uint64_t wgt_group_offset = 0;
+            uint8_t wgt_data_pt = 0u;
+            uint8_t wgt_group_pt = 0u;
 
             std::cout << layer.getName() << std::endl;
 
             auto wgt_filter_position = std::vector<uint64_t>(num_filters);
 
             for(int m = 0; m < num_filters; m++) {
+
+                uint8_t prev_group = 0;
+                uint16_t fc_channel_counter = 0;
 
                 // Generated statically
                 wgt_filter_position[m] = wgt_data_offset + wgt_data_start;
@@ -1225,7 +1236,7 @@ namespace core {
                             auto width_mask = (uint16_t)(1u << (width - 1u));
 
                             if (width > network_bits) {
-                                throw std::runtime_error("OnChip dynamic size bigger than network size");
+                                throw std::runtime_error("OnChip weights dynamic size bigger than network size");
                             }
 
                             // Store group
@@ -1270,10 +1281,36 @@ namespace core {
                             }
 
                             batch_wgt_group_size += log2(network_bits);
+                            batch_wgt_group_diff_size += (prev_group == width ? 1 : 1 + log2(network_bits));
                             batch_wgt_datawidth_size += GROUP_SIZE * width;
                             wgt_data_pt = (wgt_data_pt + width) % network_bits;
                             if (split || wgt_data_pt == 0)
                                 wgt_data_offset += GROUP_SIZE;
+
+                            // Proteus
+                            proteus_wgt_size += GROUP_SIZE * wgt_layer_prec;
+                            proteus_wgt_data_pt = (proteus_wgt_data_pt + wgt_layer_prec) % network_bits;
+
+                            prev_group = width;
+                            fc_channel_counter += GROUP_SIZE;
+
+                            // Fully connected
+                            if (fc && fc_channel_counter == channels_per_column) {
+                                prev_group = 0;
+                                fc_channel_counter = 0;
+
+                                if (wgt_data_pt != 0) {
+                                    batch_wgt_padding_size += (network_bits - wgt_data_pt) * GROUP_SIZE;
+                                    wgt_data_offset += GROUP_SIZE;
+                                    wgt_data_pt = 0;
+                                }
+
+                                // Proteus
+                                if (proteus_wgt_data_pt != 0) {
+                                    proteus_wgt_padding += (network_bits - proteus_wgt_data_pt) * GROUP_SIZE;
+                                    proteus_wgt_data_pt = 0;
+                                }
+                            }
 
                         }
                     }
@@ -1284,6 +1321,13 @@ namespace core {
                     wgt_data_offset += GROUP_SIZE;
                     wgt_data_pt = 0;
                 }
+
+                // Proteus
+                if (proteus_wgt_data_pt != 0) {
+                    proteus_wgt_padding += (network_bits - proteus_wgt_data_pt) * GROUP_SIZE;
+                    proteus_wgt_data_pt = 0;
+                }
+
             }
 
             for(int n = 0; n < batch_size; n++) {
@@ -1293,20 +1337,28 @@ namespace core {
                 // Activations compressed
                 uint64_t act_data_start = 0x20000000;
                 uint64_t act_group_start = 0x40000000;
-                uint8_t act_data_pt = 0u;
-                uint8_t act_group_pt = 0u;
+
+                uint64_t proteus_act_size = 0;
+                uint64_t proteus_act_padding = 0;
+                uint8_t proteus_act_data_pt = 0;
 
                 uint64_t batch_act_group_size = 0;
+                uint64_t batch_act_group_diff_size = 0;
                 uint64_t batch_act_padding_size = 0;
                 uint64_t batch_act_datawidth_size = 0;
                 uint64_t act_data_offset = 0;
                 uint64_t act_group_offset = 0;
+                uint8_t act_data_pt = 0u;
+                uint8_t act_group_pt = 0u;
 
                 auto act_positions = std::vector<std::vector<uint64_t>>(Ny, std::vector<uint64_t>(Nx, 0));
 
                 for (int y = 0; y < Ny; ++y) {
 
                     for (int x = 0; x < Nx; ++x) {
+
+                        uint8_t prev_group = 0;
+                        uint16_t fc_channel_counter = 0;
 
                         // Generated from "previous" layer
                         act_positions[y][x] = act_data_offset + act_data_start;
@@ -1333,7 +1385,7 @@ namespace core {
                             auto width_mask = (uint16_t) (1u << (width - 1u));
 
                             if (width > network_bits) {
-                                throw std::runtime_error("OnChip dynamic size bigger than network size");
+                                throw std::runtime_error("OnChip activations dynamic size bigger than network size");
                             }
 
                             // Store group
@@ -1381,10 +1433,35 @@ namespace core {
                             }
 
                             batch_act_group_size += log2(network_bits);
+                            batch_act_group_diff_size += (prev_group == width ? 1 : 1 + log2(network_bits));
                             batch_act_datawidth_size += GROUP_SIZE * width;
                             act_data_pt = (act_data_pt + width) % network_bits;
                             if (split || act_data_pt == 0)
                                 act_data_offset += GROUP_SIZE;
+
+                            // Proteus
+                            proteus_act_size += GROUP_SIZE * act_layer_prec;
+                            proteus_act_data_pt = (proteus_wgt_data_pt + act_layer_prec) % network_bits;
+
+                            prev_group = width;
+                            fc_channel_counter += GROUP_SIZE;
+
+                            if (fc && fc_channel_counter == channels_per_column) {
+                                prev_group = 0;
+                                fc_channel_counter = 0;
+
+                                if (act_data_pt != 0) {
+                                    batch_act_padding_size += (network_bits - act_data_pt) * GROUP_SIZE;
+                                    act_data_offset += GROUP_SIZE;
+                                    act_data_pt = 0;
+                                }
+
+                                // Proteus
+                                if (proteus_act_data_pt != 0) {
+                                    proteus_act_padding += (network_bits - proteus_act_data_pt) * GROUP_SIZE;
+                                    proteus_act_data_pt = 0;
+                                }
+                            }
 
                         }
 
@@ -1394,11 +1471,17 @@ namespace core {
                             act_data_pt = 0;
                         }
 
+                        // Proteus
+                        if (proteus_act_data_pt != 0) {
+                            proteus_act_padding += (network_bits - proteus_act_data_pt) * GROUP_SIZE;
+                            proteus_act_data_pt = 0;
+                        }
+
                     }
 
                 }
 
-                if (true) {
+                if (false && conv) {
 
                     auto output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
                             std::vector<std::vector<uint32_t>>(out_x,std::vector<uint32_t>(out_y,0)));
@@ -1755,12 +1838,12 @@ namespace core {
                 // Act Bits
                 auto num_act = (uint64_t) (Nx * Ny * ceil(act_channels / (double) GROUP_SIZE) * GROUP_SIZE);
                 act_baseline_size->value[layer_it][n] = num_act * network_bits;
-
-                auto proteus_size = ceil(act_channels / (double) GROUP_SIZE) * act_layer_prec;
-                act_profiled_size->value[layer_it][n] = Nx * Ny * (uint64_t)ceil(proteus_size / (double)network_bits) * network_bits * GROUP_SIZE;
+                act_profiled_size->value[layer_it][n] = proteus_act_size;
+                act_profiled_padding->value[layer_it][n] = proteus_act_padding;
 
                 act_datawidth_size->value[layer_it][n] = batch_act_datawidth_size;
                 act_datawidth_groups->value[layer_it][n] = batch_act_group_size;
+                act_datawidth_groups_diff->value[layer_it][n] = batch_act_group_diff_size;
                 act_datawidth_padding->value[layer_it][n] = batch_act_padding_size;
 
                 uint64_t row_overhead = 0;
@@ -1791,9 +1874,11 @@ namespace core {
                 wgt_baseline_size->value[layer_it][n] = num_wgt * network_bits;
 
                 auto filter_size = (uint64_t) (Kx * Ky * ceil(wgt_channels / (double) GROUP_SIZE) * GROUP_SIZE);
-                wgt_profiled_size->value[layer_it][n] = num_filters * (uint64_t)ceil(filter_size * wgt_layer_prec / 16.) * 16;
+                wgt_profiled_size->value[layer_it][n] = proteus_wgt_size;
+                wgt_profiled_padding->value[layer_it][n] = proteus_wgt_padding;
                 wgt_datawidth_size->value[layer_it][n] = batch_wgt_datawidth_size;
                 wgt_datawidth_groups->value[layer_it][n] = batch_wgt_group_size;
+                wgt_datawidth_groups_diff->value[layer_it][n] = batch_wgt_group_diff_size;
                 wgt_datawidth_padding->value[layer_it][n] = batch_wgt_padding_size;
                 wgt_datawidth_overhead->value[layer_it][n] = num_filters * 32;
                 act_prec->value[layer_it][n] = act_layer_prec;

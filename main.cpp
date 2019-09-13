@@ -39,29 +39,35 @@ THE SOFTWARE.
 #include <core/BitFusion.h>
 
 template <typename T>
-base::Network<T> read(const std::string &input_type, const std::string &network_name, uint32_t batch, bool QUIET) {
+base::Network<T> read(const sys::Batch::Simulate &simulate, bool QUIET) {
 
     // Read the network
     base::Network<T> network;
-    interface::NetReader<T> reader = interface::NetReader<T>(network_name, batch, 0, QUIET);
-    if (input_type == "Caffe") {
+    interface::NetReader<T> reader = interface::NetReader<T>(simulate.network, simulate.batch, 0, QUIET);
+    if (simulate.model == "Caffe") {
         network = reader.read_network_caffe();
+        network.setNetwork_bits(simulate.network_bits);
+        network.setTensorflow_8b(simulate.tensorflow_8b);
         reader.read_precision(network);
         reader.read_weights_npy(network);
         reader.read_activations_npy(network);
 
-    } else if (input_type == "Trace") {
+    } else if (simulate.model == "Trace") {
         network = reader.read_network_trace_params();
+        network.setNetwork_bits(simulate.network_bits);
+        network.setTensorflow_8b(simulate.tensorflow_8b);
         reader.read_precision(network);
         reader.read_weights_npy(network);
         reader.read_activations_npy(network);
 
-    } else if (input_type == "CParams") {
+    } else if (simulate.model == "CParams") {
         network = reader.read_network_conv_params();
+        network.setNetwork_bits(simulate.network_bits);
+        network.setTensorflow_8b(simulate.tensorflow_8b);
         reader.read_weights_npy(network);
         reader.read_activations_npy(network);
 
-    } else if (input_type == "Protobuf") {
+    } else if (simulate.model == "Protobuf") {
         network = reader.read_network_protobuf();
     } else {
 		throw std::runtime_error("Input model option not recognized");
@@ -201,9 +207,7 @@ int main(int argc, char *argv[]) {
 				} else {
 
 		            if (simulate.data_type == "Float32") {
-                        base::Network<float> network;
-		                network = read<float>(simulate.model, simulate.network, simulate.batch, QUIET);
-		                network.setNetwork_bits(simulate.network_bits);
+		                auto network = read<float>(simulate, QUIET);
 		                for(const auto &experiment : simulate.experiments) {
 		                    if(experiment.architecture == "None") {
 		                    	core::Simulator<float> DNNsim(N_THREADS,FAST_MODE,QUIET);
@@ -219,14 +223,11 @@ int main(int argc, char *argv[]) {
                         base::Network<uint16_t> network;
                         if (simulate.model != "Protobuf") {
                             base::Network<float> tmp_network;
-                            tmp_network = read<float>(simulate.model, simulate.network, simulate.batch, QUIET);
-                            tmp_network.setTensorflow_8b(simulate.tensorflow_8b);
+                            tmp_network = read<float>(simulate, QUIET);
                             network = tmp_network.fixed_point();
                         } else {
-                            network = read<uint16_t>(simulate.model, simulate.network, simulate.batch, QUIET);
+                            network = read<uint16_t>(simulate, QUIET);
 						}
-		                network.setNetwork_bits(simulate.network_bits);
-						network.setTensorflow_8b(simulate.tensorflow_8b);
 
 						if(STORE_PROTOBUF) write(network,QUIET);
 

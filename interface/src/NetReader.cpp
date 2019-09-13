@@ -440,8 +440,13 @@ namespace interface {
             // Generic precision
             int i = 0;
             for(base::Layer<T> &layer : network.updateLayers()) {
-                layer.setAct_precision(16,13,2);
-                layer.setWgt_precision(16,0,15);
+                if (network.getNetwork_bits() == 8) {
+                    layer.setAct_precision(8,6,1);
+                    layer.setWgt_precision(8,0,7);
+                } else {
+                    layer.setAct_precision(16,13,2);
+                    layer.setWgt_precision(16,0,15);
+                }
                 i++;
             }
 
