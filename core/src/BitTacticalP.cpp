@@ -37,10 +37,8 @@ namespace core {
                 else
                     act_bits = padded_act.get(batch, channel, stride * act_x + kernel_x, stride * act_y + kernel_y);
 
-                bool neg = false;
                 if((act_bits & act_mask) != 0) {
                     act_bits = act_bits & ~act_mask;
-                    neg = true;
                 }
 
                 const auto &min_max_act_bits = this->minMax(act_bits);
@@ -48,7 +46,7 @@ namespace core {
                 auto min_act_bit = std::get<0>(min_max_act_bits);
                 auto max_act_bit = std::get<1>(min_max_act_bits);
 
-                if(neg) max_act_bit += 1;
+                max_act_bit += 1;
 
                 if(min_act_bit < min_bit) min_bit = min_act_bit;
                 if(max_act_bit > max_bit) max_bit = max_act_bit;
@@ -98,10 +96,8 @@ namespace core {
                     uint16_t act_bits = padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
                             stride * list_act_y[window] + kernel_y);
 
-                    bool neg = false;
                     if((act_bits & act_mask) != 0) {
                         act_bits = act_bits & ~act_mask;
-                        neg = true;
                     }
 
                     const auto &min_max_act_bits = this->minMax(act_bits);
@@ -109,7 +105,7 @@ namespace core {
                     auto min_act_bit = std::get<0>(min_max_act_bits);
                     auto max_act_bit = std::get<1>(min_max_act_bits);
 
-                    if(neg) max_act_bit += 1;
+                    max_act_bit += 1;
 
                     if(min_act_bit < min_bit) min_bit = min_act_bit;
                     if(max_act_bit > max_bit) max_bit = max_act_bit;

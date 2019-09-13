@@ -70,9 +70,10 @@ namespace core {
     uint8_t BitTacticalE<T>::computeTacticalEColumn(int batch, int recursion, int act_x, int act_y, int stride,
             const base::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time, bool lstm) {
 
-        std::list<uint16_t> unique_act_bits;
-        std::vector<std::queue<uint8_t>> offsets;
+        std::vector<uint8_t> filter_cycles;
         for (int row = 0; row < this->N_ROWS; row++) {
+
+            std::vector<std::queue<uint8_t>> offsets;
             for (int wgt_idx = 0; wgt_idx < this->N_LANES; wgt_idx++) {
 
                 int pos = row * this->N_LANES + wgt_idx;
@@ -92,11 +93,6 @@ namespace core {
                 act_bits = this->booth_encoding(act_bits);
                 #endif
 
-                // Only store different activations
-                auto it = std::find(unique_act_bits.begin(), unique_act_bits.end(), act_bits);
-                if(it == unique_act_bits.end()) unique_act_bits.push_back(act_bits);
-                else continue;
-
                 uint8_t count = 0;
                 std::queue<uint8_t> act_offsets;
                 while (act_bits) {
@@ -108,9 +104,11 @@ namespace core {
 
                 offsets.push_back(act_offsets);
             }
+
+            filter_cycles.push_back(computeTacticalEPE(offsets));
         }
 
-        return computeTacticalEPE(offsets);
+        return *std::max_element(filter_cycles.begin(), filter_cycles.end());
 
     }
 
