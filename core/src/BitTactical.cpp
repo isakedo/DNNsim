@@ -6,7 +6,7 @@ namespace core {
 
     /* SCHEDULER */
 
-    void promote_weight(schedule &dense_filter_schedule, weight_index ineffectual, weight_index candidate) {
+    void promote_weight(set_schedule &dense_filter_schedule, weight_index ineffectual, weight_index candidate) {
         auto inef_time = std::get<0>(ineffectual);
         auto inef_lane = std::get<1>(ineffectual);
         auto cand_time = std::get<0>(candidate);
@@ -17,7 +17,7 @@ namespace core {
     }
 
     template <typename T>
-    weights_set BitTactical<T>::weight_search(const schedule &dense_schedule, weight_index wgt_idx, int max_time) {
+    weights_set BitTactical<T>::weight_search(const set_schedule &dense_schedule, weight_index wgt_idx, int max_time) {
 
         auto time = std::get<0>(wgt_idx);
         auto lane = std::get<1>(wgt_idx);
@@ -42,7 +42,7 @@ namespace core {
     }
 
     template <typename T>
-    void BitTactical<T>::filter_scheduler(schedule &dense_schedule, int time, int row, int max_time) {
+    void BitTactical<T>::filter_scheduler(set_schedule &dense_schedule, int time, int row, int max_time) {
 
         int overlap = 1;
         while(overlap > 0) {
@@ -95,30 +95,35 @@ namespace core {
     }
 
     template <typename T>
-    schedule BitTactical<T>::dense_scheduler(const schedule &sparse_schedule, const std::vector<int> &max_time) {
+    schedule BitTactical<T>::dense_scheduler(const schedule &sparse_schedule) {
 
-        schedule dense_schedule = sparse_schedule;
         schedule result_schedule = schedule();
 
-        int skip = 0, max_time_index = 0;
-        for(int time = 0; time < sparse_schedule.size(); time++) {
+        for(const auto &set_sparse_schedule : sparse_schedule) {
 
-            if(max_time[max_time_index] == time) max_time_index++;
+            set_schedule dense_schedule = set_sparse_schedule;
+            set_schedule set_result_schedule = set_schedule();
 
-            //Skip zero lines
-            if(skip < LOOKAHEAD_H && check_zero_line(dense_schedule[time])) {
-                skip++;
-                continue;
+            int skip = 0;
+            int max_time = set_sparse_schedule.size();
+            for (int time = 0; time < max_time; time++) {
+
+                //Skip zero lines
+                if (skip < LOOKAHEAD_H && check_zero_line(dense_schedule[time])) {
+                    skip++;
+                    continue;
+                }
+
+                skip = 0;
+
+                // Divide in filters to process faster
+                for (int row = 0; row < N_ROWS; row++) {
+                    filter_scheduler(dense_schedule, time, row, max_time);
+                }
+
+                set_result_schedule.emplace_back(dense_schedule[time]);
             }
-
-            skip = 0;
-
-            // Divide in filters to process faster
-            for(int row = 0; row < N_ROWS; row++) {
-                filter_scheduler(dense_schedule, time, row, max_time[max_time_index]);
-            }
-
-            result_schedule.push_back(dense_schedule[time]);
+            result_schedule.emplace_back(set_result_schedule);
         }
 
         return result_schedule;
@@ -126,8 +131,7 @@ namespace core {
     }
 
     template <typename T>
-    schedule BitTactical<T>::sparse_scheduler(const base::Array<T> &wgt, uint64_t act_channels,
-            std::vector<int> &max_time, bool fc) {
+    schedule BitTactical<T>::sparse_scheduler(const base::Array<T> &wgt, uint64_t act_channels, bool fc) {
 
         const auto &wgt_shape = wgt.getShape();
 
@@ -140,14 +144,18 @@ namespace core {
         auto it_per_group = num_filters / groups;
         int round_wgt_channels = (int)ceil(wgt_channels/(double)N_LANES)*N_LANES;
 
-        auto num_filter_sets = (int)ceil(num_filters/(double)N_ROWS);
-        auto time_per_filter = (int)ceil(round_wgt_channels*Kx*Ky/(double)N_LANES);
-        int total_time = num_filter_sets * time_per_filter;
+        auto filters_per_set = std::min(N_ROWS, (uint32_t)ceil(num_filters/(double)N_TILES));
+        auto num_filter_sets = (uint64_t)ceil(num_filters/(double)filters_per_set);
+        auto time_per_filter = (uint64_t)ceil(round_wgt_channels*Kx*Ky/(double)N_LANES);
 
-        schedule sparse_schedule = schedule((unsigned)total_time, time_schedule((unsigned)N_ROWS*N_LANES,
-                schedule_tuple(-1,-1,-1,0)));
+        schedule sparse_schedule = schedule(num_filter_sets, set_schedule(time_per_filter,
+                time_schedule(N_ROWS * N_LANES, schedule_tuple(-1,-1,-1,0))));
 
+        int set = -1;
         for(int m = 0; m < num_filters; m++) {
+
+            if ((m % filters_per_set) == 0)
+                set++;
 
             // Two towers alexnet
             int start_group = 0;
@@ -158,15 +166,15 @@ namespace core {
             if(wgt_channels == 1 && act_channels != 1)
                 start_group = m;
 
-            int time = max_time.empty() ? 0 : *std::max_element(max_time.begin(),max_time.end());
+            int time = 0;
             for (int i = 0; i < Kx; i++) {
                 for (int j = 0; j < Ky; j++) {
                     for (int k = 0; k < wgt_channels; k += N_LANES) {
                         int index = 0;
                         for(int channel = k; channel < std::min(k + (int)N_LANES,(int)wgt_channels); channel++) {
                             auto wgt_bits = fc ? wgt.get(m, channel) : wgt.get(m,channel,i,j);
-                            int pos = (m % N_ROWS) * N_LANES + index;
-                            sparse_schedule[time][pos] = std::make_tuple(start_group + channel,i,j,wgt_bits);
+                            int pos = (m % filters_per_set) * N_LANES + index;
+                            sparse_schedule[set][time][pos] = std::make_tuple(start_group + channel,i,j,wgt_bits);
                             index++;
                             if(index == N_LANES) {
                                 time++;
@@ -179,9 +187,6 @@ namespace core {
                 }
             }
 
-            if((m % N_ROWS) == (N_ROWS - 1) || m == (num_filters - 1))
-                max_time.push_back(time);
-
         }
 
         return sparse_schedule;
@@ -189,9 +194,8 @@ namespace core {
 
     template <typename T>
     schedule BitTactical<T>::scheduler(const base::Array<T> &wgt, uint64_t act_channels, bool fc) {
-        std::vector<int> max_time;
-        const auto &sparse_schedule = sparse_scheduler(wgt,act_channels,max_time, fc);
-        const auto &dense_schedule = dense_scheduler(sparse_schedule,max_time);
+        const auto &sparse_schedule = sparse_scheduler(wgt,act_channels, fc);
+        const auto &dense_schedule = dense_scheduler(sparse_schedule);
         return dense_schedule;
     }
 

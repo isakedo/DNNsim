@@ -250,17 +250,23 @@ namespace interface {
 
         for(const auto &schedule_layer_proto : network_schedule_proto.layers()) {
             schedule dense_schedule;
-            for(const auto &schedule_time_proto : schedule_layer_proto.times()) {
-                time_schedule window_schedule;
-                for(const auto &schedule_tuple_proto : schedule_time_proto.tuples()) {
-                    schedule_tuple dense_schedule_tuple = std::make_tuple(schedule_tuple_proto.channel(),
-                            schedule_tuple_proto.kernel_x(), schedule_tuple_proto.kernel_y(),
-                            schedule_tuple_proto.wgt_bits());
-                    window_schedule.push_back(dense_schedule_tuple);
+
+            for(const auto &schedule_set_proto : schedule_layer_proto.sets()) {
+                set_schedule set_dense_schedule;
+
+                for (const auto &schedule_time_proto : schedule_set_proto.times()) {
+                    time_schedule window_schedule;
+                    for (const auto &schedule_tuple_proto : schedule_time_proto.tuples()) {
+                        schedule_tuple dense_schedule_tuple = std::make_tuple(schedule_tuple_proto.channel(),
+                                schedule_tuple_proto.kernel_x(),schedule_tuple_proto.kernel_y(),
+                                schedule_tuple_proto.wgt_bits());
+                        window_schedule.emplace_back(dense_schedule_tuple);
+                    }
+                    set_dense_schedule.emplace_back(window_schedule);
                 }
-                dense_schedule.push_back(window_schedule);
+                dense_schedule.emplace_back(set_dense_schedule);
             }
-            network_schedule.push_back(dense_schedule);
+            network_schedule.emplace_back(dense_schedule);
         }
 
         if(!QUIET) std::cout << "Scheduled loaded from protobuf file" << std::endl;

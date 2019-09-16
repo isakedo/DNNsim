@@ -40,7 +40,7 @@ namespace core {
          * @return                  Number of cycles
          */
         uint8_t computeTacticalPColumn(int batch, int recursion, int act_x, int act_y, int stride,
-                const base::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time, uint16_t act_mask,
+                const base::Array<T> &padded_act, const set_schedule &dense_schedule, int schedule_time, uint16_t act_mask,
                 bool lstm);
 
         /** Compute cycles for Bit-Tactical P tile
@@ -57,7 +57,7 @@ namespace core {
          * @param stall_cycles          Stall cycles stat (Overwritten)
          */
         void computeTacticalPTile(int batch, const std::vector<int> &list_act_x, const std::vector<int>
-                &list_act_y, int stride, const base::Array<T> &padded_act, const schedule &dense_schedule,
+                &list_act_y, int stride, const base::Array<T> &padded_act, const set_schedule &dense_schedule,
                 int schedule_time, uint16_t act_mask, std::vector<uint32_t> &cycles_per_col,
                 std::vector<uint32_t> &end_previous_pallet, uint64_t &stall_cycles);
 

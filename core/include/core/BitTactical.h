@@ -16,7 +16,7 @@ namespace core {
          * @param max_time          Maximum time than can be scheduled (assuming stationary PSUM FIX)
          * @return                   Effectual candidates to substitute the ineffectual position
          */
-        weights_set weight_search(const schedule &dense_schedule, weight_index wgt_idx, int max_time);
+        weights_set weight_search(const set_schedule &dense_schedule, weight_index wgt_idx, int max_time);
 
         /** Schedule the promotions for one filter given a specific time
          * @param dense_schedule    Schedule for a filter before removing zeroes (Overwritten)
@@ -24,24 +24,21 @@ namespace core {
          * @param row               Row of X weight lanes to schedule
          * @param max_time          Maximum time than can be scheduled (assuming stationary PSUM FIX)
          */
-        void filter_scheduler(schedule &dense_schedule, int time, int row, int max_time);
+        void filter_scheduler(set_schedule &dense_schedule, int time, int row, int max_time);
 
         /** Schedule the weights in the scratchpad removing zero weights
          * @param sparse_Schedule   Schedule of the weights without removing zeroes
-         * @param max_time          Maximum time than can be scheduled (assuming stationary PSUM FIX)
          * @return                  Return the dense scheduled weights
          */
-        schedule dense_scheduler(const schedule &sparse_schedule, const std::vector<int> &max_time);
+        schedule dense_scheduler(const schedule &sparse_schedule);
 
         /** Schedule the weights in the scratchpad without removing zero weights
          * @param wgt           Weights per layer
          * @param act_channels  Number of activation channels
-         * @param max_time      Maximum time than can be scheduled (assuming stationary PSUM FIX)
          * @param fc            True if InnerProduct
          * @return              Return the sparse scheduled weights
          */
-        schedule sparse_scheduler(const base::Array<T> &wgt, uint64_t act_channels, std::vector<int> &max_time,
-                bool fc);
+        schedule sparse_scheduler(const base::Array<T> &wgt, uint64_t act_channels, bool fc);
 
     protected:
 

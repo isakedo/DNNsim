@@ -146,9 +146,9 @@ namespace core {
                     }
 
                     cycles->value[layer_it][n] = batch_cycles;
-                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads;
-                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads;
-                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates;
+                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads * N_TILES;
+                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads * N_TILES;
+                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates * N_TILES;
                     scheduled_pe->value[layer_it][n] = batch_scheduled_pe;
                     idle_pe->value[layer_it][n] = batch_idle_pe;
                     baseline_cycles->value[layer_it][n] = base_cycles;
@@ -175,9 +175,9 @@ namespace core {
                     }
 
                     cycles->value[layer_it][n] = batch_cycles * num_filters_sets;
-                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads * num_filters_sets;
-                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads * num_filters_sets;
-                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates * num_filters_sets;
+                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads * num_filters_sets * N_TILES;
+                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads * num_filters_sets * N_TILES;
+                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates * num_filters_sets * N_TILES;
                     scheduled_pe->value[layer_it][n] = batch_scheduled_pe * num_filters_sets;
                     idle_pe->value[layer_it][n] = batch_idle_pe * num_filters_sets;
                     baseline_cycles->value[layer_it][n] = base_cycles;
@@ -211,9 +211,9 @@ namespace core {
                     cycles->value[layer_it][n] = batch_cycles * num_filters_sets;
                     cycles->value[layer_it][n] += last_column_rem_cycles;
                     stall_cycles->value[layer_it][n] = batch_stall_cycles * num_filters_sets;
-                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads * num_filters_sets;
-                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads * num_filters_sets;
-                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates * num_filters_sets;
+                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads * num_filters_sets * N_TILES;
+                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads * num_filters_sets * N_TILES;
+                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates * num_filters_sets * N_TILES;
                     scheduled_pe->value[layer_it][n] = (uint64_t)(num_filters * TOTAL_ROWS *
                             ceil(act_channels/(double)N_LANES));
                     auto batch_idle_rows = TOTAL_ROWS - (num_filters % TOTAL_ROWS);

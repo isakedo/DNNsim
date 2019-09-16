@@ -43,7 +43,7 @@ namespace core {
          * @return                  Number of cycles
          */
         uint8_t computeTacticalEColumn(int batch, int recursion, int act_x, int act_y, int stride,
-                const base::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time, bool lstm);
+                const base::Array<T> &padded_act, const set_schedule &dense_schedule, int schedule_time, bool lstm);
 
         /** Compute cycles for BitTacticalE tile
          * @param batch                 Current number of batch
@@ -58,7 +58,7 @@ namespace core {
          * @param stall_cycles          Stall cycles stat (Overwritten)
          */
         void computeTacticalETile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
-                int stride, const base::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time,
+                int stride, const base::Array<T> &padded_act, const set_schedule &dense_schedule, int schedule_time,
                 std::vector<uint32_t> &cycles_per_col, std::vector<uint32_t> &end_previous_pallet,
                 uint64_t &stall_cycles);
 

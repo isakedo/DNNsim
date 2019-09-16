@@ -62,7 +62,7 @@ namespace interface {
     }
 
     template <typename T>
-    void NetWriter<T>::fill_schedule_tuple(protobuf::Schedule_Layer_Time_Tuple* schedule_tuple_proto,
+    void NetWriter<T>::fill_schedule_tuple(protobuf::Schedule_Layer_Set_Time_Tuple* schedule_tuple_proto,
             const schedule_tuple &dense_schedule_tuple) {
         schedule_tuple_proto->set_channel(std::get<0>(dense_schedule_tuple));
         schedule_tuple_proto->set_kernel_x(std::get<1>(dense_schedule_tuple));
@@ -82,10 +82,15 @@ namespace interface {
 
         for(const auto &schedule : network_schedule) {
             auto layer_proto_ptr = network_schedule_proto.add_layers();
-            for (const auto &schedule_time : schedule) {
-                auto time_proto_ptr = layer_proto_ptr->add_times();
-                for (const auto &schedule_tuple : schedule_time)
-                    fill_schedule_tuple(time_proto_ptr->add_tuples(),schedule_tuple);
+
+            for(const auto &set_schedule : schedule) {
+                auto set_proto_ptr = layer_proto_ptr->add_sets();
+
+                for (const auto &schedule_time : set_schedule) {
+                    auto time_proto_ptr = set_proto_ptr->add_times();
+                    for (const auto &schedule_tuple : schedule_time)
+                        fill_schedule_tuple(time_proto_ptr->add_tuples(), schedule_tuple);
+                }
             }
         }
 

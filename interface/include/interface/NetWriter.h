@@ -23,7 +23,7 @@ namespace interface {
          * @param schedule_tuple_proto  Schedule tuple for protobuf
          * @param dense_schedule_tuple  Schedule tuple
          */
-        void fill_schedule_tuple(protobuf::Schedule_Layer_Time_Tuple* schedule_tuple_proto,
+        void fill_schedule_tuple(protobuf::Schedule_Layer_Set_Time_Tuple* schedule_tuple_proto,
                 const schedule_tuple &dense_schedule_tuple);
 
     public:

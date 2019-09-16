@@ -7,19 +7,25 @@ message Schedule {
 
     message Layer {
 
-        message Time {
+        message Set {
 
-            message Tuple {
-                int32 channel = 1;
-                int32 kernel_x = 2;
-                int32 kernel_y = 3;
-                uint32 wgt_bits = 4;
+            message Time {
+
+                message Tuple {
+                    int32 channel = 1;
+                    int32 kernel_x = 2;
+                    int32 kernel_y = 3;
+                    uint32 wgt_bits = 4;
+                }
+
+                repeated Tuple tuples = 1;
             }
 
-            repeated Tuple tuples = 1;
+            repeated Time times = 1;
+
         }
 
-        repeated Time times = 1;
+        repeated Set sets = 1;
 
     }
 

@@ -351,11 +351,12 @@ namespace core {
                         if (wgt_channels == 1 && act_channels != 1)
                             start_group = m;
 
-                        std::vector<uint64_t> tile_cycles = std::vector<uint64_t>(N_TILES, 0);
-                        for (int tile = 0; tile < N_TILES; tile++) {
-                            auto init_m = tile * N_ROWS + m;
+                        while (this->iterateWindows(out_x, out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
 
-                            while (this->iterateWindows(out_x, out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
+                            std::vector<uint64_t> tile_cycles = std::vector<uint64_t>(N_TILES, 0);
+                            for (int tile = 0; tile < N_TILES; tile++) {
+                                auto init_m = tile * N_ROWS + m;
+
                                 for (int i = 0; i < Kx; i++) {
                                     for (int j = 0; j < Ky; j++) {
                                         for (int k = 0; k < wgt_channels; k += N_LANES) {
@@ -375,8 +376,8 @@ namespace core {
                                 }
                                 batch_accumulator_updates++;
                             }
+                            batch_cycles += *std::max_element(tile_cycles.begin(), tile_cycles.end());
                         }
-                        batch_cycles += *std::max_element(tile_cycles.begin(), tile_cycles.end());
                     }
 
                     cycles->value[layer_it][n] = batch_cycles;
@@ -433,9 +434,9 @@ namespace core {
                     }
 
                     cycles->value[layer_it][n] = max_tile_cycles;
-                    stall_cycles->value[layer_it][n] = batch_stall_cycles;
-                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads;
-                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads;
+                    stall_cycles->value[layer_it][n] = batch_stall_cycles / N_TILES;
+                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads / N_TILES;
+                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads / N_TILES;
                     accumulator_updates->value[layer_it][n] = batch_accumulator_updates;
                     scheduled_pe->value[layer_it][n] = (uint64_t) (num_filters * TOTAL_ROWS *
                             ceil(act_channels / (double) N_LANES));

@@ -68,7 +68,7 @@ namespace core {
 
     template <typename T>
     uint8_t BitTacticalE<T>::computeTacticalEColumn(int batch, int recursion, int act_x, int act_y, int stride,
-            const base::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time, bool lstm) {
+            const base::Array<T> &padded_act, const set_schedule &dense_schedule, int schedule_time, bool lstm) {
 
         std::vector<uint8_t> filter_cycles;
         for (int row = 0; row < this->N_ROWS; row++) {
@@ -115,7 +115,7 @@ namespace core {
     template <typename T>
     void BitTacticalE<T>::computeTacticalETile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int stride, const base::Array<T> &padded_act,
-            const schedule &dense_schedule, int schedule_time, std::vector<uint32_t> &cycles_per_col,
+            const set_schedule &dense_schedule, int schedule_time, std::vector<uint32_t> &cycles_per_col,
             std::vector<uint32_t> &end_previous_pallet, uint64_t &stall_cycles) {
 
         //Get the slowest column
@@ -175,7 +175,7 @@ namespace core {
         auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
         auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
-        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
+        for(auto layer_it = 0; layer_it < 1; ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
@@ -228,9 +228,6 @@ namespace core {
             long out_x = (Nx - Kx)/stride + 1;
             long out_y = (Ny - Ky)/stride + 1;
 
-            auto groups = act_channels / wgt_channels;
-            auto num_filters_sets = (uint32_t)ceil(num_filters/(double)this->N_ROWS/groups);
-
             schedule dense_schedule;
             const schedule &proto_dense_schedule = schedules[layer_it];
             if(proto_dense_schedule.empty())
@@ -240,7 +237,6 @@ namespace core {
 
             for(int n = 0; n < batch_size; n++) {
 
-                uint64_t batch_cycles = 0;
                 uint64_t batch_stall_cycles = 0;
                 uint64_t batch_weight_buff_reads = 0;
                 uint64_t batch_act_buff_reads = 0;
@@ -253,58 +249,105 @@ namespace core {
                     std::vector<int> list_x, list_y;
                     int x_counter = 0, y_counter = 0;
                     std::vector<uint32_t> end_previous_pallet = std::vector<uint32_t>(this->COLUMN_REGISTERS, 0);
-                    std::vector<uint32_t> cycles_per_col = std::vector<uint32_t>(this->N_COLUMNS, 0);
+                    std::vector<std::vector<uint32_t>> cycles_per_col = std::vector<std::vector<uint32_t>>(this->N_TILES,
+                            std::vector<uint32_t>(this->N_COLUMNS, 0));
 
                     while (this->iterateWindows(out_x, out_y, list_x, list_y, x_counter, y_counter, this->N_COLUMNS)) {
-                        for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                            computeTacticalETile(n, list_x, list_y, stride, act, dense_schedule, schedule_time,
-                                    cycles_per_col, end_previous_pallet, batch_stall_cycles);
 
-                            batch_act_buff_reads++;
-                            batch_weight_buff_reads++;
-                            batch_scheduled_pe += list_x.size() * this->N_ROWS;
-                            batch_idle_pe += (this->N_COLUMNS - list_x.size()) * this->N_ROWS;
+                        for (int set = 0; set < dense_schedule.size(); set += this->N_TILES) {
+
+                            std::vector<uint64_t> tile_cycles = std::vector<uint64_t>(this->N_TILES, 0);
+                            for (int tile = 0; tile < this->N_TILES; tile++) {
+
+                                if ((set + tile) >= dense_schedule.size()) continue;
+                                const auto &set_dense_schedule = dense_schedule[set + tile];
+
+                                for (int schedule_time = 0; schedule_time < set_dense_schedule.size(); schedule_time++) {
+                                    computeTacticalETile(n, list_x, list_y, stride, act, set_dense_schedule,
+                                            schedule_time, cycles_per_col[tile], end_previous_pallet,
+                                            batch_stall_cycles);
+
+                                    batch_act_buff_reads++;
+                                    batch_weight_buff_reads++;
+                                    batch_scheduled_pe += list_x.size() * this->N_ROWS;
+                                    batch_idle_pe += (this->N_COLUMNS - list_x.size()) * this->N_ROWS;
+                                }
+                                batch_accumulator_updates++;
+
+                            }
+
                         }
-                        batch_accumulator_updates++;
+
                     }
 
-                    cycles->value[layer_it][n] = *std::max_element(cycles_per_col.begin(), cycles_per_col.end());
-                    stall_cycles->value[layer_it][n] = batch_stall_cycles;
+                    uint64_t max_tile_cycles = 0;
+                    for (int tile = 0; tile < this->N_TILES; tile++) {
+                        uint64_t tile_cycles = *std::max_element(cycles_per_col[tile].begin(),
+                                cycles_per_col[tile].end());
+                        if (tile_cycles > max_tile_cycles)
+                            max_tile_cycles = tile_cycles;
+                    }
+
+                    cycles->value[layer_it][n] = max_tile_cycles;
+                    stall_cycles->value[layer_it][n] = batch_stall_cycles / this->N_TILES;
                     weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads;
                     act_buff_reads->value[layer_it][n] = batch_act_buff_reads;
-                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates * num_filters_sets;
+                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates;
                     scheduled_pe->value[layer_it][n] = batch_scheduled_pe;
                     idle_pe->value[layer_it][n] = batch_idle_pe;
 
                 } else {
 
                     int column_index = 0;
-                    std::vector<uint64_t> column_end = std::vector<uint64_t>(this->N_COLUMNS, 0);
+                    std::vector<uint64_t> batch_cycles = std::vector<uint64_t>(this->N_TILES, 0);
+                    std::vector<std::vector<uint64_t>> column_end = std::vector<std::vector<uint64_t>>(this->N_TILES,
+                            std::vector<uint64_t>(this->N_COLUMNS, 0));
 
                     for (int r = 0; r < R; r++) {
-                        for(int schedule_time = 0; schedule_time < dense_schedule.size(); schedule_time++) {
-                            if(batch_cycles < column_end[column_index]) {
-                                batch_stall_cycles += column_end[column_index] - batch_cycles;
-                                batch_cycles = column_end[column_index];
-                            }
-                            auto column_cycles = computeTacticalEColumn(n,r,0,0,0,act,dense_schedule,schedule_time,lstm);
-                            column_end[column_index] = batch_cycles + column_cycles;
-                            batch_cycles++;
-                            column_index++;
-                            if(column_index >= this->N_COLUMNS) column_index = 0;
 
-                            batch_act_buff_reads++;
-                            batch_weight_buff_reads++;
+                        for (int set = 0; set < dense_schedule.size(); set += this->N_TILES) {
+
+                            std::vector<uint64_t> tile_cycles = std::vector<uint64_t>(this->N_TILES, 0);
+                            for (int tile = 0; tile < this->N_TILES; tile++) {
+
+                                if ((set + tile) >= dense_schedule.size()) continue;
+                                const auto &set_dense_schedule = dense_schedule[set + tile];
+
+                                for (int schedule_time = 0; schedule_time < set_dense_schedule.size(); schedule_time++) {
+                                    if (batch_cycles[tile] < column_end[tile][column_index]) {
+                                        batch_stall_cycles += column_end[tile][column_index] - batch_cycles[tile];
+                                        batch_cycles[tile] = column_end[tile][column_index];
+                                    }
+                                    auto column_cycles = computeTacticalEColumn(n, r, 0, 0, 0, act, set_dense_schedule,
+                                            schedule_time, lstm);
+                                    column_end[tile][column_index] = batch_cycles[tile] + column_cycles;
+                                    batch_cycles[tile]++;
+                                    column_index++;
+                                    if (column_index >= this->N_COLUMNS) column_index = 0;
+
+                                    batch_act_buff_reads++;
+                                    batch_weight_buff_reads++;
+                                }
+                                batch_accumulator_updates++;
+
+                            }
+
                         }
-                        batch_accumulator_updates++;
                     }
 
-                    uint64_t last_column_end = *std::max_element(column_end.begin(), column_end.end());
-                    cycles->value[layer_it][n] = std::max(batch_cycles, last_column_end);
-                    stall_cycles->value[layer_it][n] = batch_stall_cycles;
+                    uint64_t max_tile_cycles = 0;
+                    for (int tile = 0; tile < this->N_TILES; tile++) {
+                        uint64_t last_column_end = *std::max_element(column_end[tile].begin(), column_end[tile].end());
+                        auto tile_cycles = std::max(batch_cycles[tile], last_column_end);
+                        if (tile_cycles > max_tile_cycles)
+                            max_tile_cycles = tile_cycles;
+                    }
+
+                    cycles->value[layer_it][n] = max_tile_cycles;
+                    stall_cycles->value[layer_it][n] = batch_stall_cycles / this->N_TILES;
                     weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads;
                     act_buff_reads->value[layer_it][n] = batch_act_buff_reads;
-                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates * num_filters_sets;
+                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates;
                     scheduled_pe->value[layer_it][n] = (uint64_t)(num_filters * this->N_ROWS *
                             ceil(act_channels/(double)this->N_LANES));
                     auto idle_rows = this->N_ROWS - (num_filters % this->N_ROWS);
