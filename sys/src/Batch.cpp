@@ -118,6 +118,7 @@ namespace sys {
                     experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+                    experiment.n_tiles = experiment_proto.n_tiles() < 1 ? 16 : experiment_proto.n_tiles();
                     experiment.column_registers = experiment_proto.column_registers();
                     experiment.bits_first_stage = experiment_proto.bits_first_stage();
                     experiment.diffy = experiment_proto.diffy();
@@ -126,12 +127,14 @@ namespace sys {
                     experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+                    experiment.n_tiles = experiment_proto.n_tiles() < 1 ? 16 : experiment_proto.n_tiles();
                     experiment.bits_pe = experiment_proto.bits_pe() < 1 ? 16 : experiment_proto.bits_pe();
 
                 } else if(experiment_proto.architecture() == "DynamicStripes") {
                     experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+                    experiment.n_tiles = experiment_proto.n_tiles() < 1 ? 16 : experiment_proto.n_tiles();
                     experiment.column_registers = experiment_proto.column_registers();
                     experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 256 :
                             experiment_proto.precision_granularity();
@@ -147,6 +150,7 @@ namespace sys {
                     experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+                    experiment.n_tiles = experiment_proto.n_tiles() < 1 ? 16 : experiment_proto.n_tiles();
                     experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 256 :
                             experiment_proto.precision_granularity();
                     experiment.pe_serial_bits = experiment_proto.pe_serial_bits() < 1 ? 1 :
@@ -166,11 +170,13 @@ namespace sys {
                     experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+                    experiment.n_tiles = experiment_proto.n_tiles() < 1 ? 16 : experiment_proto.n_tiles();
 
                 } else if (experiment_proto.architecture() == "BitTacticalP") {
                     experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+                    experiment.n_tiles = experiment_proto.n_tiles() < 1 ? 16 : experiment_proto.n_tiles();
                     experiment.column_registers = experiment_proto.column_registers();
                     experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 256 :
                             experiment_proto.precision_granularity();
@@ -196,6 +202,7 @@ namespace sys {
                     experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+                    experiment.n_tiles = experiment_proto.n_tiles() < 1 ? 16 : experiment_proto.n_tiles();
                     experiment.column_registers = experiment_proto.column_registers();
                     experiment.bits_first_stage = experiment_proto.bits_first_stage();
                     experiment.lookahead_h = experiment_proto.lookahead_h() < 1 ? 2 : experiment_proto.lookahead_h();

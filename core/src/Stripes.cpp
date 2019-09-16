@@ -17,7 +17,7 @@ namespace core {
 
         // Initialize statistics
         std::string filename = "Stripes_L" + std::to_string(N_LANES) + "_C" + std::to_string(N_COLUMNS) + "_R" +
-                std::to_string(N_ROWS) + "_BP" + std::to_string(BITS_PE) + "_cycles";
+                std::to_string(N_ROWS) + "_T" + std::to_string(N_TILES) + "_BP" + std::to_string(BITS_PE) + "_cycles";
         sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
@@ -35,6 +35,8 @@ namespace core {
         auto idle_pe = stats.register_uint_t("idle_pe", 0, sys::AverageTotal);
         auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
         auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
+
+        auto TOTAL_ROWS = N_ROWS * N_TILES;
 
         for (auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
 
@@ -102,11 +104,11 @@ namespace core {
                 columns_per_act = tmp;
             }
             auto windows_per_tile = N_COLUMNS/layer_columns_per_act;
-            auto filters_per_tile = N_ROWS/layer_rows_per_wgt;
+            auto filters_per_tile = TOTAL_ROWS/layer_rows_per_wgt;
 
             auto groups = act_channels / wgt_channels;
             auto num_filters_sets = (uint32_t)ceil(num_filters/(double)filters_per_tile/groups);
-            auto baseline_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS/groups);
+            auto baseline_filters_sets = (uint32_t)ceil(num_filters/(double)TOTAL_ROWS/groups);
 
             auto base_cycles = (uint64_t)(conv ? out_x * out_y * ceil(act_channels/(double)N_LANES) * Kx * Ky *
                     baseline_filters_sets : ceil(act_channels/(double)N_LANES) * baseline_filters_sets * R);
@@ -135,8 +137,8 @@ namespace core {
                                     batch_cycles += precision_cycles;
                                     batch_act_buff_reads++;
                                     batch_weight_buff_reads++;
-                                    batch_scheduled_pe += list_x.size() * N_ROWS;
-                                    batch_idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
+                                    batch_scheduled_pe += list_x.size() * TOTAL_ROWS;
+                                    batch_idle_pe += (N_COLUMNS - list_x.size()) * TOTAL_ROWS;
                                 }
                             }
                             batch_accumulator_updates++;
@@ -164,8 +166,8 @@ namespace core {
                                     batch_cycles += precision_cycles;
                                     batch_act_buff_reads++;
                                     batch_weight_buff_reads++;
-                                    batch_scheduled_pe += list_x.size() * N_ROWS;
-                                    batch_idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
+                                    batch_scheduled_pe += list_x.size() * TOTAL_ROWS;
+                                    batch_idle_pe += (N_COLUMNS - list_x.size()) * TOTAL_ROWS;
                                 }
                             }
                         }
@@ -212,17 +214,18 @@ namespace core {
                     weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads * num_filters_sets;
                     act_buff_reads->value[layer_it][n] = batch_act_buff_reads * num_filters_sets;
                     accumulator_updates->value[layer_it][n] = batch_accumulator_updates * num_filters_sets;
-                    scheduled_pe->value[layer_it][n] = (uint64_t)(num_filters * N_ROWS * ceil(act_channels/(double)N_LANES));
-                    auto idle_rows = N_ROWS - (num_filters % N_ROWS);
-                    idle_rows = idle_rows == 16 ? 0 : idle_rows;
-                    idle_pe->value[layer_it][n] = (uint64_t)(idle_rows * ceil(act_channels/(double)N_LANES));
+                    scheduled_pe->value[layer_it][n] = (uint64_t)(num_filters * TOTAL_ROWS *
+                            ceil(act_channels/(double)N_LANES));
+                    auto batch_idle_rows = TOTAL_ROWS - (num_filters % TOTAL_ROWS);
+                    batch_idle_rows = batch_idle_rows == 16 ? 0 : batch_idle_rows;
+                    idle_pe->value[layer_it][n] = (uint64_t)(batch_idle_rows * ceil(act_channels/(double)N_LANES));
                     baseline_cycles->value[layer_it][n] = base_cycles;
                     speedup->value[layer_it][n] = base_cycles / (double)cycles->value[layer_it][n];
 
                 }
 
                 idle_columns->value[layer_it][n] = N_COLUMNS - windows_per_tile * layer_columns_per_act;
-                idle_rows->value[layer_it][n] = N_ROWS - filters_per_tile * layer_rows_per_wgt;
+                idle_rows->value[layer_it][n] = TOTAL_ROWS - filters_per_tile * layer_rows_per_wgt;
                 columns_per_act->value[layer_it][n] = layer_columns_per_act;
                 rows_per_wgt->value[layer_it][n] = layer_rows_per_wgt;
                 act_prec->value[layer_it][n] = act_layer_prec;
@@ -239,6 +242,7 @@ namespace core {
         header += "Number of lanes/terms per PE: " + std::to_string(N_LANES) + "\n";
         header += "Number of columns/windows in parallel: " + std::to_string(N_COLUMNS) + "\n";
         header += "Number of rows/filters in parallel: " + std::to_string(N_ROWS) + "\n";
+        header += "Number of tiles: " + std::to_string(N_TILES) + "\n";
         header += "Size of the PE in bits: " + std::to_string(BITS_PE) + "\n";
 
         stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);

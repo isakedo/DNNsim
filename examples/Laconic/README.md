@@ -11,7 +11,6 @@ Default for the architecture. This parameters are defined in core/include/core/L
 |:---:|:---:|:---:|:---:|:---:|
 | BOOTH_ENCODING | bool | Activate booth encoding | True-False | True |
 | ZERO_COUNT | bool | Zero values count as one cycle | True-False | True | 
-| FC_MULTIPLEX_COLUMNS | bool | Fully connected layers are time-multiplexed across the columns | True-False | True |
    
 ### Input Parameters Description   
 
@@ -22,7 +21,7 @@ The following parameters are valid for this architecture:
 | n_lanes | uint32 | Number of concurrent multiplications per PE | Positive Number | 16 |
 | n_columns | uint32 | Number of columns/windows in the tile | Positive number | 16 |
 | n_rows | uint32 | Number of rows/filters in the tile | Positive number | 16 |
-| bits_pe | uint32 | Number of bits per PE | Positive number | 16 |
+| n_tiles | uint32 | Number of tiles | Positive number | 16 |
 
 Example batch files:
 

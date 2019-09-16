@@ -19,6 +19,9 @@ namespace core {
         /** Number of rows */
         const uint32_t N_ROWS;
 
+        /** Number of rows */
+        const uint32_t N_TILES;
+
         /** Number of activations per group */
         const uint32_t PRECISION_GRANULARITY;
 
@@ -145,6 +148,7 @@ namespace core {
          * @param _N_LANES                  Number of concurrent multiplications per PE
          * @param _N_COLUMNS                Number of columns
          * @param _N_ROWS                   Number of rows
+         * @param _N_TILES                  Number of tiles
          * @param _PRECISION_GRANULARITY    Granularity for dynamic precisions
          * @param _COLUMN_REGISTERS         Number of registers per SIP
          * @param _BITS_PE                  Number of bits per PE
@@ -154,11 +158,12 @@ namespace core {
          * @param _FAST_MODE                Enable fast mode to simulate only one image
          * @param _QUIET                    Avoid std::out messages
          */
-        DynamicStripes(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _PRECISION_GRANULARITY,
-                uint32_t _COLUMN_REGISTERS, uint32_t _BITS_PE, bool _LEADING_BIT, bool _DIFFY, uint8_t _N_THREADS,
-                bool _FAST_MODE, bool _QUIET) : Simulator<T>(_N_THREADS,_FAST_MODE,_QUIET), N_LANES(_N_LANES),
-                N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), PRECISION_GRANULARITY(_PRECISION_GRANULARITY),
-                COLUMN_REGISTERS(_COLUMN_REGISTERS), BITS_PE(_BITS_PE), LEADING_BIT(_LEADING_BIT), DIFFY(_DIFFY) {}
+        DynamicStripes(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES,
+                uint32_t _PRECISION_GRANULARITY, uint32_t _COLUMN_REGISTERS, uint32_t _BITS_PE, bool _LEADING_BIT,
+                bool _DIFFY, uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET) : Simulator<T>(_N_THREADS,_FAST_MODE,
+                _QUIET), N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), N_TILES(_N_TILES),
+                PRECISION_GRANULARITY(_PRECISION_GRANULARITY), COLUMN_REGISTERS(_COLUMN_REGISTERS), BITS_PE(_BITS_PE),
+                LEADING_BIT(_LEADING_BIT), DIFFY(_DIFFY) {}
 
         /** Run the timing simulator of the architecture
          * @param network   Network we want to simulate

@@ -17,39 +17,7 @@ namespace core {
     }
 
     template <typename T>
-    weights_set BitTactical<T>::L_shape_search(const schedule &dense_schedule, weight_index wgt_idx, int max_time) {
-
-        auto time = std::get<0>(wgt_idx);
-        auto lane = std::get<1>(wgt_idx);
-        auto upper_bound = (lane/(int)N_LANES)*(int)N_LANES;
-        weights_set effectual_candidates;
-        auto next_time = time + 1;
-        if(next_time >= max_time) return effectual_candidates;
-
-        // Front
-        for(int d = 1; d <= LOOKAHEAD_H; d++) {
-            auto time_d = time + d;
-            if(time_d >= max_time) break;
-            auto wgt_tuple = dense_schedule[time_d][lane];
-            auto wgt_bits = std::get<3>(wgt_tuple);
-            if(wgt_bits != 0) effectual_candidates.push_back(std::make_tuple(time_d,lane));
-        }
-
-        // Up
-        for(int h = 1; h <= LOOKASIDE_D; h++) {
-            auto lane_h = lane - h;
-            lane_h = (lane_h) < upper_bound ? N_LANES + lane_h : lane_h; // Wrap around
-            auto wgt_tuple = dense_schedule[next_time][lane_h];
-            auto wgt_bits = std::get<3>(wgt_tuple);
-            if(wgt_bits != 0) effectual_candidates.push_back(std::make_tuple(next_time,lane_h));
-        }
-
-        return effectual_candidates;
-    }
-
-    // Currently only allowed for H=2 and D=5
-    template <typename T>
-    weights_set BitTactical<T>::T_shape_search(const schedule &dense_schedule, weight_index wgt_idx, int max_time) {
+    weights_set BitTactical<T>::weight_search(const schedule &dense_schedule, weight_index wgt_idx, int max_time) {
 
         auto time = std::get<0>(wgt_idx);
         auto lane = std::get<1>(wgt_idx);
@@ -59,60 +27,31 @@ namespace core {
         auto next_time = time + 1;
         if(next_time >= max_time) return effectual_candidates;
 
-        // Front
-        for(int d = 1; d <= LOOKAHEAD_H; d++) {
-            auto time_d = time + d;
-            if(time_d >= max_time) break;
-            auto wgt_tuple = dense_schedule[time_d][lane];
+        for (auto search_space : SEARCH_MAP) {
+            auto time_h = time + std::get<0>(search_space);
+            auto lane_d = lane + std::get<1>(search_space);
+            if(time_h >= max_time) continue;
+            lane_d = (lane_d) < upper_bound ? N_LANES + lane_d : lane_d; // Wrap around
+            lane_d = (lane_d) >= lower_bound ? lane_d - N_LANES : lane_d; // Wrap around
+            auto wgt_tuple = dense_schedule[time_h][lane_d];
             auto wgt_bits = std::get<3>(wgt_tuple);
-            if(wgt_bits != 0) effectual_candidates.push_back(std::make_tuple(time_d,lane));
+            if(wgt_bits != 0) effectual_candidates.push_back(std::make_tuple(time_h,lane_d));
         }
-
-        // Up
-        for(int h = 1; h <= LOOKAHEAD_H; h++) {
-            auto lane_h = lane - h;
-            auto time_h = time + h;
-            if(time_h >= max_time) break;
-            lane_h = (lane_h) < upper_bound ? N_LANES + lane_h : lane_h; // Wrap around
-            auto wgt_tuple = dense_schedule[time_h][lane_h];
-            auto wgt_bits = std::get<3>(wgt_tuple);
-            if(wgt_bits != 0) effectual_candidates.push_back(std::make_tuple(time_h,lane_h));
-        }
-
-        // Down
-        for(int h = 1; h <= LOOKAHEAD_H; h++) {
-            auto lane_h = lane + h;
-            auto time_h = time + h;
-            if(time_h >= max_time) break;
-            lane_h = (lane_h) >= lower_bound ? lane_h - N_LANES : lane_h; // Wrap around
-            auto wgt_tuple = dense_schedule[time_h][lane_h];
-            auto wgt_bits = std::get<3>(wgt_tuple);
-            if(wgt_bits != 0) effectual_candidates.push_back(std::make_tuple(time_h,lane_h));
-        }
-
-        //For free
-        auto lane_h = lane - LOOKAHEAD_H - 1;
-        lane_h = (lane_h) < upper_bound ? N_LANES + lane_h : lane_h; // Wrap around
-        auto wgt_tuple = dense_schedule[next_time][lane_h];
-        auto wgt_bits = std::get<3>(wgt_tuple);
-        if(wgt_bits != 0) effectual_candidates.push_back(std::make_tuple(next_time,lane_h));
 
         return effectual_candidates;
-
     }
 
     template <typename T>
     void BitTactical<T>::filter_scheduler(schedule &dense_schedule, int time, int row, int max_time) {
 
-        auto search = SEARCH_SHAPE == 'L' ? &BitTactical<T>::L_shape_search : &BitTactical<T>::T_shape_search;
         int overlap = 1;
         while(overlap > 0) {
 
-            std::vector<int> num_candidates (N_ROWS*N_LANES, 0);
+            std::vector<int> num_candidates (N_ROWS * N_LANES, 0);
             std::vector<int> min_num_candidates;
 
             // Get ineffectual weights
-            int init_lane = row*N_LANES;
+            int init_lane = row * N_LANES;
             weights_set ineffectual_weights;
             for(int lane = init_lane; lane < init_lane + N_LANES; lane++) {
                 auto wgt_tuple = dense_schedule[time][lane];
@@ -121,10 +60,10 @@ namespace core {
             }
 
             // Num of candidates for each ineffectual weight
-            std::vector<weights_set> effectual_candidates (N_ROWS*N_LANES, weights_set());
+            std::vector<weights_set> effectual_candidates (N_ROWS * N_LANES, weights_set());
             for(auto wgt_idx : ineffectual_weights) {
                 auto lane = std::get<1>(wgt_idx);
-                effectual_candidates[lane] = (this->*search)(dense_schedule,wgt_idx,max_time);
+                effectual_candidates[lane] = weight_search(dense_schedule,wgt_idx,max_time);
                 if(!effectual_candidates[lane].empty()) {
                     num_candidates[lane] = (int)effectual_candidates[lane].size();
                     min_num_candidates.push_back((int)effectual_candidates[lane].size());
@@ -162,7 +101,7 @@ namespace core {
         schedule result_schedule = schedule();
 
         int skip = 0, max_time_index = 0;
-        for(int time=0; time < sparse_schedule.size(); time++) {
+        for(int time = 0; time < sparse_schedule.size(); time++) {
 
             if(max_time[max_time_index] == time) max_time_index++;
 

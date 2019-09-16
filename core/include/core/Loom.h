@@ -10,35 +10,38 @@ namespace core {
 
     private:
 
-        /* Number of concurrent multiplications per PE */
+        /** Number of concurrent multiplications per PE */
         const uint32_t N_LANES;
 
-        /* Number of columns */
+        /** Number of columns */
         const uint32_t N_COLUMNS;
 
-        /* Number of rows */
+        /** Number of rows */
         const uint32_t N_ROWS;
 
-        /* Number of activations per group */
+        /** Number of rows */
+        const uint32_t N_TILES;
+
+        /** Number of activations per group */
         const uint32_t PRECISION_GRANULARITY;
 
-        /* Number of bits in series that the PE process */
+        /** Number of bits in series that the PE process */
         const uint32_t PE_SERIAL_BITS;
 
-        /* Calculate only the leading bit for dynamic precisions */
+        /** Calculate only the leading bit for dynamic precisions */
         const bool LEADING_BIT;
 
-        /* Calculate dynamic precision for weights rather than profiled */
+        /** Calculate dynamic precision for weights rather than profiled */
         const bool DYNAMIC_WEIGHTS;
 
-        /* Compute number of one bit multiplications given a weights and an activation
+        /** Compute number of one bit multiplications given a weights and an activation
          * @param act_prec  Activation layer precision
          * @param wgt_prec  Weight layer precision
          * @return          Number of one bit multiplications
          */
         uint8_t computeLoomBitsPE(uint8_t act_prec, uint8_t wgt_prec);
 
-        /* Compute cycles for one column of laconic
+        /** Compute cycles for one column of laconic
          * @param batch         Current number of batch
          * @param recursion     Current recursion for LSTM
          * @param act_x         X position for the input window
@@ -61,7 +64,7 @@ namespace core {
                 const base::Array<T> &wgt, int start_group, int max_channel, int max_filter, uint16_t act_mask,
                 uint16_t wgt_mask, int wgt_prec, bool lstm);
 
-        /* Compute cycles for laconic tile
+        /** Compute cycles for laconic tile
          * @param batch             Current number of batch
          * @param list_act_x        X position for the set of input windows
          * @param list_act_y        Y position for the set of input windows
@@ -88,10 +91,11 @@ namespace core {
 
     public:
 
-        /* Constructor
+        /** Constructor
          * @param _N_LANES                  Number of concurrent multiplications per PE
          * @param _N_COLUMNS                Number of columns
          * @param _N_ROWS                   Number of rows
+         * @param _N_TILES                  Number of tiles
          * @param _PRECISION_GRANULARITY    Granularity for dynamic precisions
          * @param _PE_SERIAL_BITS           Number of bits in series that the PE process
          * @param _LEADING_BIT              Calculate only the leading bit for dynamic precisions
@@ -100,18 +104,19 @@ namespace core {
          * @param _FAST_MODE                Enable fast mode to simulate only one image
          * @param _QUIET                    Avoid std::out messages
          */
-        Loom(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _PRECISION_GRANULARITY,
-                uint32_t _PE_SERIAL_BITS, bool _LEADING_BIT, bool _DYNAMIC_WEIGHTS, uint8_t _N_THREADS,
-                bool _FAST_MODE, bool _QUIET) : Simulator<T>(_N_THREADS,_FAST_MODE,_QUIET), N_LANES(_N_LANES),
-                N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), PRECISION_GRANULARITY(_PRECISION_GRANULARITY),
-                PE_SERIAL_BITS(_PE_SERIAL_BITS), LEADING_BIT(_LEADING_BIT), DYNAMIC_WEIGHTS(_DYNAMIC_WEIGHTS) {}
+        Loom(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES,
+                uint32_t _PRECISION_GRANULARITY, uint32_t _PE_SERIAL_BITS, bool _LEADING_BIT, bool _DYNAMIC_WEIGHTS,
+                uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET) : Simulator<T>(_N_THREADS,_FAST_MODE,_QUIET),
+                N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), N_TILES(_N_TILES),
+                PRECISION_GRANULARITY(_PRECISION_GRANULARITY), PE_SERIAL_BITS(_PE_SERIAL_BITS),
+                LEADING_BIT(_LEADING_BIT), DYNAMIC_WEIGHTS(_DYNAMIC_WEIGHTS) {}
 
-        /* Run the timing simulator of the architecture
+        /** Run the timing simulator of the architecture
          * @param network   Network we want to simulate
          */
         void run(const base::Network<T> &network);
 
-        /* Calculate potentials for the given network
+        /** Calculate potentials for the given network
          * @param network   Network we want to calculate work reduction
          */
         void potentials(const base::Network<T> &network);

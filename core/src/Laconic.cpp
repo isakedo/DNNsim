@@ -55,7 +55,7 @@ namespace core {
             }
         }
 
-        return *std::max_element(cycles.begin(), cycles.end());
+        return cycles.empty() ? 0 : *std::max_element(cycles.begin(), cycles.end());
 
     }
 
@@ -86,7 +86,7 @@ namespace core {
 
         // Initialize statistics
         std::string filename = "Laconic_L" + std::to_string(N_LANES) + + "_C" + std::to_string(N_COLUMNS) + "_R" +
-                std::to_string(N_ROWS)+ "_cycles";
+                std::to_string(N_ROWS) + "_T" + std::to_string(N_TILES) + "_cycles";
         sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
@@ -98,6 +98,8 @@ namespace core {
         auto idle_pe = stats.register_uint_t("idle_pe", 0, sys::AverageTotal);
         auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
         auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
+
+        auto TOTAL_ROWS = N_ROWS * N_TILES;
 
         for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
 
@@ -158,7 +160,6 @@ namespace core {
 
             for(int n = 0; n < batch_size; n++) {
 
-                uint64_t batch_cycles = 0;
                 uint64_t batch_stall_cycles = 0;
                 uint64_t batch_weight_buff_reads = 0;
                 uint64_t batch_act_buff_reads = 0;
@@ -168,80 +169,108 @@ namespace core {
 
                 if (conv) {
 
+                    uint64_t batch_cycles = 0;
+
                     std::vector<int> list_x, list_y;
                     int x_counter = 0, y_counter = 0;
 
-                    for(int m = 0; m < num_filters; m += N_ROWS) {
+                    for(int m = 0; m < num_filters; m += TOTAL_ROWS) {
 
                         int start_group = 0;
-                        if(m >= it_per_group)
-                            start_group = (int)wgt_channels;
+                        if (m >= it_per_group)
+                            start_group = (int) wgt_channels;
 
                         bool conv2D = false;
-                        if(wgt_channels == 1 && act_channels != 1)
+                        if (wgt_channels == 1 && act_channels != 1)
                             conv2D = true;
 
-                        while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
-                            for (int i = 0; i < Kx; i++) {
-                                for (int j = 0; j < Ky; j++) {
-                                    for (int k = 0; k < wgt_channels; k += N_LANES) {
-                                        batch_cycles += computeLaconicTile(n,list_x, list_y, i, j, k, m, stride, act,
-                                                wgt, start_group, (int)wgt_channels, (int)num_filters, conv2D,
-                                                batch_stall_cycles);
+                        std::vector<uint64_t> tile_cycles = std::vector<uint64_t>(N_TILES, 0);
+                        for (int tile = 0; tile < N_TILES; tile++) {
+                            auto init_m = tile * N_ROWS + m;
 
-                                        batch_act_buff_reads++;
-                                        batch_weight_buff_reads++;
-                                        batch_scheduled_pe += list_x.size() * N_ROWS;
-                                        batch_idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
+                            while (this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
+                                for (int i = 0; i < Kx; i++) {
+                                    for (int j = 0; j < Ky; j++) {
+                                        for (int k = 0; k < wgt_channels; k += N_LANES) {
+
+                                            auto tmp_tile_cycles = computeLaconicTile(n, list_x, list_y, i, j, k,
+                                                    init_m, stride, act, wgt, start_group, (int)wgt_channels,
+                                                    (int)num_filters, conv2D, batch_stall_cycles);
+                                            tile_cycles[tile] += tmp_tile_cycles;
+
+                                            batch_act_buff_reads++;
+                                            batch_weight_buff_reads++;
+                                            batch_scheduled_pe += list_x.size() * N_ROWS;
+                                            batch_idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
+                                        }
                                     }
                                 }
+                                batch_accumulator_updates++;
                             }
-                            batch_accumulator_updates++;
                         }
+                        batch_cycles += *std::max_element(tile_cycles.begin(), tile_cycles.end());
                     }
 
                     cycles->value[layer_it][n] = batch_cycles;
                     stall_cycles->value[layer_it][n] = batch_stall_cycles;
-                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads;
-                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads;
-                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates;
+                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads / N_TILES;
+                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads / N_TILES;
+                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates / N_TILES;
                     scheduled_pe->value[layer_it][n] = batch_scheduled_pe;
                     idle_pe->value[layer_it][n] = batch_idle_pe;
 
                 } else {
 
                     int column_index = 0;
-                    std::vector<uint64_t>column_end = std::vector<uint64_t>(N_COLUMNS, 0);
+                    std::vector<uint64_t> batch_cycles = std::vector<uint64_t>(N_TILES, 0);
+                    std::vector<std::vector<uint64_t>> column_end = std::vector<std::vector<uint64_t>>(N_TILES,
+                            std::vector<uint64_t>(N_COLUMNS, 0));
 
                     for (int r = 0; r < R; r++) {
-                        for (int m = 0; m < num_filters; m += N_ROWS) {
-                            for (int k = 0; k < wgt_channels; k += N_LANES) {
-                                if(batch_cycles < column_end[column_index]) {
-                                    batch_stall_cycles += column_end[column_index] - batch_cycles;
-                                    batch_cycles = column_end[column_index];
-                                }
-                                auto column_cycles = computeLaconicColumn(n,r,0,0,0,0,k,m,0,act,wgt,0,(int)wgt_channels,
-                                        (int)num_filters,lstm, false);
-                                column_end[column_index] = batch_cycles + column_cycles;
-                                batch_cycles++;
-                                column_index++;
-                                if(column_index >= N_COLUMNS) column_index = 0;
+                        for (int m = 0; m < num_filters; m += TOTAL_ROWS) {
 
-                                batch_act_buff_reads++;
-                                batch_weight_buff_reads++;
+                            std::vector<uint64_t> tile_cycles = std::vector<uint64_t>(N_TILES, 0);
+                            for (int tile = 0; tile < N_TILES; tile++) {
+                                auto init_m = tile * N_ROWS + m;
+
+                                for (int k = 0; k < wgt_channels; k += N_LANES) {
+                                    if (batch_cycles[tile] < column_end[tile][column_index]) {
+                                        batch_stall_cycles += column_end[tile][column_index] - batch_cycles[tile];
+                                        batch_cycles[tile] = column_end[tile][column_index];
+                                    }
+
+                                    auto column_cycles = computeLaconicColumn(n, r, 0, 0, 0, 0, k, init_m, 0, act, wgt,
+                                            0, (int)wgt_channels, (int)num_filters, lstm, false);
+
+                                    column_end[tile][column_index] = batch_cycles[tile] + column_cycles;
+                                    batch_cycles[tile]++;
+                                    column_index++;
+                                    if (column_index >= N_COLUMNS) column_index = 0;
+
+                                    batch_act_buff_reads++;
+                                    batch_weight_buff_reads++;
+                                }
+                                batch_accumulator_updates++;
                             }
-                            batch_accumulator_updates++;
                         }
                     }
 
-                    uint64_t last_column_end = *std::max_element(column_end.begin(), column_end.end());
-                    cycles->value[layer_it][n] = std::max(batch_cycles, last_column_end);
+                    uint64_t max_tile_cycles = 0;
+                    for (int tile = 0; tile < N_TILES; tile++) {
+                        uint64_t last_column_end = *std::max_element(column_end[tile].begin(), column_end[tile].end());
+                        auto tile_cycles = std::max(batch_cycles[tile], last_column_end);
+                        if (tile_cycles > max_tile_cycles)
+                            max_tile_cycles = tile_cycles;
+                    }
+
+                    cycles->value[layer_it][n] = max_tile_cycles;
                     stall_cycles->value[layer_it][n] = batch_stall_cycles;
-                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads;
-                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads;
-                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates;
-                    scheduled_pe->value[layer_it][n] = (uint64_t)(num_filters * N_ROWS * ceil(act_channels/(double)N_LANES));
-                    auto idle_rows = N_ROWS - (num_filters % N_ROWS);
+                    weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads / N_TILES;
+                    act_buff_reads->value[layer_it][n] = batch_act_buff_reads / N_TILES;
+                    accumulator_updates->value[layer_it][n] = batch_accumulator_updates / N_TILES;
+                    scheduled_pe->value[layer_it][n] = (uint64_t)(num_filters * TOTAL_ROWS *
+                            ceil(act_channels/(double)N_LANES));
+                    auto idle_rows = TOTAL_ROWS - (num_filters % TOTAL_ROWS);
                     idle_rows = idle_rows == 16 ? 0 : idle_rows;
                     idle_pe->value[layer_it][n] = (uint64_t)(idle_rows * ceil(act_channels/(double)N_LANES));
 
@@ -259,6 +288,7 @@ namespace core {
         header += "Number of lanes/terms per PE: " + std::to_string(N_LANES) + "\n";
         header += "Number of columns/windows in parallel: " + std::to_string(N_COLUMNS) + "\n";
         header += "Number of rows/filters in parallel: " + std::to_string(N_ROWS) + "\n";
+        header += "Number of tiles: " + std::to_string(N_TILES) + "\n";
 
         stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
 

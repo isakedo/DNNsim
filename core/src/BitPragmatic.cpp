@@ -176,7 +176,7 @@ namespace core {
         //Get the slowest column
         for(int window = 0; window < list_act_x.size(); window++) {
             std::vector<std::queue<uint8_t>> offsets;
-            for (int filter = init_filter; filter < std::min(init_filter + (int)N_ROWS, max_filter); filter++) {
+            for (int filter = init_filter; filter < std::min(init_filter + (int)(N_ROWS * N_TILES), max_filter); filter++) {
 
                 auto act_bits = padded_act.get(batch, filter, stride * list_act_x[window] + kernel_x,
 	            	    stride * list_act_y[window] + kernel_y);
@@ -235,8 +235,8 @@ namespace core {
         std::string arch = "BitPragmatic";
         arch += (DIFFY ? "_Diffy" : "");
         std::string filename = arch + "_L" + std::to_string(N_LANES) + "_C" + std::to_string(N_COLUMNS) + "_R" +
-                std::to_string(N_ROWS) + "_B" + std::to_string(BITS_FIRST_STAGE) + "_CR" +
-                std::to_string(COLUMN_REGISTERS) + "_cycles";
+                std::to_string(N_ROWS) + "_T" + std::to_string(N_TILES) + "_B" + std::to_string(BITS_FIRST_STAGE) +
+                "_CR" + std::to_string(COLUMN_REGISTERS) + "_cycles";
         sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
@@ -250,6 +250,8 @@ namespace core {
         auto idle_pe = stats.register_uint_t("idle_pe", 0, sys::AverageTotal);
         auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
         auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
+
+        auto TOTAL_ROWS = N_ROWS * N_TILES;
 
         for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
 
@@ -308,7 +310,7 @@ namespace core {
             auto act_mask = (uint16_t)(1u << (act_layer_prec - 1u));
 
             auto groups = act_channels / wgt_channels;
-            auto num_filters_sets = (uint32_t)ceil(num_filters/(double)N_ROWS/groups);
+            auto num_filters_sets = (uint32_t)ceil(num_filters/(double)TOTAL_ROWS/groups);
 
             auto base_cycles = (uint64_t)(conv ? out_x * out_y * ceil(act_channels/(double)N_LANES) * Kx * Ky *
                     num_filters_sets : ceil(act_channels/(double)N_LANES) * num_filters_sets * R);
@@ -330,7 +332,7 @@ namespace core {
                     std::vector<uint32_t> end_previous_pallet = std::vector<uint32_t>(COLUMN_REGISTERS, 0);
                     std::vector<uint32_t> cycles_per_col = std::vector<uint32_t>(N_COLUMNS, 0);
 
-                    for(int m = 0; m < num_filters; m += N_ROWS) {
+                    for(int m = 0; m < num_filters; m += TOTAL_ROWS) {
                         while(this->iterateWindows(out_x,out_y,list_x,list_y,x_counter,y_counter,N_COLUMNS)) {
                             for (int i = 0; i < Kx; i++) {
                                 for (int j = 0; j < Ky; j++) {
@@ -339,8 +341,8 @@ namespace core {
 
                                     batch_act_buff_reads++;
                                     batch_weight_buff_reads++;
-                                    batch_scheduled_pe += list_x.size() * N_ROWS;
-                                    batch_idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
+                                    batch_scheduled_pe += list_x.size() * TOTAL_ROWS;
+                                    batch_idle_pe += (N_COLUMNS - list_x.size()) * TOTAL_ROWS;
                                 }
                             }
                             batch_accumulator_updates++;
@@ -372,8 +374,8 @@ namespace core {
 
                                     batch_act_buff_reads++;
                                     batch_weight_buff_reads++;
-                                    batch_scheduled_pe += list_x.size() * N_ROWS;
-                                    batch_idle_pe += (N_COLUMNS - list_x.size()) * N_ROWS;
+                                    batch_scheduled_pe += list_x.size() * TOTAL_ROWS;
+                                    batch_idle_pe += (N_COLUMNS - list_x.size()) * TOTAL_ROWS;
                                 }
                             }
                         }
@@ -422,8 +424,9 @@ namespace core {
                     weight_buff_reads->value[layer_it][n] = batch_weight_buff_reads * num_filters_sets;
                     act_buff_reads->value[layer_it][n] = batch_act_buff_reads * num_filters_sets;
                     accumulator_updates->value[layer_it][n] = batch_accumulator_updates * num_filters_sets;
-                    scheduled_pe->value[layer_it][n] = (uint64_t)(num_filters * N_ROWS * ceil(act_channels/(double)N_LANES));
-                    auto idle_rows = N_ROWS - (num_filters % N_ROWS);
+                    scheduled_pe->value[layer_it][n] = (uint64_t)(num_filters * TOTAL_ROWS *
+                            ceil(act_channels/(double)N_LANES));
+                    auto idle_rows = TOTAL_ROWS - (num_filters % TOTAL_ROWS);
                     idle_rows = idle_rows == 16 ? 0 : idle_rows;
                     idle_pe->value[layer_it][n] = (uint64_t)(idle_rows * ceil(act_channels/(double)N_LANES));
                     baseline_cycles->value[layer_it][n] = base_cycles;
@@ -445,6 +448,7 @@ namespace core {
         header += "Number of lanes/terms per PE: " + std::to_string(N_LANES) + "\n";
         header += "Number of columns/windows in parallel: " + std::to_string(N_COLUMNS) + "\n";
         header += "Number of rows/filters in parallel: " + std::to_string(N_ROWS) + "\n";
+        header += "Number of tiles: " + std::to_string(N_TILES) + "\n";
         header += "Number of bits for first stage shifter: " + std::to_string(BITS_FIRST_STAGE) + "\n";
         header += "Number of run-ahead input registers per column: " + std::to_string(COLUMN_REGISTERS) + "\n";
         std::string dffy = DIFFY ? "True" : "False";

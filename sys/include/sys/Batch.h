@@ -21,6 +21,7 @@ namespace sys {
                 uint32_t n_lanes = 0;
                 uint32_t n_columns = 0;
                 uint32_t n_rows = 0;
+                uint32_t n_tiles = 0;
                 uint32_t bits_pe = 0;
                 uint32_t column_registers = 0;
                 uint32_t precision_granularity = 0;

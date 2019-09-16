@@ -13,23 +13,26 @@ namespace core {
 
     private:
 
-        /* Number of concurrent multiplications per PE */
+        /** Number of concurrent multiplications per PE */
         const int N_LANES;
 
-        /* Number of columns */
+        /** Number of columns */
         const int N_COLUMNS;
 
-        /* Number of rows */
+        /** Number of rows */
         const int N_ROWS;
 
-        /* Compute number of one bit multiplications given a weights and an activation
+        /** Number of rows */
+        const uint32_t N_TILES;
+
+        /** Compute number of one bit multiplications given a weights and an activation
          * @param act       Activation
          * @param wgt       Weight
          * @return          Number of one bit multiplications
          */
         uint8_t computeLaconicPE(uint16_t act, uint16_t wgt);
 
-        /* Compute cycles for one column of laconic
+        /** Compute cycles for one column of laconic
          * @param batch         Current number of batch
          * @param recursion     Current recursion for LSTM
          * @param act_x         X position for the input window
@@ -51,7 +54,7 @@ namespace core {
                 int init_channel, int init_filter, int stride, const base::Array<T> &padded_act,
                 const base::Array<T> &wgt, int start_group, int max_channel, int max_filter, bool lstm, bool conv2D);
 
-        /* Compute cycles for laconic tile
+        /** Compute cycles for laconic tile
          * @param batch         Current number of batch
          * @param list_act_x    X position for the set of input windows
          * @param list_act_y    Y position for the set of input windows
@@ -76,24 +79,25 @@ namespace core {
 
     public:
 
-        /* Constructor
+        /** Constructor
          * @param _N_LANES      Number of concurrent multiplications per PE
          * @param _N_COLUMNS    Number of columns
          * @param _N_ROWS       Number of rows
+         * @param _N_TILES      Number of tiles
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          * @param _QUIET        Avoid std::out messages
          */
-        Laconic(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint8_t _N_THREADS, bool _FAST_MODE,
-                bool _QUIET) : Simulator<T>(_N_THREADS,_FAST_MODE,_QUIET), N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS),
-                N_ROWS(_N_ROWS) {}
+        Laconic(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES, uint8_t _N_THREADS,
+                bool _FAST_MODE, bool _QUIET) : Simulator<T>(_N_THREADS,_FAST_MODE,_QUIET), N_LANES(_N_LANES),
+                N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), N_TILES(_N_TILES) {}
 
-        /* Run the timing simulator of the architecture
+        /** Run the timing simulator of the architecture
          * @param network   Network we want to simulate
          */
         void run(const base::Network<T> &network);
 
-        /* Calculate potentials for the given network
+        /** Calculate potentials for the given network
          * @param network   Network we want to calculate work reduction
          */
         void potentials(const base::Network<T> &network);

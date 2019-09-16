@@ -12,13 +12,13 @@ namespace core {
 
     private:
 
-        /* Number of activations per group */
+        /** Number of activations per group */
         const uint32_t PRECISION_GRANULARITY;
 
-        /* Calculate only the leading bit for dynamic precisions */
+        /** Calculate only the leading bit for dynamic precisions */
         const bool LEADING_BIT;
 
-        /* Compute number of one bit multiplications given a weights and an activation
+        /** Compute number of one bit multiplications given a weights and an activation
          * @param wgt               Weight
          * @param act_layer_rec     Layer precision
          * @param network_bits      Max bits network
@@ -26,7 +26,7 @@ namespace core {
          */
         uint8_t computeTacticalPBitsPE(uint16_t wgt, uint8_t act_layer_prec, int network_bits);
 
-        /* Compute cycles for Bit-Tactical P column
+        /** Compute cycles for Bit-Tactical P column
          * @param batch             Current number of batch
          * @param recursion         Current recursion for LSTM
          * @param act_x             X position for the input window
@@ -43,7 +43,7 @@ namespace core {
                 const base::Array<T> &padded_act, const schedule &dense_schedule, int schedule_time, uint16_t act_mask,
                 bool lstm);
 
-        /* Compute cycles for Bit-Tactical P tile
+        /** Compute cycles for Bit-Tactical P tile
          * @param batch                 Current number of batch
          * @param list_act_x            X position for the set of input windows
          * @param list_act_y            Y position for the set of input windows
@@ -63,10 +63,11 @@ namespace core {
 
     public:
 
-        /* Constructor
+        /** Constructor
          * @param _N_LANES                  Number of concurrent multiplications per PE
          * @param _N_COLUMNS                Number of columns
          * @param _N_ROWS                   Number of rows
+         * @param _N_TILES                  Number of tiles
          * @param _PRECISION_GRANULARITY    Granularity for dynamic precisions
          * @param _COLUMN_REGISTERS         Number of registers per SIP
          * @param _LOOKAHEAD_D              Value for scheduler lookahead
@@ -77,19 +78,20 @@ namespace core {
          * @param _FAST_MODE                Enable fast mode to simulate only one image
          * @param _QUIET                    Avoid std::out messages
          */
-        BitTacticalP(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _PRECISION_GRANULARITY,
-                uint32_t _COLUMN_REGISTERS, uint32_t _LOOKAHEAD_H, uint32_t _LOOKASIDE_D, const char _SEARCH_SHAPE,
-                bool _LEADING_BIT, uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET) : BitTactical<T>(_N_ROWS,_N_COLUMNS,
-                _N_ROWS,_COLUMN_REGISTERS,_LOOKAHEAD_H,_LOOKASIDE_D,_SEARCH_SHAPE,_N_THREADS,_FAST_MODE,_QUIET),
-                PRECISION_GRANULARITY(_PRECISION_GRANULARITY), LEADING_BIT(_LEADING_BIT) {}
+        BitTacticalP(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES,
+                uint32_t _PRECISION_GRANULARITY, uint32_t _COLUMN_REGISTERS, uint32_t _LOOKAHEAD_H,
+                uint32_t _LOOKASIDE_D, const char _SEARCH_SHAPE, bool _LEADING_BIT, uint8_t _N_THREADS, bool _FAST_MODE,
+                bool _QUIET) : BitTactical<T>(_N_ROWS,_N_COLUMNS,_N_ROWS,_N_TILES,_COLUMN_REGISTERS,_LOOKAHEAD_H,
+                _LOOKASIDE_D,_SEARCH_SHAPE,_N_THREADS,_FAST_MODE,_QUIET), PRECISION_GRANULARITY(_PRECISION_GRANULARITY),
+                LEADING_BIT(_LEADING_BIT) {}
 
-        /* Run the timing simulator of the architecture
+        /** Run the timing simulator of the architecture
          * @param network   Network we want to simulate
          * @param schedules Dense schedules for the layer we want to simulate
          */
         void run(const base::Network<T> &network, const std::vector<schedule> &schedules) override;
 
-        /* Calculate potentials for the given network
+        /** Calculate potentials for the given network
          * @param network   Network we want to calculate work reduction
          */
         void potentials(const base::Network<T> &network) override;
