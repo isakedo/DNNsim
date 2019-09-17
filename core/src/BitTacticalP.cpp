@@ -233,9 +233,6 @@ namespace core {
             long out_x = (Nx - Kx)/stride + 1;
             long out_y = (Ny - Ky)/stride + 1;
 
-            auto groups = act_channels / wgt_channels;
-            auto num_filters_sets = (uint32_t)ceil(num_filters/(double)this->N_ROWS/groups);
-
             auto act_layer_prec = layer.getActPrecision();
             auto act_mask = (uint16_t)(1u << (act_layer_prec - 1));
 
@@ -259,7 +256,8 @@ namespace core {
 
                     std::vector<int> list_x, list_y;
                     int x_counter = 0, y_counter = 0;
-                    std::vector<uint32_t> end_previous_pallet = std::vector<uint32_t>(this->COLUMN_REGISTERS, 0);
+                    std::vector<std::vector<uint32_t>> end_previous_pallet = std::vector<std::vector<uint32_t>>
+                            (this->N_TILES, std::vector<uint32_t>(this->COLUMN_REGISTERS, 0));
                     std::vector<std::vector<uint32_t>> cycles_per_group = std::vector<std::vector<uint32_t>>
                             (this->N_TILES, std::vector<uint32_t>(this->N_COLUMNS * 16 / PRECISION_GRANULARITY, 0));
 
@@ -275,7 +273,7 @@ namespace core {
 
                                 for (int schedule_time = 0; schedule_time < set_dense_schedule.size(); schedule_time++) {
                                     computeTacticalPTile(n, list_x, list_y, stride, act, set_dense_schedule,
-                                            schedule_time, act_mask, cycles_per_group[tile], end_previous_pallet,
+                                            schedule_time, act_mask, cycles_per_group[tile], end_previous_pallet[tile],
                                             batch_stall_cycles);
 
                                     batch_act_buff_reads++;

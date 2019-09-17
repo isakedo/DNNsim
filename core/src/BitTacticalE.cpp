@@ -175,12 +175,14 @@ namespace core {
         auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
         auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
-        for(auto layer_it = 0; layer_it < 1; ++layer_it) {
+        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
             bool lstm = layer.getType() == "LSTM";
             bool fc = layer.getType() == "InnerProduct";
+
+            if (layer.getName() != "loss3-classifier") continue;
 
             base::Array<T> act = layer.getActivations();
             act.powers_of_two_representation(layer.getActPrecision());
@@ -248,7 +250,8 @@ namespace core {
 
                     std::vector<int> list_x, list_y;
                     int x_counter = 0, y_counter = 0;
-                    std::vector<uint32_t> end_previous_pallet = std::vector<uint32_t>(this->COLUMN_REGISTERS, 0);
+                    std::vector<std::vector<uint32_t>> end_previous_pallet = std::vector<std::vector<uint32_t>>
+                            (this->N_TILES, std::vector<uint32_t>(this->COLUMN_REGISTERS, 0));
                     std::vector<std::vector<uint32_t>> cycles_per_col = std::vector<std::vector<uint32_t>>(this->N_TILES,
                             std::vector<uint32_t>(this->N_COLUMNS, 0));
 
@@ -264,7 +267,7 @@ namespace core {
 
                                 for (int schedule_time = 0; schedule_time < set_dense_schedule.size(); schedule_time++) {
                                     computeTacticalETile(n, list_x, list_y, stride, act, set_dense_schedule,
-                                            schedule_time, cycles_per_col[tile], end_previous_pallet,
+                                            schedule_time, cycles_per_col[tile], end_previous_pallet[tile],
                                             batch_stall_cycles);
 
                                     batch_act_buff_reads++;
