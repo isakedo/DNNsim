@@ -1125,8 +1125,6 @@ namespace core {
             bool lstm = layer.getType() == "LSTM";
             bool fc = layer.getType() == "InnerProduct";
 
-            if (lstm) continue;
-
             base::Array<T> act = layer.getActivations();
             act.sign_magnitude_representation(layer.getActPrecision());
             if(fc && act.getDimensions() == 4) act.reshape_to_2D();
@@ -1357,128 +1355,133 @@ namespace core {
 
                 auto act_positions = std::vector<std::vector<uint64_t>>(Ny, std::vector<uint64_t>(Nx, 0));
 
-                for (int y = 0; y < Ny; ++y) {
+                for (int r = 0; r < R; ++r) {
 
-                    for (int x = 0; x < Nx; ++x) {
+                    for (int y = 0; y < Ny; ++y) {
 
-                        uint8_t prev_group = 0;
-                        uint16_t fc_channel_counter = 0;
+                        for (int x = 0; x < Nx; ++x) {
 
-                        // Generated from "previous" layer
-                        act_positions[y][x] = act_data_offset + act_data_start;
+                            uint8_t prev_group = 0;
+                            uint16_t fc_channel_counter = 0;
 
-                        for (int k = 0; k < act_channels; k += GROUP_SIZE) {
+                            // Generated from "previous" layer
+                            act_positions[y][x] = act_data_offset + act_data_start;
 
-                            uint8_t max_bit = 0;
-                            for (int ss = k; ss < std::min((uint64_t) (k + GROUP_SIZE), act_channels); ++ss) {
+                            for (int k = 0; k < act_channels; k += GROUP_SIZE) {
 
-                                uint16_t act_bits = act.get(n, ss, x, y);
+                                uint8_t max_bit = 0;
+                                for (int ss = k; ss < std::min((uint64_t) (k + GROUP_SIZE), act_channels); ++ss) {
 
-                                if ((act_bits & act_mask) != 0) {
-                                    act_bits = act_bits & ~act_mask;
-                                }
+                                    uint16_t act_bits = lstm ? act.get(r, n, ss) : act.get(n, ss, x, y);
 
-                                const auto &min_max_act_bits = this->minMax(act_bits);
-                                auto max_act_bit = std::get<1>(min_max_act_bits);
-                                max_act_bit += 1;
-
-                                if (max_act_bit > max_bit) max_bit = max_act_bit;
-                            }
-
-                            uint8_t width = max_bit + 1u;
-                            auto width_mask = (uint16_t) (1u << (width - 1u));
-
-                            if (width > network_bits) {
-                                throw std::runtime_error("OnChip activations dynamic size bigger than network size");
-                            }
-
-                            // Store group
-                            auto metadata_grp = std::make_tuple(n, k, x, y, width, 4, true);
-                            uint16_t shifted_group = (width - 1u) << act_group_pt;
-                            memory_map[act_group_start + act_group_offset] |= shifted_group;
-                            metadata[act_group_start + act_group_offset].emplace_back(metadata_grp);
-                            act_group_pt += 4;
-                            if (act_group_pt == network_bits) {
-                                act_group_pt = 0;
-                                act_group_offset += 1;
-                            }
-
-                            // Store data
-                            bool split = width + act_data_pt > (network_bits - 1);
-                            for (int ss = 0; ss < GROUP_SIZE; ++ss) {
-
-                                if ((ss + k) < act_channels) {
-                                    uint16_t activation = act.get(n, ss + k, x, y);
-                                    auto metadata_tuple = std::make_tuple(n, ss + k, x, y, activation, width, true);
-
-                                    if ((activation & act_mask) != 0) {
-                                        activation &= ~act_mask;
-                                        activation |= width_mask;
+                                    if ((act_bits & act_mask) != 0) {
+                                        act_bits = act_bits & ~act_mask;
                                     }
 
-                                    uint16_t shifted_activation = activation << act_data_pt;
-                                    memory_map[act_data_start + act_data_offset + ss] |= shifted_activation;
-                                    metadata[act_data_start + act_data_offset + ss].emplace_back(metadata_tuple);
+                                    const auto &min_max_act_bits = this->minMax(act_bits);
+                                    auto max_act_bit = std::get<1>(min_max_act_bits);
+                                    max_act_bit += 1;
 
-                                    if (split) {
-                                        uint16_t rem_activation = activation >> (network_bits - act_data_pt);
-                                        memory_map[act_data_start + act_data_offset + GROUP_SIZE + ss] = rem_activation;
-                                        metadata[act_data_start + act_data_offset + GROUP_SIZE + ss].emplace_back(
-                                                metadata_tuple);
-                                    }
-                                } else {
-                                    auto metadata_tuple = std::make_tuple(n, ss + k, x, y, 0, width, true);
-                                    memory_map[act_data_start + act_data_offset + ss] |= 0;
-                                    metadata[act_data_start + act_data_offset + ss].emplace_back(metadata_tuple);
-                                    if (split)
-                                        metadata[act_data_start + act_data_offset + GROUP_SIZE + ss].emplace_back(
-                                                metadata_tuple);
+                                    if (max_act_bit > max_bit) max_bit = max_act_bit;
                                 }
-                            }
 
-                            batch_act_group_size += log2(network_bits);
-                            batch_act_group_diff_size += (prev_group == width ? 1 : 1 + log2(network_bits));
-                            batch_act_datawidth_size += GROUP_SIZE * width;
-                            act_data_pt = (act_data_pt + width) % network_bits;
-                            if (split || act_data_pt == 0)
-                                act_data_offset += GROUP_SIZE;
+                                uint8_t width = max_bit + 1u;
+                                auto width_mask = (uint16_t) (1u << (width - 1u));
 
-                            // Proteus
-                            proteus_act_size += GROUP_SIZE * act_layer_prec;
-                            proteus_act_data_pt = (proteus_wgt_data_pt + act_layer_prec) % network_bits;
+                                if (width > network_bits) {
+                                    throw std::runtime_error("OnChip activations dynamic size bigger than network size");
+                                }
 
-                            prev_group = width;
-                            fc_channel_counter += GROUP_SIZE;
+                                // Store group
+                                auto metadata_grp = std::make_tuple(n, k, x, y, width, 4, true);
+                                uint16_t shifted_group = (width - 1u) << act_group_pt;
+                                memory_map[act_group_start + act_group_offset] |= shifted_group;
+                                metadata[act_group_start + act_group_offset].emplace_back(metadata_grp);
+                                act_group_pt += 4;
+                                if (act_group_pt == network_bits) {
+                                    act_group_pt = 0;
+                                    act_group_offset += 1;
+                                }
 
-                            if (fc && fc_channel_counter == channels_per_column) {
-                                prev_group = 0;
-                                fc_channel_counter = 0;
+                                // Store data
+                                bool split = width + act_data_pt > (network_bits - 1);
+                                for (int ss = 0; ss < GROUP_SIZE; ++ss) {
 
-                                if (act_data_pt != 0) {
-                                    batch_act_padding_size += (network_bits - act_data_pt) * GROUP_SIZE;
+                                    if ((ss + k) < act_channels) {
+                                        uint16_t activation = lstm ? act.get(r, n, ss + k) : act.get(n, ss + k, x, y);
+                                        auto metadata_tuple = std::make_tuple(n, ss + k, x, y, activation, width, true);
+
+                                        if ((activation & act_mask) != 0) {
+                                            activation &= ~act_mask;
+                                            activation |= width_mask;
+                                        }
+
+                                        uint16_t shifted_activation = activation << act_data_pt;
+                                        memory_map[act_data_start + act_data_offset + ss] |= shifted_activation;
+                                        metadata[act_data_start + act_data_offset + ss].emplace_back(metadata_tuple);
+
+                                        if (split) {
+                                            uint16_t rem_activation = activation >> (network_bits - act_data_pt);
+                                            memory_map[act_data_start + act_data_offset + GROUP_SIZE +
+                                                       ss] = rem_activation;
+                                            metadata[act_data_start + act_data_offset + GROUP_SIZE + ss].emplace_back(
+                                                    metadata_tuple);
+                                        }
+                                    } else {
+                                        auto metadata_tuple = std::make_tuple(n, ss + k, x, y, 0, width, true);
+                                        memory_map[act_data_start + act_data_offset + ss] |= 0;
+                                        metadata[act_data_start + act_data_offset + ss].emplace_back(metadata_tuple);
+                                        if (split)
+                                            metadata[act_data_start + act_data_offset + GROUP_SIZE + ss].emplace_back(
+                                                    metadata_tuple);
+                                    }
+                                }
+
+                                batch_act_group_size += log2(network_bits);
+                                batch_act_group_diff_size += (prev_group == width ? 1 : 1 + log2(network_bits));
+                                batch_act_datawidth_size += GROUP_SIZE * width;
+                                act_data_pt = (act_data_pt + width) % network_bits;
+                                if (split || act_data_pt == 0)
                                     act_data_offset += GROUP_SIZE;
-                                    act_data_pt = 0;
-                                }
 
                                 // Proteus
-                                if (proteus_act_data_pt != 0) {
-                                    proteus_act_padding += (network_bits - proteus_act_data_pt) * GROUP_SIZE;
-                                    proteus_act_data_pt = 0;
+                                proteus_act_size += GROUP_SIZE * act_layer_prec;
+                                proteus_act_data_pt = (proteus_wgt_data_pt + act_layer_prec) % network_bits;
+
+                                prev_group = width;
+                                fc_channel_counter += GROUP_SIZE;
+
+                                if (fc && fc_channel_counter == channels_per_column) {
+                                    prev_group = 0;
+                                    fc_channel_counter = 0;
+
+                                    if (act_data_pt != 0) {
+                                        batch_act_padding_size += (network_bits - act_data_pt) * GROUP_SIZE;
+                                        act_data_offset += GROUP_SIZE;
+                                        act_data_pt = 0;
+                                    }
+
+                                    // Proteus
+                                    if (proteus_act_data_pt != 0) {
+                                        proteus_act_padding += (network_bits - proteus_act_data_pt) * GROUP_SIZE;
+                                        proteus_act_data_pt = 0;
+                                    }
                                 }
+
                             }
 
-                        }
+                            if (act_data_pt != 0) {
+                                batch_act_padding_size += (network_bits - act_data_pt) * GROUP_SIZE;
+                                act_data_offset += GROUP_SIZE;
+                                act_data_pt = 0;
+                            }
 
-                        if (act_data_pt != 0) {
-                            batch_act_padding_size += (network_bits - act_data_pt) * GROUP_SIZE;
-                            act_data_offset += GROUP_SIZE;
-                            act_data_pt = 0;
-                        }
+                            // Proteus
+                            if (proteus_act_data_pt != 0) {
+                                proteus_act_padding += (network_bits - proteus_act_data_pt) * GROUP_SIZE;
+                                proteus_act_data_pt = 0;
+                            }
 
-                        // Proteus
-                        if (proteus_act_data_pt != 0) {
-                            proteus_act_padding += (network_bits - proteus_act_data_pt) * GROUP_SIZE;
-                            proteus_act_data_pt = 0;
                         }
 
                     }
@@ -1840,7 +1843,7 @@ namespace core {
                 }
 
                 // Act Bits
-                auto num_act = (uint64_t) (Nx * Ny * ceil(act_channels / (double) GROUP_SIZE) * GROUP_SIZE);
+                auto num_act = (uint64_t)(R * Nx * Ny * ceil(act_channels / (double) GROUP_SIZE) * GROUP_SIZE);
                 act_baseline_size->value[layer_it][n] = num_act * network_bits;
                 act_profiled_size->value[layer_it][n] = proteus_act_size;
                 act_profiled_padding->value[layer_it][n] = proteus_act_padding;
@@ -1877,7 +1880,6 @@ namespace core {
                 auto num_wgt = (uint64_t) (num_filters * Kx * Ky * ceil(wgt_channels/(double)GROUP_SIZE) * GROUP_SIZE);
                 wgt_baseline_size->value[layer_it][n] = num_wgt * network_bits;
 
-                auto filter_size = (uint64_t) (Kx * Ky * ceil(wgt_channels / (double) GROUP_SIZE) * GROUP_SIZE);
                 wgt_profiled_size->value[layer_it][n] = proteus_wgt_size;
                 wgt_profiled_padding->value[layer_it][n] = proteus_wgt_padding;
                 wgt_datawidth_size->value[layer_it][n] = batch_wgt_datawidth_size;
