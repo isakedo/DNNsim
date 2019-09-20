@@ -111,6 +111,12 @@ namespace core {
         Simulator(uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET) : N_THREADS(_N_THREADS), FAST_MODE(_FAST_MODE),
                 QUIET(_QUIET) {}
 
+
+       /* Returns network information
+        * @param network   Network we want to check
+        */
+        void information(const base::Network<T> &network);
+
         /* Calculate the sparsity in the network
          * @param network   Network we want to check
          */

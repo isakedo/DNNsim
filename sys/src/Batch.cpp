@@ -110,9 +110,9 @@ namespace sys {
                 if(experiment_proto.architecture() == "None") {
 
                     value = experiment_proto.task();
-                    if(value != "Sparsity" && value != "BitSparsity")
+                    if(value != "Sparsity" && value != "BitSparsity" && value != "Information")
                         throw std::runtime_error("Task for network " + simulate.network + " in Fixed16 for architecture"
-                                                 " None must be <Sparsity|BitSparsity>.");
+                                                 " None must be <Sparsity|BitSparsity|Information>.");
 
                 } else if(experiment_proto.architecture() == "BitPragmatic") {
                     experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();

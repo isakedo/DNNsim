@@ -185,6 +185,102 @@ namespace core {
     /* DATA CALCULATIONS */
 
     template <typename T>
+    void Simulator<T>::information(const base::Network<T> &network) {
+
+        // Initialize statistics
+        std::string filename = "information";
+        sys::Stats stats = sys::Stats(network.getNumLayers(), 1, filename);
+
+        auto type = stats.register_string_t("Type", sys::No_Measure);
+
+        auto batch = stats.register_uint_t("Batch", 0, sys::Average);
+        auto act_channels = stats.register_uint_t("Act Channels", 0, sys::Average);
+        auto Nx = stats.register_uint_t("Act Width", 0, sys::Average);
+        auto Ny = stats.register_uint_t("Act Height", 0, sys::Average);
+        auto R = stats.register_uint_t("Times", 0, sys::Average);
+
+        auto filters = stats.register_uint_t("Num Filters", 0, sys::Average);
+        auto wgt_channels = stats.register_uint_t("Wgt Channels", 0, sys::Average);
+        auto Kx = stats.register_uint_t("Wgt Width", 0, sys::Average);
+        auto Ky = stats.register_uint_t("Wgt Height", 0, sys::Average);
+
+        auto out_x = stats.register_uint_t("Output Width", 0, sys::Average);
+        auto out_y = stats.register_uint_t("Output Height", 0, sys::Average);
+
+        auto padding = stats.register_uint_t("Padding", 0, sys::Average);
+        auto stride = stats.register_uint_t("Stride", 0, sys::Average);
+        auto act_precision = stats.register_uint_t("Act Precision", 0, sys::Average);
+        auto wgt_precision = stats.register_uint_t("Wgt Precision", 0, sys::Average);
+
+        auto act_size = stats.register_double_t("Act Size (MB)", 0, sys::AverageTotal);
+        auto act_row_size = stats.register_double_t("Act Row Size (MB)", 0, sys::AverageTotal);
+        auto wgt_size = stats.register_double_t("Wgt Size (MB)", 0, sys::AverageTotal);
+        auto wgt_set_size = stats.register_double_t("Wgt Working Set Size (MB)", 0, sys::AverageTotal);
+
+        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
+
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
+            bool conv = layer.getType() == "Convolution";
+            bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
+
+            base::Array<T> act = layer.getActivations();
+            if(fc && act.getDimensions() == 4) act.reshape_to_2D();
+            if(fc) act.reshape_to_4D();
+
+            base::Array<T> wgt = layer.getWeights();
+            if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+
+            const std::vector<size_t> &act_shape = act.getShape();
+            const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+            type->value[layer_it][0] = layer.getType();
+
+            if(lstm) {
+                R->value[layer_it][0] = act_shape[0];
+                batch->value[layer_it][0] = act_shape[1];
+                act_channels->value[layer_it][0] = act_shape[2];
+                Nx->value[layer_it][0] = 1;
+                Ny->value[layer_it][0] = 1;
+            } else {
+                R->value[layer_it][0] = 1;
+                batch->value[layer_it][0] = act_shape[0];
+                act_channels->value[layer_it][0] = act_shape[1];
+                Nx->value[layer_it][0] = act_shape[2];
+                Ny->value[layer_it][0] = act_shape[3];
+            }
+
+            filters->value[layer_it][0] = wgt_shape[0];
+            wgt_channels->value[layer_it][0] = wgt_shape[1];
+            Kx->value[layer_it][0] = wgt_shape[2];
+            Ky->value[layer_it][0] = wgt_shape[3];
+
+            padding->value[layer_it][0] = layer.getPadding();
+            stride->value[layer_it][0] = layer.getStride();
+            act_precision->value[layer_it][0] = layer.getActPrecision();
+            wgt_precision->value[layer_it][0] = layer.getWgtPrecision();
+
+            out_x->value[layer_it][0] = (Nx->value[layer_it][0] - Kx->value[layer_it][0])/stride->value[layer_it][0] + 1;
+            out_y->value[layer_it][0] = (Ny->value[layer_it][0] - Ky->value[layer_it][0])/stride->value[layer_it][0] + 1;
+
+            act_size->value[layer_it][0] = act_channels->value[layer_it][0] * Nx->value[layer_it][0] *
+                    Ny->value[layer_it][0] * R->value[layer_it][0] * network.getNetwork_bits() / 8000000.;
+            act_row_size->value[layer_it][0] = act_channels->value[layer_it][0] * Nx->value[layer_it][0] *
+                    Ky->value[layer_it][0] * network.getNetwork_bits() / 8000000.;
+            wgt_size->value[layer_it][0] = filters->value[layer_it][0] * wgt_channels->value[layer_it][0] *
+                    Kx->value[layer_it][0] * Ky->value[layer_it][0] * network.getNetwork_bits() / 8000000.;
+            wgt_set_size->value[layer_it][0] = 16 * wgt_channels->value[layer_it][0] * Kx->value[layer_it][0] *
+                    Ky->value[layer_it][0] * network.getNetwork_bits() / 8000000.;
+        }
+
+        //Dump statistics
+        std::string header = "Information for " + network.getName() + "\n";
+        stats.dump_csv(network.getName(), network.getLayersName(), header, QUIET);
+
+
+    }
+
+    template <typename T>
     void Simulator<T>::sparsity(const base::Network<T> &network) {
 
         // Initialize statistics

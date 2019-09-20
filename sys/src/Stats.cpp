@@ -11,6 +11,39 @@ namespace sys {
     stat_base_t::stat_base_t(Measure _measure, bool _skip_first) : measure(_measure), skip_first(_skip_first),
             special_value(0.0) {}
 
+    // string_t
+
+    stat_string_t::stat_string_t(uint64_t _layers, uint64_t _batches, const std::string &_value, Measure _measure,
+            bool _skip_first) : stat_base_t(_measure,_skip_first)
+    {
+        value = std::vector<std::vector<std::string>>(_layers, std::vector<std::string>(_batches, _value));
+    }
+
+    inline stat_type stat_string_t::getType()
+    {
+        return stat_type::Scalar;
+    }
+
+    inline std::string stat_string_t::to_string(uint64_t layer, uint64_t batch)
+    {
+        return value[layer][batch];
+    }
+
+    inline std::string stat_string_t::layer_to_string(uint64_t layer)
+    {
+        return value[layer][0];
+    }
+
+    inline std::string stat_string_t::network_to_string()
+    {
+        return "-";
+    }
+
+    inline std::string stat_string_t::dist_to_string()
+    {
+        throw std::runtime_error("Wrong stat type");
+    }
+
     // stat_uint_t
 
     stat_uint_t::stat_uint_t(uint64_t _layers, uint64_t _batches, uint64_t _value, Measure _measure, bool _skip_first)
@@ -276,6 +309,15 @@ namespace sys {
         if(!file.good()) {
             throw std::runtime_error("The path " + path + " does not exist.");
         }
+    }
+
+    std::shared_ptr<stat_string_t> Stats::register_string_t(const std::string &name, Measure measure, bool skip_first) {
+        table_t table;
+        table.name = name;
+        table.var = std::make_shared<stat_string_t>(stat_string_t(layers, batches, "-", measure, skip_first));
+
+        database.emplace_back(table);
+        return std::dynamic_pointer_cast<stat_string_t>(table.var);
     }
 
     std::shared_ptr<stat_uint_t> Stats::register_uint_t(const std::string &name, uint64_t init_value, Measure measure,

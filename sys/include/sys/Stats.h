@@ -200,6 +200,65 @@ namespace sys {
     };
 
     /**
+     * String bits data type for the statistics.
+     */
+    class stat_string_t : public stat_base_t
+    {
+
+    public:
+
+        /**
+         * String values.
+         */
+        std::vector<std::vector<std::string>> value;
+
+        /**
+         * Constructor
+         */
+        stat_string_t() = default;
+
+        /**
+         * Constructor
+         * @param _layers Number of layers
+         * @param _batches Number of batches
+         * @param _value Initial value
+         * @param _measure Measure for the statistics
+         * @param _skip_first Skip first value when doing average
+         */
+        stat_string_t(uint64_t _layers, uint64_t _batches, const std::string &_value, Measure _measure,
+                bool _skip_first);
+
+        /**
+         * Return scalar as type
+         */
+        stat_type getType() override;
+
+        /**
+         * Return the values of the stat in csv string format
+         * @param layer Index for the layer
+         * @param batch Index for the batch
+         */
+        std::string to_string(uint64_t layer, uint64_t batch) override;
+
+        /**
+         * Return the values of the stat in csv string format
+         * @param layer Index for the layer
+         */
+        std::string layer_to_string(uint64_t layer) override;
+
+        /**
+         * Return the values of the stat in csv string format for the whole network
+         */
+        std::string network_to_string() override;
+
+        /**
+         * Return the header range for a distribution
+         */
+        std::string dist_to_string() override;
+
+    };
+
+    /**
      * Unsigned integer 64 bits data type for the statistics.
      */
     class stat_uint_t : public stat_base_t
@@ -535,6 +594,16 @@ namespace sys {
          * Destructor
          */
         ~Stats() = default;
+
+        /**
+         * Register one string stat in the database.
+         * @param name Name of the variable
+         * @param measure Measure for the statistics
+         * @param skip_first Skip first value when doing average
+         * @return Reference to the registered stat
+         */
+        std::shared_ptr<stat_string_t> register_string_t(const std::string &name, Measure measure,
+                bool skip_first = false);
 
         /**
          * Register one unsigned integer 64 bits stat in the database.
