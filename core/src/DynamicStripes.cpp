@@ -1207,7 +1207,7 @@ namespace core {
             for(int m = 0; m < num_filters; m++) {
 
                 uint8_t prev_group = 0;
-                uint16_t fc_channel_counter = 0;
+                uint16_t channel_counter = 0;
 
                 // Generated statically
                 wgt_filter_position[m] = wgt_data_offset + wgt_data_start;
@@ -1294,12 +1294,12 @@ namespace core {
                             proteus_wgt_data_pt = (proteus_wgt_data_pt + wgt_layer_prec) % network_bits;
 
                             prev_group = width;
-                            fc_channel_counter += GROUP_SIZE;
+                            channel_counter += GROUP_SIZE;
 
                             // Fully connected
-                            if (fc && fc_channel_counter == channels_per_column) {
+                            if (!conv && channel_counter == channels_per_column) {
                                 prev_group = 0;
-                                fc_channel_counter = 0;
+                                channel_counter = 0;
 
                                 if (wgt_data_pt != 0) {
                                     batch_wgt_padding_size += (network_bits - wgt_data_pt) * GROUP_SIZE;
@@ -1362,7 +1362,7 @@ namespace core {
                         for (int x = 0; x < Nx; ++x) {
 
                             uint8_t prev_group = 0;
-                            uint16_t fc_channel_counter = 0;
+                            uint16_t channel_counter = 0;
 
                             // Generated from "previous" layer
                             act_positions[y][x] = act_data_offset + act_data_start;
@@ -1449,11 +1449,11 @@ namespace core {
                                 proteus_act_data_pt = (proteus_wgt_data_pt + act_layer_prec) % network_bits;
 
                                 prev_group = width;
-                                fc_channel_counter += GROUP_SIZE;
+                                channel_counter += GROUP_SIZE;
 
-                                if (fc && fc_channel_counter == channels_per_column) {
+                                if (!conv && channel_counter >= channels_per_column) {
                                     prev_group = 0;
-                                    fc_channel_counter = 0;
+                                    channel_counter = 0;
 
                                     if (act_data_pt != 0) {
                                         batch_act_padding_size += (network_bits - act_data_pt) * GROUP_SIZE;
@@ -1866,10 +1866,6 @@ namespace core {
                     act_datawidth_overhead->value[layer_it][n] = out_y * out_x * 32;
                     act_datawidth_row_overhead->value[layer_it][n] = out_y * out_x * 32;
                     act_datawidth_max_overhead->value[layer_it][n] = out_y * out_x * 32;
-                } else if (stride > 1) {
-                    act_datawidth_overhead->value[layer_it][n] = N_COLUMNS * (16 * Ky) + row_overhead;
-                    act_datawidth_row_overhead->value[layer_it][n] = N_COLUMNS * (16 * Ky) + row_overhead;
-                    act_datawidth_max_overhead->value[layer_it][n] = Ny * out_x * 32;
                 } else {
                     act_datawidth_overhead->value[layer_it][n] = N_COLUMNS * ((16 * Ky) + (16 * Ky) + 32);
                     act_datawidth_row_overhead->value[layer_it][n] = N_COLUMNS * (16 * Ky) + row_overhead;
