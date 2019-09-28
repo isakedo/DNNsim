@@ -7,7 +7,7 @@ namespace core {
 
     template <typename T>
     base::Network<T> Simulator<T>::read_training(const std::string &network_name, uint32_t batch, uint32_t epoch,
-            uint32_t decoder_states, uint32_t traces_mode) {
+            uint32_t decoder_states, uint32_t traces_mode, bool accelerator) {
 
         // Read the network
         base::Network<T> network;
@@ -28,8 +28,10 @@ namespace core {
 
         // Backward traces
         if(backward) {
-            reader.read_training_weight_gradients_npy(network);
-            reader.read_training_input_gradients_npy(network);
+            if (!accelerator) {
+                reader.read_training_weight_gradients_npy(network);
+                reader.read_training_input_gradients_npy(network);
+            }
             reader.read_training_output_activation_gradients_npy(network);
         }
         return network;
@@ -217,7 +219,7 @@ namespace core {
         auto wgt_size = stats.register_double_t("Wgt Size (MB)", 0, sys::AverageTotal);
         auto wgt_set_size = stats.register_double_t("Wgt Working Set Size (MB)", 0, sys::AverageTotal);
 
-        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
+        for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
@@ -294,7 +296,7 @@ namespace core {
         auto zero_wgt = stats.register_uint_t("zero_wgt", 0, sys::AverageTotal);
         auto total_wgt = stats.register_uint_t("total_wgt", 0, sys::AverageTotal);
 
-        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
+        for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
 
@@ -344,7 +346,7 @@ namespace core {
         auto zero_wgt = stats.register_uint_t("zero_wgt_bits", 0, sys::AverageTotal);
         auto total_wgt = stats.register_uint_t("total_wgt_bits", 0, sys::AverageTotal);
 
-        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
+        for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
             const base::Layer<uint16_t> &layer = network.getLayers()[layer_it];
 
@@ -420,11 +422,11 @@ namespace core {
 	    for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
             base::Network<T> network;
-            network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states,traces_mode);
+            network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode, false);
 
             if(!QUIET) std::cout << "Starting simulation training sparsity for epoch " << epoch << std::endl;
 
-            for (int layer_it = 0; layer_it < network.getLayers().size(); layer_it++) {
+            for (int layer_it = 0; layer_it < network.getNumLayers(); layer_it++) {
 
                 const base::Layer<T> &layer = network.getLayers()[layer_it];
 
@@ -550,11 +552,11 @@ namespace core {
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
             base::Network<T> network;
-            network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode);
+            network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode, false);
 
             if(!QUIET) std::cout << "Starting simulation training bit sparsity for epoch " << epoch << std::endl;
 
-            for (int layer_it = 0; layer_it < network.getLayers().size(); layer_it++) {
+            for (int layer_it = 0; layer_it < network.getNumLayers(); layer_it++) {
 
                 const base::Layer<T> &layer = network.getLayers()[layer_it];
 
@@ -684,11 +686,11 @@ namespace core {
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
             base::Network<T> network;
-            network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode);
+            network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode, false);
 
             if(!QUIET) std::cout << "Starting simulation training distribution for epoch " << epoch << std::endl;
 
-            for (int layer_it = 0; layer_it < network.getLayers().size(); layer_it++) {
+            for (int layer_it = 0; layer_it < network.getNumLayers(); layer_it++) {
 
                 const base::Layer<T> &layer = network.getLayers()[layer_it];
 

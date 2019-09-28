@@ -32,26 +32,27 @@ namespace core {
 
     protected:
 
-        /* Number of parallel cores */
+        /** Number of parallel cores */
         const int N_THREADS;
 
-        /* Enable fast mode: only one image */
+        /** Enable fast mode: only one image */
         const bool FAST_MODE = false;
 
-        /* Avoid std::out messages */
+        /** Avoid std::out messages */
         const bool QUIET = false;
 
-        /* Read training traces for a given epoch
+        /** Read training traces for a given epoch
          * @param network_name      Name of the network
          * @param batch             Batch of the traces
          * @param epoch             Epoch of the traces
          * @param decoder_states    Number of states of the decoder
          * @param traces_mode       Fordward/Backward traces
+         * @param accelerator       True if
          */
         base::Network<T> read_training(const std::string &network_name, uint32_t batch, uint32_t epoch,
-                uint32_t decoder_states, uint32_t traces_mode);
+                uint32_t decoder_states, uint32_t traces_mode, bool accelerator);
 
-        /* Iterate set of windows in groups
+        /** Iterate set of windows in groups
          * @param out_x         Output activations X size
          * @param out_y         Output activations Y size
          * @param list_x        X position for the set of input windows (Overwritten)
@@ -64,37 +65,37 @@ namespace core {
         bool iterateWindows(long out_x, long out_y, std::vector<int> &list_x, std::vector<int> &list_y,
                 int &x_counter, int &y_counter, int max_windows = 16);
 
-        /* Split sign, exponent, and mantissa in bfloat16 format from a float
+        /** Split sign, exponent, and mantissa in bfloat16 format from a float
          * @param number    Floating point 32 number
          * return           Tuple containing sign, exponent, and mantissa (truncated)
          */
         std::tuple<uint8_t,uint8_t,uint8_t> split_bfloat16(float number);
 
-        /* Return the optimal encoding for the given value
+        /** Return the optimal encoding for the given value
          * @param value     Value to encode WITHOUT the sign
          * @return          Value with the optimal encoding
          */
         uint16_t booth_encoding(uint16_t value);
 
-        /* Return the minimum and maximum index position for a given value
+        /** Return the minimum and maximum index position for a given value
          * @param value     Value to get the indexes
          * @return          Minimum and maximum indexes
          */
         std::tuple<uint8_t,uint8_t> minMax(uint16_t value);
 
-        /* Return the number of effectual bits for a given value
+        /** Return the number of effectual bits for a given value
          * @param value     Value to get the effectual bits
          * @return          Number of effectual bits
          */
         uint8_t effectualBits(uint16_t value);
 
-        /* Return true if all the queues of activation bits are empty
+        /** Return true if all the queues of activation bits are empty
          * @param offsets   Collection of activations with their explicit one positions in a queue
          * @return          True if empty
          */
         bool check_act_bits(const std::vector<std::queue<uint8_t>> &offsets);
 
-        /* Return value into sign-magnitude representation
+        /** Return value into sign-magnitude representation
          * @param two_comp  Signed value in two complement
          * @param mask      Mask with one bit for the bit position
          * @return          Value in sign-magnitude
@@ -103,7 +104,7 @@ namespace core {
 
     public:
 
-        /* Constructor
+        /** Constructor
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          * @param _QUIET        Avoid std::out messages
@@ -112,35 +113,35 @@ namespace core {
                 QUIET(_QUIET) {}
 
 
-       /* Returns network information
+       /** Returns network information
         * @param network   Network we want to check
         */
         void information(const base::Network<T> &network);
 
-        /* Calculate the sparsity in the network
+        /** Calculate the sparsity in the network
          * @param network   Network we want to check
          */
         void sparsity(const base::Network<T> &network);
 
-        /* Calculate the bit-sparsity in the network. Assumes two-complement
+        /** Calculate the bit-sparsity in the network. Assumes two-complement
          * @param network   Network we want to check
          */
         void bit_sparsity(const base::Network<T> &network);
 
-        /* Calculate the training sparsity in the network
+        /** Calculate the training sparsity in the network
          * @param simulate  Simulate configuration
 		 * @param epochs    Number of epochs
          */
         void training_sparsity(const sys::Batch::Simulate &simulate, int epochs);
 
-        /* Calculate the training bit sparsity in the network
+        /** Calculate the training bit sparsity in the network
          * @param simulate  Simulate configuration
          * @param epochs    Number of epochs
          * @param mantissa  Mantissa bit sparsity instead of exponent
          */
         void training_bit_sparsity(const sys::Batch::Simulate &simulate, int epochs, bool mantissa);
 
-        /* Calculate the training exponent distribution in the network
+        /** Calculate the training exponent distribution in the network
          * @param simulate  Simulate configuration
          * @param epochs    Number of epochs
          * @param mantissa  Mantissa distribution instead of exponent

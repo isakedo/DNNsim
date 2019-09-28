@@ -272,7 +272,7 @@ namespace core {
 
         auto TOTAL_ROWS = N_ROWS * N_TILES;
 
-        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
+        for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
@@ -504,7 +504,7 @@ namespace core {
         auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
         auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
-        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
+        for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
@@ -731,7 +731,7 @@ namespace core {
         auto act_width_need = stats.register_double_dist_t("act_width_need",0,network_bits,0.0,sys::AverageTotal);
         auto wgt_width_need = stats.register_double_dist_t("wgt_width_need",0,network_bits,0.0,sys::AverageTotal);
 
-        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
+        for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
@@ -1118,7 +1118,7 @@ namespace core {
 
         auto network_bits = network.getNetwork_bits();
 
-        for(auto layer_it = 0; layer_it < network.getLayers().size(); ++layer_it) {
+        for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";

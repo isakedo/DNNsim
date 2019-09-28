@@ -224,6 +224,7 @@ namespace core {
         auto fw_wgt_bits_baseline = stats.register_uint_t("fw_wgt_bits_baseline", 0, sys::AverageTotal);
         auto fw_wgt_bits_datawidth = stats.register_uint_t("fw_wgt_bits_datawidth", 0, sys::AverageTotal);
 
+        // Backward stats
         auto bw_in_grad_avg_width = stats.register_double_t("bw_in_grad_avg_width", 0, sys::Average, true);
         auto bw_in_grad_bits_baseline = stats.register_uint_t("bw_in_grad_bits_baseline", 0, sys::AverageTotal);
         auto bw_in_grad_bits_datawidth = stats.register_uint_t("bw_in_grad_bits_datawidth", 0, sys::AverageTotal);
@@ -242,11 +243,11 @@ namespace core {
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
             base::Network<T> network;
-            network = this->read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states,traces_mode);
+            network = this->read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode, false);
 
             if(!this->QUIET) std::cout << "Starting simulation training average width for epoch " << epoch << std::endl;
 
-            for (int layer_it = 0; layer_it < network.getLayers().size(); layer_it++) {
+            for (int layer_it = 0; layer_it < network.getNumLayers(); layer_it++) {
 
                 const base::Layer<float> &layer = network.getLayers()[layer_it];
 

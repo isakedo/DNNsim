@@ -56,6 +56,12 @@ namespace sys {
                     experiment.leading_bit = experiment_proto.leading_bit();
                     experiment.minor_bit = experiment_proto.minor_bit();
 
+                } else if(experiment_proto.architecture() == "DynamicTactical") {
+                    experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
+                    experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
+                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+                    experiment.n_tiles = experiment_proto.n_tiles() < 1 ? 16 : experiment_proto.n_tiles();
+
                 } else throw std::runtime_error("Training architecture for network " + simulate.network +
                                                 " in BFloat16 must be <DynamicStripesFP>.");
 
