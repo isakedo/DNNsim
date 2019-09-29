@@ -8,13 +8,17 @@
 
 namespace interface {
 
+    /**
+     * Interface base class
+     */
     class Interface {
 
     protected:
 
+        /** Avoid std::out messages */
         const bool QUIET;
 
-        /* Check if the path exists
+        /** Check if the path exists
          * @param path  Path we want to check
          */
         void check_path(const std::string &path) {
@@ -24,7 +28,7 @@ namespace interface {
             }
         }
 
-        /* Constructor
+        /** Constructor
          * @param _QUIET    Remove stdout messages
          */
         explicit Interface(bool _QUIET) : QUIET(_QUIET) {}

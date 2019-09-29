@@ -5,6 +5,10 @@
 
 namespace core {
 
+    /**
+     * DynamicTactical simulator
+     * @tparam T 16 bits bfloat
+     */
     template <typename T>
     class DynamicTactical : public Simulator<T> {
 

@@ -7,6 +7,10 @@
 
 namespace core {
 
+    /**
+     * SCNNe simulator
+     * @tparam T 16 bits fixed point
+     */
     template <typename T>
     class SCNNe : public SCNN<T> {
 

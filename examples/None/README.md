@@ -2,5 +2,5 @@
 
 Example batch files:
 
-*   None_example: Calculates value sparsity and bit sparsity
+*   None_example: Calculates value sparsity, bit sparsity, and get information of the layer
 

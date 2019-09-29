@@ -282,7 +282,7 @@ namespace sys {
          * @param _batches Number of batches
          * @param _value Initial value
          * @param _measure Measure for the statistics
-         * @param skip_first Skip first value when doing average
+         * @param _skip_first Skip first value when doing average
          */
         stat_uint_t(uint64_t _layers, uint64_t _batches, uint64_t _value, Measure _measure, bool _skip_first);
 
@@ -340,7 +340,7 @@ namespace sys {
          * @param _batches Number of batches
          * @param _value Initial value
          * @param _measure Measure for the statistics
-         * @param skip_first Skip first value when doing average
+         * @param _skip_first Skip first value when doing average
          */
         stat_double_t(uint64_t _layers, uint64_t _batches, double _value, Measure _measure, bool _skip_first);
 
@@ -410,7 +410,7 @@ namespace sys {
          * @param _max_range Maximum value for the distribution range
          * @param _value Initial value
          * @param _measure Measure for the statistics
-         * @param skip_first Skip first value when doing average
+         * @param _skip_first Skip first value when doing average
          */
         stat_uint_dist_t(uint64_t _layers, uint64_t _batches, uint64_t _min_range, uint64_t _max_range, uint64_t _value,
                 Measure _measure, bool _skip_first);
@@ -655,8 +655,8 @@ namespace sys {
 
         /**
          * Return all stats per image in a csv file
-         * @param network Name of the network
-         * @param layers Name of the layers
+         * @param network_name Name of the network
+         * @param layers_name Name of the layers
          * @param header Header for the results
          * @param QUIET Avoid std::out messages
          */

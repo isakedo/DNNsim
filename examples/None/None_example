@@ -4,6 +4,16 @@ simulate {
 	data_type: "Fixed16"
 	experiment {
         architecture: "None"
+        task: "Information"
+	}
+}
+
+simulate {
+	network: "bvlc_googlenet"
+	model: "Caffe"
+	data_type: "Fixed16"
+	experiment {
+        architecture: "None"
         task: "Sparsity"
 	}
 }

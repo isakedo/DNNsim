@@ -15,6 +15,10 @@
 
 namespace core {
 
+    /**
+     * Base class simulator
+     * @tparam T Data type of the simulation
+     */
     template <typename T>
     class Simulator {
 

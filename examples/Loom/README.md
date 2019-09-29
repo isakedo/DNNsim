@@ -23,7 +23,7 @@ The following parameters are valid for this architecture:
 | n_tiles | uint32 | Number of tiles | Positive number | 16 |
 | precision_granularity | uint32 | Size of the group of values | Positive number | 16 |
 | leading bit | bool | Only the leading bit for dynamic precisions | True-False | False |
-| pe_serial_bits | uint32 | Number of serial bits per PE | Positive Number | 1 |
+| pe_serial_bits | uint32 | Number of serial activations bits per PE | Positive Number | 1 |
 | dynamic_weights | bool | Use dynamic precision for the weights | True-False | False |
 
 Example batch files:

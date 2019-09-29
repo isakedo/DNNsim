@@ -8,6 +8,10 @@
 
 namespace core {
 
+    /**
+     * Laconic simulator
+     * @tparam T 16 bits fixed point
+     */
     template <typename T>
     class Laconic : public Simulator<T> {
 

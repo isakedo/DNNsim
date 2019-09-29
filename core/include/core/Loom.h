@@ -5,6 +5,10 @@
 
 namespace core {
 
+    /**
+     * Loom simulator
+     * @tparam T 16 bits fixed point
+     */
     template <typename T>
     class Loom : public Simulator<T> {
 

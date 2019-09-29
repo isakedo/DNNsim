@@ -5,6 +5,10 @@
 
 namespace core {
 
+    /**
+     * BitTactical simulator
+     * @tparam T 16 bits fixed point
+     */
     template <typename T>
     class BitTactical : public Simulator<T> {
 
@@ -94,8 +98,8 @@ namespace core {
          * @param _N_ROWS           Number of rows
          * @param _N_TILES          Number of tiles
          * @param _COLUMN_REGISTERS Number of registers per SIP
-         * @param _LOOKAHEAD_D      Value for scheduler lookahead
-         * @param _LOOKASIDE_H      Value for scheduler lookaside
+         * @param _LOOKAHEAD_H      Value for scheduler lookahead
+         * @param _LOOKASIDE_D      Value for scheduler lookaside
          * @param _SEARCH_SHAPE     Type of search
          * @param _N_THREADS        Number of parallel threads for multi-threading execution
          * @param _FAST_MODE        Enable fast mode to simulate only one image

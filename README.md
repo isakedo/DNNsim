@@ -106,7 +106,7 @@ parallelized per batch using OpenMP library
 
 | Architecture | Description | Details | 
 |:---:|:---:|:---:|
-| None | Special generic architecture |
+| None | Special generic architecture | [None](examples/None/README.md) |
 | BitPragmatic | **Ae**: Exploits bit-level sparsity of activations | [BitPragmatic](examples/BitPragmatic/README.md) |
 | Stripes | **Ap**: Exploits precision requirements of activations | [Stripes](examples/Stripes/README.md) |
 | DynamicStripes | **Ap**: Exploits dynamic precision requirements of a group of activations | [DynamicStripes](examples/DynamicStripes/README.md) |
@@ -115,8 +115,8 @@ parallelized per batch using OpenMP library
 | BitTacticalP | **W + Ap**: Skips zero weights and exploits precision requirements of activations | [BitTactical](examples/BitTactical/README.md) |
 | BitTacticalE | **W + Ae**: Skips zero weights and exploits bit-level sparsity of activations | [BitTactical](examples/BitTactical/README.md) |
 | SCNN | **W + A**: Skips zero weights and zero activations | [SCNN](examples/SCNN/README.md) |
-| SCNNp | **W + A + Ap**: Skips zero weights, zero activations, and exploits precision requirements of activations | [SCNNp](examples/SCNNp/README.md) | 
-| SCNNe | **W + A + Ae**: Skips zero weights, zero activations, and exploits bit-level sparsity of activations | [SCNNe](examples/SCNNe/README.md) |
+| SCNNp | **W + A + Ap**: Skips zero weights, zero activations, and exploits precision requirements of activations | [SCNNp](examples/SCNNx/README.md) | 
+| SCNNe | **W + A + Ae**: Skips zero weights, zero activations, and exploits bit-level sparsity of activations | [SCNNe](examples/SCNNx/README.md) |
 | BitFusion | **Wp + Ap**: Exploits precision requirements of activations and weights for powers of two | [BitFusion](examples/BitFusion/README.md) |
 
 *  Allowed tasks for these architectures:
@@ -132,6 +132,7 @@ parallelized per batch using OpenMP library
 
 | Task | Description | Data type |
 |:---:|:---:|:---:|
+| Information | Output information of the network | Fixed16 | 
 | Sparsity | Calculate sparsity for actiations and weights, number of zero values | Fixed16, Float32 |
 | BitSparsity | Calculate bit sparsity for activations and weights, number of zero bits | Fixed16 |
 
@@ -149,23 +150,14 @@ parallelized per batch using OpenMP library
 |:---:|:---:|:---:|
 | None | Special generic architecture | [None](examples/None/README.md) |
 | DynamicStripesFP | **Ap**: Exploits dynamic precision requirements of a group of activations | [DynamicStripesFP](examples/DynamicStripesFP/README.md) |
-
-Input parameters are the parameters that can be changed for each architecture in the prototxt batch file.
-Default parameters are defined in the header of each architecture, they can be changed in the specific file. 
-Data type indicates the possible data types allowed: Float32 for 4bytes floating point, and BFloat16 for 2bytes 
-truncated floating point   
-
-| Architecture | Input Parameters | Default Parameters\* | Data type |
-|:---:|:---:|:---:|:---:|
-| DynamicStripesFP | LEADING_BIT, MINOR_BIT, EXPONENT | - | BFloat16 |
-
-*\*Default features can be removed in their specific header file*
+| DynamicTactical | **A + G**: Skips zero activations and gradients | [DynamicTactical](examples/DynamicTactical/README.md) |
 
 *  Allowed tasks for these architectures:
 
 | Task | Description | 
 |:---:|:---:|
-| AvgWidth | Calculate average effective width for the activations and weights per group (Only for DynamicStripes architecture) |
+| Cycles | Simulate number of cycles and memory accesses | 
+| AvgWidth | Calculate average effective width for the activations and weights per group (Only for DynamicStripesFP architecture) |
 
 * Allowed task for the special architecture "None":
 
@@ -186,8 +178,8 @@ The batch file can be constructed as follows for the simulation tool:
 | network | string | Name of the network as in the folder models | Valid path | N/A |
 | batch | uint32 | Corresponding batch for the Numpy traces | Positive numbers | 0 | 
 | epoch | uint32 | Number of epochs in the Numpy traces | Positive numbers | 1 | 
-| inputType | string | Format of the input model definition and traces | Trace-Caffe-CParams-Protobuf-Gzip | N/A |
-| inputDataType | string | Data type of the input traces | Float32-Fixed16-BFloat16 | N/A |
+| model | string | Format of the input model definition and traces | Trace-Caffe-CParams-Protobuf-Gzip | N/A |
+| input_type | string | Data type of the input traces | Float32-Fixed16-BFloat16 | N/A |
 | network_bits | uint32 | Number of baseline bits of the network | Positive Number | 16 |
 | tensorflow_8b | bool | Use tensorflow 8bits quantization | True-False | False |
 | training | bool | Change mode to training simulations | True-False | False |
@@ -202,43 +194,3 @@ Experiments for the simulation tool can contain the following parameters.
 | architecture | string | Name of the architecture to simulate | Allowed architectures | N/A |
 | task | string | Name of the architecture to simulate | Allowed tasks | N/A |
 | | | List of Parameters per Architecture | | |
-
-### Structure:
-*   **sys**: Folder for system libraries
-    *   common: contains common definitions for all classes
-    *   cxxopts: library to read options from the console (c) Jarryd Beck
-    *   Statistic: container for the statistics of the simulation
-    *   Batch: support to load batch files
-*   **cnpy**: Folder for supporting math libraries
-    *   cnpy: library to read Numpy arrays
-    *   Array: class to store and operate with flatten arrays
-*   **core**: Folder for the main classes of the simulator
-    *   Network: class to store the network
-    *   Layer: class to store the layer of the network
-    *   Inference: class that defines the behaviour of a standard deep learning inference simulation
-    *   Stripes: class for the Stripes accelerator
-    *   DynamicStripes: class for the Dynamic-Stripes accelerator
-    *   DynamicStripesFP: class for the floating point Dynamic-Stripes training accelerator
-    *   Loom: class for the Loom accelerator
-    *   BitPragmatic: class for the Bit-Pragmatic accelerator
-    *   Laconic: class for the Laconic accelerator
-    *   BitTactical: common class for both BitTactical behaviors
-    *   BitTacticalP: class for the Bit-Tactical version p accelerator
-    *   BitTacticalE: class for the Bit-Tactical version e accelerator
-    *   SCNN: class for the SCNN accelerator and common behaviour for SCNN-like architectures
-    *   SCNNp: class for the SCNNe accelerator
-    *   SCNNe: class for the SCNNp accelerator
-    *   BitFusion: class for the BitFusion accelerator
-*   **interface**: Folder to interface with input/output operations
-    *   Interface: common class for the reader and writer classes
-    *   NetReader: class to read and load a network using different formats
-    *   NetWriter: class to write and dump a network using different formats
-    *   StatsWriter: class to dump simulation statistics in different formats
-*   **proto**: Folder for protobuf definition
-    *   network.proto: Google protobuf definition for the network
-    *   caffe.proto: Caffe protobuf definition for Caffe networks
-    *   batch.proto: Google protobuf definition for the batch file
-    *   schedule.proto: Tactical schedule protobuf definition
-*   **scripts**: Folder for supporting python scripts
-    *   save_net.py: Create traces for the networks given the models
-    

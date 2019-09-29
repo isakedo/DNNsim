@@ -5,6 +5,10 @@
 
 namespace core {
 
+    /**
+     * DynamicStripesFP simulator
+     * @tparam T 16 bits bfloat
+     */
     template <typename T>
     class DynamicStripesFP : public Simulator<T> {
 

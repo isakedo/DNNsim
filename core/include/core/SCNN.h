@@ -9,6 +9,10 @@ typedef std::vector<std::tuple<int,int,int>> wgt_idxMap;
 
 namespace core {
 
+    /**
+     * SCNN simulator
+     * @tparam T 16 bits fixed point
+     */
     template <typename T>
     class SCNN : public Simulator<T> {
 

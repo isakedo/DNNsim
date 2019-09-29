@@ -1,7 +1,7 @@
 ### Laconic Example
 
 S. Sharify, M. Mahmoud, A. Delmas Lascorz, M. Nikolic, A. Moshovos 
-[Laconic Deep Learning Computing](https://arxiv.org/abs/1805.04513)
+[Laconic Deep Learning Computing](https://dl.acm.org/citation.cfm?id=3322255)
 
 ### Default Parameters Description   
 

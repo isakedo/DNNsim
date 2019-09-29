@@ -3,17 +3,18 @@ simulate {
 	model: "Caffe"
 	data_type: "Fixed16"
 	experiment {
-        architecture: "SCNN"
+        architecture: "SCNNe"
         task: "Cycles"
         Wt: 32
         Ht: 32
         I: 4
         F: 4
         out_acc_size: 1024
-        banks: 32
+        banks: 16
+        pe_serial_bits: 1
 	}
 	experiment {
-        architecture: "SCNN"
+        architecture: "SCNNe"
         task: "Potentials"
 	}
 }

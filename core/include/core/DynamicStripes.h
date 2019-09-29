@@ -5,6 +5,10 @@
 
 namespace core {
 
+    /**
+     * DynamicStripes simulator
+     * @tparam T 16 bits fixed point
+     */
     template <typename T>
     class DynamicStripes : public Simulator<T> {
 

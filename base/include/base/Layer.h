@@ -6,71 +6,75 @@
 
 namespace base {
 
+    /**
+     * Container for the layers of the network
+     * @tparam T Data type of the layer
+     */
     template <typename T>
     class Layer {
 
     private:
 
-        /* Type of the layer */
+        /** Type of the layer */
         std::string type;
 
-        /* Name of the network */
+        /** Name of the network */
         std::string name;
 
-        /* Set of layers of the network*/
+        /** Set of layers of the network*/
         std::string input;
 
-        /* Number of outputs */
+        /** Number of outputs */
         int Nn;
 
-        /* Filters X size */
+        /** Filters X size */
         int Kx;
 
-        /* Filters Y size */
+        /** Filters Y size */
         int Ky;
 
-        /* Stride */
+        /** Stride */
         int stride;
 
-        /* Padding */
+        /** Padding */
         int padding;
 
-        /* Activations precision: magnitude + sign + frac */
+        /** Activations precision: magnitude + sign + frac */
         int act_precision;
 
-        /* Activations magnitude */
+        /** Activations magnitude */
         int act_magnitude;
 
-        /* Activations fraction */
+        /** Activations fraction */
         int act_fraction;
 
-        /* Weights precision: magnitude + sign + frac */
+        /** Weights precision: magnitude + sign + frac */
         int wgt_precision;
 
-        /* Weights magnitude */
+        /** Weights magnitude */
         int wgt_magnitude;
 
-        /* Weights fraction */
+        /** Weights fraction */
         int wgt_fraction;
 
-        /* numpy array containing the weights for the layer */
+        /** numpy array containing the weights for the layer */
         Array<T> weights;
 
-        /* numpy array containing the activations for the layer */
+        /** numpy array containing the activations for the layer */
         Array<T> activations;
 
-        /* numpy array containing the weight gradients for the layer */
+        /** numpy array containing the weight gradients for the layer */
         Array<T> weight_gradients;
 
-        /* numpy array containing the activation gradients for the layer */
+        /** numpy array containing the activation gradients for the layer */
         Array<T> input_gradients;
 
-        /* numpy array containing the output activation gradients for the layer */
+        /** numpy array containing the output activation gradients for the layer */
         Array<T> output_gradients;
 
     public:
 
-        /* Constructor
+        /** Constructor
          * @param _type     Type of the network
          * @param _name     Name of the layer
          * @param _input    Name of the input layer
@@ -87,7 +91,7 @@ namespace base {
             wgt_precision = -1; wgt_magnitude = -1; wgt_fraction = -1;
         }
 
-        /* Constructor
+        /** Constructor
          * @param _type             Type of the network
          * @param _name             Name of the layer
          * @param _input            Name of the input layer
@@ -111,43 +115,178 @@ namespace base {
             type = _type; name = _name; input = _input;
         }
 
-        /* Getters */
+        /**
+         * Get the type of the layer (Conv, Inner Productm etc.)
+         * @return Type of the layer
+         */
         std::string getType() const { return type; }
+
+        /**
+         * Get the name of the layer
+         * @return Name of the layer
+         */
         const std::string &getName() const { return name; }
+
+        /**
+         * Get the name of the previous layer
+         * @return Previous layer
+         */
         const std::string &getInput() const { return input; }
+
+        /**
+         * Get number of output channels
+         * @return Output channels
+         */
         int getNn() const { return Nn; }
+
+        /**
+         * Get the kernel width
+         * @return Kernel width
+         */
         int getKx() const { return Kx; }
+
+        /**
+         * Get the kernel height
+         * @return Kernel height
+         */
         int getKy() const { return Ky; }
+
+        /**
+         * Get the stride of the layer
+         * @return Stride of the layer
+         */
         int getStride() const { return stride; }
+
+        /**
+         * Get the padding of the layer
+         * @return Padding of the layer
+         */
         int getPadding() const { return padding; }
+
+        /**
+         * Get the activations precision
+         * @return Activations precision
+         */
         int getActPrecision() const { return act_precision; }
+
+        /**
+         * Get the activations magnitude
+         * @return Activations magnitude
+         */
         int getActMagnitude() const { return act_magnitude; }
+
+        /**
+         * Get the activations fraction
+         * @return Activations fraction
+         */
         int getActFraction() const { return act_fraction; }
+
+        /**
+         * Get the weights precision
+         * @return Weights precision
+         */
         int getWgtPrecision() const { return wgt_precision; }
+
+        /**
+         * Get the weights magnitude
+         * @return Weights magnitude
+         */
         int getWgtMagnitude() const { return wgt_magnitude; }
+
+        /**
+         * Get the weights fraction
+         * @return Weights fraction
+         */
         int getWgtFraction() const { return wgt_fraction; }
+
+        /**
+         * Get weights data
+         * @return Weights data
+         */
         const Array<T> &getWeights() const { return weights; }
+
+        /**
+         * Get activations data
+         * @return Activations data
+         */
         const Array<T> &getActivations() const { return activations; }
+
+        /**
+         * Get weights gradients data
+         * @return Weights gradients data
+         */
         const Array<T> &getWeightGradients() const { return weight_gradients; }
+
+        /**
+         * Get input gradients data
+         * @return Input gradients data
+         */
         const Array<T> &getInputGradients() const { return input_gradients; }
+
+        /**
+         * Get output gradients data
+         * @return Output gradients data
+         */
         const Array<T> &getOutputGradients() const { return output_gradients; }
 
-        /* Setters */
-        void setName(const std::string &name) { Layer::name = name; }
-        void setWeights(const Array<T> &weights) { Layer::weights = weights; }
-        void setActivations(const Array<T> &activations) { Layer::activations = activations; }
-        void setWeightGradients(const Array<T> &weight_gradients) { Layer::weight_gradients = weight_gradients; }
-        void setInputGradients(const Array<T> &input_gradients) { Layer::input_gradients = input_gradients; }
-        void setOutputGradients(const Array<T> &output_gradients) { Layer::output_gradients = output_gradients; }
-        void setAct_precision(int act_precision, int act_magnitude, int act_fraction) {
-            Layer::act_precision = act_precision;
-            Layer::act_magnitude = act_magnitude;
-            Layer::act_fraction = act_fraction;
+        /**
+         * Set the name of the layer
+         * @param _name Name of the layer
+         */
+        void setName(const std::string &_name) { Layer::name = _name; }
+
+        /**
+         * Set the weights data
+         * @param _weights Weights data
+         */
+        void setWeights(const Array<T> &_weights) { Layer::weights = _weights; }
+
+        /**
+         * Set the activations data
+         * @param _activations Activations data
+         */
+        void setActivations(const Array<T> &_activations) { Layer::activations = _activations; }
+
+        /**
+         * Set weights gradients data
+         * @param _weight_gradients Weights gradients data
+         */
+        void setWeightGradients(const Array<T> &_weight_gradients) { Layer::weight_gradients = _weight_gradients; }
+
+        /**
+         * Set the input gradients
+         * @param _input_gradients Input gradients data
+         */
+        void setInputGradients(const Array<T> &_input_gradients) { Layer::input_gradients = _input_gradients; }
+
+        /**
+         * Set the output gradients
+         * @param _output_gradients Output gradients data
+         */
+        void setOutputGradients(const Array<T> &_output_gradients) { Layer::output_gradients = _output_gradients; }
+
+        /**
+         * Set the activations precision
+         * @param _act_precision Activations precision
+         * @param _act_magnitude Activations magnitude
+         * @param _act_fraction Activations fraction
+         */
+        void setAct_precision(int _act_precision, int _act_magnitude, int _act_fraction) {
+            Layer::act_precision = _act_precision;
+            Layer::act_magnitude = _act_magnitude;
+            Layer::act_fraction = _act_fraction;
         }
-        void setWgt_precision(int wgt_precision, int wgt_magnitude, int wgt_fraction) {
-            Layer::wgt_precision = wgt_precision;
-            Layer::wgt_magnitude = wgt_magnitude;
-            Layer::wgt_fraction = wgt_fraction;
+
+        /**
+         * Set the weights precision
+         * @param _wgt_precision Weights precision
+         * @param _wgt_magnitude Weights magnitude
+         * @param _wgt_fraction Weights fraction
+         */
+        void setWgt_precision(int _wgt_precision, int _wgt_magnitude, int _wgt_fraction) {
+            Layer::wgt_precision = _wgt_precision;
+            Layer::wgt_magnitude = _wgt_magnitude;
+            Layer::wgt_fraction = _wgt_fraction;
         }
 
     };
