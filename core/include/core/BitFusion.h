@@ -10,19 +10,19 @@ namespace core {
 
     private:
 
-        /* Systolic array width */
+        /** Systolic array width */
         const uint32_t M;
 
-        /* Systolic array height */
+        /** Systolic array height */
         const uint32_t N;
 
-        /* Maximum precision */
+        /** Maximum precision */
         const uint32_t PMAX;
 
-        /* Maximum precision */
+        /** Maximum precision */
         const uint32_t PMIN;
 
-        /* Compute number of one bit multiplications
+        /** Compute number of one bit multiplications
          * @param act_rounded_precision Rounded precision for the activations to the next power of two
          * @param wgt_rounded_precision Rounded precision for the weights to the next power of two
          * @return                      Number of one bit multiplications
@@ -31,7 +31,7 @@ namespace core {
 
     public:
 
-        /* Constructor
+        /** Constructor
          * @param _M            Matrix width
          * @param _N            Matrix height
          * @param _PMAX         Maximum precision
@@ -39,16 +39,18 @@ namespace core {
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          * @param _QUIET        Avoid std::out messages
+         * @param _CHECK        Check the correctness of the simulations
          */
         BitFusion(uint32_t _M, uint32_t _N, uint32_t _PMAX, uint32_t _PMIN, uint8_t _N_THREADS, bool _FAST_MODE,
-                bool _QUIET) : Simulator<T>(_N_THREADS,_FAST_MODE,_QUIET), M(_M), N(_N), PMAX(_PMAX), PMIN(_PMIN) {}
+                bool _QUIET, bool _CHECK) : Simulator<T>(_N_THREADS,_FAST_MODE,_QUIET,_CHECK), M(_M), N(_N),
+                PMAX(_PMAX), PMIN(_PMIN) {}
 
-        /* Run the timing simulator of the architecture
+        /** Run the timing simulator of the architecture
          * @param network   Network we want to simulate
          */
         void run(const base::Network<T> &network);
 
-        /* Calculate potentials for the given network
+        /** Calculate potentials for the given network
          * @param network   Network we want to calculate work reduction
          */
         void potentials(const base::Network<T> &network);

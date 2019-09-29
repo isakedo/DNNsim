@@ -14,7 +14,7 @@ namespace core {
 
         typedef std::vector<std::tuple<int,int,uint8_t>> act_idxMap;
 
-        /* Number of bits in series that the PE process */
+        /** Number of bits in series that the PE process */
         const uint32_t PE_SERIAL_BITS;
 
         struct PE_stats {
@@ -46,7 +46,7 @@ namespace core {
 
         };
 
-        /* Compute number of one bit multiplications given a weight and an activation
+        /** Compute number of one bit multiplications given a weight and an activation
          * @param act           Activation
          * @param wgt           Weight
          * @param network_bits  Max bits network
@@ -54,7 +54,7 @@ namespace core {
          */
         uint16_t computeSCNNeBitsPE(T act, T wgt, int network_bits);
 
-        /* Compute SCNNe processing engine
+        /** Compute SCNNe processing engine
          * @param W         Width of the output activations
          * @param H         Height of the output activations
          * @param stride    Stride for the layer
@@ -64,7 +64,7 @@ namespace core {
          */
         PE_stats computeSCNNePE(uint64_t W, uint64_t H, int stride, const act_idxMap &act, const wgt_idxMap &wgt);
 
-        /* Compute SCNNp tile
+        /** Compute SCNNp tile
          * @param n         Number of batch
          * @param ct        Channel to be processed within a filter
          * @param ck        Channel offset for per group filters
@@ -91,7 +91,7 @@ namespace core {
 
     public:
 
-        /* Constructor
+        /** Constructor
          * @param _Wt               Number of PE columns
          * @param _Ht               Number of PE rows
          * @param _I                Column multipliers per PE
@@ -102,18 +102,19 @@ namespace core {
          * @param _N_THREADS        Number of parallel threads for multi-threading execution
          * @param _FAST_MODE        Enable fast mode to simulate only one image
          * @param _QUIET            Avoid std::out messages
+         * @param _CHECK            Check the correctness of the simulations
          */
         SCNNe(uint32_t _Wt, uint32_t _Ht, uint32_t _I, uint32_t _F, uint32_t _out_acc_size, uint32_t _BANKS,
-                uint32_t _PE_SERIAL_BITS, uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET) :
-                SCNN<T>(_Wt,_Ht,_I,_F,_out_acc_size,_BANKS,_N_THREADS,_FAST_MODE,_QUIET),
+                uint32_t _PE_SERIAL_BITS, uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) :
+                SCNN<T>(_Wt,_Ht,_I,_F,_out_acc_size,_BANKS,_N_THREADS,_FAST_MODE,_QUIET,_CHECK),
                 PE_SERIAL_BITS(_PE_SERIAL_BITS) {}
 
-        /* Run the timing simulator of the architecture
+        /** Run the timing simulator of the architecture
          * @param network   Network we want to simulate
          */
         void run(const base::Network<T> &network) override;
 
-        /* Calculate potentials for the given network
+        /** Calculate potentials for the given network
          * @param network   Network we want to calculate work reduction
          */
         void potentials(const base::Network<T> &network) override;

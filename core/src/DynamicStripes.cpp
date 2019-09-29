@@ -1488,7 +1488,7 @@ namespace core {
 
                 }
 
-                if (false && conv) {
+                if (this->CHECK && conv) {
 
                     auto output_activations = std::vector<std::vector<std::vector<uint32_t>>>(num_filters,
                             std::vector<std::vector<uint32_t>>(out_x,std::vector<uint32_t>(out_y,0)));

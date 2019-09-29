@@ -77,12 +77,13 @@ namespace core {
          * @param _N_THREADS            Number of parallel threads for multi-threading execution
          * @param _FAST_MODE            Enable fast mode to simulate only one image
          * @param _QUIET                Avoid std::out messages
+         * @param _CHECK                Check the correctness of the simulations
          */
         BitTacticalE(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES,
                 uint32_t _BITS_FIRST_STAGE, uint32_t _COLUMN_REGISTERS, uint32_t _LOOKAHEAD_H, uint32_t _LOOKASIDE_D,
-                const char _SEARCH_SHAPE, uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET) : BitTactical<T>(_N_LANES,
-                _N_COLUMNS,_N_ROWS,_N_TILES,_COLUMN_REGISTERS,_LOOKAHEAD_H,_LOOKASIDE_D,_SEARCH_SHAPE,_N_THREADS,
-                _FAST_MODE,_QUIET), BITS_FIRST_STAGE(_BITS_FIRST_STAGE) {}
+                const char _SEARCH_SHAPE, uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) :
+                BitTactical<T>(_N_LANES,_N_COLUMNS,_N_ROWS,_N_TILES,_COLUMN_REGISTERS,_LOOKAHEAD_H,_LOOKASIDE_D,
+                _SEARCH_SHAPE,_N_THREADS,_FAST_MODE,_QUIET,_CHECK), BITS_FIRST_STAGE(_BITS_FIRST_STAGE) {}
 
         /** Run the timing simulator of the architecture
          * @param network   Network we want to simulate

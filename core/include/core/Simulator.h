@@ -41,6 +41,9 @@ namespace core {
         /** Avoid std::out messages */
         const bool QUIET = false;
 
+        /** Check the correctness of the simulations */
+        const bool CHECK = false;
+
         /** Read training traces for a given epoch
          * @param network_name      Name of the network
          * @param batch             Batch of the traces
@@ -108,9 +111,10 @@ namespace core {
          * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          * @param _QUIET        Avoid std::out messages
+         * @param _CHECK        Check the correctness of the simulations
          */
-        Simulator(uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET) : N_THREADS(_N_THREADS), FAST_MODE(_FAST_MODE),
-                QUIET(_QUIET) {}
+        Simulator(uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) : N_THREADS(_N_THREADS),
+                FAST_MODE(_FAST_MODE), QUIET(_QUIET), CHECK(_CHECK) {}
 
 
        /** Returns network information
