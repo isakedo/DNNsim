@@ -54,10 +54,9 @@ namespace core {
          * @param epoch             Epoch of the traces
          * @param decoder_states    Number of states of the decoder
          * @param traces_mode       Fordward/Backward traces
-         * @param accelerator       True if
          */
         base::Network<T> read_training(const std::string &network_name, uint32_t batch, uint32_t epoch,
-                uint32_t decoder_states, uint32_t traces_mode, bool accelerator);
+                uint32_t decoder_states, uint32_t traces_mode);
 
         /** Iterate set of windows in groups
          * @param out_x         Output activations X size

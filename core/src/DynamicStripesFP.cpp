@@ -243,7 +243,7 @@ namespace core {
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
             base::Network<T> network;
-            network = this->read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode, false);
+            network = this->read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode);
 
             if(!this->QUIET) std::cout << "Starting simulation training average width for epoch " << epoch << std::endl;
 

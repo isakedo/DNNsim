@@ -26,6 +26,14 @@ namespace core {
         /** Number of rows */
         const uint32_t N_TILES;
 
+        /** Compute number of one bit multiplications given a first and a second value
+         * @param first         First value
+         * @param second        Second value
+         * @param first_value   if True check sparsity in first value, if not in second
+         * @return              Number of one bit multiplications
+         */
+        uint16_t computeDynamicTacticalBitsPE(T first, T second, bool first_value) ;
+
     public:
 
         /** Constructor

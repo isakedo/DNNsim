@@ -7,7 +7,7 @@ namespace core {
 
     template <typename T>
     base::Network<T> Simulator<T>::read_training(const std::string &network_name, uint32_t batch, uint32_t epoch,
-            uint32_t decoder_states, uint32_t traces_mode, bool accelerator) {
+            uint32_t decoder_states, uint32_t traces_mode) {
 
         // Read the network
         base::Network<T> network;
@@ -17,6 +17,7 @@ namespace core {
 
         bool forward = (traces_mode & 0x1u) != 0;
         bool backward = (traces_mode & 0x2u) != 0;
+        bool accelerator_backward = (traces_mode & 0x4u) != 0;
         network.setForkward(forward);
         network.setBackward(backward);
 
@@ -28,12 +29,16 @@ namespace core {
 
         // Backward traces
         if(backward) {
-            if (!accelerator) {
-                reader.read_training_weight_gradients_npy(network);
-                reader.read_training_input_gradients_npy(network);
-            }
+            reader.read_training_weight_gradients_npy(network);
+            reader.read_training_input_gradients_npy(network);
             reader.read_training_output_activation_gradients_npy(network);
         }
+
+        // Backward traces accelerators
+        if (accelerator_backward) {
+            reader.read_training_output_activation_gradients_npy(network);
+        }
+
         return network;
 
     }
@@ -422,7 +427,7 @@ namespace core {
 	    for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
             base::Network<T> network;
-            network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode, false);
+            network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode);
 
             if(!QUIET) std::cout << "Starting simulation training sparsity for epoch " << epoch << std::endl;
 
@@ -552,7 +557,7 @@ namespace core {
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
             base::Network<T> network;
-            network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode, false);
+            network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode);
 
             if(!QUIET) std::cout << "Starting simulation training bit sparsity for epoch " << epoch << std::endl;
 
@@ -686,7 +691,7 @@ namespace core {
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
             base::Network<T> network;
-            network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode, false);
+            network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode);
 
             if(!QUIET) std::cout << "Starting simulation training distribution for epoch " << epoch << std::endl;
 
