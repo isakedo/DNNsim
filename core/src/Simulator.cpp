@@ -44,22 +44,22 @@ namespace core {
         list_x.clear();
         list_y.clear();
         int current_windows = 0;
-        while(x_counter < out_x) {
-            while(y_counter < out_y) {
+        while(y_counter < out_y) {
+            while(x_counter < out_x) {
                 list_x.push_back(x_counter);
                 list_y.push_back(y_counter);
                 current_windows++;
-                y_counter++;
+                x_counter++;
                 if(current_windows >= max_windows)
                     return true;
             }
-            y_counter = 0;
-            x_counter++;
+            x_counter = 0;
+            y_counter++;
         }
         if(current_windows > 0)
             return true;
 
-        x_counter = 0;
+        y_counter = 0;
         return false;
     }
 

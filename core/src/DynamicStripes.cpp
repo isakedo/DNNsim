@@ -79,9 +79,9 @@ namespace core {
                 if(DIFFY) {
                     short raw_act_bits = padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
                             stride * list_act_y[window] + kernel_y);
-                    short prev_act_bits = (stride * list_act_y[window] - stride < 0) ? 0 :
-                            padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x,
-                                stride * list_act_y[window] + kernel_y - stride);
+                    short prev_act_bits = (stride * list_act_x[window] - stride < 0) ? 0 :
+                            padded_act.get(batch, channel, stride * list_act_x[window] + kernel_x - stride,
+                                stride * list_act_y[window] + kernel_y);
 
                     raw_act_bits = raw_act_bits - prev_act_bits;
 
