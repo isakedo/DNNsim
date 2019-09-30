@@ -1,9 +1,9 @@
-### Loom Example
+# Loom Example
 
 S. Sharify, A. Delmas, P. Judd, K. Siu, and A. Moshovos
 [Loom: exploiting weight and activation precisions to accelerate convolutional neural networks](https://dl.acm.org/citation.cfm?id=3196072)
 
-### Default Parameters Description   
+## Default Parameters Description   
 
 Default for the architecture. This parameters are defined in core/include/core/Loom.h
 
@@ -11,7 +11,7 @@ Default for the architecture. This parameters are defined in core/include/core/L
 |:---:|:---:|:---:|:---:|:---:|
 | ZERO_COUNT | bool | Zero values count as one cycle | True-False | True | 
    
-### Input Parameters Description   
+## Input Parameters Description   
 
 The following parameters are valid for this architecture:
 

@@ -1,9 +1,9 @@
-### BitFusion Example
+# BitFusion Example
 
 H. Sharma, J. Park, N. Suda, L. Lai, B. Chau, V. Chandra, and H. Esmaeilzadeh
 [Bit fusion: bit-level dynamically composable architecture for accelerating deep neural networks](https://dl.acm.org/citation.cfm?id=3306184)
 
-### Input Parameters Description   
+## Input Parameters Description   
 
 The following parameters are valid for this architecture:
 

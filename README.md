@@ -1,11 +1,11 @@
 # DNNsim 
 
-### Requeriments
+## Requeriments
 *   Cmake version >= 3.10
 *   GNU C++ compiler version >= 5.1
 *   Google Protobuf for C++. Installation link:
     *   https://github.com/protocolbuffers/protobuf/blob/master/src/README.md
-### Allowed input files
+## Allowed input files
 
 *   The architecture of the net in a train_val.prototxt file (without weights and activations)
 *   The architecture of the net in a trace_params.csv file (without weights and activations)
@@ -14,7 +14,7 @@
 *   Full network in a Google protobuf format file
 *   Tactical schedule in a protobuf format file
 
-### Installation in the aenao cluster
+## Installation in the aenao cluster
 Must use 10.0.0.136 machine (It has protobuf and a newer version of gcc installed). First allow access to internet:
 
     ssh -D 12345 <username>@10.0.0.254 -Nf
@@ -27,7 +27,7 @@ Finally, allow access to gcc-7 in CentOS (not necessary to run simulations):
 
     scl enable devtoolset-7 bash
 
-### Compilation:
+## Compilation:
 Command line compilation. First we need to configure the project:
     
     cmake3 -H. -Bcmake-build-release -DCMAKE_BUILD_TYPE=Release
@@ -36,7 +36,7 @@ Then, we can proceed to build the project
 
     cmake3 --build cmake-build-release/ --target all
 
-### Set up directories
+## Set up directories
 
 Create folder **models** including a folder for each network. Every network must include:
    *  train_val.prototxt
@@ -70,20 +70,20 @@ In the case of **training** simulation, every network must include in subdirecto
    * outGrad/$LAYER-$EPOCH-$BATCH-inGrad.npy
    * outGrad/$LAYER-$EPOCH-$BATCH-wGrad.npy
        
-### Test
+## Test
 
 Print help:
 
     ./DNNsim -h
     
-The simulator instructions are defined in prototxt files. Example files can be found [here](examples/README.md).
+The simulator instructions are defined in prototxt files. Example files can be found [here](examples/).
 
 Results from simulations can be found inside the results folder. One csv file for each simulation 
 containing one line for each layer which are grouped per batch. After that, one line for the each layer is shown with the 
 average results for all batches. Finally, the last line corresponds to the total of the network. 
 (In the case of training the results are grouped per epoch)
 
-### Command line options
+## Command line options
 
 * Option **--threads <positive_num>** indicates the number of simultaneous threads that can be executed. The code is 
 parallelized per batch using OpenMP library
@@ -91,7 +91,7 @@ parallelized per batch using OpenMP library
 * Option **--fast_mode** makes the simulation execute only one batch per network, the first one.
 * Option **--store_fixed_point_protobuf** store the fixed point network in a intermediate Protobuf file.
 
-### Allowed Inference simulations
+## Allowed Inference simulations
 
 *  Allowed model types for the simulations:
 
@@ -136,7 +136,7 @@ parallelized per batch using OpenMP library
 | Sparsity | Calculate sparsity for actiations and weights, number of zero values | Fixed16, Float32 |
 | BitSparsity | Calculate bit sparsity for activations and weights, number of zero bits | Fixed16 |
 
-### Allowed Training simulations
+## Allowed Training simulations
 
 *  Allowed input types for the simulations:
 
@@ -169,7 +169,7 @@ parallelized per batch using OpenMP library
 | ExpDistr | Print exponent data distribution for forward and backward | BFloat16 |
 | MantDistr | Print mantissa data distribution for forward and backward | BFloat16 |
 
-### Input Parameters Description   
+## Input Parameters Description   
 
 The batch file can be constructed as follows for the simulation tool:
 

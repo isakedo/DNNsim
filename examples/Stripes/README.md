@@ -1,9 +1,9 @@
-### Stripes Example
+# Stripes Example
 
 P. Judd, J. Albericio, T. Hetherington, T. Aamodt, A. Moshovos, 
 [Stripes: Bit-Serial Deep Learning Computing, ACM/IEEE International Conference on Microarchitecture, Oct 2016](https://www.ece.ubc.ca/~aamodt/publications/papers/stripes-final.pdf)
 
-### Input Parameters Description   
+## Input Parameters Description   
 
 The following parameters are valid for this architecture:
 

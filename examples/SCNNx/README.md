@@ -1,6 +1,6 @@
-### SCNNx Example
+# SCNNx Example
 
-### Input Parameters Description   
+## Input Parameters Description   
 
 The following parameters are valid for this architecture:
 

@@ -41,3 +41,5 @@ DNNsim
 models
 net_traces
 results
+doc/html/*
+doc/latex/*

@@ -1,9 +1,9 @@
-### BitPragmatic Example
+# BitPragmatic Example
 
 J. Albericio, A. Delmas Lascorz, P. Judd, S. Sharify, G. O'Leary, R. Genov, and A. Moshovos, 
 [Bit-Pragmatic Deep Learning Computing, IEEE/ACM MICRO 2017](https://dl.acm.org/citation.cfm?id=3123982)
 
-### Default Parameters Description   
+## Default Parameters Description   
 
 Default for the architecture. This parameters are defined in core/include/core/BitPragmatic.h
 
@@ -12,7 +12,7 @@ Default for the architecture. This parameters are defined in core/include/core/B
 | BOOTH_ENCODING | bool | Activate booth encoding | True-False | True |
 | ZERO_COUNT | bool | Zero values count as one cycle | True-False | True | 
    
-### Input Parameters Description   
+## Input Parameters Description   
 
 The following parameters are valid for this architecture:
 

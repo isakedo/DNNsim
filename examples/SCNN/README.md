@@ -1,9 +1,9 @@
-### SCNN Example
+# SCNN Example
 
 A. Parashar, M. Rhu, A. Mukkara, A. Puglielli, R. Venkatesan, B. Khailany, J. Emer, S. W. Keckler, and W. J. Dally
 [SCNN: An Accelerator for Compressed-sparse Convolutional Neural Networks](https://dl.acm.org/citation.cfm?id=3080254)
 
-### Input Parameters Description   
+## Input Parameters Description   
 
 The following parameters are valid for this architecture:
 

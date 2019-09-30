@@ -1,9 +1,9 @@
-### DynamicStripes Example
+# DynamicStripes Example
 
 A. Delmas, P. Judd, S. Sharify, A. Moshovos, 
 [Dynamic Stripes: Exploiting the Dynamic Precision Requirements of Activation Values in Neural Networks, arxiv](https://arxiv.org/abs/1706.00504)
 
-### Input Parameters Description   
+## Input Parameters Description   
 
 The following parameters are valid for this architecture:
 

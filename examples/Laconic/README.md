@@ -1,9 +1,9 @@
-### Laconic Example
+# Laconic Example
 
 S. Sharify, M. Mahmoud, A. Delmas Lascorz, M. Nikolic, A. Moshovos 
 [Laconic Deep Learning Computing](https://dl.acm.org/citation.cfm?id=3322255)
 
-### Default Parameters Description   
+## Default Parameters Description   
 
 Default for the architecture. This parameters are defined in core/include/core/Laconic.h
 
@@ -12,7 +12,7 @@ Default for the architecture. This parameters are defined in core/include/core/L
 | BOOTH_ENCODING | bool | Activate booth encoding | True-False | True |
 | ZERO_COUNT | bool | Zero values count as one cycle | True-False | True | 
    
-### Input Parameters Description   
+## Input Parameters Description   
 
 The following parameters are valid for this architecture:
 

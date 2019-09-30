@@ -21,6 +21,7 @@ namespace sys {
      * Return the average of a 2D vector
      * @tparam T Data type of the stat
      * @param vector_stat 2D Vector with the stats
+     * @param skip_first Do not average first value
      * @return Average of the vector
      */
     template <typename T>

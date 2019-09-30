@@ -1,4 +1,4 @@
-### Bit-Tactical Example
+# Bit-Tactical Example
 
 A. Delmas Lascorz, P. Judd, D. Malone Stuart, Z. Poulos, M. Mahmoud, S. Sharify, M. Nikolic, K. Siu, and A. Moshovos
 [Bit-Tactical: A Software/Hardware Approach to Exploiting Value and Bit Sparsity in Neural Networks](https://dl.acm.org/citation.cfm?id=3304041)
@@ -7,7 +7,7 @@ Bit-Tactical frontend can be executed using two different Bit-Serial backends: B
 and BitTacticalP (Based on DynamicStripes)  
 
 
-### Default Parameters Description   
+## Default Parameters Description   
 
 Default for the architecture. This parameters are defined in core/include/core/BitTactical\[E|0\].h
 
@@ -16,7 +16,7 @@ Default for the architecture. This parameters are defined in core/include/core/B
 | BOOTH_ENCODING (Only TCLe) | bool | Activate booth encoding | True-False | True |
 | ZERO_COUNT | bool | Zero values count as one cycle | True-False | True | 
    
-### Input Parameters Description    
+## Input Parameters Description    
 
 The following parameters are valid for this architecture:
 
