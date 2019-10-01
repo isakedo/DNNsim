@@ -28,7 +28,7 @@ namespace interface {
          * @param dense_schedule_tuple  Schedule tuple
          */
         void fill_schedule_tuple(protobuf::Schedule_Layer_Set_Time_Tuple* schedule_tuple_proto,
-                const schedule_tuple &dense_schedule_tuple);
+                const inf_schedule_tuple &dense_schedule_tuple);
 
     public:
 
@@ -49,7 +49,7 @@ namespace interface {
          * @param network_schedule  Network schedule that want to be stored
          * @param schedule_type     Identify the type of schedule
          */
-        void write_schedule_protobuf(const std::vector<schedule> &network_schedule, const std::string &schedule_type);
+        void write_schedule_protobuf(const std::vector<inf_schedule> &network_schedule, const std::string &schedule_type);
 
     };
 

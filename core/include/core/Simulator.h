@@ -77,6 +77,12 @@ namespace core {
          */
         std::tuple<uint8_t,uint8_t,uint8_t> split_bfloat16(float number);
 
+        /** Return floating-point single precision number in bfloat 16
+         * @param number    Floating point 32 number
+         * return           BFloat 16 number
+         */
+        float cast_bfloat16(float number);
+
         /** Return the optimal encoding for the given value
          * @param value     Value to encode WITHOUT the sign
          * @return          Value with the optimal encoding

@@ -3,6 +3,13 @@
 
 #include "Simulator.h"
 
+typedef std::vector<std::vector<std::vector<std::tuple<int,int,int,uint16_t>>>> schedule;
+typedef std::vector<std::vector<std::tuple<int,int,int,uint16_t>>> set_schedule;
+typedef std::vector<std::tuple<int,int,int,uint16_t>> time_schedule;
+typedef std::tuple<int,int,int,uint16_t> schedule_tuple;
+typedef std::list<std::tuple<int,int>> weights_set;
+typedef std::tuple<int,int> weight_index;
+
 namespace core {
 
     /**

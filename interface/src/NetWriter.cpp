@@ -63,7 +63,7 @@ namespace interface {
 
     template <typename T>
     void NetWriter<T>::fill_schedule_tuple(protobuf::Schedule_Layer_Set_Time_Tuple* schedule_tuple_proto,
-            const schedule_tuple &dense_schedule_tuple) {
+            const inf_schedule_tuple &dense_schedule_tuple) {
         schedule_tuple_proto->set_channel(std::get<0>(dense_schedule_tuple));
         schedule_tuple_proto->set_kernel_x(std::get<1>(dense_schedule_tuple));
         schedule_tuple_proto->set_kernel_y(std::get<2>(dense_schedule_tuple));
@@ -71,7 +71,7 @@ namespace interface {
     }
 
     template <typename T>
-    void NetWriter<T>::write_schedule_protobuf(const std::vector<schedule> &network_schedule,
+    void NetWriter<T>::write_schedule_protobuf(const std::vector<inf_schedule> &network_schedule,
             const std::string &schedule_type) {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 

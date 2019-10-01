@@ -157,6 +157,7 @@ parallelized per batch using OpenMP library
 | Task | Description | 
 |:---:|:---:|
 | Cycles | Simulate number of cycles and memory accesses | 
+| Potentials | Calculate ideal speedup and work reduction | 
 | AvgWidth | Calculate average effective width for the activations and weights per group (Only for DynamicStripesFP architecture) |
 
 * Allowed task for the special architecture "None":

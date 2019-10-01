@@ -77,6 +77,13 @@ namespace core {
         return std::make_tuple(sign,exponent,mantissa);
     }
 
+    template <typename T>
+    float Simulator<T>::cast_bfloat16(float number) {
+        bfloat16 bf_number = { .f = number };
+        bf_number.field.truncated_mantissa = 0;
+        return bf_number.f;
+    }
+
     /* Only encode the values when get less number of bits */
     uint16_t generateBoothEncoding(uint16_t n) {
         uint32_t padded_n = n << 2;

@@ -78,7 +78,7 @@ namespace interface {
         /** Read the weights schedule from the schedule in the models folder and the schedule
          * @return          Schedule for the network
          */
-        std::vector<schedule> read_schedule_protobuf(const std::string &schedule_type);
+        std::vector<inf_schedule> read_schedule_protobuf(const std::string &schedule_type);
 
         /** Read the weights into given network
          * @param network       Network with the layers already initialized

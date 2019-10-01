@@ -479,6 +479,127 @@ namespace base {
     }
 
     template <typename T>
+    void Array<T>::asym_zero_pad(int padding) {
+        auto batch_size = this->shape[0];
+        auto act_channels = this->shape[1];
+        auto Nx = this->shape[2];
+        auto Ny = this->shape[3];
+
+        auto padding_1 = padding - 1;
+
+        auto tmp_data4D = Array4D(batch_size, Array3D(act_channels, Array2D(Nx + 2 * padding - 1,
+                Array1D(Ny + 2 * padding - 1, 0))));
+
+        for(int n = 0; n < batch_size; n++) {
+            for (int k = 0; k < act_channels; k++) {
+                for (int i = 0; i < Nx; i++) {
+                    for(int j = 0; j < Ny; j++) {
+                        tmp_data4D[n][k][padding_1 + i][padding_1 + j] = this->data4D[n][k][i][j];
+                    }
+                }
+            }
+        }
+
+        this->data4D.clear();
+        this->data4D = tmp_data4D;
+        this->shape.clear();
+        this->shape.push_back(batch_size);
+        this->shape.push_back(act_channels);
+        this->shape.push_back(Nx + 2 * padding - 1);
+        this->shape.push_back(Ny + 2 * padding - 1);
+    }
+
+    template <typename T>
+    void Array<T>::dilate_out_grad(int stride, int Nx_pad, int Kx) {
+
+        auto batch_size = this->shape[0];
+        auto out_channels = this->shape[1];
+        auto out_x = this->shape[2];
+        auto out_y = this->shape[3];
+
+        auto pad = (Nx_pad - Kx) % stride;
+
+        auto new_out_x = out_x + (out_x - 1) * (stride - 1) + pad;
+        auto new_out_y = out_y + (out_y - 1) * (stride - 1) + pad;
+
+        auto tmp_data4D = Array4D(batch_size, Array3D(out_channels, Array2D(new_out_x, Array1D(new_out_y, 0))));
+
+        for(int n = 0; n < batch_size; n++) {
+            for (int k = 0; k < out_channels; k++) {
+                for (int x = 0; x < out_x; x++) {
+                    for (int y = 0; y < out_y; y++) {
+                        tmp_data4D[n][k][x * stride][y * stride] = this->data4D[n][k][x][y];
+                    }
+                }
+            }
+        }
+
+        this->data4D.clear();
+        this->data4D = tmp_data4D;
+        this->shape.clear();
+        this->shape.push_back(batch_size);
+        this->shape.push_back(out_channels);
+        this->shape.push_back(new_out_x);
+        this->shape.push_back(new_out_y);
+    }
+
+    template <typename T>
+    void Array<T>::rotate_180deg() {
+        auto num_filters = this->shape[0];
+        auto wgt_channels = this->shape[1];
+        auto Kx = this->shape[2];
+        auto Ky = this->shape[3];
+
+        auto tmp_data4D = Array4D(num_filters, Array3D(wgt_channels, Array2D(Kx, std::vector<T>(Ky, 0))));
+
+        for (int m = 0; m < num_filters; m++) {
+            for (int k = 0; k < wgt_channels; k++) {
+                for (int x = 0; x < Kx; x++) {
+                    for (int y = 0; y < Ky; y++) {
+                        tmp_data4D[m][k][x][y] = this->data4D[m][k][Kx - 1 - x][Ky - 1 - y];
+                    }
+                }
+            }
+        }
+
+        this->data4D.clear();
+        this->data4D = tmp_data4D;
+    }
+
+    template <typename T>
+    void Array<T>::reshape_channel_wise(int out_grad_channels) {
+        auto n_filters = this->shape[0];
+        auto wgt_channels = this->shape[1];
+        auto Kx = this->shape[2];
+        auto Ky = this->shape[3];
+
+        auto groups = n_filters / out_grad_channels;
+
+        auto tmp_data4D = Array4D(wgt_channels * groups, Array3D(out_grad_channels, Array2D(Kx, Array1D(Ky, 0))));
+
+        for(int group = 0; group < groups; group++){
+            for(int k = 0; k < wgt_channels; k++){
+                for(int m = 0; m < out_grad_channels; m++){
+                    for(int x = 0; x < Kx; x++){
+                        for(int y = 0; y < Ky; y++){
+                            tmp_data4D[k + group*wgt_channels][m][x][y] =
+                                    this->data4D[m + group * out_grad_channels][k][x][y];
+                        }
+                    }
+                }
+            }
+        }
+
+        this->data4D.clear();
+        this->data4D = tmp_data4D;
+        this->shape.clear();
+        this->shape.push_back(wgt_channels*groups);
+        this->shape.push_back(out_grad_channels);
+        this->shape.push_back(Kx);
+        this->shape.push_back(Ky);
+    }
+
+    template <typename T>
     void Array<T>::grid_zero_pad(uint64_t X, uint64_t Y) {
         auto batch_size = this->shape[0];
         auto act_channels = this->shape[1];

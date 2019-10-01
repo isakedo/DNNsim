@@ -66,9 +66,10 @@ namespace sys {
                                                 " in BFloat16 must be <DynamicStripesFP>.");
 
                 value = experiment_proto.task();
-                if(experiment_proto.architecture() != "None" and value != "AvgWidth")
+                if(experiment_proto.architecture() != "None" && value != "Cycles" && value != "Potentials" &&
+                        value != "AvgWidth")
                     throw std::runtime_error("Training task for network " + simulate.network +
-                                             " in BFloat16 must be <AvgWidth>.");
+                                             " in BFloat16 must be <Cycles|Potentials|AvgWidth>.");
 
                 if(experiment_proto.architecture() != "DynamicStripesFP" && experiment_proto.task() == "AvgWidth")
                     throw std::runtime_error("Training task \"AvgWidth\" for network " + simulate.network +
