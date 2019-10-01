@@ -275,6 +275,7 @@ int main(int argc, char *argv[]) {
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 		                        else if (experiment.task == "AvgWidth") DNNsim.average_width(network);
 		                        else if (experiment.task == "OnChip") DNNsim.on_chip(network);
+                                else if (experiment.task == "OnChipCycles") DNNsim.on_chip_cycles(network);
 
 		                    } else if(experiment.architecture == "Loom") {
 		                        core::Loom<uint16_t> DNNsim(experiment.n_lanes, experiment.n_columns, experiment.n_rows,

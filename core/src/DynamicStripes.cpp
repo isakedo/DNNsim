@@ -1895,6 +1895,130 @@ namespace core {
 
     }
 
+    template <typename T>
+    void DynamicStripes<T>::on_chip_cycles(const base::Network<T> &network) {
+
+        std::string filename = "DynamicStripes_L" + std::to_string(N_LANES) + "_C" + std::to_string(N_COLUMNS) + "_R" +
+                std::to_string(N_ROWS) + "_on_chip_cycles";
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
+
+        auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
+        auto compute_cycles = stats.register_uint_t("compute_cycles", 0, sys::AverageTotal);
+        auto memory_cycles = stats.register_uint_t("memory_cycles", 0, sys::AverageTotal);
+
+        for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
+
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
+            bool conv = layer.getType() == "Convolution";
+            bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
+
+            base::Array<T> act = layer.getActivations();
+            if (!DIFFY) act.sign_magnitude_representation(layer.getActPrecision());
+            if (fc && act.getDimensions() == 4) act.reshape_to_2D();
+            if (fc) act.reshape_to_4D();
+
+            base::Array<T> wgt = layer.getWeights();
+            if (conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
+
+            int padding = layer.getPadding();
+            int stride = layer.getStride();
+
+            if (conv) act.zero_pad(padding);
+
+            if (act.getShape()[1] == 3 && stride > 1) {
+                act.reshape_first_layer_act((uint16_t) stride);
+                wgt.reshape_first_layer_wgt((uint16_t) stride);
+                stride = 1;
+            }
+
+            const std::vector<size_t> &act_shape = act.getShape();
+            const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+            uint64_t batch_size, act_channels, Nx, Ny, R;
+            if (lstm) {
+                R = act_shape[0];
+                batch_size = act_shape[1];
+                act_channels = act_shape[2];
+                Nx = 1;
+                Ny = 1;
+            } else {
+                R = 1;
+                batch_size = act_shape[0];
+                act_channels = act_shape[1];
+                Nx = act_shape[2];
+                Ny = act_shape[3];
+            }
+            if (this->FAST_MODE) batch_size = 1;
+
+            auto num_filters = wgt_shape[0];
+            auto wgt_channels = wgt_shape[1];
+            auto Kx = wgt_shape[2];
+            auto Ky = wgt_shape[3];
+
+            long out_x = (Nx - Kx) / stride + 1;
+            long out_y = (Ny - Ky) / stride + 1;
+
+            // Simulate activations stationary dataflow
+            for (int n = 0; n < batch_size; ++n) {
+
+                uint64_t batch_cycles = 0;
+
+
+                bool more_windows = true;
+                int x_counter = 0, y_counter = 0;
+                std::vector<std::tuple<int, int>> windows = std::vector<std::tuple<int, int>>(N_COLUMNS);
+
+                // Iterate windows in a row of input activations fashion
+                while (more_windows) {
+
+                    int windows_count = 0;
+                    for (int i = 0; i < N_COLUMNS; ++i) {
+                        windows[i] = std::make_tuple(x_counter, y_counter);
+                        windows_count++;
+                        x_counter++;
+
+                        if (x_counter == out_x) {
+                            x_counter = 0;
+                            y_counter++;
+
+                            // Request next road of input activations
+                        }
+
+                        if (y_counter == out_y) {
+                            more_windows = false;
+                            break;
+                        }
+                    }
+
+                    // All sets of weights convolute to the row of input activations
+                    for (int m = 0; m < num_filters; m += N_ROWS) {
+
+                        // Request the next set of filters
+                        auto conv_memory_cycles = 0;
+
+                        // Convolution: Filter * Window
+                        auto conv_compute_cycles = Kx * Ky * wgt_channels;
+
+
+                    }
+
+                }
+
+            }
+        }
+
+        //Dump statistics
+        std::string header = "DynamicStripes On-Chip Number of Cycles for " + network.getName() + "\n";
+        header += "Number of lanes/terms per PE: " + std::to_string(N_LANES) + "\n";
+        header += "Number of columns/windows in parallel: " + std::to_string(N_COLUMNS) + "\n";
+        header += "Number of rows/filters in parallel: " + std::to_string(N_ROWS) + "\n";
+
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
+
+
+    }
+
     template class DynamicStripes<uint16_t>;
 
 }

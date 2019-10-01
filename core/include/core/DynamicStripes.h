@@ -190,6 +190,11 @@ namespace core {
          */
         void on_chip(const base::Network<T> &network);
 
+        /** Simulate memory cycles for on-chip memory dynamic width storage
+         * @param network   Network we want to check
+         */
+        void on_chip_cycles(const base::Network<T> &network);
+
     };
 
 }
