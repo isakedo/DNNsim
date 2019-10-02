@@ -6,13 +6,6 @@ namespace core {
     /* COMMON FUNCTIONS */
 
     template <typename T>
-    void Simulator<T>::read_done(unsigned id, uint64_t address, uint64_t clock_cycle)
-    {
-        printf("[Callback] read complete: %d 0x%lx cycle=%lu\n", id, address, clock_cycle);
-        read_requests[address] = true;
-    }
-
-    template <typename T>
     base::Network<T> Simulator<T>::read_training(const std::string &network_name, uint32_t batch, uint32_t epoch,
             uint32_t decoder_states, uint32_t traces_mode) {
 

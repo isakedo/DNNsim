@@ -42,7 +42,7 @@ namespace core {
             base::Network<T> network;
             network = this->read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, 5);
 
-            if(!this->QUIET) std::cout << "Starting Dynamic Tactical cycles simulation for epoch "
+            if(!this->QUIET) std::cout << "Starting Dynamic Tactical forward cycles simulation for epoch "
                                        << epoch << std::endl;
 
             for (int layer_it = 0; layer_it < network.getNumLayers(); layer_it++) {
@@ -103,8 +103,6 @@ namespace core {
 
                 // Forward pass
 
-                std::cout << Nx_pad << ',' << Kx << ',' << Ox << ',' << (Nx_pad - Kx)/stride + 1<< std::endl;
-
                 // Forward convolution A * W
                 for (int n = 0; n < batch_size; ++n) {
 
@@ -163,6 +161,67 @@ namespace core {
 
                 }
 
+            }
+
+            if(!this->QUIET) std::cout << "Starting Dynamic Tactical backward cycles simulation for epoch "
+                                       << epoch << std::endl;
+
+            for (int layer_it = network.getNumLayers(); layer_it < network.getNumLayers(); layer_it++) {
+
+                const base::Layer<float> &layer = network.getLayers()[layer_it];
+                bool conv = layer.getType() == "Convolution";
+                bool fc = layer.getType() == "InnerProduct";
+
+                // Preprocess traces: Activations, Weights, Output Gradients
+                base::Array<T> act = layer.getActivations();
+                if(fc && act.getDimensions() == 4) act.reshape_to_2D();
+                if(fc) act.reshape_to_4D();
+
+                base::Array<T> wgt = layer.getWeights();
+                if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+
+                base::Array<T> out_grad = layer.getOutputGradients();
+                if(fc) out_grad.reshape_to_4D();
+
+                int padding = layer.getPadding();
+                int stride = layer.getStride();
+
+                const std::vector<size_t> &act_shape = act.getShape();
+                const std::vector<size_t> &wgt_shape = wgt.getShape();
+                const std::vector<size_t> &out_grad_shape = out_grad.getShape();
+
+                // Activations
+                auto batch_size = act_shape[0];
+                auto act_channels = act_shape[1];
+                auto Nx = act_shape[2];
+                auto Ny = act_shape[3];
+                if(this->FAST_MODE) batch_size = 1;
+
+                // Weights
+                auto num_filters = wgt_shape[0];
+                auto wgt_channels = wgt_shape[1];
+                auto Kx = wgt_shape[2];
+                auto Ky = wgt_shape[3];
+
+                // Output Gradients
+                auto out_batch_size = out_grad_shape[0];
+                auto out_channels = out_grad_shape[1];
+                auto Ox = out_grad_shape[2];
+                auto Oy = out_grad_shape[3];
+                if(this->FAST_MODE) out_batch_size = 1;
+
+                bool asym_pad = false;
+                if (conv && padding > 0) {
+                    asym_pad = ((Nx - Kx + 2 * padding)/(double)stride + 1) != Ox;
+                }
+
+                if (conv && padding > 0) asym_pad ? act.asym_zero_pad(padding) : act.zero_pad(padding);
+
+                const std::vector<size_t> &act_shape_pad = act.getShape();
+
+                auto Nx_pad = act_shape_pad[2];
+                auto Ny_pad = act_shape_pad[3];
+
                 // Backward pass - Calculate Weight gradients
                 if (conv) out_grad.dilate_out_grad(stride, Nx_pad, Kx);
 
@@ -170,8 +229,6 @@ namespace core {
 
                 auto Ox_dil = out_grad_shape_dil[2];
                 auto Oy_dil = out_grad_shape_dil[3];
-
-                std::cout << Nx_pad << ',' << Ox_dil << ',' << Kx << ',' << (Nx_pad - Ox_dil + 1) << std::endl;
 
                 // Check window size
                 if ((Nx_pad - Ox_dil + 1) != Kx)
@@ -228,7 +285,7 @@ namespace core {
                     // Check values
                     /*for (int m = 0; m < num_filters; ++m) {
                         for (int ch = 0; ch < wgt_channels; ++ch) {
-                            for (int x = 0; x < Kx; ++x) {
+                            for (int x = 0; x < Kx; +false+x) {
                                 for (int y = 0; y < Ky; ++y) {
                                     auto actual_value = weight_gradients[m][ch][x][y];
                                     auto sim_value = sim_weight_gradients[m][ch][x][y];
@@ -243,7 +300,7 @@ namespace core {
 
                 // Backward pass - Calculate Input gradients
                 if (conv && padding > 0) asym_pad ? out_grad.asym_zero_pad(padding + stride - 1) :
-                        out_grad.zero_pad(padding + stride - 1);
+                                         out_grad.zero_pad(padding + stride - 1);
 
                 const std::vector<size_t> &out_grad_shape_pad = out_grad.getShape();
 
@@ -257,8 +314,6 @@ namespace core {
 
                 auto num_filters_rot = wgt_shape[0];
                 auto wgt_channels_rot = wgt_shape[1];
-
-                std::cout << Ox_pad << ',' << Kx << ',' << Nx << ',' << (Ox_pad - Kx + 1) << std::endl;
 
                 // Check window size
                 if (wgt_channels_rot != out_channels)
@@ -318,8 +373,6 @@ namespace core {
                                 }
                             }
                         }*/
-
-                        std::cout << "stop";
 
                     }
 

@@ -8,7 +8,7 @@
 #include <base/Layer.h>
 #include <base/Network.h>
 #include <interface/NetReader.h>
-#include <DRAMSim.h>
+#include <core/Memory.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -37,11 +37,8 @@ namespace core {
 
     protected:
 
-        /** Memory system */
-        DRAMSim::MultiChannelMemorySystem *memory;
-
-        /** Read requests */
-        std::map<uint64_t, bool> read_requests;
+        /** Memory abstraction of the simulator */
+        Memory memory;
 
         /** Number of parallel cores */
         const int N_THREADS;
@@ -54,13 +51,6 @@ namespace core {
 
         /** Check the correctness of the simulations */
         const bool CHECK = false;
-
-        /** Called when memory is ready. Update read requests map
-         * @param id Identifier of the request
-         * @param address Address of the read request
-         * @param clock_cycle Clock cycle at what the request was served
-         */
-        void read_done(unsigned id, uint64_t address, uint64_t clock_cycle);
 
         /** Read training traces for a given epoch
          * @param network_name      Name of the network
@@ -137,17 +127,7 @@ namespace core {
          * @param _CHECK        Check the correctness of the simulations
          */
         Simulator(uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) : N_THREADS(_N_THREADS),
-                FAST_MODE(_FAST_MODE), QUIET(_QUIET), CHECK(_CHECK) {
-
-            memory = DRAMSim::getMemorySystemInstance("ini/DDR2_micron_16M_8b_x8_sg3E.ini", "system.ini",
-                    "./DRAMSim2/", "DNNsim", 16384);
-
-            DRAMSim::TransactionCompleteCB *read_cb =
-                    new DRAMSim::Callback<Simulator, void, unsigned, uint64_t, uint64_t>(this, &Simulator::read_done);
-
-            memory->RegisterCallbacks(read_cb, nullptr, nullptr);
-
-        }
+                FAST_MODE(_FAST_MODE), QUIET(_QUIET), CHECK(_CHECK), memory(Memory()) {}
 
 
        /** Returns network information

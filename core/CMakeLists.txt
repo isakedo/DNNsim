@@ -14,6 +14,7 @@ add_custom_target(
 # Create library
 add_library(
         ${PROJECT_NAME}
+        include/core/Memory.h
         include/core/Laconic.h
         include/core/BitPragmatic.h
         include/core/Stripes.h
@@ -28,6 +29,7 @@ add_library(
         include/core/SCNNp.h
         include/core/SCNNe.h
         include/core/BitFusion.h
+        src/Memory.cpp
         src/Simulator.cpp
         src/Laconic.cpp
         src/BitPragmatic.cpp

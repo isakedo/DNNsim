@@ -1959,10 +1959,73 @@ namespace core {
             auto out_x = (Nx - Kx) / stride + 1;
             auto out_y = (Ny - Ky) / stride + 1;
 
+            uint64_t id = 0;
+            uint64_t next_addr = 0;
+            uint64_t act_base_addr = 0x00000000;
+            std::map<uint64_t, uint64_t> act_address_map;
+
+            // Image fourth
+            for (int n = 0; n < batch_size; ++n) {
+
+                // Column third
+                for (int y = 0; y < Ny; ++y) {
+
+                    // Row second
+                    for (int x = 0; x < Nx; ++x) {
+
+                        // Store channel-first
+                        for (int k = 0; k < act_channels; k += 4) { // 64 bits requests, 4 activations of 16 bits
+                            act_address_map[id++] = act_base_addr + next_addr;
+                            next_addr += 0x40; // Align to 64 bits
+                        }
+                    }
+                }
+            }
+
+            id = 0;
+            next_addr = 0;
+            uint64_t wgt_base_addr = 0x40000000;
+            std::map<uint64_t, uint64_t> wgt_address_map;
+
+            // Filter fourth
+            for (int m = 0; m < num_filters; ++m) {
+
+                // Column third
+                for (int y = 0; y < Ky; ++y) {
+
+                    // Row second
+                    for (int x = 0; x < Kx; ++x) {
+
+                        // Store channel-first
+                        for (int k = 0; k < wgt_channels; k += 4) { // 64 bits requests, 4 weights of 16 bits
+                            wgt_address_map[id++] = wgt_base_addr + next_addr;
+                            next_addr += 0x40; // Align to 64 bits
+                        }
+                    }
+                }
+            }
+
+            // Calculate number of windows that fit on-chip
+
+            uint64_t windows_on_chip = 0;
+            uint64_t windows_bytes_requeriments = 0;
+
+            bool first_window = true;
+            bool first_row = true;
+            uint64_t x_counter = 0;
+
+            /*while (windows_bytes_requeriments < this->on_chip_act_size) {
+
+                if (first_window)
+
+            }*/
+
+
             // Simulate activations stationary dataflow
             for (int n = 0; n < batch_size; ++n) {
 
-                uint64_t batch_cycles = 0;
+                uint64_t total_cycles = 0;
+
 
 
                 bool more_windows = true;
@@ -1998,7 +2061,7 @@ namespace core {
                         auto conv_memory_cycles = 0;
 
                         // Convolution: Filter * Window
-                        auto conv_compute_cycles = Kx * Ky * wgt_channels;
+                        auto conv_compute_cycles = Kx * Ky * ceil(wgt_channels / (double)N_LANES);
 
 
                     }

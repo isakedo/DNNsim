@@ -485,8 +485,6 @@ namespace base {
         auto Nx = this->shape[2];
         auto Ny = this->shape[3];
 
-        auto padding_1 = padding - 1;
-
         auto tmp_data4D = Array4D(batch_size, Array3D(act_channels, Array2D(Nx + 2 * padding - 1,
                 Array1D(Ny + 2 * padding - 1, 0))));
 
@@ -494,7 +492,7 @@ namespace base {
             for (int k = 0; k < act_channels; k++) {
                 for (int i = 0; i < Nx; i++) {
                     for(int j = 0; j < Ny; j++) {
-                        tmp_data4D[n][k][padding_1 + i][padding_1 + j] = this->data4D[n][k][i][j];
+                        tmp_data4D[n][k][padding + i][padding + j] = this->data4D[n][k][i][j];
                     }
                 }
             }
