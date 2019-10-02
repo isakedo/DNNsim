@@ -1956,8 +1956,8 @@ namespace core {
             auto Kx = wgt_shape[2];
             auto Ky = wgt_shape[3];
 
-            long out_x = (Nx - Kx) / stride + 1;
-            long out_y = (Ny - Ky) / stride + 1;
+            auto out_x = (Nx - Kx) / stride + 1;
+            auto out_y = (Ny - Ky) / stride + 1;
 
             // Simulate activations stationary dataflow
             for (int n = 0; n < batch_size; ++n) {
