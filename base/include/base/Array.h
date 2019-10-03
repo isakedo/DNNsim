@@ -198,6 +198,12 @@ namespace base {
          */
         void reshape_first_layer_wgt(uint16_t stride);
 
+        /**
+         * Remove all the batches but the want desired
+         * @param batch Batch to get
+         */
+        void get_batch(uint64_t batch);
+
     };
 
 }

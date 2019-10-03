@@ -792,6 +792,31 @@ namespace base {
         this->shape.push_back(new_Ky);
     }
 
+    template <typename T>
+    void Array<T>::get_batch(uint64_t batch) {
+        auto batch_size = this->shape[0];
+        auto act_channels = this->shape[1];
+        auto Nx = this->shape[2];
+        auto Ny = this->shape[3];
+
+        if (batch > (batch_size - 1))
+            throw std::runtime_error("Batch required is out of the scope");
+
+        auto tmp_data4D = Array4D(1, Array3D(act_channels, Array2D(Nx, Array1D(Ny, 0))));
+
+        for (int k = 0; k < act_channels; k++) {
+            for (int i = 0; i < Nx; i++) {
+                for(int j = 0; j < Ny; j++) {
+                    tmp_data4D[0][k][i][j] = this->data4D[batch][k][i][j];
+                }
+            }
+        }
+
+        this->data4D.clear();
+        this->data4D = tmp_data4D;
+        this->shape[0] = 1;
+    }
+
     INITIALISE_DATA_TYPES(Array);
 
 }
