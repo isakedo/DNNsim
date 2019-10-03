@@ -36,4 +36,12 @@ namespace core {
         }
     }
 
+    uint64_t Memory::getOnChipActSize() const {
+        return on_chip_act_size;
+    }
+
+    uint64_t Memory::getOnChipWgtSize() const {
+        return on_chip_wgt_size;
+    }
+
 }

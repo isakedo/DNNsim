@@ -51,6 +51,9 @@ namespace core {
                 // Forward pass
                 for (int layer_it = 0; layer_it < network.getNumLayers(); layer_it++) {
 
+                    if (simulate.only_backward)
+                        continue;
+
                     const base::Layer<float> &layer = network.getLayers()[layer_it];
                     bool conv = layer.getType() == "Convolution";
                     bool fc = layer.getType() == "InnerProduct";
@@ -159,6 +162,9 @@ namespace core {
 
                 // Backward pass
                 for (int layer_it = network.getNumLayers() - 1; layer_it >= 0; layer_it--) {
+
+                    if (simulate.only_forward)
+                        continue;
 
                     const base::Layer<float> &layer = network.getLayers()[layer_it];
                     bool conv = layer.getType() == "Convolution";
@@ -276,6 +282,9 @@ namespace core {
                     } // Check results
 
                     // Backward pass - Calculate Input gradients
+                    if (layer_it == 0)
+                        continue;
+
                     if (conv && padding > 0)
                         asym_pad ? out_grad.asym_zero_pad(padding + stride - 1) :
                         out_grad.zero_pad(padding + stride - 1);

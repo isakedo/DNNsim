@@ -81,6 +81,18 @@ namespace core {
             on_chip_wgt_size = 1048576; //1MiB
         }
 
+        /**
+         * Get On-Chip activations size
+         * @return On-Chip activations size
+         */
+        uint64_t getOnChipActSize() const;
+
+        /**
+         * Get On-Chip weights size
+         * @return On-Chip weights size
+         */
+        uint64_t getOnChipWgtSize() const;
+
     };
 
 }

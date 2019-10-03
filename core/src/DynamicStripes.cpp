@@ -1906,6 +1906,14 @@ namespace core {
         auto compute_cycles = stats.register_uint_t("compute_cycles", 0, sys::AverageTotal);
         auto memory_cycles = stats.register_uint_t("memory_cycles", 0, sys::AverageTotal);
 
+        uint64_t total_cycles = 0;
+
+        uint64_t act_next_addr = 0;
+        uint64_t act_base_addr = 0x40000000;
+
+        uint64_t wgt_next_addr = 0;
+        uint64_t wgt_base_addr = 0x00000000;
+
         for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
@@ -1959,10 +1967,11 @@ namespace core {
             auto out_x = (Nx - Kx) / stride + 1;
             auto out_y = (Ny - Ky) / stride + 1;
 
-            uint64_t id = 0;
-            uint64_t next_addr = 0;
-            uint64_t act_base_addr = 0x00000000;
-            std::map<uint64_t, uint64_t> act_address_map;
+            // Off-chip memory layout
+            std::vector<std::vector<std::vector<std::vector<uint64_t>>>> act_address_map =
+                    std::vector<std::vector<std::vector<std::vector<uint64_t>>>>(batch_size,
+                    std::vector<std::vector<std::vector<uint64_t>>>(Ny, std::vector<std::vector<uint64_t>>(Nx,
+                    std::vector<uint64_t>(ceil(act_channels / 4.)))));
 
             // Image fourth
             for (int n = 0; n < batch_size; ++n) {
@@ -1975,17 +1984,17 @@ namespace core {
 
                         // Store channel-first
                         for (int k = 0; k < act_channels; k += 4) { // 64 bits requests, 4 activations of 16 bits
-                            act_address_map[id++] = act_base_addr + next_addr;
-                            next_addr += 0x40; // Align to 64 bits
+                            act_address_map[n][y][x][k/4] = act_base_addr + act_next_addr;
+                            act_next_addr += 0x40; // Align to 64 bits
                         }
                     }
                 }
             }
 
-            id = 0;
-            next_addr = 0;
-            uint64_t wgt_base_addr = 0x40000000;
-            std::map<uint64_t, uint64_t> wgt_address_map;
+            std::vector<std::vector<std::vector<std::vector<uint64_t>>>> wgt_address_map =
+                    std::vector<std::vector<std::vector<std::vector<uint64_t>>>>(num_filters,
+                    std::vector<std::vector<std::vector<uint64_t>>>(Ky, std::vector<std::vector<uint64_t>>(Kx,
+                    std::vector<uint64_t>(ceil(wgt_channels / 4.)))));
 
             // Filter fourth
             for (int m = 0; m < num_filters; ++m) {
@@ -1998,73 +2007,145 @@ namespace core {
 
                         // Store channel-first
                         for (int k = 0; k < wgt_channels; k += 4) { // 64 bits requests, 4 weights of 16 bits
-                            wgt_address_map[id++] = wgt_base_addr + next_addr;
-                            next_addr += 0x40; // Align to 64 bits
+                            wgt_address_map[m][y][x][k/4] = wgt_base_addr + wgt_next_addr;
+                            wgt_next_addr += 0x40; // Align to 64 bits
                         }
                     }
                 }
             }
 
-            // Calculate number of windows that fit on-chip
-
-            uint64_t windows_on_chip = 0;
-            uint64_t windows_bytes_requeriments = 0;
-
-            bool first_window = true;
-            bool first_row = true;
-            uint64_t x_counter = 0;
-
-            /*while (windows_bytes_requeriments < this->on_chip_act_size) {
-
-                if (first_window)
-
-            }*/
-
-
-            // Simulate activations stationary dataflow
             for (int n = 0; n < batch_size; ++n) {
 
-                uint64_t total_cycles = 0;
+                // List all windows
+                std::list<int> window_list(out_x * out_y);
+                std::iota(std::begin(window_list), std::end(window_list), 0);
 
+                // Select windows that fit on-chip
+                while (!window_list.empty()) {
 
+                    bool full_window = true;
+                    uint64_t prev_window = -1;
 
-                bool more_windows = true;
-                int x_counter = 0, y_counter = 0;
-                std::vector<std::tuple<int, int>> windows = std::vector<std::tuple<int, int>>(N_COLUMNS);
+                    uint64_t act_size = 0;
+                    std::list<int> window_on_chip;
+                    std::list<uint64_t> window_requests;
+                    while (true) {
 
-                // Iterate windows in a row of input activations fashion
-                while (more_windows) {
+                        // Calculate window size
+                        uint64_t init_x = 0;
+                        uint64_t init_y = 0;
+                        uint64_t window_size = 0;
+                        int window_read = window_list.front();
 
-                    int windows_count = 0;
-                    for (int i = 0; i < N_COLUMNS; ++i) {
-                        windows[i] = std::make_tuple(x_counter, y_counter);
-                        windows_count++;
-                        x_counter++;
+                        // First window we store on-chip
+                        if (full_window) {
+                            window_size = Kx * Ky * act_channels * 2;
+                        } else {
 
-                        if (x_counter == out_x) {
-                            x_counter = 0;
-                            y_counter++;
+                            auto row_prev_window = prev_window / out_x;
+                            auto row_window = window_read / out_x;
 
-                            // Request next road of input activations
+                            // Window at the right of another
+                            if (row_prev_window == row_window) {
+
+                                window_size = stride * Ky * act_channels * 2;
+                                init_x = Kx - stride;
+
+                            } else {
+
+                                auto it = std::find (window_on_chip.begin(), window_on_chip.end(), window_read);
+
+                                // Window at the bottom of another
+                                if (it != window_on_chip.end()) {
+                                    window_size = Kx * stride * act_channels * 2;
+                                    init_y = Ky - stride;
+
+                                // Window on bottom row, but not window above
+                                } else {
+                                    window_size = Kx * Ky * act_channels * 2;
+                                }
+
+                            }
+
                         }
 
-                        if (y_counter == out_y) {
-                            more_windows = false;
-                            break;
+                        if ((act_size + window_size) > this->memory.getOnChipActSize()) break;
+
+                        auto x_window = window_read % out_x;
+                        auto y_window = window_read % out_y;
+                        for (int y = init_y; y < Ky; ++y) {
+                            for (int x = init_x; x < Kx; ++x) {
+                                for (int k = 0; k < act_channels; k += 4) { // 64 bits requests, 4 activations of 16 bits
+                                    auto x_pos = x_window * stride + x;
+                                    auto y_pos = y_window * stride + y;
+                                    auto activations_address = act_address_map[n][y_pos][x_pos][k/4];
+                                    printf("0x%lx\n",activations_address);
+                                    window_requests.push_back(activations_address);
+                                }
+                            }
                         }
-                    }
 
-                    // All sets of weights convolute to the row of input activations
-                    for (int m = 0; m < num_filters; m += N_ROWS) {
+                        window_on_chip.push_back(window_read);
+                        window_list.pop_front();
+                        act_size += window_size;
 
-                        // Request the next set of filters
-                        auto conv_memory_cycles = 0;
-
-                        // Convolution: Filter * Window
-                        auto conv_compute_cycles = Kx * Ky * ceil(wgt_channels / (double)N_LANES);
-
+                        full_window = false;
+                        prev_window = window_read;
 
                     }
+
+                    assert(!act_size);
+
+                    // Request the memory addresses
+                    window_requests.sort();
+                    for(auto address : window_requests) {
+                        this->memory.request_address(address);
+                    }
+
+                    // List all filters
+                    std::list<int> filter_list(num_filters);
+                    std::iota(std::begin(filter_list), std::end(filter_list), 0);
+
+                    // Select filters that fit on-chip
+                    while (!filter_list.empty()) {
+
+                        uint64_t wgt_size = 0;
+                        std::list<int> filter_on_chip;
+                        std::list<uint64_t> filter_requests;
+                        while (true) {
+
+                            // Calculate filter size
+                            uint64_t filter_size = Kx * Ky * wgt_channels * 2;
+                            if ((wgt_size + filter_size) > this->memory.getOnChipWgtSize()) break;
+
+                            int filter_read = filter_list.front();
+                            for (int y = 0; y < Ky; ++y) {
+                                for (int x = 0; x < Kx; ++x) {
+                                    for (int k = 0; k < wgt_channels; k += 4) { // 64 bits requests, 4 weights of 16 bits
+                                        auto weights_address = wgt_address_map[filter_read][y][x][k/4];
+                                        filter_requests.push_back(weights_address);
+                                    }
+                                }
+                            }
+
+                            filter_on_chip.push_back(filter_read);
+                            filter_list.pop_front();
+                            wgt_size += filter_size;
+
+                        }
+
+                        assert(!wgt_size);
+
+                        // Request the memory addresses
+                        filter_requests.sort();
+                        for(auto address : filter_requests) {
+                            this->memory.request_address(address);
+                        }
+
+                        // Convolute windows and filters on the on-chip memory
+
+                    }
+
 
                 }
 
