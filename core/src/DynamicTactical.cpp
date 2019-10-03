@@ -345,7 +345,7 @@ namespace core {
                                 }
                             }
                         }*/
-                        
+
                     } // Check results
 
                 } // Backward pass
