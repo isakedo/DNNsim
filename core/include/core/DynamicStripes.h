@@ -3,6 +3,8 @@
 
 #include "Simulator.h"
 
+typedef std::vector<std::vector<std::vector<std::vector<uint64_t>>>> address_map;
+
 namespace core {
 
     /**

@@ -17,6 +17,7 @@ namespace core {
     void Memory::request_address(uint64_t address) {
         if (memory->willAcceptTransaction()) {
             memory->addTransaction(false, address);
+            read_requests[address] = false;
         } else {
             read_queue.push(address);
         }

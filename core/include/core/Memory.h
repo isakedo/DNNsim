@@ -17,14 +17,8 @@ namespace core {
         /** Memory system */
         DRAMSim::MultiChannelMemorySystem *memory;
 
-        /** Read requests */
-        std::map<uint64_t, bool> read_requests;
-
         /** Read queue */
         std::queue<uint64_t> read_queue;
-
-        /** Memory clock cycle */
-        uint64_t mem_cycle;
 
         /** Size for the on-chip activations memory */
         uint64_t on_chip_act_size;
@@ -33,6 +27,12 @@ namespace core {
         uint64_t on_chip_wgt_size;
 
     public:
+
+        /** Memory clock cycle */
+        uint64_t mem_cycle;
+
+        /** Read requests */
+        std::map<uint64_t, bool> read_requests;
 
         /** Called when memory is ready. Update read requests map
          * @param id Identifier of the request

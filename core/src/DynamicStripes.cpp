@@ -1895,6 +1895,156 @@ namespace core {
 
     }
 
+    void read_window_sets(std::list<int> &window_list, std::list<int> &windows_on_chip, std::vector<std::list<uint64_t>>
+            &window_requests, const address_map &act_address_map, uint64_t on_chip_size, uint64_t n, uint64_t Kx,
+            uint64_t Ky, uint64_t act_channels, uint64_t out_x, uint64_t out_y, uint64_t stride, uint64_t N_COLUMNS) {
+
+        bool full_window = true;
+        uint64_t prev_window = -1;
+
+        uint64_t act_size = 0;
+        while (true) {
+
+            if (window_list.empty())
+                break;
+
+            // Select up to N_COLUMNS windows
+            std::list<int> tmp_windows_on_chip;
+            auto list_size = window_list.size();
+            for (int i = 0; i < std::min(N_COLUMNS, list_size); ++i) {
+                int window_read = window_list.front();
+                tmp_windows_on_chip.push_back(window_read);
+                window_list.pop_front();
+            }
+
+            // Calculate window set size
+            uint64_t window_set_size = 0;
+            std::list<uint64_t> tmp_window_requests;
+            for (auto window_read : tmp_windows_on_chip) {
+
+                uint64_t init_x = 0;
+                uint64_t init_y = 0;
+
+                // First window we store on-chip
+                if (full_window) {
+                    window_set_size += Kx * Ky * act_channels * 2;
+                } else {
+
+                    auto row_prev_window = prev_window / out_x;
+                    auto row_window = window_read / out_x;
+
+                    // Window at the right of another
+                    if (row_prev_window == row_window) {
+
+                        window_set_size += stride * Ky * act_channels * 2;
+                        init_x = Kx - stride;
+
+                    } else {
+
+                        auto it = std::find(windows_on_chip.begin(), windows_on_chip.end(), window_read);
+                        auto it2 = std::find(tmp_windows_on_chip.begin(), tmp_windows_on_chip.end(), window_read);
+
+                        // Window at the bottom of another
+                        if (it != windows_on_chip.end() || it2 != tmp_windows_on_chip.end()) {
+                            window_set_size += Kx * stride * act_channels * 2;
+                            init_y += Ky - stride;
+
+                            // Window on bottom row, but not window above
+                        } else {
+                            window_set_size += Kx * Ky * act_channels * 2;
+                        }
+
+                    }
+
+                }
+
+                auto x_window = window_read % out_x;
+                auto y_window = window_read % out_y;
+                for (int y = init_y; y < Ky; ++y) {
+                    for (int x = init_x; x < Kx; ++x) {
+                        for (int k = 0; k < act_channels; k += 4) { // 64 bits requests, 4 activations of 16 bits
+                            auto x_pos = x_window * stride + x;
+                            auto y_pos = y_window * stride + y;
+                            auto activations_address = act_address_map[n][y_pos][x_pos][k/4];
+                            tmp_window_requests.push_back(activations_address);
+                        }
+                    }
+                }
+
+                full_window = false;
+                prev_window = window_read;
+
+            }
+
+            // If window set doesn't fit, return to list and exit
+            if ((act_size + window_set_size) > on_chip_size) {
+                window_list.insert(window_list.begin(), tmp_windows_on_chip.begin(), tmp_windows_on_chip.end());
+                break;
+            }
+
+            windows_on_chip.insert(windows_on_chip.end(), tmp_windows_on_chip.begin(), tmp_windows_on_chip.end());
+            window_requests.emplace_back(tmp_window_requests);
+            act_size += window_set_size;
+
+        }
+
+        assert(act_size);
+
+    }
+
+    void read_filter_sets(std::list<int> &filter_list, std::list<int> &filters_on_chip, std::vector<std::list<uint64_t>>
+            &filter_requests, const address_map &wgt_address_map, uint64_t on_chip_size, uint64_t Kx,
+            uint64_t Ky, uint64_t wgt_channels, uint64_t N_ROWS) {
+
+        uint64_t wgt_size = 0;
+        while (true) {
+
+            if (filter_list.empty())
+                break;
+
+            // Select up to N_ROWS filters
+            std::list<int> tmp_filters_on_chip;
+            auto list_size = filter_list.size();
+            for (int i = 0; i < std::min(N_ROWS, list_size); ++i) {
+                int filter_read = filter_list.front();
+                tmp_filters_on_chip.push_back(filter_read);
+                filter_list.pop_front();
+            }
+
+            // Calculate filter set size
+            uint64_t filter_set_size = 0;
+            std::list<uint64_t> tmp_filter_requests;
+            for (auto filter_read : tmp_filters_on_chip) {
+
+                filter_set_size += Kx * Ky * wgt_channels * 2;
+
+                for (int y = 0; y < Ky; ++y) {
+                    for (int x = 0; x < Kx; ++x) {
+                        for (int k = 0; k < wgt_channels; k += 4) {
+                            auto weights_address = wgt_address_map[filter_read][y][x][k / 4];
+                            tmp_filter_requests.push_back(weights_address);
+                        }
+                    }
+                }
+
+            }
+
+            // If filter set doesn't fit, return to list and exit
+            if ((wgt_size + filter_set_size) > on_chip_size) {
+                filter_list.insert(filter_list.begin(), tmp_filters_on_chip.begin(), tmp_filters_on_chip.end());
+                break;
+            }
+
+            filters_on_chip.insert(filters_on_chip.end(), tmp_filters_on_chip.begin(), tmp_filters_on_chip.end());
+            filter_requests.emplace_back(tmp_filter_requests);
+            wgt_size += filter_set_size;
+
+        }
+
+        assert(wgt_size);
+
+    }
+
     template <typename T>
     void DynamicStripes<T>::on_chip_cycles(const base::Network<T> &network) {
 
@@ -1905,8 +2055,6 @@ namespace core {
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
         auto compute_cycles = stats.register_uint_t("compute_cycles", 0, sys::AverageTotal);
         auto memory_cycles = stats.register_uint_t("memory_cycles", 0, sys::AverageTotal);
-
-        uint64_t total_cycles = 0;
 
         uint64_t act_next_addr = 0;
         uint64_t act_base_addr = 0x40000000;
@@ -1968,8 +2116,7 @@ namespace core {
             auto out_y = (Ny - Ky) / stride + 1;
 
             // Off-chip memory layout
-            std::vector<std::vector<std::vector<std::vector<uint64_t>>>> act_address_map =
-                    std::vector<std::vector<std::vector<std::vector<uint64_t>>>>(batch_size,
+            address_map act_address_map = std::vector<std::vector<std::vector<std::vector<uint64_t>>>>(batch_size,
                     std::vector<std::vector<std::vector<uint64_t>>>(Ny, std::vector<std::vector<uint64_t>>(Nx,
                     std::vector<uint64_t>(ceil(act_channels / 4.)))));
 
@@ -1991,8 +2138,7 @@ namespace core {
                 }
             }
 
-            std::vector<std::vector<std::vector<std::vector<uint64_t>>>> wgt_address_map =
-                    std::vector<std::vector<std::vector<std::vector<uint64_t>>>>(num_filters,
+            address_map wgt_address_map = std::vector<std::vector<std::vector<std::vector<uint64_t>>>>(num_filters,
                     std::vector<std::vector<std::vector<uint64_t>>>(Ky, std::vector<std::vector<uint64_t>>(Kx,
                     std::vector<uint64_t>(ceil(wgt_channels / 4.)))));
 
@@ -2014,7 +2160,12 @@ namespace core {
                 }
             }
 
+            // Iterate filter sets dataflow - Output stationary
             for (int n = 0; n < batch_size; ++n) {
+
+                uint64_t batch_cycles = 0;
+                uint64_t batch_compute_cycles = 0;
+                this->memory.mem_cycle = 0;
 
                 // List all windows
                 std::list<int> window_list(out_x * out_y);
@@ -2023,126 +2174,99 @@ namespace core {
                 // Select windows that fit on-chip
                 while (!window_list.empty()) {
 
-                    bool full_window = true;
-                    uint64_t prev_window = -1;
+                    this->memory.read_requests.clear();
 
-                    uint64_t act_size = 0;
-                    std::list<int> window_on_chip;
-                    std::list<uint64_t> window_requests;
-                    while (true) {
+                    std::list<int> windows_on_chip;
+                    std::vector<std::list<uint64_t>> window_requests;
 
-                        // Calculate window size
-                        uint64_t init_x = 0;
-                        uint64_t init_y = 0;
-                        uint64_t window_size = 0;
-                        int window_read = window_list.front();
-
-                        // First window we store on-chip
-                        if (full_window) {
-                            window_size = Kx * Ky * act_channels * 2;
-                        } else {
-
-                            auto row_prev_window = prev_window / out_x;
-                            auto row_window = window_read / out_x;
-
-                            // Window at the right of another
-                            if (row_prev_window == row_window) {
-
-                                window_size = stride * Ky * act_channels * 2;
-                                init_x = Kx - stride;
-
-                            } else {
-
-                                auto it = std::find (window_on_chip.begin(), window_on_chip.end(), window_read);
-
-                                // Window at the bottom of another
-                                if (it != window_on_chip.end()) {
-                                    window_size = Kx * stride * act_channels * 2;
-                                    init_y = Ky - stride;
-
-                                // Window on bottom row, but not window above
-                                } else {
-                                    window_size = Kx * Ky * act_channels * 2;
-                                }
-
-                            }
-
-                        }
-
-                        if ((act_size + window_size) > this->memory.getOnChipActSize()) break;
-
-                        auto x_window = window_read % out_x;
-                        auto y_window = window_read % out_y;
-                        for (int y = init_y; y < Ky; ++y) {
-                            for (int x = init_x; x < Kx; ++x) {
-                                for (int k = 0; k < act_channels; k += 4) { // 64 bits requests, 4 activations of 16 bits
-                                    auto x_pos = x_window * stride + x;
-                                    auto y_pos = y_window * stride + y;
-                                    auto activations_address = act_address_map[n][y_pos][x_pos][k/4];
-                                    printf("0x%lx\n",activations_address);
-                                    window_requests.push_back(activations_address);
-                                }
-                            }
-                        }
-
-                        window_on_chip.push_back(window_read);
-                        window_list.pop_front();
-                        act_size += window_size;
-
-                        full_window = false;
-                        prev_window = window_read;
-
-                    }
-
-                    assert(!act_size);
-
-                    // Request the memory addresses
-                    window_requests.sort();
-                    for(auto address : window_requests) {
-                        this->memory.request_address(address);
-                    }
+                    read_window_sets(window_list, windows_on_chip, window_requests, act_address_map,
+                            this->memory.getOnChipActSize(), n, Kx, Ky, act_channels, out_x, out_y, stride, N_COLUMNS);
 
                     // List all filters
+                    bool first = true;
                     std::list<int> filter_list(num_filters);
                     std::iota(std::begin(filter_list), std::end(filter_list), 0);
 
                     // Select filters that fit on-chip
                     while (!filter_list.empty()) {
 
-                        uint64_t wgt_size = 0;
-                        std::list<int> filter_on_chip;
-                        std::list<uint64_t> filter_requests;
-                        while (true) {
+                        std::list<int> filters_on_chip;
+                        std::vector<std::list<uint64_t>> filter_requests;
 
-                            // Calculate filter size
-                            uint64_t filter_size = Kx * Ky * wgt_channels * 2;
-                            if ((wgt_size + filter_size) > this->memory.getOnChipWgtSize()) break;
+                        read_filter_sets(filter_list, filters_on_chip, filter_requests, wgt_address_map,
+                                this->memory.getOnChipWgtSize(), Kx, Ky, wgt_channels, N_ROWS);
 
-                            int filter_read = filter_list.front();
-                            for (int y = 0; y < Ky; ++y) {
-                                for (int x = 0; x < Kx; ++x) {
-                                    for (int k = 0; k < wgt_channels; k += 4) { // 64 bits requests, 4 weights of 16 bits
-                                        auto weights_address = wgt_address_map[filter_read][y][x][k/4];
-                                        filter_requests.push_back(weights_address);
-                                    }
+                        auto num_window_sets = ceil(windows_on_chip.size() / (double)N_COLUMNS);
+                        auto num_filter_sets = ceil(filters_on_chip.size() / (double)N_ROWS);
+                        auto max_sets = (int)std::max(num_window_sets, num_filter_sets);
+
+                        for (int i = 0; i < max_sets; ++i) {
+
+                            // Request the memory addresses
+                            if (first && i < window_requests.size()) {
+                                for (auto address : window_requests[i]) {
+                                    this->memory.request_address(address);
                                 }
                             }
 
-                            filter_on_chip.push_back(filter_read);
-                            filter_list.pop_front();
-                            wgt_size += filter_size;
+                            // Request the memory addresses
+                            if (i < filter_requests.size()) {
+                                for (auto address : filter_requests[i]) {
+                                    this->memory.request_address(address);
+                                }
+                            }
 
                         }
 
-                        assert(!wgt_size);
 
-                        // Request the memory addresses
-                        filter_requests.sort();
-                        for(auto address : filter_requests) {
-                            this->memory.request_address(address);
-                        }
+                        first = false;
 
                         // Convolute windows and filters on the on-chip memory
+                        for (int w = 0; w < windows_on_chip.size(); w += N_COLUMNS) {
+
+                            for (int m = 0; m < filters_on_chip.size(); m += N_ROWS) {
+
+                                // Convolute windows
+                                for (int x = 0; x < Kx; ++x) {
+                                    for (int y = 0; y < Ky; ++y) {
+                                        for (int k = 0; k < wgt_channels; k += N_LANES) {
+
+
+                                            for (int window = w; window < std::min((uint64_t)w + N_COLUMNS,
+                                                    windows_on_chip.size()); ++window) {
+                                                for (int filter = m; filter < std::min((uint64_t)m + N_ROWS,
+                                                        filters_on_chip.size()); ++filter) {
+                                                    for (int channel = k; channel < std::min((uint64_t)k + N_LANES,
+                                                            wgt_channels); ++channel) {
+
+                                                        auto x_window = window % out_x;
+                                                        auto y_window = window % out_y;
+                                                        auto act_address = act_address_map[n][x_window * stride + x]
+                                                                [y_window * stride + y][channel/4];
+                                                        auto wgt_address = wgt_address_map[filter][x][y][channel/4];
+
+                                                        this->memory.wait_for(act_address);
+                                                        this->memory.wait_for(wgt_address);
+
+                                                        if (this->memory.mem_cycle > batch_cycles)
+                                                            batch_cycles = this->memory.mem_cycle;
+                                                        else this->memory.wait_until(batch_cycles);
+
+                                                        batch_compute_cycles += 1;
+                                                        batch_cycles += 1;
+
+                                                    }
+                                                }
+                                            }
+
+
+                                        }
+                                    }
+                                }
+
+
+                            }
+                        }
 
                     }
 
