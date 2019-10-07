@@ -92,8 +92,11 @@ namespace sys {
         simulate.batch = simulate_proto.batch();
         simulate.epochs = simulate_proto.epochs() < 1 ? 1 : simulate_proto.epochs();
         simulate.tensorflow_8b = simulate_proto.tensorflow_8b();
+        simulate.intel_inq = simulate_proto.intel_inq();
         simulate.network_bits = simulate_proto.network_bits() < 1 ? 16 : simulate_proto.network_bits();
 		simulate.training = simulate_proto.training();
+		simulate.unsigned_activations = simulate_proto.unsigned_activations();
+        simulate.unsigned_weights = simulate_proto.unsigned_weights();
         if(simulate.tensorflow_8b) simulate.network_bits = 8;
 
         value = simulate_proto.model();

@@ -1117,6 +1117,8 @@ namespace core {
         auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
         auto network_bits = network.getNetwork_bits();
+        auto signed_activations = !network.isUnsignedAct();
+        auto signed_weights = !network.isUnsignedWgt();
 
         for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
@@ -1223,13 +1225,15 @@ namespace core {
 
                                 uint16_t wgt_bits = wgt.get(m, ss, x, y);
 
-                                if ((wgt_bits & wgt_mask) != 0) {
-                                    wgt_bits = wgt_bits & ~wgt_mask;
+                                if (signed_weights) {
+                                    if ((wgt_bits & wgt_mask) != 0) {
+                                        wgt_bits = wgt_bits & ~wgt_mask;
+                                    }
                                 }
 
                                 const auto &min_max_wgt_bits = this->minMax(wgt_bits);
                                 auto max_wgt_bit = std::get<1>(min_max_wgt_bits);
-                                max_wgt_bit += 1;
+                                if (signed_weights) max_wgt_bit += 1;
 
                                 if (max_wgt_bit > max_bit) max_bit = max_wgt_bit;
                             }
@@ -1374,13 +1378,15 @@ namespace core {
 
                                     uint16_t act_bits = lstm ? act.get(r, n, ss) : act.get(n, ss, x, y);
 
-                                    if ((act_bits & act_mask) != 0) {
-                                        act_bits = act_bits & ~act_mask;
+                                    if (signed_activations) {
+                                        if ((act_bits & act_mask) != 0) {
+                                            act_bits = act_bits & ~act_mask;
+                                        }
                                     }
 
                                     const auto &min_max_act_bits = this->minMax(act_bits);
                                     auto max_act_bit = std::get<1>(min_max_act_bits);
-                                    max_act_bit += 1;
+                                    if (signed_activations) max_act_bit += 1;
 
                                     if (max_act_bit > max_bit) max_bit = max_act_bit;
                                 }

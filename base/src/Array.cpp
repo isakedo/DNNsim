@@ -354,6 +354,85 @@ namespace base {
         return fixed_point_array;
     }
 
+    static inline
+    uint16_t intel_inq_activation(float num) {
+        int two_comp = num * 4096;
+        return (uint16_t)two_comp;
+    }
+
+    static inline
+    uint16_t intel_inq_weight(float num, float max_weight) {
+        int two_comp = num * 128 / max_weight;
+        return (uint16_t)two_comp;
+    }
+
+    template <typename T>
+    Array<uint16_t> Array<T>::intel_inq_fixed_point(bool activations) const {
+
+        std::vector<uint16_t> fixed_point_vector;
+        if (this->getDimensions() == 1) {
+
+            auto min_value = min_1D(this->data1D);
+            auto max_value = max_1D(this->data1D);
+            auto max_abs = std::max(abs(max_value),abs(min_value));
+
+            for(int i = 0; i < this->shape[0]; i++) {
+                auto float_value = this->data1D[i];
+                if (activations) fixed_point_vector.push_back(intel_inq_activation(float_value));
+                else fixed_point_vector.push_back(intel_inq_weight(float_value,max_abs));
+            }
+        } else if(this->getDimensions() == 2){
+
+            auto min_value = min_2D(this->data2D);
+            auto max_value = max_2D(this->data2D);
+            auto max_abs = std::max(abs(max_value),abs(min_value));
+
+            for(int i = 0; i < this->shape[0]; i++) {
+                for(int j = 0; j < this->shape[1]; j++) {
+                    auto float_value = this->data2D[i][j];
+                    if (activations) fixed_point_vector.push_back(intel_inq_activation(float_value));
+                    else fixed_point_vector.push_back(intel_inq_weight(float_value,max_abs));
+                }
+            }
+        } else if (this->getDimensions() == 3) {
+
+            auto min_value = min_3D(this->data3D);
+            auto max_value = max_3D(this->data3D);
+            auto max_abs = std::max(abs(max_value),abs(min_value));
+
+            for(int i = 0; i < this->shape[0]; i++) {
+                for(int j = 0; j < this->shape[1]; j++) {
+                    for(int k = 0; k < this->shape[2]; k++) {
+                        auto float_value = this->data3D[i][j][k];
+                        if (activations) fixed_point_vector.push_back(intel_inq_activation(float_value));
+                        else fixed_point_vector.push_back(intel_inq_weight(float_value,max_abs));
+                    }
+                }
+            }
+        } else if (this->getDimensions() == 4) {
+
+            auto min_value = min_4D(this->data4D);
+            auto max_value = max_4D(this->data4D);
+            auto max_abs = std::max(abs(max_value),abs(min_value));
+
+            for(int i = 0; i < this->shape[0]; i++) {
+                for(int j = 0; j < this->shape[1]; j++) {
+                    for(int k = 0; k < this->shape[2]; k++) {
+                        for(int l = 0; l < this->shape[3]; l++) {
+                            auto float_value = this->data4D[i][j][k][l];
+                            if (activations) fixed_point_vector.push_back(intel_inq_activation(float_value));
+                            else fixed_point_vector.push_back(intel_inq_weight(float_value,max_abs));
+                        }
+                    }
+                }
+            }
+        } else throw std::runtime_error("Array dimensions error");
+
+        Array<uint16_t> fixed_point_array;
+        fixed_point_array.set_values(fixed_point_vector,this->shape);
+        return fixed_point_array;
+    }
+
     template <typename T>
     void Array<T>::sign_magnitude_representation(int prec) {
         double intmax = (1u << (prec - 1)) - 1;

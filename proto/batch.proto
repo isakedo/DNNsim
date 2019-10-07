@@ -63,11 +63,14 @@ message Batch {
         string network = 5;
         uint32 network_bits = 6;
         bool tensorflow_8b = 7;
-		bool training = 8;
-		bool only_forward = 9;
-		bool only_backward = 10;
-        uint32 decoder_states = 11;
-        repeated Experiment experiment = 12;
+        bool intel_inq = 8;
+		bool training = 9;
+		bool only_forward = 10;
+		bool only_backward = 11;
+        uint32 decoder_states = 12;
+        bool unsigned_activations = 13;
+        bool unsigned_weights = 14;
+        repeated Experiment experiment = 15;
     }
 
     repeated Simulate simulate = 1;

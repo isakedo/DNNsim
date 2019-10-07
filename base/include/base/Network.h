@@ -33,6 +33,15 @@ namespace base {
         /** Tensorflow 8b quantization */
         bool tensorflow_8b;
 
+        /** Intel INQ quantization */
+        bool intel_inq;
+
+        /** Activations does not have sign */
+        bool unsigned_activations = false;
+
+        /** Weights does not have sign */
+        bool unsigned_weights = false;
+
     public:
 
         /** Default constructor */
@@ -44,10 +53,15 @@ namespace base {
          * @param _forward          Active forward traces
          * @param _backward         Active backward traces
          * @param _tensorflow_8b    Active tensorflow 8b quantization
+         * @param _intel_inq        Active intel INQ
+         * @param _unsigned_act     Unsigned activations
+         * @param _unsigned_wgt     Unsigned weights
          */
         explicit Network(const std::string &_name, uint32_t _network_bits = 16, bool _forward = false,
-                bool _backward = false, bool _tensorflow_8b = false) : network_bits(_network_bits), forward(_forward),
-                backward(_backward), tensorflow_8b(_tensorflow_8b) {
+                bool _backward = false, bool _tensorflow_8b = false, bool _intel_inq = false, bool _unsigned_act = false,
+                bool _unsigned_wgt = false) : network_bits(_network_bits), forward(_forward), backward(_backward),
+                tensorflow_8b(_tensorflow_8b), intel_inq(_intel_inq), unsigned_activations(_unsigned_act),
+                unsigned_weights(_unsigned_wgt) {
             name = _name;
         }
 
@@ -57,11 +71,16 @@ namespace base {
          * @param _network_bits     Max number of bits of the network
          * @param _forward          Active forward traces
          * @param _backward         Active backward traces
-         * @param _tensorflow_8b    Active tensorflow 8b quantization
+         * @param _tensorflow_8b    Active tensorflow 8b
+         * @param _intel_inq        Active intel INQ
+         * @param _unsigned_act     Unsigned activations
+         * @param _unsigned_wgt     Unsigned weights
          */
         Network(const std::string &_name, const std::vector<Layer<T>> &_layers, uint32_t _network_bits = 16,
-                bool _forward = false, bool _backward = false, bool _tensorflow_8b = false) :
-                network_bits(_network_bits), forward(_forward), backward(_backward), tensorflow_8b(_tensorflow_8b) {
+                bool _forward = false, bool _backward = false, bool _tensorflow_8b = false, bool _intel_inq = false,
+                bool _unsigned_act = false, bool _unsigned_wgt = false) : network_bits(_network_bits),
+                forward(_forward), backward(_backward), tensorflow_8b(_tensorflow_8b), intel_inq(_intel_inq),
+                unsigned_activations(_unsigned_act), unsigned_weights(_unsigned_wgt) {
             name = _name; layers = _layers;
         }
 
@@ -100,6 +119,24 @@ namespace base {
          * @return True if tensorflow quantization
          */
         bool isTensorflow_8b() const { return tensorflow_8b; }
+
+        /**
+         * Get the Intel INQ quantization
+         * @return True if Intel INQ quantization
+         */
+        bool isIntelINQ() const { return intel_inq; }
+
+        /**
+         * Return if the activations are unsigned
+         * @return True if activations are unsigned
+         */
+        bool isUnsignedAct() const { return unsigned_activations; }
+
+        /**
+         * Return if the weights are unsigned
+         * @return True if weights are unsigned
+         */
+        bool isUnsignedWgt() const { return unsigned_weights; }
 
         /**
          * Get number of batches in the layer traces
@@ -153,11 +190,30 @@ namespace base {
          */
         void setTensorflow_8b(bool _tensorflow_8b) { Network::tensorflow_8b = _tensorflow_8b; }
 
+        /**
+         * Update Intel INQ quantization flag
+         * @param _intel_inq True if Intel INQ quantization
+         */
+        void setIntelINQ(bool _intel_inq) { Network::intel_inq = _intel_inq; }
+
+        /**
+         * Set the if unsigned activations
+         * @param unsignedActivations True if unsigned activations
+         */
+        void setUnsignedActivations(bool unsignedActivations) { Network::unsigned_activations = unsignedActivations; }
+
+        /**
+         * Set the if unsigned weights
+         * @param unsignedWeights True if unsigned weights
+         */
+        void setUnsignedWeights(bool unsignedWeights) { Network::unsigned_weights = unsignedWeights; }
+
         /** Return a network in fixed point given a floating point network
          * @return   Network in fixed point
          */
         Network<uint16_t> fixed_point() {
-            auto fixed_network = Network<uint16_t>(name,network_bits,forward,backward,tensorflow_8b);
+            auto fixed_network = Network<uint16_t>(name,network_bits,forward,backward,tensorflow_8b,intel_inq,
+                    unsigned_activations,unsigned_weights);
 
             for(auto &layer : layers) {
                 auto fixed_layer = Layer<uint16_t>(layer.getType(),layer.getName(),layer.getInput(),layer.getNn(),
@@ -166,11 +222,13 @@ namespace base {
                         layer.getWgtFraction());
 
                 if(tensorflow_8b) fixed_layer.setActivations(layer.getActivations().tensorflow_fixed_point());
+                else if(intel_inq) fixed_layer.setActivations(layer.getActivations().intel_inq_fixed_point(true));
                 else fixed_layer.setActivations(layer.getActivations().profiled_fixed_point(layer.getActMagnitude(),
                         layer.getActFraction()));
                 layer.setActivations(Array<T>());
 
                 if(tensorflow_8b) fixed_layer.setWeights(layer.getWeights().tensorflow_fixed_point());
+                else if(intel_inq) fixed_layer.setWeights(layer.getWeights().intel_inq_fixed_point(false));
                 else fixed_layer.setWeights(layer.getWeights().profiled_fixed_point(layer.getWgtMagnitude(),
                         layer.getWgtFraction()));
                 layer.setWeights(Array<T>());

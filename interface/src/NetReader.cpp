@@ -91,7 +91,7 @@ namespace interface {
                 else if (words[0].find("encoder") != std::string::npos)
                     type = "Encoder";
                 else if (words[0].find("fc") != std::string::npos || words[0].find("inner_prod") != std::string::npos ||
-                        words[0].find("Linear") != std::string::npos)
+                        words[0].find("Linear") != std::string::npos || words[0].find("linear") != std::string::npos)
                     type = "InnerProduct";
                 else if (words[0].find("lstm") != std::string::npos)
                     type = "LSTM";
@@ -388,12 +388,25 @@ namespace interface {
         if(network.isTensorflow_8b()) {
             int i = 0;
             for(base::Layer<T> &layer : network.updateLayers()) {
-                layer.setAct_precision(8,7,0);
-                layer.setWgt_precision(8,7,0);
+                network.isUnsignedAct() ? layer.setAct_precision(8,8,0) : layer.setAct_precision(8,7,0);
+                network.isUnsignedWgt() ? layer.setWgt_precision(8,8,0) : layer.setWgt_precision(8,7,0);
                 i++;
             }
 
             if(!QUIET) std::cout << "Using generic precisions for Tensorflow 8b quantization" << std::endl;
+
+            return;
+        }
+
+        if(network.isIntelINQ()) {
+            int i = 0;
+            for(base::Layer<T> &layer : network.updateLayers()) {
+                layer.setAct_precision(16,15,0);
+                layer.setWgt_precision(8,7,0);
+                i++;
+            }
+
+            if(!QUIET) std::cout << "Using generic precisions for Intel INQ quantization" << std::endl;
 
             return;
         }
@@ -435,8 +448,12 @@ namespace interface {
 
             int i = 0;
             for(base::Layer<T> &layer : network.updateLayers()) {
-                layer.setAct_precision(act_mag[i] + act_frac[i],act_mag[i] - 1,act_frac[i]);
-                layer.setWgt_precision(wgt_mag[i] + wgt_frac[i],wgt_mag[i] - 1,wgt_frac[i]);
+                network.isUnsignedAct() ?
+                    layer.setAct_precision(act_mag[i] + act_frac[i], act_mag[i], act_frac[i]) :
+                    layer.setAct_precision(act_mag[i] + act_frac[i], act_mag[i] - 1, act_frac[i]);
+                network.isUnsignedWgt() ?
+                    layer.setWgt_precision(wgt_mag[i] + wgt_frac[i], wgt_mag[i], wgt_frac[i]) :
+                    layer.setWgt_precision(wgt_mag[i] + wgt_frac[i], wgt_mag[i] - 1, wgt_frac[i]);
                 i++;
             }
 
@@ -447,11 +464,11 @@ namespace interface {
             int i = 0;
             for(base::Layer<T> &layer : network.updateLayers()) {
                 if (network.getNetwork_bits() == 8) {
-                    layer.setAct_precision(8,6,1);
-                    layer.setWgt_precision(8,0,7);
+                    network.isUnsignedAct() ? layer.setAct_precision(8,7,1) : layer.setAct_precision(8,6,1);
+                    network.isUnsignedWgt() ? layer.setWgt_precision(8,0,8) : layer.setWgt_precision(8,0,7);
                 } else {
-                    layer.setAct_precision(16,13,2);
-                    layer.setWgt_precision(16,0,15);
+                    network.isUnsignedAct() ? layer.setAct_precision(16,14,2) : layer.setAct_precision(16,13,2);
+                    network.isUnsignedWgt() ? layer.setWgt_precision(16,1,15) : layer.setWgt_precision(16,0,15);
                 }
                 i++;
             }

@@ -118,12 +118,21 @@ namespace base {
         /** Return a fixed point array given profiled precisions
          * @param mag   Magnitude (without sign bit)
          * @param frac  Fraction
+         * @return Fixed point quantized tensor
          */
         Array<uint16_t> profiled_fixed_point(int mag, int frac) const;
 
-        /** Return a fixed point array for tensorflow 8bits quantization
+        /**
+         * Return a fixed point array for tensorflow 8bits quantization
+         * @return Fixed point quantized tensor
          */
         Array<uint16_t> tensorflow_fixed_point() const;
+
+        /** Return a fixed point array for intel INQ quantization
+         * @param activations True if activations traces
+         * @return Fixed point quantized tensor
+         */
+        Array<uint16_t> intel_inq_fixed_point(bool activations) const;
 
         /** Change fixed point representation to sign-magnitude
          * @param prec   Precision: sign + magnitude + fraction

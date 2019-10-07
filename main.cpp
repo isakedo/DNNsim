@@ -49,6 +49,9 @@ base::Network<T> read(const sys::Batch::Simulate &simulate, bool QUIET) {
         network = reader.read_network_caffe();
         network.setNetwork_bits(simulate.network_bits);
         network.setTensorflow_8b(simulate.tensorflow_8b);
+        network.setIntelINQ(simulate.intel_inq);
+        network.setUnsignedActivations(simulate.unsigned_activations);
+        network.setUnsignedWeights(simulate.unsigned_weights);
         reader.read_precision(network);
         reader.read_weights_npy(network);
         reader.read_activations_npy(network);
@@ -57,6 +60,9 @@ base::Network<T> read(const sys::Batch::Simulate &simulate, bool QUIET) {
         network = reader.read_network_trace_params();
         network.setNetwork_bits(simulate.network_bits);
         network.setTensorflow_8b(simulate.tensorflow_8b);
+        network.setIntelINQ(simulate.intel_inq);
+        network.setUnsignedActivations(simulate.unsigned_activations);
+        network.setUnsignedWeights(simulate.unsigned_weights);
         reader.read_precision(network);
         reader.read_weights_npy(network);
         reader.read_activations_npy(network);
@@ -65,6 +71,9 @@ base::Network<T> read(const sys::Batch::Simulate &simulate, bool QUIET) {
         network = reader.read_network_conv_params();
         network.setNetwork_bits(simulate.network_bits);
         network.setTensorflow_8b(simulate.tensorflow_8b);
+        network.setIntelINQ(simulate.intel_inq);
+        network.setUnsignedActivations(simulate.unsigned_activations);
+        network.setUnsignedWeights(simulate.unsigned_weights);
         reader.read_weights_npy(network);
         reader.read_activations_npy(network);
 
@@ -275,7 +284,7 @@ int main(int argc, char *argv[]) {
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 		                        else if (experiment.task == "AvgWidth") DNNsim.average_width(network);
 		                        else if (experiment.task == "OnChip") DNNsim.on_chip(network);
-                                else if (experiment.task == "OnChipCycles") DNNsim.on_chip_cycles(network);
+		                        else if (experiment.task == "OnChipCycles") DNNsim.on_chip_cycles(network);
 
 		                    } else if(experiment.architecture == "Loom") {
 		                        core::Loom<uint16_t> DNNsim(experiment.n_lanes, experiment.n_columns, experiment.n_rows,

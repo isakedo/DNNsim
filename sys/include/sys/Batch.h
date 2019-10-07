@@ -130,6 +130,9 @@ namespace sys {
             /** Tensorflow quantization */
             bool tensorflow_8b = false;
 
+            /** Intel INQ quantization */
+            bool intel_inq = false;
+
             /** Training traces */
             bool training = false;
 
@@ -141,6 +144,12 @@ namespace sys {
 
             /** Number of decoder states of Seq2Seq traces */
             uint32_t decoder_states = 0;
+
+            /** Activations does not have sign */
+            bool unsigned_activations = false;
+
+            /** Weights does not have sign */
+            bool unsigned_weights = false;
 
             /** Array of experiments */
             std::vector<Experiment> experiments;
