@@ -1903,10 +1903,12 @@ namespace core {
 
     void read_window_sets(std::list<int> &window_list, std::list<int> &windows_on_chip, std::vector<std::list<uint64_t>>
             &window_requests, const address_map &act_address_map, uint64_t on_chip_size, uint64_t n, uint64_t Kx,
-            uint64_t Ky, uint64_t act_channels, uint64_t out_x, uint64_t out_y, uint64_t stride, uint64_t N_COLUMNS) {
+            uint64_t Ky, uint64_t Nx, uint64_t Ny, uint64_t act_channels, uint64_t out_x, uint64_t out_y,
+            uint64_t stride, uint64_t N_COLUMNS) {
 
-        bool full_window = true;
-        uint64_t prev_window = -1;
+        std::vector<std::vector<std::vector<bool>>> requested_address =
+                std::vector<std::vector<std::vector<bool>>>(Ny, std::vector<std::vector<bool>>(Nx,
+                std::vector<bool>(ceil(act_channels / 4.), false)));
 
         uint64_t act_size = 0;
         while (true) {
@@ -1928,57 +1930,22 @@ namespace core {
             std::list<uint64_t> tmp_window_requests;
             for (auto window_read : tmp_windows_on_chip) {
 
-                uint64_t init_x = 0;
-                uint64_t init_y = 0;
-
-                // First window we store on-chip
-                if (full_window) {
-                    window_set_size += Kx * Ky * act_channels * 2;
-                } else {
-
-                    auto row_prev_window = prev_window / out_x;
-                    auto row_window = window_read / out_x;
-
-                    // Window at the right of another
-                    if (row_prev_window == row_window) {
-
-                        window_set_size += stride * Ky * act_channels * 2;
-                        init_x = Kx - stride;
-
-                    } else {
-
-                        auto it = std::find(windows_on_chip.begin(), windows_on_chip.end(), window_read);
-                        auto it2 = std::find(tmp_windows_on_chip.begin(), tmp_windows_on_chip.end(), window_read);
-
-                        // Window at the bottom of another
-                        if (it != windows_on_chip.end() || it2 != tmp_windows_on_chip.end()) {
-                            window_set_size += Kx * stride * act_channels * 2;
-                            init_y += Ky - stride;
-
-                            // Window on bottom row, but not window above
-                        } else {
-                            window_set_size += Kx * Ky * act_channels * 2;
-                        }
-
-                    }
-
-                }
-
                 auto x_window = window_read % out_x;
-                auto y_window = window_read % out_y;
-                for (int y = init_y; y < Ky; ++y) {
-                    for (int x = init_x; x < Kx; ++x) {
+                auto y_window = window_read / out_y;
+                for (int y = 0; y < Ky; ++y) {
+                    for (int x = 0; x < Kx; ++x) {
                         for (int k = 0; k < act_channels; k += 4) { // 64 bits requests, 4 activations of 16 bits
                             auto x_pos = x_window * stride + x;
                             auto y_pos = y_window * stride + y;
-                            auto activations_address = act_address_map[n][y_pos][x_pos][k/4];
-                            tmp_window_requests.push_back(activations_address);
+                            if (!requested_address[y_pos][x_pos][k/4]) {
+                                auto activations_address = act_address_map[n][y_pos][x_pos][k / 4];
+                                tmp_window_requests.push_back(activations_address);
+                                requested_address[y_pos][x_pos][k/4] = true;
+                                window_set_size += 8;
+                            }
                         }
                     }
                 }
-
-                full_window = false;
-                prev_window = window_read;
 
             }
 
@@ -2186,7 +2153,8 @@ namespace core {
                     std::vector<std::list<uint64_t>> window_requests;
 
                     read_window_sets(window_list, windows_on_chip, window_requests, act_address_map,
-                            this->memory.getOnChipActSize(), n, Kx, Ky, act_channels, out_x, out_y, stride, N_COLUMNS);
+                            this->memory.getOnChipActSize(), n, Kx, Ky, Nx, Ny, act_channels, out_x, out_y, stride,
+                            N_COLUMNS);
 
                     // List all filters
                     bool first = true;
@@ -2224,7 +2192,6 @@ namespace core {
 
                         }
 
-
                         first = false;
 
                         // Convolute windows and filters on the on-chip memory
@@ -2246,7 +2213,7 @@ namespace core {
                                                             wgt_channels); ++channel) {
 
                                                         auto x_window = window % out_x;
-                                                        auto y_window = window % out_y;
+                                                        auto y_window = window / out_y;
                                                         auto act_address = act_address_map[n][x_window * stride + x]
                                                                 [y_window * stride + y][channel/4];
                                                         auto wgt_address = wgt_address_map[filter][x][y][channel/4];
@@ -2254,17 +2221,16 @@ namespace core {
                                                         this->memory.wait_for(act_address);
                                                         this->memory.wait_for(wgt_address);
 
-                                                        if (this->memory.mem_cycle > batch_cycles)
-                                                            batch_cycles = this->memory.mem_cycle;
-                                                        else this->memory.wait_until(batch_cycles);
-
-                                                        batch_compute_cycles += 1;
-                                                        batch_cycles += 1;
-
                                                     }
                                                 }
                                             }
 
+                                            if (this->memory.mem_cycle > batch_cycles)
+                                                batch_cycles = this->memory.mem_cycle;
+                                            else this->memory.wait_until(batch_cycles);
+
+                                            batch_compute_cycles += 1;
+                                            batch_cycles += 1;
 
                                         }
                                     }
@@ -2278,6 +2244,8 @@ namespace core {
 
 
                 }
+
+                std::cout << "Aqui fuera estoy";
 
             }
         }
