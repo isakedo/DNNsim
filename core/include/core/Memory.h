@@ -17,8 +17,8 @@ namespace core {
         /** Memory system */
         DRAMSim::MultiChannelMemorySystem *memory;
 
-        /** Read queue */
-        std::queue<uint64_t> read_queue;
+        /** Transactions queue */
+        std::queue<std::tuple<uint64_t, bool>> queue;
 
         /** Size for the on-chip activations memory */
         uint64_t on_chip_act_size;
@@ -31,20 +31,21 @@ namespace core {
         /** Memory clock cycle */
         uint64_t mem_cycle;
 
-        /** Read requests */
-        std::map<uint64_t, bool> read_requests;
+        /** Requests */
+        std::map<uint64_t, bool> requests;
 
-        /** Called when memory is ready. Update read requests map
+        /** Called when read is ready. Update requests map
          * @param id Identifier of the request
          * @param address Address of the read request
          * @param clock_cycle Clock cycle at what the request was served
          */
-        void read_done(unsigned id, uint64_t address, uint64_t clock_cycle);
+        void transaction_done(unsigned id, uint64_t address, uint64_t clock_cycle);
 
         /** Request read from the off-chip dram
          * @param address Address of the read request
+         * @param isWrite Type of transaction, True write, False read
          */
-        void request_address(uint64_t address);
+        void request_address(uint64_t address, bool isWrite);
 
         /** Pass memory cycles until the given clock cycle
          * @param clock_cycle Target clock cycle
@@ -61,9 +62,11 @@ namespace core {
                     "./DRAMSim2/", "DNNsim", 16384);
 
             DRAMSim::TransactionCompleteCB *read_cb =
-                    new DRAMSim::Callback<Memory, void, unsigned, uint64_t, uint64_t>(this, &Memory::read_done);
+                    new DRAMSim::Callback<Memory, void, unsigned, uint64_t, uint64_t>(this, &Memory::transaction_done);
+            DRAMSim::TransactionCompleteCB *write_cb =
+                    new DRAMSim::Callback<Memory, void, unsigned, uint64_t, uint64_t>(this, &Memory::transaction_done);
 
-            memory->RegisterCallbacks(read_cb, nullptr, nullptr);
+            memory->RegisterCallbacks(read_cb, write_cb, nullptr);
             mem_cycle = 0;
             on_chip_act_size = 1048576/8; //1MiB
             on_chip_wgt_size = 1048576/8; //1MiB
@@ -73,9 +76,11 @@ namespace core {
             memory = DRAMSim::getMemorySystemInstance(dram_conf, system_conf, "./DRAMSim2/", "DNNsim", size);
 
             DRAMSim::TransactionCompleteCB *read_cb =
-                    new DRAMSim::Callback<Memory, void, unsigned, uint64_t, uint64_t>(this, &Memory::read_done);
+                    new DRAMSim::Callback<Memory, void, unsigned, uint64_t, uint64_t>(this, &Memory::transaction_done);
+            DRAMSim::TransactionCompleteCB *write_cb =
+                    new DRAMSim::Callback<Memory, void, unsigned, uint64_t, uint64_t>(this, &Memory::transaction_done);
 
-            memory->RegisterCallbacks(read_cb, nullptr, nullptr);
+            memory->RegisterCallbacks(read_cb, write_cb, nullptr);
             mem_cycle = 0;
             on_chip_act_size = 1048576; //1MiB
             on_chip_wgt_size = 1048576; //1MiB

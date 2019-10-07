@@ -3,23 +3,21 @@
 
 namespace core {
 
-    void Memory::read_done(unsigned id, uint64_t address, uint64_t clock_cycle)
-    {
-        printf("[Callback] read complete: %d 0x%lx cycle=%lu\n", id, address, clock_cycle);
-        read_requests[address] = true;
-
-        if (!read_queue.empty()) {
-            request_address(read_queue.front());
-            read_queue.pop();
+    void Memory::transaction_done(unsigned id, uint64_t address, uint64_t clock_cycle) {
+        requests[address] = true;
+        if (!queue.empty()) {
+            auto tuple = queue.front();
+            request_address(std::get<0>(tuple), std::get<1>(tuple));
+            queue.pop();
         }
     }
 
-    void Memory::request_address(uint64_t address) {
+    void Memory::request_address(uint64_t address, bool isWrite) {
         if (memory->willAcceptTransaction()) {
-            memory->addTransaction(false, address);
-            read_requests[address] = false;
+            memory->addTransaction(isWrite, address);
+            requests[address] = false;
         } else {
-            read_queue.push(address);
+            queue.push(std::make_tuple(address, isWrite));
         }
     }
 
@@ -31,7 +29,7 @@ namespace core {
     }
 
     void Memory::wait_for(uint64_t address) {
-        while(!read_requests[address]) {
+        while(!requests[address]) {
             memory->update();
             mem_cycle++;
         }

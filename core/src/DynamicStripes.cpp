@@ -1901,10 +1901,10 @@ namespace core {
 
     }
 
-    void read_window_sets(std::list<int> &window_list, std::list<int> &windows_on_chip, std::vector<std::list<uint64_t>>
-            &window_requests, const address_map &act_address_map, uint64_t on_chip_size, uint64_t n, uint64_t Kx,
-            uint64_t Ky, uint64_t Nx, uint64_t Ny, uint64_t act_channels, uint64_t out_x, uint64_t out_y,
-            uint64_t stride, uint64_t N_COLUMNS) {
+    void read_window_sets(std::list<int> &window_list, std::vector<int> &windows_on_chip,
+            std::vector<std::list<uint64_t>> &window_requests, const address_map &act_address_map,
+            uint64_t on_chip_size, uint64_t n, uint64_t Kx, uint64_t Ky, uint64_t Nx, uint64_t Ny,
+            uint64_t act_channels, uint64_t out_x, uint64_t out_y, uint64_t stride, uint64_t N_COLUMNS) {
 
         std::vector<std::vector<std::vector<bool>>> requested_address =
                 std::vector<std::vector<std::vector<bool>>>(Ny, std::vector<std::vector<bool>>(Nx,
@@ -1965,7 +1965,7 @@ namespace core {
 
     }
 
-    void read_filter_sets(std::list<int> &filter_list, std::list<int> &filters_on_chip, std::vector<std::list<uint64_t>>
+    void read_filter_sets(std::list<int> &filter_list, std::vector<int> &filters_on_chip, std::vector<std::list<uint64_t>>
             &filter_requests, const address_map &wgt_address_map, uint64_t on_chip_size, uint64_t Kx,
             uint64_t Ky, uint64_t wgt_channels, uint64_t N_ROWS) {
 
@@ -2147,9 +2147,9 @@ namespace core {
                 // Select windows that fit on-chip
                 while (!window_list.empty()) {
 
-                    this->memory.read_requests.clear();
+                    this->memory.requests.clear();
 
-                    std::list<int> windows_on_chip;
+                    std::vector<int> windows_on_chip;
                     std::vector<std::list<uint64_t>> window_requests;
 
                     read_window_sets(window_list, windows_on_chip, window_requests, act_address_map,
@@ -2164,7 +2164,7 @@ namespace core {
                     // Select filters that fit on-chip
                     while (!filter_list.empty()) {
 
-                        std::list<int> filters_on_chip;
+                        std::vector<int> filters_on_chip;
                         std::vector<std::list<uint64_t>> filter_requests;
 
                         read_filter_sets(filter_list, filters_on_chip, filter_requests, wgt_address_map,
@@ -2179,14 +2179,14 @@ namespace core {
                             // Request the memory addresses
                             if (first && i < window_requests.size()) {
                                 for (auto address : window_requests[i]) {
-                                    this->memory.request_address(address);
+                                    this->memory.request_address(address, false);
                                 }
                             }
 
                             // Request the memory addresses
                             if (i < filter_requests.size()) {
                                 for (auto address : filter_requests[i]) {
-                                    this->memory.request_address(address);
+                                    this->memory.request_address(address, false);
                                 }
                             }
 
@@ -2212,11 +2212,12 @@ namespace core {
                                                     for (int channel = k; channel < std::min((uint64_t)k + N_LANES,
                                                             wgt_channels); ++channel) {
 
-                                                        auto x_window = window % out_x;
-                                                        auto y_window = window / out_y;
-                                                        auto act_address = act_address_map[n][x_window * stride + x]
-                                                                [y_window * stride + y][channel/4];
-                                                        auto wgt_address = wgt_address_map[filter][x][y][channel/4];
+                                                        auto x_window = windows_on_chip[window] % out_x;
+                                                        auto y_window = windows_on_chip[window] / out_y;
+                                                        auto act_address = act_address_map[n][y_window * stride + y]
+                                                                [x_window * stride + x][channel/4];
+                                                        auto wgt_address = wgt_address_map[filters_on_chip[filter]][y]
+                                                                [x][channel/4];
 
                                                         this->memory.wait_for(act_address);
                                                         this->memory.wait_for(wgt_address);
@@ -2239,13 +2240,10 @@ namespace core {
 
                             }
                         }
-
                     }
 
 
                 }
-
-                std::cout << "Aqui fuera estoy";
 
             }
         }
