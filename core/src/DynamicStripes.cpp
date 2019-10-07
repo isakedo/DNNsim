@@ -1905,7 +1905,7 @@ namespace core {
             std::vector<std::list<uint64_t>> &window_requests, const address_map &act_address_map,
             const std::vector<std::vector<uint64_t>> &act_datawidth_size, uint64_t on_chip_size, uint64_t n,
             uint64_t Kx, uint64_t Ky, uint64_t Nx, uint64_t Ny, uint64_t act_channels, uint64_t out_x, uint64_t out_y,
-            uint64_t stride, uint64_t N_COLUMNS) {
+            uint64_t stride, uint64_t N_COLUMNS, uint64_t values_block) {
 
         std::vector<std::vector<bool>> requested_address = std::vector<std::vector<bool>>(Ny,
                 std::vector<bool>(Nx, false));
@@ -1940,12 +1940,12 @@ namespace core {
                         if (requested_address[y_pos][x_pos])
                             continue;
 
-                        for (int k = 0; k < act_channels; k += 4) { // 64 bits requests, 4 activations of 16 bits
-                            auto activations_address = act_address_map[n][y_pos][x_pos][k / 4];
+                        for (int k = 0; k < act_channels; k += values_block) {
+                            auto activations_address = act_address_map[n][y_pos][x_pos][k / values_block];
                             tmp_window_requests.push_back(activations_address);
                         }
 
-                        //window_set_size += 8 * ceil(act_channels / 4.);
+                        //window_set_size += ceil(act_channels / (double)values_block) * 8;
                         window_set_size += act_datawidth_size[y_pos][x_pos];
                         requested_address[y_pos][x_pos] = true;
                     }
@@ -1972,7 +1972,7 @@ namespace core {
     void read_filter_sets(std::list<int> &filter_list, std::vector<int> &filters_on_chip,
             std::vector<std::list<uint64_t>> &filter_requests, const address_map &wgt_address_map,
             const std::vector<uint64_t> &wgt_datawidth_size, uint64_t on_chip_size, uint64_t Kx,
-            uint64_t Ky, uint64_t wgt_channels, uint64_t N_ROWS) {
+            uint64_t Ky, uint64_t wgt_channels, uint64_t N_ROWS, uint64_t values_block) {
 
         uint64_t wgt_size = 0;
         while (true) {
@@ -1994,13 +1994,13 @@ namespace core {
             std::list<uint64_t> tmp_filter_requests;
             for (auto filter_read : tmp_filters_on_chip) {
 
-                //filter_set_size += Kx * Ky * wgt_channels * 2;
+                //filter_set_size += Kx * Ky * ceil(wgt_channels / (double)values_block) * 8;
                 filter_set_size += wgt_datawidth_size[filter_read];
 
                 for (int y = 0; y < Ky; ++y) {
                     for (int x = 0; x < Kx; ++x) {
-                        for (int k = 0; k < wgt_channels; k += 4) {
-                            auto weights_address = wgt_address_map[filter_read][y][x][k / 4];
+                        for (int k = 0; k < wgt_channels; k += values_block) {
+                            auto weights_address = wgt_address_map[filter_read][y][x][k / values_block];
                             tmp_filter_requests.push_back(weights_address);
                         }
                     }
@@ -2044,6 +2044,7 @@ namespace core {
         auto network_bits = network.getNetwork_bits();
         auto signed_activations = !network.isUnsignedAct();
         auto signed_weights = !network.isUnsignedWgt();
+        auto values_block = 64 / network_bits;
 
         for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
@@ -2101,7 +2102,7 @@ namespace core {
             // Off-chip memory layout
             address_map act_address_map = std::vector<std::vector<std::vector<std::vector<uint64_t>>>>(batch_size,
                     std::vector<std::vector<std::vector<uint64_t>>>(Ny, std::vector<std::vector<uint64_t>>(Nx,
-                    std::vector<uint64_t>(ceil(act_channels / 4.)))));
+                    std::vector<uint64_t>(ceil(act_channels / (double)values_block)))));
 
             // Image fourth
             for (int n = 0; n < batch_size; ++n) {
@@ -2113,8 +2114,8 @@ namespace core {
                     for (int x = 0; x < Nx; ++x) {
 
                         // Store channel-first
-                        for (int k = 0; k < act_channels; k += 4) { // 64 bits requests, 4 activations of 16 bits
-                            act_address_map[n][y][x][k/4] = act_base_addr + act_next_addr;
+                        for (int k = 0; k < act_channels; k += values_block) {
+                            act_address_map[n][y][x][k/values_block] = act_base_addr + act_next_addr;
                             act_next_addr += 0x40; // Align to 64 bits
                         }
                     }
@@ -2123,7 +2124,7 @@ namespace core {
 
             address_map wgt_address_map = std::vector<std::vector<std::vector<std::vector<uint64_t>>>>(num_filters,
                     std::vector<std::vector<std::vector<uint64_t>>>(Ky, std::vector<std::vector<uint64_t>>(Kx,
-                    std::vector<uint64_t>(ceil(wgt_channels / 4.)))));
+                    std::vector<uint64_t>(ceil(wgt_channels / (double)values_block)))));
 
             // Filter fourth
             for (int m = 0; m < num_filters; ++m) {
@@ -2135,8 +2136,8 @@ namespace core {
                     for (int x = 0; x < Kx; ++x) {
 
                         // Store channel-first
-                        for (int k = 0; k < wgt_channels; k += 4) { // 64 bits requests, 4 weights of 16 bits
-                            wgt_address_map[m][y][x][k/4] = wgt_base_addr + wgt_next_addr;
+                        for (int k = 0; k < wgt_channels; k += values_block) {
+                            wgt_address_map[m][y][x][k/values_block] = wgt_base_addr + wgt_next_addr;
                             wgt_next_addr += 0x40; // Align to 64 bits
                         }
                     }
@@ -2285,7 +2286,7 @@ namespace core {
 
                     read_window_sets(window_list, windows_on_chip, window_requests, act_address_map, act_datawidth_size,
                             this->memory.getOnChipActSize(), n, Kx, Ky, Nx, Ny, act_channels, out_x, out_y, stride,
-                            N_COLUMNS);
+                            N_COLUMNS, values_block);
 
                     // List all filters
                     bool first = true;
@@ -2299,7 +2300,8 @@ namespace core {
                         std::vector<std::list<uint64_t>> filter_requests;
 
                         read_filter_sets(filter_list, filters_on_chip, filter_requests, wgt_address_map,
-                                wgt_datawidth_size, this->memory.getOnChipWgtSize(), Kx, Ky, wgt_channels, N_ROWS);
+                                wgt_datawidth_size, this->memory.getOnChipWgtSize(), Kx, Ky, wgt_channels, N_ROWS,
+                                values_block);
 
                         auto num_window_sets = ceil(windows_on_chip.size() / (double)N_COLUMNS);
                         auto num_filter_sets = ceil(filters_on_chip.size() / (double)N_ROWS);
@@ -2346,9 +2348,9 @@ namespace core {
                                                         auto x_window = windows_on_chip[window] % out_x;
                                                         auto y_window = windows_on_chip[window] / out_y;
                                                         auto act_address = act_address_map[n][y_window * stride + y]
-                                                                [x_window * stride + x][channel/4];
+                                                                [x_window * stride + x][channel/values_block];
                                                         auto wgt_address = wgt_address_map[filters_on_chip[filter]][y]
-                                                                [x][channel/4];
+                                                                [x][channel/values_block];
 
                                                         this->memory.wait_for(act_address);
                                                         this->memory.wait_for(wgt_address);
