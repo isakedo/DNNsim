@@ -3,7 +3,7 @@
 
 namespace core {
 
-    void Memory::transaction_done(unsigned id, uint64_t address, uint64_t clock_cycle) {
+    void Memory::transaction_done(unsigned id, uint64_t address, uint64_t _clock_cycle) {
         requests[address] = true;
         if (!queue.empty()) {
             auto tuple = queue.front();
@@ -21,16 +21,17 @@ namespace core {
         }
     }
 
-    void Memory::wait_until(uint64_t clock_cycle) {
-        for (int c = mem_cycle; c <= clock_cycle; ++c) {
+    void Memory::wait_until(uint64_t _clock_cycle) {
+        for (int c = _clock_cycle; c <= _clock_cycle; ++c) {
             memory->update();
-            mem_cycle++;
+            clock_cycle++;
         }
     }
 
     void Memory::wait_for(uint64_t address) {
         while(!requests[address]) {
             memory->update();
+            clock_cycle++;
             mem_cycle++;
         }
     }
@@ -43,4 +44,19 @@ namespace core {
         return on_chip_wgt_size;
     }
 
+    uint64_t Memory::getClockCycle() const {
+        return clock_cycle;
+    }
+
+    void Memory::resetClockCycle() {
+        clock_cycle = 0;
+    }
+
+    uint64_t Memory::getMemCycle() const {
+        return mem_cycle;
+    }
+
+    void Memory::resetMemCycle() {
+        mem_cycle = 0;
+    }
 }

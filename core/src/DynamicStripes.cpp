@@ -1945,7 +1945,6 @@ namespace core {
                             tmp_window_requests.push_back(activations_address);
                         }
 
-                        //window_set_size += ceil(act_channels / (double)values_block) * 8;
                         window_set_size += act_datawidth_size[y_pos][x_pos];
                         requested_address[y_pos][x_pos] = true;
                     }
@@ -1994,7 +1993,6 @@ namespace core {
             std::list<uint64_t> tmp_filter_requests;
             for (auto filter_read : tmp_filters_on_chip) {
 
-                //filter_set_size += Kx * Ky * ceil(wgt_channels / (double)values_block) * 8;
                 filter_set_size += wgt_datawidth_size[filter_read];
 
                 for (int y = 0; y < Ky; ++y) {
@@ -2053,13 +2051,16 @@ namespace core {
             bool lstm = layer.getType() == "LSTM";
             bool fc = layer.getType() == "InnerProduct";
 
+            std::cout << layer.getName() << std::endl;
+
             base::Array<T> act = layer.getActivations();
-            if (!DIFFY) act.sign_magnitude_representation(layer.getActPrecision());
+            act.sign_magnitude_representation(layer.getActPrecision());
             if (fc && act.getDimensions() == 4) act.reshape_to_2D();
             if (fc) act.reshape_to_4D();
 
             base::Array<T> wgt = layer.getWeights();
-            if (conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
+            wgt.sign_magnitude_representation(layer.getWgtPrecision());
+            if (wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
             int padding = layer.getPadding();
             int stride = layer.getStride();
@@ -2188,10 +2189,13 @@ namespace core {
                                 }
 
                                 uint8_t width = max_bit + 1u;
-                                channel_size += log2(network_bits); // Group overhead
-                                channel_size += width == prev_group ? 1 : 1 + log2(network_bits);
-                                channel_size += GROUP_SIZE * width; // Values
-
+                                if (act_channels < GROUP_SIZE)
+                                    channel_size += GROUP_SIZE * network_bits; // Baseline values
+                                else {
+                                    //channel_size += log2(network_bits); // Group overhead
+                                    channel_size += width == prev_group ? 1 : 1 + log2(network_bits); // Group overhead
+                                    channel_size += GROUP_SIZE * width; // Values
+                                }
                                 act_data_pt = (act_data_pt + width) % network_bits;
                                 prev_group = width;
 
@@ -2227,7 +2231,7 @@ namespace core {
                             for (int k = 0; k < wgt_channels; k += GROUP_SIZE) {
 
                                 uint8_t max_bit = 0;
-                                for (int ss = k; ss < std::min((uint64_t) (k + GROUP_SIZE), act_channels); ++ss) {
+                                for (int ss = k; ss < std::min((uint64_t) (k + GROUP_SIZE), wgt_channels); ++ss) {
 
                                     uint16_t wgt_bits = wgt.get(m, ss, x, y);
 
@@ -2245,9 +2249,10 @@ namespace core {
                                 }
 
                                 uint8_t width = max_bit + 1u;
-                                filter_size += log2(network_bits); // Group overhead
-                                filter_size += width == prev_group ? 1 : 1 + log2(network_bits);
+                                //filter_size += log2(network_bits); // Group overhead
+                                filter_size += width == prev_group ? 1 : 1 + log2(network_bits); // Group overhead
                                 filter_size += GROUP_SIZE * width; // Values
+                                //filter_size += GROUP_SIZE * network_bits; // Baseline values
 
                                 wgt_data_pt = (wgt_data_pt + width) % network_bits;
                                 prev_group = width;
@@ -2270,7 +2275,8 @@ namespace core {
 
                 uint64_t batch_cycles = 0;
                 uint64_t batch_compute_cycles = 0;
-                this->memory.mem_cycle = 0;
+                this->memory.resetClockCycle();
+                this->memory.resetMemCycle();
 
                 // List all windows
                 std::list<int> window_list(out_x * out_y);
@@ -2359,8 +2365,8 @@ namespace core {
                                                 }
                                             }
 
-                                            if (this->memory.mem_cycle > batch_cycles)
-                                                batch_cycles = this->memory.mem_cycle;
+                                            if (this->memory.getClockCycle() > batch_cycles)
+                                                batch_cycles = this->memory.getClockCycle();
                                             else this->memory.wait_until(batch_cycles);
 
                                             batch_compute_cycles += 1;
@@ -2377,6 +2383,10 @@ namespace core {
 
 
                 }
+
+                cycles->value[layer_it][n] = batch_cycles;
+                compute_cycles->value[layer_it][n] = batch_compute_cycles;
+                memory_cycles->value[layer_it][n] = this->memory.getMemCycle();
 
             }
         }

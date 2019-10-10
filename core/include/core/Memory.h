@@ -26,10 +26,13 @@ namespace core {
         /** Size for the on-chip weights memory */
         uint64_t on_chip_wgt_size;
 
-    public:
+        /** Simulation memory clock cycle */
+        uint64_t clock_cycle;
 
-        /** Memory clock cycle */
+        /** Memory cycles stats */
         uint64_t mem_cycle;
+
+    public:
 
         /** Requests */
         std::map<uint64_t, bool> requests;
@@ -37,9 +40,9 @@ namespace core {
         /** Called when read is ready. Update requests map
          * @param id Identifier of the request
          * @param address Address of the read request
-         * @param clock_cycle Clock cycle at what the request was served
+         * @param _clock_cycle Clock cycle at what the request was served
          */
-        void transaction_done(unsigned id, uint64_t address, uint64_t clock_cycle);
+        void transaction_done(unsigned id, uint64_t address, uint64_t _clock_cycle);
 
         /** Request read from the off-chip dram
          * @param address Address of the read request
@@ -48,9 +51,9 @@ namespace core {
         void request_address(uint64_t address, bool isWrite);
 
         /** Pass memory cycles until the given clock cycle
-         * @param clock_cycle Target clock cycle
+         * @param _clock_cycle Target clock cycle
          */
-        void wait_until(uint64_t clock_cycle);
+        void wait_until(uint64_t _clock_cycle);
 
         /** Wait for the address to be served
          * @param address Address of the read request
@@ -67,7 +70,10 @@ namespace core {
                     new DRAMSim::Callback<Memory, void, unsigned, uint64_t, uint64_t>(this, &Memory::transaction_done);
 
             memory->RegisterCallbacks(read_cb, write_cb, nullptr);
+
+            clock_cycle = 0;
             mem_cycle = 0;
+
             on_chip_act_size = 1048576/8; //1MiB
             on_chip_wgt_size = 1048576/8; //1MiB
         }
@@ -81,7 +87,10 @@ namespace core {
                     new DRAMSim::Callback<Memory, void, unsigned, uint64_t, uint64_t>(this, &Memory::transaction_done);
 
             memory->RegisterCallbacks(read_cb, write_cb, nullptr);
+
+            clock_cycle = 0;
             mem_cycle = 0;
+
             on_chip_act_size = 1048576; //1MiB
             on_chip_wgt_size = 1048576; //1MiB
         }
@@ -97,6 +106,28 @@ namespace core {
          * @return On-Chip weights size
          */
         uint64_t getOnChipWgtSize() const;
+
+        /**
+         * Get current clock cycle in the simulation
+         * @return Clock cycle
+         */
+        uint64_t getClockCycle() const;
+
+        /**
+         * Reset simulation clock cycle to 0
+         */
+        void resetClockCycle();
+
+        /**
+         * Get current memory stat clock cycle
+         * @return Clock cycle
+         */
+        uint64_t getMemCycle() const;
+
+        /**
+         * Reset memory stat clock cycle to 0
+         */
+        void resetMemCycle();
 
     };
 

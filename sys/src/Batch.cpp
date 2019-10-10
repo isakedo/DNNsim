@@ -151,7 +151,7 @@ namespace sys {
                     experiment.bits_pe = experiment_proto.bits_pe() < 1 ? 16 : experiment_proto.bits_pe();
                     experiment.leading_bit = experiment_proto.leading_bit();
                     experiment.diffy = experiment_proto.diffy();
-                    if(experiment.precision_granularity % 16 != 0 ||
+                    if(experiment.precision_granularity % experiment.n_columns != 0 ||
                             (((experiment.n_columns * 16) % experiment.precision_granularity) != 0))
                         throw std::runtime_error("DynamicStripes precision granularity for network " + simulate.network
                                                + " must be multiple of 16 and divisible by the columns.");
@@ -167,11 +167,11 @@ namespace sys {
                             experiment_proto.pe_serial_bits();
                     experiment.leading_bit = experiment_proto.leading_bit();
                     experiment.dynamic_weights = experiment_proto.dynamic_weights();
-                    if(experiment.precision_granularity % 16 != 0 ||
+                    if(experiment.precision_granularity % experiment.n_columns != 0 ||
                        (((experiment.n_columns * 16) % experiment.precision_granularity) != 0))
                         throw std::runtime_error("Loom precision granularity for network " + simulate.network
                                                  + " must be multiple of 16 and divisible by the columns.");
-                    if(experiment.precision_granularity % 16 != 0 ||
+                    if(experiment.precision_granularity % experiment.n_columns != 0 ||
                        (((experiment.n_rows * 16) % experiment.precision_granularity) != 0))
                         throw std::runtime_error("Loom precision granularity for network " + simulate.network
                                                  + " must be multiple of 16 and divisible by the rows.");
