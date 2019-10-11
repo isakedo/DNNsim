@@ -293,8 +293,8 @@ namespace sys {
                                              " in Fixed16 is only allowed for BitTactialP and BitTacticalE.");
 
                 if(experiment_proto.architecture() != "DynamicStripes" && (experiment_proto.task() == "AvgWidth" ||
-                        experiment_proto.task() == "OnChip" || experiment_proto.task() != "OnChipCycles"))
-                    throw std::runtime_error("Tasks <AvgWidth|OnChip|nChipCycles> for network " + simulate.network +
+                        experiment_proto.task() == "OnChip" || experiment_proto.task() == "OnChipCycles"))
+                    throw std::runtime_error("Tasks <AvgWidth|OnChip|OnChipCycles> for network " + simulate.network +
                                              " in Fixed16 is only allowed for DynamicStripes.");
 
                 experiment.architecture = experiment_proto.architecture();

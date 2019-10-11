@@ -37,10 +37,130 @@ namespace core {
 
         // Backward stats
 
+        // Memory metadata
+        address_map wgt_address_map;
+        address_map wgt_grad_address_map;
+        address_map act_address_map;
+
+        // Simulate epochs
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
             base::Network<T> network;
             network = this->read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, 5);
+
+            // Setup memory addresses
+            if (epoch == 0) {
+
+                // Weight and weight gradients addresses
+                uint64_t wgt_next_addr = 0;
+                uint64_t wgt_base_addr = 0x00000000;
+
+                uint64_t wgt_grad_next_addr = 0;
+                uint64_t wgt_grad_base_addr = 0x20000000;
+
+                for (int layer_it = 0; layer_it < network.getNumLayers(); layer_it++) {
+
+                    const base::Layer<float> &layer = network.getLayers()[layer_it];
+
+                    base::Array<T> wgt = layer.getWeights();
+                    if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+
+                    const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+                    auto num_filters = wgt_shape[0];
+                    auto wgt_channels = wgt_shape[1];
+                    auto Kx = wgt_shape[2];
+                    auto Ky = wgt_shape[3];
+
+                    // Weights addresses
+                    wgt_address_map = std::vector<std::vector<std::vector<std::vector<uint64_t>>>>(num_filters,
+                            std::vector<std::vector<std::vector<uint64_t>>>(Ky, std::vector<std::vector<uint64_t>>(Kx,
+                            std::vector<uint64_t>(ceil(wgt_channels / 4.)))));
+
+                    // Filter fourth
+                    for (int m = 0; m < num_filters; ++m) {
+
+                        // Column third
+                        for (int y = 0; y < Ky; ++y) {
+
+                            // Row second
+                            for (int x = 0; x < Kx; ++x) {
+
+                                // Store channel-first
+                                for (int k = 0; k < wgt_channels; k += 4) {
+                                    wgt_address_map[m][y][x][k/4] = wgt_base_addr + wgt_next_addr;
+                                    wgt_next_addr += 0x40; // Align to 64 bits
+                                }
+                            }
+                        }
+                    }
+
+                    // Weight gradients addresses
+                    wgt_grad_address_map = std::vector<std::vector<std::vector<std::vector<uint64_t>>>>(num_filters,
+                            std::vector<std::vector<std::vector<uint64_t>>>(Ky, std::vector<std::vector<uint64_t>>(Kx,
+                            std::vector<uint64_t>(ceil(wgt_channels / 4.)))));
+
+                    // Filter fourth
+                    for (int m = 0; m < num_filters; ++m) {
+
+                        // Column third
+                        for (int y = 0; y < Ky; ++y) {
+
+                            // Row second
+                            for (int x = 0; x < Kx; ++x) {
+
+                                // Store channel-first
+                                for (int k = 0; k < wgt_channels; k += 4) {
+                                    wgt_grad_address_map[m][y][x][k/4] = wgt_grad_base_addr + wgt_grad_next_addr;
+                                    wgt_grad_next_addr += 0x40; // Align to 64 bits
+                                }
+                            }
+                        }
+                    }
+
+                }
+
+                // Activations addresses (Only first layer is read from off-chip)
+                uint64_t act_next_addr = 0;
+                uint64_t act_base_addr = 0x40000000;
+
+                const base::Layer<float> &layer = network.getLayers()[0];
+                bool fc = layer.getType() == "InnerProduct";
+
+                base::Array<T> act = layer.getActivations();
+                if(fc && act.getDimensions() == 4) act.reshape_to_2D();
+                if(fc) act.reshape_to_4D();
+
+                const std::vector<size_t> &act_shape = act.getShape();
+
+                auto batch_size = act_shape[0];
+                auto act_channels = act_shape[1];
+                auto Nx = act_shape[2];
+                auto Ny = act_shape[3];
+
+                act_address_map = std::vector<std::vector<std::vector<std::vector<uint64_t>>>>(batch_size,
+                        std::vector<std::vector<std::vector<uint64_t>>>(Ny, std::vector<std::vector<uint64_t>>(Nx,
+                        std::vector<uint64_t>(ceil(act_channels / 4.)))));
+
+                // Image fourth
+                for (int n = 0; n < batch_size; ++n) {
+
+                    // Column third
+                    for (int y = 0; y < Ny; ++y) {
+
+                        // Row second
+                        for (int x = 0; x < Nx; ++x) {
+
+                            // Store channel-first
+                            for (int k = 0; k < act_channels; k += 4) {
+                                act_address_map[n][y][x][k/4] = act_base_addr + act_next_addr;
+                                act_next_addr += 0x40; // Align to 64 bits
+                            }
+                        }
+                    }
+                }
+
+            }
 
             if(!this->QUIET) std::cout << "Starting Dynamic Tactical cycles simulation for epoch "
                                        << epoch << std::endl;
@@ -254,11 +374,13 @@ namespace core {
                                         // Window dimensions
                                         for (int i = 0; i < Ox_dil; ++i) {
                                             for (int j = 0; j < Oy_dil; ++j) {
-                                                sum += out_grad.get(0, o, i, j) * act.get(0, k, x + i, y + j);
+                                                sum += this->cast_bfloat16(out_grad.get(0, o, i, j)) *
+                                                        this->cast_bfloat16(act.get(0, k, x + i, y + j));
                                             }
                                         }
 
                                         weight_gradients[o][k][x][y] += sum;
+
                                     }
                                 }
                             }
@@ -333,7 +455,8 @@ namespace core {
                                     for (int i = 0; i < Kx; ++i) {
                                         for (int j = 0; j < Ky; ++j) {
                                             for (int k = 0; k < wgt_channels_rot; ++k) {
-                                                sum += out_grad.get(0, k, x + i, y + j) * wgt.get(m, k, i, j);
+                                                sum += this->cast_bfloat16(out_grad.get(0, k, x + i, y + j)) *
+                                                        this->cast_bfloat16(wgt.get(m, k, i, j));
                                             }
                                         }
                                     }
