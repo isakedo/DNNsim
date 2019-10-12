@@ -2339,8 +2339,8 @@ namespace core {
                             for (int m = 0; m < filters_on_chip.size(); m += N_ROWS) {
 
                                 // Convolute windows
-                                for (int x = 0; x < Kx; ++x) {
-                                    for (int y = 0; y < Ky; ++y) {
+                                for (int y = 0; y < Ky; ++y) {
+                                    for (int x = 0; x < Kx; ++x) {
                                         for (int k = 0; k < wgt_channels; k += N_LANES) {
 
 

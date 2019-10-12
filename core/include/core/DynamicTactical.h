@@ -3,10 +3,13 @@
 
 #include "Simulator.h"
 
-typedef std::tuple<float, uint8_t> value_tuple;
-typedef std::vector<std::vector<std::vector<value_tuple>>> tr_schedule;
-typedef std::vector<std::vector<value_tuple>> tr_set_schedule;
-typedef std::vector<value_tuple> tr_time_schedule;
+typedef std::vector<std::vector<std::vector<float>>> non_schedule_buffer;
+typedef std::vector<std::vector<std::tuple<float, uint8_t>>> schedule_buffer;
+
+//typedef std::tuple<float, uint8_t> value_tuple;
+//typedef std::vector<std::vector<std::vector<value_tuple>>> tr_schedule;
+//typedef std::vector<std::vector<value_tuple>> tr_set_schedule;
+//typedef std::vector<value_tuple> tr_time_schedule;
 
 namespace core {
 

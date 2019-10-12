@@ -34,6 +34,8 @@ namespace core {
         sys::Stats stats = sys::Stats(network_model.getNumLayers(), epochs, filename);
 
         // Forward stats
+        auto fw_compute_cycles = stats.register_uint_t("Forward compute cycles", 0, sys::AverageTotal);
+
 
         // Backward stats
 
@@ -178,6 +180,8 @@ namespace core {
                     bool conv = layer.getType() == "Convolution";
                     bool fc = layer.getType() == "InnerProduct";
 
+                    printf("Epoch: %d, Batch %d, Layer %s\n", epoch, batch, layer.getName().c_str());
+
                     // Preprocess traces: Activations, Weights, Output Gradients
                     base::Array<T> act = layer.getActivations();
                     if(fc && act.getDimensions() == 4) act.reshape_to_2D();
@@ -228,6 +232,131 @@ namespace core {
                     auto sim_output_activations = std::vector<std::vector<std::vector<float>>>(num_filters,
                             std::vector<std::vector<float>>(Ox, std::vector<float>(Oy, 0)));
 
+                    // Stats
+                    uint64_t batch_compute_cycles = 0;
+
+                    // Generate weight buffer
+                    auto num_filter_sets = (uint64_t)ceil(num_filters / (double)N_ROWS);
+
+                    auto round_wgt_channels = (int)ceil(wgt_channels / (double)N_LANES) * N_LANES;
+                    auto time_per_filter = (uint64_t)ceil(round_wgt_channels * Kx * Ky / (double)N_LANES);
+
+                    non_schedule_buffer weight_buffer = non_schedule_buffer(num_filter_sets,
+                            std::vector<std::vector<float>>(time_per_filter,
+                            std::vector<float>(N_ROWS * N_LANES, 0.0f)));
+
+                    int set_wgt = -1;
+                    for(int m = 0; m < num_filters; m++) {
+
+                        if ((m % N_ROWS) == 0)
+                            set_wgt++;
+
+                        int time = 0;
+                        for (int j = 0; j < Ky; j++) {
+                            for (int i = 0; i < Kx; i++) {
+                                for (int k = 0; k < wgt_channels; k += N_LANES) {
+                                    int index = 0;
+                                    for(int channel = k; channel < std::min((uint64_t)k + N_LANES,
+                                            wgt_channels); channel++) {
+                                        auto wgt_bits = wgt.get(m, channel, i, j);
+                                        int pos = (m % N_ROWS) * N_LANES + index;
+                                        weight_buffer[set_wgt][time][pos] = wgt_bits;
+                                        index++;
+                                        if(index == N_LANES) {
+                                            time++;
+                                            index = 0;
+                                        }                                    }
+                                    if(index != 0)
+                                        time++;
+                                }
+                            }
+                        }
+
+                    }
+
+                    std::vector<int> x_windows, y_windows;
+                    int x_counter = 0, y_counter = 0;
+                    while(this->iterateWindows(Ox, Oy, x_windows, y_windows, x_counter, y_counter, N_COLUMNS)) {
+
+                        // Generate activation buffer
+                        auto round_act_channels = (int)ceil(act_channels / (double)N_LANES) * N_LANES;
+                        auto time_per_window = (uint64_t)ceil(round_act_channels * Kx * Ky / (double)N_LANES);
+
+                        schedule_buffer activation_buffer = schedule_buffer(time_per_window,
+                                std::vector<std::tuple<float, uint8_t>>(x_windows.size() * N_LANES,
+                                std::make_tuple(0.0f, 0)));
+
+                        for (int w = 0; w < x_windows.size(); ++w) {
+                            auto x_window = x_windows[w] * stride;
+                            auto y_window = y_windows[w] * stride;
+
+                            int time = 0;
+                            for (int j = 0; j < Ky; j++) {
+                                for (int i = 0; i < Kx; i++) {
+                                    for (int k = 0; k < act_channels; k += N_LANES) {
+                                        int index = 0;
+                                        for (int channel = k; channel < std::min((uint64_t)k + N_LANES,
+                                                act_channels); channel++) {
+                                            auto act_bits = act.get(0, channel, x_window + i, y_window + j);
+                                            int pos = w * N_LANES + index;
+                                            activation_buffer[time][pos] = std::make_tuple(act_bits, 0);
+                                            index++;
+                                            if(index == N_LANES) {
+                                                time++;
+                                                index = 0;
+                                            }                                        }
+                                        if (index != 0)
+                                            time++;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Schedule buffer
+                        // Original schedule
+
+                        for (int set = 0; set < num_filter_sets; ++set) {
+
+                            for (int time = 0; time < time_per_window; ++time) {
+
+                                // If row of zeroes, continue
+                                batch_compute_cycles++;
+
+                                if (this->CHECK) {
+                                    for (int w = 0; w < x_windows.size(); ++w) {
+                                        auto window_idx = w * N_LANES;
+                                        auto x_window = x_windows[w];
+                                        auto y_window = y_windows[w];
+
+                                        for (int f = 0; f < N_ROWS; ++f) {
+                                            auto filter_idx = f * N_LANES;
+                                            auto filter = set * N_ROWS + f;
+
+                                            if (filter >= num_filters)
+                                                continue;
+
+                                            for (int lane = 0; lane < N_LANES; ++lane) {
+
+                                                auto act_bits = std::get<0>(activation_buffer[time][window_idx + lane]);
+                                                auto act_mux = std::get<1>(activation_buffer[time][window_idx + lane]);
+
+                                                auto wgt_bits = weight_buffer[set][time][filter_idx + lane];
+
+                                                sim_output_activations[filter][x_window][y_window] += act_bits * wgt_bits;
+
+                                            } // Multiply 16 weights and 16 activations
+
+                                        } // Filter
+                                    } // Window
+                                } // Check
+
+                            } // Time of the buffers
+
+                        } // Filter sets
+
+                    } // Window sets
+
+                    fw_compute_cycles->value[layer_it][batch] = batch_compute_cycles;
 
                     // Check correctness of the outputs
                     if (this->CHECK) {
@@ -250,11 +379,11 @@ namespace core {
                                     float sum = 0;
 
                                     // Window dimension
-                                    for (int i = 0; i < Kx; ++i) {
-                                        for (int j = 0; j < Ky; ++j) {
+                                    for (int j = 0; j < Ky; ++j) {
+                                        for (int i = 0; i < Kx; ++i) {
                                             for (int k = 0; k < wgt_channels; ++k) {
-                                                sum += this->cast_bfloat16(act.get(0, start_group + k, stride * x + i,
-                                                        stride * y + j)) * this->cast_bfloat16(wgt.get(m, k, i, j));
+                                                sum += act.get(0, start_group + k, stride * x + i,
+                                                        stride * y + j) * wgt.get(m, k, i, j);
                                             }
                                         }
                                     }
@@ -265,20 +394,22 @@ namespace core {
                         }
 
                         // Check values
-                        /*for (int ch = 0; ch < num_filters; ++ch) {
-                            for (int x = 0; x < out_x; ++x) {
-                                for (int y = 0; y < out_y; ++y) {
+                        for (int ch = 0; ch < num_filters; ++ch) {
+                            for (int x = 0; x < Ox; ++x) {
+                                for (int y = 0; y < Oy; ++y) {
                                     auto actual_value = output_activations[ch][x][y];
                                     auto sim_value = sim_output_activations[ch][x][y];
                                     if (actual_value != sim_value)
                                         throw std::runtime_error("Forward convolution wrong value.");
                                 }
                             }
-                        }*/
+                        }
 
                     } // Check results
 
                 } // Forward pass
+
+                continue;
 
                 // Backward pass
                 for (int layer_it = network.getNumLayers() - 1; layer_it >= 0; layer_it--) {
