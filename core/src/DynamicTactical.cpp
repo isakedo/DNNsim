@@ -145,8 +145,11 @@ namespace core {
         auto fw_base_compute_cycles = stats.register_uint_t("Forward base compute cycles", 0, sys::AverageTotal);
 
         // Backward stats
-        auto bw_wgt_compute_cycles = stats.register_uint_t("Backward Weights compute cycles", 0, sys::AverageTotal);
-        auto bw_wgt_base_compute_cycles = stats.register_uint_t("Backward Weights base compute cycles", 0, sys::AverageTotal);
+        auto bw_wgt_act_compute_cycles = stats.register_uint_t("Backward Weights A.S compute cycles", 0, sys::AverageTotal);
+        auto bw_wgt_act_base_compute_cycles = stats.register_uint_t("Backward Weights A.S base compute cycles", 0, sys::AverageTotal);
+
+        auto bw_wgt_out_compute_cycles = stats.register_uint_t("Backward Weights G.S compute cycles", 0, sys::AverageTotal);
+        auto bw_wgt_out_base_compute_cycles = stats.register_uint_t("Backward Weights G.S base compute cycles", 0, sys::AverageTotal);
 
         auto bw_in_compute_cycles = stats.register_uint_t("Backward Input compute cycles", 0, sys::AverageTotal);
         auto bw_in_base_compute_cycles = stats.register_uint_t("Backward Input base compute cycles", 0, sys::AverageTotal);
@@ -489,14 +492,14 @@ namespace core {
                     if ((Nx_pad - Ox_dil + 1) != Kx)
                         throw std::runtime_error("Weight gradients incorrect window sizes");
 
-                    // Simulate: Backward convolution A * G = WG
-                    auto sim_weight_gradients = std::vector<std::vector<std::vector<std::vector<float>>>>(num_filters,
-                            std::vector<std::vector<std::vector<float>>>(wgt_channels,
-                            std::vector<std::vector<float>>(Kx, std::vector<float>(Ky, 0))));
+                    // Simulate: Backward convolution A * G = WG: Activations sparsity
+                    auto sim_weight_act_gradients = std::vector<std::vector<std::vector<std::vector<double>>>>(
+                            num_filters, std::vector<std::vector<std::vector<double>>>(wgt_channels,
+                            std::vector<std::vector<double>>(Kx, std::vector<double>(Ky, 0))));
 
                     // Stats
-                    uint64_t batch_wgt_compute_cycles = 0;
-                    uint64_t batch_wgt_base_compute_cycles = 0;
+                    uint64_t batch_wgt_act_compute_cycles = 0;
+                    uint64_t batch_wgt_act_base_compute_cycles = 0;
 
                     // Generate output gradients buffer
                     auto num_out_grad_sets = (uint64_t)ceil(out_channels / (double)N_ROWS);
@@ -528,7 +531,6 @@ namespace core {
                         }
 
                     }
-
 
                     for (int act_channel = 0; act_channel < act_channels; ++act_channel) {
 
@@ -563,16 +565,23 @@ namespace core {
                             }
 
                             // Schedule buffer
-                            // Original schedule
+                            original_schedule(activation_buffer);
 
                             for (int set = 0; set < num_out_grad_sets; ++set) {
 
-                                batch_wgt_base_compute_cycles += time_per_window_channel;
+                                batch_wgt_act_base_compute_cycles += time_per_window_channel;
 
+                                int skip = 0;
                                 for (int time = 0; time < time_per_window_channel; ++time) {
 
-                                    // If row of zeroes, continue
-                                    batch_wgt_compute_cycles++;
+                                    // Skip lines of zeroes
+                                    if (skip < LOOKAHEAD_H && check_zero_line(activation_buffer[time])) {
+                                        skip++;
+                                        continue;
+                                    }
+
+                                    skip = 0;
+                                    batch_wgt_act_compute_cycles++;
 
                                     if (this->CHECK) {
                                         for (int w = 0; w < x_windows.size(); ++w) {
@@ -590,14 +599,13 @@ namespace core {
                                                 for (int lane = 0; lane < N_LANES; ++lane) {
 
                                                     auto act_bits = std::get<0>(activation_buffer[time][window_idx + lane]);
-                                                    auto act_mux = std::get<1>(activation_buffer[time][window_idx + lane]);
+                                                    auto time_h = std::get<1>(activation_buffer[time][window_idx + lane]);
+                                                    auto lane_d = std::get<2>(activation_buffer[time][window_idx + lane]);
 
                                                     auto out_bits = std::get<0>(out_gradients_buffer
-                                                            [set][time][out_grad_channel_idx + lane]);
-                                                    auto out_mux = std::get<1>(out_gradients_buffer
-                                                            [set][time][out_grad_channel_idx + lane]);
+                                                            [set][time_h][out_grad_channel_idx + lane_d]);
 
-                                                    sim_weight_gradients
+                                                    sim_weight_act_gradients
                                                             [out_grad_channel][act_channel][x_window][y_window]
                                                             += act_bits * out_bits;
 
@@ -615,15 +623,125 @@ namespace core {
 
                     } // Act Channels
 
-                    bw_wgt_compute_cycles->value[layer_it][batch] = batch_wgt_compute_cycles;
-                    bw_wgt_base_compute_cycles->value[layer_it][batch] = batch_wgt_base_compute_cycles;
+                    bw_wgt_act_compute_cycles->value[layer_it][batch] = batch_wgt_act_compute_cycles;
+                    bw_wgt_act_base_compute_cycles->value[layer_it][batch] = batch_wgt_act_base_compute_cycles;
+
+                    // Simulate: Backward convolution A * G = WG: Gradients sparsity
+                    auto sim_weight_out_gradients = std::vector<std::vector<std::vector<std::vector<double>>>>(
+                            num_filters, std::vector<std::vector<std::vector<double>>>(wgt_channels,
+                            std::vector<std::vector<double>>(Kx, std::vector<double>(Ky, 0))));
+
+                    // Stats
+                    uint64_t batch_wgt_out_compute_cycles = 0;
+                    uint64_t batch_wgt_out_base_compute_cycles = 0;
+
+                    // Schedule output gradients
+                    for (auto &gradients_channel_buffer : out_gradients_buffer) {
+                        original_schedule(gradients_channel_buffer);
+                    }
+
+                    // Generate output gradients buffer
+                    for (int act_channel = 0; act_channel < act_channels; ++act_channel) {
+
+                        std::vector<int> x_windows, y_windows;
+                        int x_counter = 0, y_counter = 0;
+                        while (this->iterateWindows(Kx, Ky, x_windows, y_windows, x_counter, y_counter, N_COLUMNS)) {
+
+                            // Generate activation buffer
+                            auto time_per_window_channel = (uint64_t) ceil(Ox_dil * Oy_dil / (double) N_LANES);
+
+                            std::vector<std::vector<float>> activation_buffer = std::vector<std::vector<float>>(
+                                    time_per_window_channel, std::vector<float>(x_windows.size() * N_LANES, 0.0f));
+
+                            for (int w = 0; w < x_windows.size(); ++w) {
+                                auto x_window = x_windows[w];
+                                auto y_window = y_windows[w];
+
+                                int time = 0;
+                                int index = 0;
+                                for (int y = 0; y < Oy_dil; ++y) {
+                                    for (int x = 0; x < Ox_dil; ++x) {
+                                        auto act_bits = act.get(0, act_channel, x_window + x, y_window + y);
+                                        int pos = w * N_LANES + index;
+                                        activation_buffer[time][pos] = act_bits;
+                                        index++;
+                                        if (index == N_LANES) {
+                                            time++;
+                                            index = 0;
+                                        }
+                                    }
+                                }
+                            }
+
+                            for (int set = 0; set < num_out_grad_sets; ++set) {
+
+                                batch_wgt_out_base_compute_cycles += time_per_window_channel;
+
+                                int skip = 0;
+                                for (int time = 0; time < time_per_window_channel; ++time) {
+
+                                    // Skip lines of zeroes
+                                    if (skip < LOOKAHEAD_H && check_zero_line(out_gradients_buffer[set][time])) {
+                                        skip++;
+                                        continue;
+                                    }
+
+                                    skip = 0;
+                                    batch_wgt_out_compute_cycles++;
+
+                                    if (this->CHECK) {
+                                        for (int w = 0; w < x_windows.size(); ++w) {
+                                            auto window_idx = w * N_LANES;
+                                            auto x_window = x_windows[w];
+                                            auto y_window = y_windows[w];
+
+                                            for (int o = 0; o < N_ROWS; ++o) {
+                                                auto out_grad_channel_idx = o * N_LANES;
+                                                auto out_grad_channel = set * N_ROWS + o;
+
+                                                if (out_grad_channel >= out_channels)
+                                                    continue;
+
+                                                for (int lane = 0; lane < N_LANES; ++lane) {
+
+                                                    auto out_bits = std::get<0>(out_gradients_buffer
+                                                            [set][time][out_grad_channel_idx + lane]);
+                                                    auto time_h = std::get<1>(out_gradients_buffer
+                                                            [set][time][out_grad_channel_idx + lane]);
+                                                    auto lane_d = std::get<2>(out_gradients_buffer
+                                                            [set][time][out_grad_channel_idx + lane]);
+
+                                                    auto act_bits = activation_buffer[time_h][window_idx + lane_d];
+
+                                                    sim_weight_out_gradients
+                                                            [out_grad_channel][act_channel][x_window][y_window]
+                                                            += act_bits * out_bits;
+
+                                                } // Multiply 16 output gradients and 16 activations
+
+                                            } // Output Gradients
+                                        } // Window
+                                    } // Check
+
+                                } // Time of the buffers
+
+                            } // Output Gradients Channels sets
+
+                        } // Window sets
+
+                    } // Act Channels
+
+                    bw_wgt_out_compute_cycles->value[layer_it][batch] = batch_wgt_out_compute_cycles;
+                    bw_wgt_out_base_compute_cycles->value[layer_it][batch] = batch_wgt_out_base_compute_cycles;
+
+                    out_gradients_buffer.clear();
 
                     // Check correctness of the outputs
                     if (this->CHECK) {
 
-                        auto weight_gradients = std::vector<std::vector<std::vector<std::vector<float>>>>(num_filters,
-                                std::vector<std::vector<std::vector<float>>>(wgt_channels,
-                                std::vector<std::vector<float>>(Kx, std::vector<float>(Ky, 0))));
+                        auto weight_gradients = std::vector<std::vector<std::vector<std::vector<double>>>>(num_filters,
+                                std::vector<std::vector<std::vector<double>>>(wgt_channels,
+                                std::vector<std::vector<double>>(Kx, std::vector<double>(Ky, 0))));
 
                         for (int o = 0; o < out_channels; ++o) {
                             for (int k = 0; k < act_channels; ++k) {
@@ -632,7 +750,7 @@ namespace core {
                                 for (int x = 0; x < Kx; ++x) {
                                     for (int y = 0; y < Ky; ++y) {
 
-                                        float sum = 0;
+                                        double sum = 0;
 
                                         // Window dimensions
                                         for (int j = 0; j < Oy_dil; ++j) {
@@ -649,16 +767,33 @@ namespace core {
 
                         }
 
-                        // Check values
+                        // Check values: Activations sparsity
                         for (int m = 0; m < num_filters; ++m) {
                             for (int ch = 0; ch < wgt_channels; ++ch) {
                                 for (int x = 0; x < Kx; ++x) {
                                     for (int y = 0; y < Ky; ++y) {
                                         auto actual_value = weight_gradients[m][ch][x][y];
-                                        auto sim_value = sim_weight_gradients[m][ch][x][y];
+                                        auto sim_value = sim_weight_act_gradients[m][ch][x][y];
                                         auto error = (actual_value - sim_value) / sim_value;
                                         if (abs(error) > 1e-10)
-                                            throw std::runtime_error("Backward weight gradients convolution wrong value.");
+                                            throw std::runtime_error("Backward weight gradients convolution "
+                                                                     "(Act. Sparsity) wrong value.");
+                                    }
+                                }
+                            }
+                        }
+
+                        // Check values: Gradients sparsity
+                        for (int m = 0; m < num_filters; ++m) {
+                            for (int ch = 0; ch < wgt_channels; ++ch) {
+                                for (int x = 0; x < Kx; ++x) {
+                                    for (int y = 0; y < Ky; ++y) {
+                                        auto actual_value = weight_gradients[m][ch][x][y];
+                                        auto sim_value = sim_weight_out_gradients[m][ch][x][y];
+                                        auto error = (actual_value - sim_value) / sim_value;
+                                        if (abs(error) > 1e-10)
+                                            throw std::runtime_error("Backward weight gradients convolution "
+                                                                     "(Grad. Sparsity) wrong value.");
                                     }
                                 }
                             }
@@ -696,8 +831,8 @@ namespace core {
                         throw std::runtime_error("Input gradients incorrect window sizes");
 
                     // Simulate: Backward convolution W * G = IG
-                    auto sim_input_gradients = std::vector<std::vector<std::vector<float>>>(act_channels,
-                            std::vector<std::vector<float>>(Nx, std::vector<float>(Ny, 0)));
+                    auto sim_input_gradients = std::vector<std::vector<std::vector<double>>>(act_channels,
+                            std::vector<std::vector<double>>(Nx, std::vector<double>(Ny, 0)));
 
                     // Stats
                     uint64_t batch_in_compute_cycles = 0;
@@ -841,8 +976,8 @@ namespace core {
                     // Check correctness of the outputs
                     if (this->CHECK) {
 
-                        auto input_gradients = std::vector<std::vector<std::vector<float>>>(act_channels,
-                                std::vector<std::vector<float>>(Nx, std::vector<float>(Ny, 0)));
+                        auto input_gradients = std::vector<std::vector<std::vector<double>>>(act_channels,
+                                std::vector<std::vector<double>>(Nx, std::vector<double>(Ny, 0)));
 
                         // Actual convolution
                         for (int m = 0; m < num_filters_rot; ++m) {
@@ -851,7 +986,7 @@ namespace core {
                             for (int x = 0; x < Nx; ++x) {
                                 for (int y = 0; y < Ny; ++y) {
 
-                                    float sum = 0;
+                                    double sum = 0;
 
                                     // Windows dimension
                                     for (int j = 0; j < Ky; ++j) {

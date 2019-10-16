@@ -51,8 +51,21 @@ namespace core {
          */
         uint16_t computeDynamicTacticalBitsPE(T first, T second, bool first_value);
 
+        /**
+         * Promote one effectual candidate to the ineffectual value position
+         * @param schedule Schedule buffer (Overwritten)
+         * @param ineffectual Ineffectual value (zero value)
+         * @param candidate Effectual value to promote (non-zero value)
+         */
         void promote(schedule_buffer &schedule, value_index ineffectual, value_index candidate);
 
+        /**
+         * Search effectual values in the search space
+         * @param schedule Schedule buffer
+         * @param value_idx Time and lane from which to search
+         * @param max_time Maximum time that can be promoted
+         * @return List of indices for the candidate effectual values
+         */
         std::vector<value_index> search(const schedule_buffer &schedule, value_index value_idx, int max_time);
 
         /**
