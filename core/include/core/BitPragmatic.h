@@ -26,7 +26,7 @@ namespace core {
         /** Number of rows */
         const uint32_t N_ROWS;
 
-        /** Number of rows */
+        /** Number of tiles */
         const uint32_t N_TILES;
 
         /** Bits of the first stage in the two stages shifting */

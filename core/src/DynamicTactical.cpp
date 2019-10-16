@@ -19,6 +19,113 @@ namespace core {
 
     }
 
+    bool check_zero_line(const std::vector<value_mux> &schedule) {
+        for(auto tuple : schedule) {
+            auto value = std::get<0>(tuple);
+            if(value != 0) return false;
+        }
+        return true;
+    }
+
+    template <typename T>
+    void DynamicTactical<T>::promote(schedule_buffer &schedule, value_index ineffectual, value_index candidate) {
+
+        // Ineffectual
+        auto inef_time = std::get<0>(ineffectual);
+        auto inef_lane = std::get<1>(ineffectual);
+
+        // Candidate
+        auto cand_time = std::get<0>(candidate);
+        auto cand_lane = std::get<1>(candidate);
+
+        // Swap
+        auto ineffectual_tuple = schedule[inef_time][inef_lane];
+        schedule[inef_time][inef_lane] = schedule[cand_time][cand_lane];
+        schedule[cand_time][cand_lane] = ineffectual_tuple;
+    }
+
+    template <typename T>
+    std::vector<value_index> DynamicTactical<T>::search(const schedule_buffer &schedule, value_index value_idx,
+            int max_time) {
+
+        auto time = std::get<0>(value_idx);
+        auto lane = std::get<1>(value_idx);
+        int upper_bound = (lane / N_LANES) * N_LANES;
+        int lower_bound = ((lane / N_LANES) + 1) * N_LANES;
+        std::vector<value_index> effectual_candidates;
+
+        auto next_time = time + 1;
+        if(next_time >= max_time) return effectual_candidates;
+
+        // Search effectual values in search space
+        for (int s = 0; s < SEARCH_MAP.size(); ++s) {
+            auto search_space = SEARCH_MAP[s];
+            auto time_h = time + std::get<0>(search_space);
+            auto lane_d = lane + std::get<1>(search_space);
+            if(time_h >= max_time) continue;
+            lane_d = (lane_d) < upper_bound ? N_LANES + lane_d : lane_d; // Wrap around
+            lane_d = (lane_d) >= lower_bound ? lane_d - N_LANES : lane_d; // Wrap around
+            auto value_tuple = schedule[time_h][lane_d];
+            auto value_bits = std::get<0>(value_tuple);
+            if(value_bits != 0) effectual_candidates.push_back(std::make_tuple(time_h, lane_d));
+        }
+
+        return effectual_candidates;
+    }
+
+    template <typename T>
+    void DynamicTactical<T>::original_schedule(schedule_buffer &schedule) {
+
+        auto max_time = schedule.size();
+        auto groups = schedule.front().size() / N_LANES;
+
+        for (int time = 0; time < max_time; ++time) {
+            for (int group = 0; group < groups; ++group) {
+
+                int overlap = 1;
+                while(overlap > 0) {
+
+                    // Get ineffectual values
+                    int init_lane = group * N_LANES;
+                    std::vector<value_index> ineffectual_values;
+                    for(int lane = init_lane; lane < init_lane + N_LANES; lane++) {
+                        auto value_tuple = schedule[time][lane];
+                        auto value_bits = std::get<0>(value_tuple);
+                        if(value_bits == 0) ineffectual_values.emplace_back(std::make_tuple(time, lane));
+                    }
+
+                    // Num of candidates for each ineffectual values
+                    overlap = -1;
+                    std::vector<uint16_t> num_candidates (N_LANES, 0);
+                    std::vector<std::vector<value_index>> effectual_candidates (N_LANES, std::vector<value_index>());
+                    for(auto inef_idx : ineffectual_values) {
+                        auto lane = std::get<1>(inef_idx);
+                        effectual_candidates[lane % N_LANES] = search(schedule, inef_idx, max_time);
+                        if(!effectual_candidates[lane % N_LANES].empty()) {
+                            auto effectual_num_candidates = (uint16_t)effectual_candidates[lane % N_LANES].size();
+                            num_candidates[lane % N_LANES] = effectual_num_candidates;
+                            if (effectual_num_candidates > overlap) overlap = effectual_num_candidates;
+                        }
+                    }
+
+                    // Promote less flexible candidates first
+                    for(auto inef_idx : ineffectual_values) {
+                        auto lane = std::get<1>(inef_idx);
+                        if(num_candidates[lane % N_LANES] == overlap) {
+                            //Promote value
+                            auto cand_idx = effectual_candidates[lane % N_LANES].front();
+                            promote(schedule, inef_idx, cand_idx);
+                            break;
+                        }
+                    }
+
+                } // Optimal promotion loop
+
+            } // Group
+        } // Time
+
+    }
+
     /* CYCLES */
 
     template <typename T>
@@ -116,8 +223,8 @@ namespace core {
                     auto Ny_pad = act_shape_pad[3];
 
                     // Simulate: Forward convolution A * W
-                    auto sim_output_activations = std::vector<std::vector<std::vector<float>>>(num_filters,
-                            std::vector<std::vector<float>>(Ox, std::vector<float>(Oy, 0)));
+                    auto sim_output_activations = std::vector<std::vector<std::vector<double>>>(num_filters,
+                            std::vector<std::vector<double>>(Ox, std::vector<double>(Oy, 0)));
 
                     // Stats
                     uint64_t batch_compute_cycles = 0;
@@ -172,7 +279,7 @@ namespace core {
                         auto time_per_window = (uint64_t)ceil(round_act_channels * Kx * Ky / (double)N_LANES);
 
                         schedule_buffer activation_buffer = schedule_buffer(time_per_window,
-                                std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0)));
+                                std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0, 0)));
 
                         for (int w = 0; w < x_windows.size(); ++w) {
                             auto x_window = x_windows[w] * stride;
@@ -187,7 +294,7 @@ namespace core {
                                                 act_channels); ++channel) {
                                             auto act_bits = act.get(0, channel, x_window + x, y_window + y);
                                             int pos = w * N_LANES + index;
-                                            activation_buffer[time][pos] = std::make_tuple(act_bits, 0);
+                                            activation_buffer[time][pos] = std::make_tuple(act_bits, time, index);
                                             index++;
                                             if(index == N_LANES) {
                                                 time++;
@@ -202,15 +309,22 @@ namespace core {
                         }
 
                         // Schedule buffer
-                        // Original schedule
+                        original_schedule(activation_buffer);
 
                         for (int set = 0; set < num_filter_sets; ++set) {
 
                             batch_base_compute_cycles += time_per_window;
 
+                            int skip = 0;
                             for (int time = 0; time < time_per_window; ++time) {
 
-                                // If row of zeroes, continue
+                                // Skip lines of zeroes
+                                if (skip < LOOKAHEAD_H && check_zero_line(activation_buffer[time])) {
+                                    skip++;
+                                    continue;
+                                }
+
+                                skip = 0;
                                 batch_compute_cycles++;
 
                                 if (this->CHECK) {
@@ -229,9 +343,10 @@ namespace core {
                                             for (int lane = 0; lane < N_LANES; ++lane) {
 
                                                 auto act_bits = std::get<0>(activation_buffer[time][window_idx + lane]);
-                                                auto act_mux = std::get<1>(activation_buffer[time][window_idx + lane]);
+                                                auto time_h = std::get<1>(activation_buffer[time][window_idx + lane]);
+                                                auto lane_d = std::get<2>(activation_buffer[time][window_idx + lane]);
 
-                                                auto wgt_bits = weight_buffer[set][time][filter_idx + lane];
+                                                auto wgt_bits = weight_buffer[set][time_h][filter_idx + lane_d];
 
                                                 sim_output_activations[filter][x_window][y_window] += act_bits * wgt_bits;
 
@@ -253,8 +368,8 @@ namespace core {
                     // Check correctness of the outputs
                     if (this->CHECK) {
 
-                        auto output_activations = std::vector<std::vector<std::vector<float>>>(num_filters,
-                                std::vector<std::vector<float>>(Ox, std::vector<float>(Oy, 0)));
+                        auto output_activations = std::vector<std::vector<std::vector<double>>>(num_filters,
+                                std::vector<std::vector<double>>(Ox, std::vector<double>(Oy, 0)));
 
                         // Actual convolution
                         for (int m = 0; m < num_filters; ++m) {
@@ -268,7 +383,7 @@ namespace core {
                             for (int x = 0; x < Ox; ++x) {
                                 for (int y = 0; y < Oy; ++y) {
 
-                                    float sum = 0;
+                                    double sum = 0;
 
                                     // Window dimension
                                     for (int j = 0; j < Ky; ++j) {
@@ -291,7 +406,8 @@ namespace core {
                                 for (int y = 0; y < Oy; ++y) {
                                     auto actual_value = output_activations[ch][x][y];
                                     auto sim_value = sim_output_activations[ch][x][y];
-                                    if (actual_value != sim_value)
+                                    auto error = (actual_value - sim_value) / sim_value;
+                                    if (abs(error) > 1e-10)
                                         throw std::runtime_error("Forward convolution wrong value.");
                                 }
                             }
@@ -388,7 +504,7 @@ namespace core {
 
                     std::vector<schedule_buffer> out_gradients_buffer = std::vector<schedule_buffer>(num_out_grad_sets,
                             schedule_buffer(time_per_out_grad_channel, std::vector<value_mux>(N_ROWS * N_LANES,
-                            std::make_tuple(0.0f, 0))));
+                            std::make_tuple(0.0f, 0, 0))));
 
                     int set_out = -1;
                     for(int o = 0; o < out_channels; ++o) {
@@ -402,7 +518,7 @@ namespace core {
                             for (int x = 0; x < Ox_dil; ++x) {
                                 auto out_bits = out_grad.get(0, o, x, y);
                                 int pos = (o % N_ROWS) * N_LANES + index;
-                                out_gradients_buffer[set_out][time][pos] = std::make_tuple(out_bits, 0);
+                                out_gradients_buffer[set_out][time][pos] = std::make_tuple(out_bits, time, index);
                                 index++;
                                 if(index == N_LANES) {
                                     time++;
@@ -424,7 +540,7 @@ namespace core {
                             auto time_per_window_channel = (uint64_t) ceil(Ox_dil * Oy_dil / (double) N_LANES);
 
                             schedule_buffer activation_buffer = schedule_buffer(time_per_window_channel,
-                                    std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0)));
+                                    std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0, 0)));
 
                             for (int w = 0; w < x_windows.size(); ++w) {
                                 auto x_window = x_windows[w];
@@ -436,7 +552,7 @@ namespace core {
                                     for (int x = 0; x < Ox_dil; ++x) {
                                         auto act_bits = act.get(0, act_channel, x_window + x, y_window + y);
                                         int pos = w * N_LANES + index;
-                                        activation_buffer[time][pos] = std::make_tuple(act_bits, 0);
+                                        activation_buffer[time][pos] = std::make_tuple(act_bits, time, index);
                                         index++;
                                         if (index == N_LANES) {
                                             time++;
@@ -540,7 +656,8 @@ namespace core {
                                     for (int y = 0; y < Ky; ++y) {
                                         auto actual_value = weight_gradients[m][ch][x][y];
                                         auto sim_value = sim_weight_gradients[m][ch][x][y];
-                                        if (actual_value != sim_value)
+                                        auto error = (actual_value - sim_value) / sim_value;
+                                        if (abs(error) > 1e-10)
                                             throw std::runtime_error("Backward weight gradients convolution wrong value.");
                                     }
                                 }
@@ -635,7 +752,7 @@ namespace core {
                         auto time_per_window = (uint64_t)ceil(round_out_channels * Kx * Ky / (double)N_LANES);
 
                         schedule_buffer gradients_buffer = schedule_buffer(time_per_window,
-                                std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0)));
+                                std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0, 0)));
 
                         for (int w = 0; w < x_windows.size(); ++w) {
                             auto x_window = x_windows[w];
@@ -650,7 +767,7 @@ namespace core {
                                                 out_channels); channel++) {
                                             auto out_bits = out_grad.get(0, channel, x_window + x, y_window + y);
                                             int pos = w * N_LANES + index;
-                                            gradients_buffer[time][pos] = std::make_tuple(out_bits, 0);
+                                            gradients_buffer[time][pos] = std::make_tuple(out_bits, time, index);
                                             index++;
                                             if(index == N_LANES) {
                                                 time++;
@@ -665,15 +782,22 @@ namespace core {
                         }
 
                         // Schedule buffer
-                        // Original schedule
+                        original_schedule(gradients_buffer);
 
                         for (int set = 0; set < num_filter_sets; ++set) {
 
                             batch_in_base_compute_cycles += time_per_window;
 
+                            int skip = 0;
                             for (int time = 0; time < time_per_window; ++time) {
 
-                                // If row of zeroes, continue
+                                // Skip lines of zeroes
+                                if (skip < LOOKAHEAD_H && check_zero_line(gradients_buffer[time])) {
+                                    skip++;
+                                    continue;
+                                }
+
+                                skip = 0;
                                 batch_in_compute_cycles++;
 
                                 if (this->CHECK) {
@@ -692,9 +816,10 @@ namespace core {
                                             for (int lane = 0; lane < N_LANES; ++lane) {
 
                                                 auto out_bits = std::get<0>(gradients_buffer[time][window_idx + lane]);
-                                                auto out_mux = std::get<1>(gradients_buffer[time][window_idx + lane]);
+                                                auto time_h = std::get<1>(gradients_buffer[time][window_idx + lane]);
+                                                auto lane_d = std::get<2>(gradients_buffer[time][window_idx + lane]);
 
-                                                auto wgt_bits = weight_buffer[set][time][filter_idx + lane];
+                                                auto wgt_bits = weight_buffer[set][time_h][filter_idx + lane_d];
 
                                                 sim_input_gradients[filter][x_window][y_window] += out_bits * wgt_bits;
 
@@ -748,7 +873,8 @@ namespace core {
                                 for (int y = 0; y < Ny; ++y) {
                                     auto actual_value = input_gradients[ch][x][y];
                                     auto sim_value = sim_input_gradients[ch][x][y];
-                                    if (actual_value != sim_value)
+                                    auto error = (actual_value - sim_value) / sim_value;
+                                    if (abs(error) > 1e-10)
                                         throw std::runtime_error("Backward input gradients convolution wrong value.");
                                 }
                             }

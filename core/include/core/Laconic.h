@@ -26,7 +26,7 @@ namespace core {
         /** Number of rows */
         const int N_ROWS;
 
-        /** Number of rows */
+        /** Number of tiles */
         const uint32_t N_TILES;
 
         /** Compute number of one bit multiplications given a weights and an activation

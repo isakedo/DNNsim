@@ -62,7 +62,7 @@ namespace core {
         /** Number of rows */
         const uint32_t N_ROWS;
 
-        /** Number of rows */
+        /** Number of tiles */
         const uint32_t N_TILES;
 
         /** Number of registers per SIP */
@@ -139,7 +139,7 @@ namespace core {
                 for (int d = 1; d <= LOOKAHEAD_H; ++d)
                     SEARCH_MAP.emplace_back(std::make_tuple(d,d));
 
-                SEARCH_MAP.emplace_back(std::make_tuple(1,LOOKAHEAD_H - 1));
+                SEARCH_MAP.emplace_back(std::make_tuple(1,3));
 
             }
         }

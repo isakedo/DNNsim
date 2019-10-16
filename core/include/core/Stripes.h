@@ -23,7 +23,7 @@ namespace core {
         /** Number of rows */
         const uint32_t N_ROWS;
 
-        /** Number of rows */
+        /** Number of tiles */
         const uint32_t N_TILES;
 
         /** Bits per PE */

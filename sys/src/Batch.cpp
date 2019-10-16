@@ -61,6 +61,17 @@ namespace sys {
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
                     experiment.n_tiles = experiment_proto.n_tiles() < 1 ? 16 : experiment_proto.n_tiles();
+                    experiment.lookahead_h = experiment_proto.lookahead_h() < 1 ? 2 : experiment_proto.lookahead_h();
+                    experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();
+                    experiment.search_shape = experiment_proto.search_shape().empty() ? 'T' :
+                            experiment_proto.search_shape().c_str()[0];
+                    value = experiment.search_shape;
+                    if(value != "L" && value != "T")
+                        throw std::runtime_error("BitTactical search shape for network " + simulate.network +
+                                                 " must be <L|T>.");
+                    if(value == "T" && (experiment.lookahead_h != 2 || experiment.lookaside_d != 5))
+                        throw std::runtime_error("BitTactical search T-shape for network " + simulate.network +
+                                                 " must be lookahead of 2, and lookaside of 5.");
 
                 } else throw std::runtime_error("Training architecture for network " + simulate.network +
                                                 " in BFloat16 must be <DynamicStripesFP>.");
