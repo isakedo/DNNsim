@@ -144,19 +144,23 @@ namespace core {
         auto fw_compute_cycles = stats.register_uint_t("Forward compute cycles", 0, sys::AverageTotal);
         auto fw_base_compute_cycles = stats.register_uint_t("Forward base compute cycles", 0, sys::AverageTotal);
         auto fw_speedup = stats.register_double_t("Forward speedup", 0, sys::Special);
+        auto fw_ideal_compute_cycles = stats.register_uint_t("Forward ideal compute cycles", 0, sys::AverageTotal);
 
         // Backward stats
         auto bw_wgt_act_compute_cycles = stats.register_uint_t("Backward Weights A.S compute cycles", 0, sys::AverageTotal);
         auto bw_wgt_act_base_compute_cycles = stats.register_uint_t("Backward Weights A.S base compute cycles", 0, sys::AverageTotal);
         auto bw_wgt_act_speedup = stats.register_double_t("Backward Weights A.S speedup", 0, sys::Special);
+        auto bw_wgt_act_ideal_compute_cycles = stats.register_uint_t("Backward Weights A.S ideal compute cycles", 0, sys::AverageTotal);
 
         auto bw_wgt_out_compute_cycles = stats.register_uint_t("Backward Weights G.S compute cycles", 0, sys::AverageTotal);
         auto bw_wgt_out_base_compute_cycles = stats.register_uint_t("Backward Weights G.S base compute cycles", 0, sys::AverageTotal);
         auto bw_wgt_out_speedup = stats.register_double_t("Backward Weights G.S speedup", 0, sys::Special);
+        auto bw_wgt_out_ideal_compute_cycles = stats.register_uint_t("Backward Weights G.S ideal compute cycles", 0, sys::AverageTotal);
 
         auto bw_in_compute_cycles = stats.register_uint_t("Backward Input compute cycles", 0, sys::AverageTotal);
         auto bw_in_base_compute_cycles = stats.register_uint_t("Backward Input base compute cycles", 0, sys::AverageTotal);
         auto bw_in_speedup = stats.register_double_t("Backward Input speedup", 0, sys::Special);
+        auto bw_in_ideal_compute_cycles = stats.register_uint_t("Backward Input ideal compute cycles", 0, sys::AverageTotal);
 
         // Simulate epochs
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
@@ -240,6 +244,7 @@ namespace core {
                     // Stats
                     uint64_t batch_compute_cycles = 0;
                     uint64_t batch_base_compute_cycles = 0;
+                    uint64_t batch_ideal_compute_cycles = 0;
 
                     // Generate weight buffer
                     auto num_filter_sets = (uint64_t)ceil(num_filters / (double)N_ROWS);
@@ -292,9 +297,13 @@ namespace core {
                         schedule_buffer activation_buffer = schedule_buffer(time_per_window,
                                 std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0, 0)));
 
+                        uint64_t ideal_time_per_window = 0;
+
                         for (int w = 0; w < x_windows.size(); ++w) {
                             auto x_window = x_windows[w] * stride;
                             auto y_window = y_windows[w] * stride;
+
+                            uint64_t non_zeroes = 0;
 
                             int time = 0;
                             for (int y = 0; y < Ky; ++y) {
@@ -311,12 +320,17 @@ namespace core {
                                                 time++;
                                                 index = 0;
                                             }
+                                            if (act_bits != 0) non_zeroes++;
                                         }
                                         if (index != 0)
                                             time++;
                                     }
                                 }
                             }
+                            auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
+                            if (ideal_time > ideal_time_per_window)
+                                ideal_time_per_window = ideal_time;
+
                         }
 
                         // Schedule buffer
@@ -325,6 +339,7 @@ namespace core {
                         for (int set = 0; set < num_filter_sets; ++set) {
 
                             batch_base_compute_cycles += time_per_window;
+                            batch_ideal_compute_cycles += ideal_time_per_window;
 
                             int skip = 0;
                             for (int time = 0; time < time_per_window; ++time) {
@@ -377,6 +392,7 @@ namespace core {
                     {
                         fw_compute_cycles->value[layer_it][epoch] += batch_compute_cycles;
                         fw_base_compute_cycles->value[layer_it][epoch] += batch_base_compute_cycles;
+                        fw_ideal_compute_cycles->value[layer_it][epoch] += batch_ideal_compute_cycles;
                     }
 
                     // Check correctness of the outputs
@@ -511,6 +527,7 @@ namespace core {
                     // Stats
                     uint64_t batch_wgt_act_compute_cycles = 0;
                     uint64_t batch_wgt_act_base_compute_cycles = 0;
+                    uint64_t batch_wgt_act_ideal_compute_cycles = 0;
 
                     // Generate output gradients buffer
                     auto num_out_grad_sets = (uint64_t)ceil(out_channels / (double)N_ROWS);
@@ -520,11 +537,15 @@ namespace core {
                             schedule_buffer(time_per_out_grad_channel, std::vector<value_mux>(N_ROWS * N_LANES,
                             std::make_tuple(0.0f, 0, 0))));
 
+                    std::vector<uint64_t> ideal_time_per_out_grad_channel (ceil(out_channels/(double)N_ROWS), 0);
+
                     int set_out = -1;
                     for(int o = 0; o < out_channels; ++o) {
 
                         if ((o % N_ROWS) == 0)
                             set_out++;
+
+                        uint64_t non_zeroes = 0;
 
                         int time = 0;
                         int index = 0;
@@ -538,9 +559,12 @@ namespace core {
                                     time++;
                                     index = 0;
                                 }
+                                if (out_bits != 0) non_zeroes++;
                             }
                         }
-
+                        auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
+                        if (ideal_time > ideal_time_per_out_grad_channel[set_out])
+                            ideal_time_per_out_grad_channel[set_out] = ideal_time;
                     }
 
                     for (int act_channel = 0; act_channel < act_channels; ++act_channel) {
@@ -555,9 +579,13 @@ namespace core {
                             schedule_buffer activation_buffer = schedule_buffer(time_per_window_channel,
                                     std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0, 0)));
 
+                            uint64_t ideal_time_per_window_channel = 1;
+
                             for (int w = 0; w < x_windows.size(); ++w) {
                                 auto x_window = x_windows[w];
                                 auto y_window = y_windows[w];
+
+                                uint64_t non_zeroes = 0;
 
                                 int time = 0;
                                 int index = 0;
@@ -571,8 +599,12 @@ namespace core {
                                             time++;
                                             index = 0;
                                         }
+                                        if (act_bits != 0) non_zeroes++;
                                     }
                                 }
+                                auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
+                                if (ideal_time > ideal_time_per_window_channel)
+                                    ideal_time_per_window_channel = ideal_time;
                             }
 
                             // Schedule buffer
@@ -581,6 +613,7 @@ namespace core {
                             for (int set = 0; set < num_out_grad_sets; ++set) {
 
                                 batch_wgt_act_base_compute_cycles += time_per_window_channel;
+                                batch_wgt_act_ideal_compute_cycles += ideal_time_per_window_channel;
 
                                 int skip = 0;
                                 for (int time = 0; time < time_per_window_channel; ++time) {
@@ -638,6 +671,7 @@ namespace core {
                     {
                         bw_wgt_act_compute_cycles->value[layer_it][epoch] += batch_wgt_act_compute_cycles;
                         bw_wgt_act_base_compute_cycles->value[layer_it][epoch] += batch_wgt_act_base_compute_cycles;
+                        bw_wgt_act_ideal_compute_cycles->value[layer_it][epoch] += batch_wgt_act_ideal_compute_cycles;
                     }
 
                     // Simulate: Backward convolution A * G = WG: Gradients sparsity
@@ -648,6 +682,7 @@ namespace core {
                     // Stats
                     uint64_t batch_wgt_out_compute_cycles = 0;
                     uint64_t batch_wgt_out_base_compute_cycles = 0;
+                    uint64_t batch_wgt_out_ideal_compute_cycles = 0;
 
                     // Schedule output gradients
                     for (auto &gradients_channel_buffer : out_gradients_buffer) {
@@ -689,10 +724,11 @@ namespace core {
 
                             for (int set = 0; set < num_out_grad_sets; ++set) {
 
-                                batch_wgt_out_base_compute_cycles += time_per_window_channel;
+                                batch_wgt_out_base_compute_cycles += time_per_out_grad_channel;
+                                batch_wgt_out_ideal_compute_cycles += ideal_time_per_out_grad_channel[set];
 
                                 int skip = 0;
-                                for (int time = 0; time < time_per_window_channel; ++time) {
+                                for (int time = 0; time < time_per_out_grad_channel; ++time) {
 
                                     // Skip lines of zeroes
                                     if (skip < LOOKAHEAD_H && check_zero_line(out_gradients_buffer[set][time])) {
@@ -749,6 +785,7 @@ namespace core {
                     {
                         bw_wgt_out_compute_cycles->value[layer_it][epoch] += batch_wgt_out_compute_cycles;
                         bw_wgt_out_base_compute_cycles->value[layer_it][epoch] += batch_wgt_out_base_compute_cycles;
+                        bw_wgt_out_ideal_compute_cycles->value[layer_it][epoch] += batch_wgt_out_ideal_compute_cycles;
                     }
 
                     out_gradients_buffer.clear();
@@ -854,6 +891,7 @@ namespace core {
                     // Stats
                     uint64_t batch_in_compute_cycles = 0;
                     uint64_t batch_in_base_compute_cycles = 0;
+                    uint64_t batch_in_ideal_compute_cycles = 0;
 
                     // Generate weight buffer
                     auto num_filter_sets = (uint64_t)ceil(num_filters_rot / (double)N_ROWS);
@@ -906,9 +944,13 @@ namespace core {
                         schedule_buffer gradients_buffer = schedule_buffer(time_per_window,
                                 std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0, 0)));
 
+                        uint64_t ideal_time_per_window = 0;
+
                         for (int w = 0; w < x_windows.size(); ++w) {
                             auto x_window = x_windows[w];
                             auto y_window = y_windows[w];
+
+                            uint64_t non_zeroes = 0;
 
                             int time = 0;
                             for (int y = 0; y < Ky; ++y) {
@@ -925,12 +967,18 @@ namespace core {
                                                 time++;
                                                 index = 0;
                                             }
+                                            if (out_bits != 0) non_zeroes++;
                                         }
                                         if (index != 0)
                                             time++;
                                     }
                                 }
                             }
+
+                            auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
+                            if (ideal_time > ideal_time_per_window)
+                                ideal_time_per_window = ideal_time;
+
                         }
 
                         // Schedule buffer
@@ -939,6 +987,7 @@ namespace core {
                         for (int set = 0; set < num_filter_sets; ++set) {
 
                             batch_in_base_compute_cycles += time_per_window;
+                            batch_in_ideal_compute_cycles += ideal_time_per_window;
 
                             int skip = 0;
                             for (int time = 0; time < time_per_window; ++time) {
@@ -991,6 +1040,7 @@ namespace core {
                     {
                         bw_in_compute_cycles->value[layer_it][epoch] += batch_in_compute_cycles;
                         bw_in_base_compute_cycles->value[layer_it][epoch] += batch_in_base_compute_cycles;
+                        bw_in_ideal_compute_cycles->value[layer_it][epoch] += batch_in_ideal_compute_cycles;
                     }
 
                     // Check correctness of the outputs
