@@ -177,7 +177,7 @@ namespace core {
             auto max_threads = omp_get_max_threads();
             omp_set_num_threads(std::min(max_threads, this->N_THREADS));
             #pragma omp parallel for private(batch)
-            for (batch = 0; batch < 2; ++batch) {
+            for (batch = 0; batch < num_batches; ++batch) {
 
                 // Forward pass
                 for (int layer_it = 0; layer_it < network.getNumLayers(); layer_it++) {
