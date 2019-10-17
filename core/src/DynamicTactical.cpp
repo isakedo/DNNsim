@@ -165,7 +165,7 @@ namespace core {
                                        << epoch << std::endl;
 
             auto num_batches = this->FAST_MODE ? 1 : network.getBatches();
-            for (int batch = 0; batch < num_batches; ++batch) {
+            for (int batch = 0; batch < 2; ++batch) {
 
                 // Forward pass
                 for (int layer_it = 0; layer_it < network.getNumLayers(); layer_it++) {
@@ -365,8 +365,8 @@ namespace core {
 
                     } // Window sets
 
-                    fw_compute_cycles->value[layer_it][batch] = batch_compute_cycles;
-                    fw_base_compute_cycles->value[layer_it][batch] = batch_base_compute_cycles;
+                    fw_compute_cycles->value[layer_it][epoch] += batch_compute_cycles;
+                    fw_base_compute_cycles->value[layer_it][epoch] += batch_base_compute_cycles;
 
                     // Check correctness of the outputs
                     if (this->CHECK) {
@@ -623,8 +623,8 @@ namespace core {
 
                     } // Act Channels
 
-                    bw_wgt_act_compute_cycles->value[layer_it][batch] = batch_wgt_act_compute_cycles;
-                    bw_wgt_act_base_compute_cycles->value[layer_it][batch] = batch_wgt_act_base_compute_cycles;
+                    bw_wgt_act_compute_cycles->value[layer_it][epoch] += batch_wgt_act_compute_cycles;
+                    bw_wgt_act_base_compute_cycles->value[layer_it][epoch] += batch_wgt_act_base_compute_cycles;
 
                     // Simulate: Backward convolution A * G = WG: Gradients sparsity
                     auto sim_weight_out_gradients = std::vector<std::vector<std::vector<std::vector<double>>>>(
@@ -731,8 +731,8 @@ namespace core {
 
                     } // Act Channels
 
-                    bw_wgt_out_compute_cycles->value[layer_it][batch] = batch_wgt_out_compute_cycles;
-                    bw_wgt_out_base_compute_cycles->value[layer_it][batch] = batch_wgt_out_base_compute_cycles;
+                    bw_wgt_out_compute_cycles->value[layer_it][epoch] += batch_wgt_out_compute_cycles;
+                    bw_wgt_out_base_compute_cycles->value[layer_it][epoch] += batch_wgt_out_base_compute_cycles;
 
                     out_gradients_buffer.clear();
 
@@ -970,8 +970,8 @@ namespace core {
 
                     } // Window sets
 
-                    bw_in_compute_cycles->value[layer_it][batch] = batch_in_compute_cycles;
-                    bw_in_base_compute_cycles->value[layer_it][batch] = batch_in_base_compute_cycles;
+                    bw_in_compute_cycles->value[layer_it][epoch] += batch_in_compute_cycles;
+                    bw_in_base_compute_cycles->value[layer_it][epoch] += batch_in_base_compute_cycles;
 
                     // Check correctness of the outputs
                     if (this->CHECK) {
