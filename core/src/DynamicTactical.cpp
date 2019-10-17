@@ -143,17 +143,20 @@ namespace core {
         // Forward stats
         auto fw_compute_cycles = stats.register_uint_t("Forward compute cycles", 0, sys::AverageTotal);
         auto fw_base_compute_cycles = stats.register_uint_t("Forward base compute cycles", 0, sys::AverageTotal);
+        auto fw_speedup = stats.register_double_t("Forward speedup", 0, sys::Special);
 
         // Backward stats
         auto bw_wgt_act_compute_cycles = stats.register_uint_t("Backward Weights A.S compute cycles", 0, sys::AverageTotal);
         auto bw_wgt_act_base_compute_cycles = stats.register_uint_t("Backward Weights A.S base compute cycles", 0, sys::AverageTotal);
+        auto bw_wgt_act_speedup = stats.register_double_t("Backward Weights A.S speedup", 0, sys::Special);
 
         auto bw_wgt_out_compute_cycles = stats.register_uint_t("Backward Weights G.S compute cycles", 0, sys::AverageTotal);
         auto bw_wgt_out_base_compute_cycles = stats.register_uint_t("Backward Weights G.S base compute cycles", 0, sys::AverageTotal);
+        auto bw_wgt_out_speedup = stats.register_double_t("Backward Weights G.S speedup", 0, sys::Special);
 
         auto bw_in_compute_cycles = stats.register_uint_t("Backward Input compute cycles", 0, sys::AverageTotal);
         auto bw_in_base_compute_cycles = stats.register_uint_t("Backward Input base compute cycles", 0, sys::AverageTotal);
-
+        auto bw_in_speedup = stats.register_double_t("Backward Input speedup", 0, sys::Special);
 
         // Simulate epochs
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
@@ -165,7 +168,12 @@ namespace core {
                                        << epoch << std::endl;
 
             auto num_batches = this->FAST_MODE ? 1 : network.getBatches();
-            for (int batch = 0; batch < num_batches; ++batch) {
+            int batch;
+
+            auto max_threads = omp_get_max_threads();
+            omp_set_num_threads(std::min(max_threads, this->N_THREADS));
+            #pragma omp parallel for private(batch)
+            for (batch = 0; batch < 2; ++batch) {
 
                 // Forward pass
                 for (int layer_it = 0; layer_it < network.getNumLayers(); layer_it++) {
@@ -365,8 +373,11 @@ namespace core {
 
                     } // Window sets
 
-                    fw_compute_cycles->value[layer_it][epoch] += batch_compute_cycles;
-                    fw_base_compute_cycles->value[layer_it][epoch] += batch_base_compute_cycles;
+                    #pragma omp critical
+                    {
+                        fw_compute_cycles->value[layer_it][epoch] += batch_compute_cycles;
+                        fw_base_compute_cycles->value[layer_it][epoch] += batch_base_compute_cycles;
+                    }
 
                     // Check correctness of the outputs
                     if (this->CHECK) {
@@ -623,8 +634,11 @@ namespace core {
 
                     } // Act Channels
 
-                    bw_wgt_act_compute_cycles->value[layer_it][epoch] += batch_wgt_act_compute_cycles;
-                    bw_wgt_act_base_compute_cycles->value[layer_it][epoch] += batch_wgt_act_base_compute_cycles;
+                    #pragma omp critical
+                    {
+                        bw_wgt_act_compute_cycles->value[layer_it][epoch] += batch_wgt_act_compute_cycles;
+                        bw_wgt_act_base_compute_cycles->value[layer_it][epoch] += batch_wgt_act_base_compute_cycles;
+                    }
 
                     // Simulate: Backward convolution A * G = WG: Gradients sparsity
                     auto sim_weight_out_gradients = std::vector<std::vector<std::vector<std::vector<double>>>>(
@@ -731,8 +745,11 @@ namespace core {
 
                     } // Act Channels
 
-                    bw_wgt_out_compute_cycles->value[layer_it][epoch] += batch_wgt_out_compute_cycles;
-                    bw_wgt_out_base_compute_cycles->value[layer_it][epoch] += batch_wgt_out_base_compute_cycles;
+                    #pragma omp critical
+                    {
+                        bw_wgt_out_compute_cycles->value[layer_it][epoch] += batch_wgt_out_compute_cycles;
+                        bw_wgt_out_base_compute_cycles->value[layer_it][epoch] += batch_wgt_out_base_compute_cycles;
+                    }
 
                     out_gradients_buffer.clear();
 
@@ -970,8 +987,11 @@ namespace core {
 
                     } // Window sets
 
-                    bw_in_compute_cycles->value[layer_it][epoch] += batch_in_compute_cycles;
-                    bw_in_base_compute_cycles->value[layer_it][epoch] += batch_in_base_compute_cycles;
+                    #pragma omp critical
+                    {
+                        bw_in_compute_cycles->value[layer_it][epoch] += batch_in_compute_cycles;
+                        bw_in_base_compute_cycles->value[layer_it][epoch] += batch_in_base_compute_cycles;
+                    }
 
                     // Check correctness of the outputs
                     if (this->CHECK) {
@@ -1021,7 +1041,27 @@ namespace core {
 
             } // Batch
 
+            for (int layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
+                fw_speedup->value[layer_it][epoch] = fw_base_compute_cycles->value[layer_it][epoch] /
+                        (double)fw_compute_cycles->value[layer_it][epoch];
+                bw_wgt_act_speedup->value[layer_it][epoch] = bw_wgt_act_base_compute_cycles->value[layer_it][epoch] /
+                        (double)bw_wgt_act_compute_cycles->value[layer_it][epoch];
+                bw_wgt_out_speedup->value[layer_it][epoch] = bw_wgt_out_base_compute_cycles->value[layer_it][epoch] /
+                        (double)bw_wgt_out_compute_cycles->value[layer_it][epoch];
+                bw_in_speedup->value[layer_it][epoch] = bw_in_base_compute_cycles->value[layer_it][epoch] /
+                        (double)bw_in_compute_cycles->value[layer_it][epoch];
+            }
+
         } // Epoch
+
+        fw_speedup->special_value = sys::get_total(fw_base_compute_cycles->value) /
+                (double)sys::get_total(fw_compute_cycles->value);
+        bw_wgt_act_speedup->special_value = sys::get_total(bw_wgt_act_base_compute_cycles->value) /
+                (double)sys::get_total(bw_wgt_act_compute_cycles->value);
+        bw_wgt_out_speedup->special_value = sys::get_total(bw_wgt_out_base_compute_cycles->value) /
+                (double)sys::get_total(bw_wgt_out_compute_cycles->value);
+        bw_in_speedup->special_value = sys::get_total(bw_in_base_compute_cycles->value) /
+                (double)sys::get_total(bw_in_compute_cycles->value);
 
         //Dump statistics
         std::string header = "DynamicTactical Number of Cycles for " + network_model.getName() + "\n";
