@@ -165,7 +165,7 @@ namespace core {
                                        << epoch << std::endl;
 
             auto num_batches = this->FAST_MODE ? 1 : network.getBatches();
-            for (int batch = 0; batch < 2; ++batch) {
+            for (int batch = 0; batch < num_batches; ++batch) {
 
                 // Forward pass
                 for (int layer_it = 0; layer_it < network.getNumLayers(); layer_it++) {
