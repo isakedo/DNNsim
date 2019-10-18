@@ -9,7 +9,7 @@ namespace sys {
     stat_base_t::stat_base_t() : measure(No_Measure), special_value(0.0), skip_first(false) {}
 
     stat_base_t::stat_base_t(Measure _measure, bool _skip_first) : measure(_measure), skip_first(_skip_first),
-            special_value(0.0) {}
+            special_value(0.0), special_value_vector() {}
 
     // string_t
 
@@ -399,7 +399,8 @@ namespace sys {
         }
 
         if (scalar) {
-            std::string scalar_parameter_names = training ? "Layer,Epoch" : "Layer,Batch,";
+
+            std::string scalar_parameter_names = training ? "Epoch,Layer," : "Layer,Batch,";
             for (const auto &table : database) {
                 if (table.var->getType() == stat_type::Scalar)
                     scalar_parameter_names += table.name + ',';
@@ -409,13 +410,61 @@ namespace sys {
             o_file << std::endl << (training ? "Per epoch scalar results:" : "Per image scalar results:") << std::endl;
             o_file << scalar_parameter_names << std::endl;
 
-            for (uint64_t batch = 0; batch < batches; ++batch) {
+            if (training) {
+                for (uint64_t layer = 0; layer < layers; ++layer) {
+                    for (uint64_t batch = 0; batch < batches; ++batch) {
+
+                        std::string line = std::to_string(layer) + ',' + layers_name[batch]  + ',';
+                        for (const auto &table : database) {
+                            if (table.var->getType() == stat_type::Scalar)
+                                line += table.var->to_string(layer, batch) + ',';
+                        }
+                        line = line.substr(0, line.size() - 1);
+                        o_file << line << std::endl;
+
+                    }
+                }
+
+                o_file << std::endl << "Epoch scalar results:" << std::endl;
+                o_file << scalar_parameter_names << std::endl;
                 for (uint64_t layer = 0; layer < layers; ++layer) {
 
-                    std::string line = layers_name[layer] + ',' + std::to_string(batch) + ',';
+                    std::string line = std::to_string(layer) + ",ALL,";
+                    for (const auto &table : database) {
+                        if (table.var->getType() == stat_type::Scalar) {
+                            if (table.var->measure == Measure::Special)
+                                line += std::to_string(table.var->special_value_vector[layer]) + ',';
+                            else
+                                line += table.var->network_to_string() + ',';
+                        }
+                    }
+                    line = line.substr(0, line.size() - 1);
+                    o_file << line << std::endl;
+
+                }
+            } else {
+                for (uint64_t batch = 0; batch < batches; ++batch) {
+                    for (uint64_t layer = 0; layer < layers; ++layer) {
+
+                        std::string line = layers_name[layer] + ',' + std::to_string(batch) + ',';
+                        for (const auto &table : database) {
+                            if (table.var->getType() == stat_type::Scalar)
+                                line += table.var->to_string(layer, batch) + ',';
+                        }
+                        line = line.substr(0, line.size() - 1);
+                        o_file << line << std::endl;
+
+                    }
+                }
+
+                o_file << std::endl << "Layer scalar results:" << std::endl;
+                o_file << scalar_parameter_names << std::endl;
+                for (uint64_t layer = 0; layer < layers; ++layer) {
+
+                    std::string line = layers_name[layer] + ",ALL,";
                     for (const auto &table : database) {
                         if (table.var->getType() == stat_type::Scalar)
-                            line += table.var->to_string(layer, batch) + ',';
+                            line += table.var->layer_to_string(layer) + ',';
                     }
                     line = line.substr(0, line.size() - 1);
                     o_file << line << std::endl;
@@ -423,28 +472,16 @@ namespace sys {
                 }
             }
 
-            o_file << std::endl << "Layer scalar results:" << std::endl;
-            o_file << scalar_parameter_names << std::endl;
-            for (uint64_t layer = 0; layer < layers; ++layer) {
-
-                std::string line = layers_name[layer] + ",ALL,";
-                for (const auto &table : database) {
-                    if (table.var->getType() == stat_type::Scalar)
-                        line += table.var->layer_to_string(layer) + ',';
-                }
-                line = line.substr(0, line.size() - 1);
-                o_file << line << std::endl;
-
-            }
-
             o_file << std::endl << "Network scalar results:" << std::endl;
             o_file << scalar_parameter_names << std::endl;
-            std::string line = network_name + ",ALL,";
+            std::string line = training ? "ALL," + network_name + ',' : network_name + ",ALL,";
             for (const auto &table : database) {
-                if (table.var->measure == Measure::Special) {
-                    line += std::to_string(table.var->special_value) + ',';
-                } else if (table.var->getType() == stat_type::Scalar)
-                    line += table.var->network_to_string() + ',';
+                if (table.var->getType() == stat_type::Scalar) {
+                    if (table.var->measure == Measure::Special)
+                        line += std::to_string(table.var->special_value) + ',';
+                    else
+                        line += table.var->network_to_string() + ',';
+                }
             }
             line = line.substr(0, line.size() - 1);
             o_file << line << std::endl;

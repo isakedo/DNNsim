@@ -149,6 +149,11 @@ namespace sys {
         double special_value;
 
         /**
+         * Special per epoch/layer value for some stats
+         */
+        std::vector<double> special_value_vector;
+
+        /**
          * Skip first value when doing average
          */
         bool skip_first;

@@ -138,29 +138,30 @@ namespace core {
         // Initialize statistics
         std::string arch = "DynamicTactical";
         std::string filename = arch + "_cycles";
-        sys::Stats stats = sys::Stats(network_model.getNumLayers(), epochs, filename);
+        sys::Stats stats = sys::Stats(epochs, network_model.getNumLayers(), filename);
+        stats.setTraining(true);
 
         // Forward stats
-        auto fw_compute_cycles = stats.register_uint_t("Forward compute cycles", 0, sys::AverageTotal);
-        auto fw_base_compute_cycles = stats.register_uint_t("Forward base compute cycles", 0, sys::AverageTotal);
+        auto fw_compute_cycles = stats.register_uint_t("Forward compute cycles", 0, sys::Total);
+        auto fw_base_compute_cycles = stats.register_uint_t("Forward base compute cycles", 0, sys::Total);
         auto fw_speedup = stats.register_double_t("Forward speedup", 0, sys::Special);
-        auto fw_ideal_compute_cycles = stats.register_uint_t("Forward ideal compute cycles", 0, sys::AverageTotal);
+        auto fw_ideal_compute_cycles = stats.register_uint_t("Forward ideal compute cycles", 0, sys::Total);
 
         // Backward stats
-        auto bw_wgt_act_compute_cycles = stats.register_uint_t("Backward Weights A.S compute cycles", 0, sys::AverageTotal);
-        auto bw_wgt_act_base_compute_cycles = stats.register_uint_t("Backward Weights A.S base compute cycles", 0, sys::AverageTotal);
+        auto bw_wgt_act_compute_cycles = stats.register_uint_t("Backward Weights A.S compute cycles", 0, sys::Total);
+        auto bw_wgt_act_base_compute_cycles = stats.register_uint_t("Backward Weights A.S base compute cycles", 0, sys::Total);
         auto bw_wgt_act_speedup = stats.register_double_t("Backward Weights A.S speedup", 0, sys::Special);
-        auto bw_wgt_act_ideal_compute_cycles = stats.register_uint_t("Backward Weights A.S ideal compute cycles", 0, sys::AverageTotal);
+        auto bw_wgt_act_ideal_compute_cycles = stats.register_uint_t("Backward Weights A.S ideal compute cycles", 0, sys::Total);
 
-        auto bw_wgt_out_compute_cycles = stats.register_uint_t("Backward Weights G.S compute cycles", 0, sys::AverageTotal);
-        auto bw_wgt_out_base_compute_cycles = stats.register_uint_t("Backward Weights G.S base compute cycles", 0, sys::AverageTotal);
+        auto bw_wgt_out_compute_cycles = stats.register_uint_t("Backward Weights G.S compute cycles", 0, sys::Total);
+        auto bw_wgt_out_base_compute_cycles = stats.register_uint_t("Backward Weights G.S base compute cycles", 0, sys::Total);
         auto bw_wgt_out_speedup = stats.register_double_t("Backward Weights G.S speedup", 0, sys::Special);
-        auto bw_wgt_out_ideal_compute_cycles = stats.register_uint_t("Backward Weights G.S ideal compute cycles", 0, sys::AverageTotal);
+        auto bw_wgt_out_ideal_compute_cycles = stats.register_uint_t("Backward Weights G.S ideal compute cycles", 0, sys::Total);
 
-        auto bw_in_compute_cycles = stats.register_uint_t("Backward Input compute cycles", 0, sys::AverageTotal);
-        auto bw_in_base_compute_cycles = stats.register_uint_t("Backward Input base compute cycles", 0, sys::AverageTotal);
+        auto bw_in_compute_cycles = stats.register_uint_t("Backward Input compute cycles", 0, sys::Total);
+        auto bw_in_base_compute_cycles = stats.register_uint_t("Backward Input base compute cycles", 0, sys::Total);
         auto bw_in_speedup = stats.register_double_t("Backward Input speedup", 0, sys::Special);
-        auto bw_in_ideal_compute_cycles = stats.register_uint_t("Backward Input ideal compute cycles", 0, sys::AverageTotal);
+        auto bw_in_ideal_compute_cycles = stats.register_uint_t("Backward Input ideal compute cycles", 0, sys::Total);
 
         // Simulate epochs
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
@@ -390,9 +391,9 @@ namespace core {
 
                     #pragma omp critical
                     {
-                        fw_compute_cycles->value[layer_it][epoch] += batch_compute_cycles;
-                        fw_base_compute_cycles->value[layer_it][epoch] += batch_base_compute_cycles;
-                        fw_ideal_compute_cycles->value[layer_it][epoch] += batch_ideal_compute_cycles;
+                        fw_compute_cycles->value[epoch][layer_it] += batch_compute_cycles;
+                        fw_base_compute_cycles->value[epoch][layer_it] += batch_base_compute_cycles;
+                        fw_ideal_compute_cycles->value[epoch][layer_it] += batch_ideal_compute_cycles;
                     }
 
                     // Check correctness of the outputs
@@ -669,9 +670,9 @@ namespace core {
 
                     #pragma omp critical
                     {
-                        bw_wgt_act_compute_cycles->value[layer_it][epoch] += batch_wgt_act_compute_cycles;
-                        bw_wgt_act_base_compute_cycles->value[layer_it][epoch] += batch_wgt_act_base_compute_cycles;
-                        bw_wgt_act_ideal_compute_cycles->value[layer_it][epoch] += batch_wgt_act_ideal_compute_cycles;
+                        bw_wgt_act_compute_cycles->value[epoch][layer_it] += batch_wgt_act_compute_cycles;
+                        bw_wgt_act_base_compute_cycles->value[epoch][layer_it] += batch_wgt_act_base_compute_cycles;
+                        bw_wgt_act_ideal_compute_cycles->value[epoch][layer_it] += batch_wgt_act_ideal_compute_cycles;
                     }
 
                     // Simulate: Backward convolution A * G = WG: Gradients sparsity
@@ -783,9 +784,9 @@ namespace core {
 
                     #pragma omp critical
                     {
-                        bw_wgt_out_compute_cycles->value[layer_it][epoch] += batch_wgt_out_compute_cycles;
-                        bw_wgt_out_base_compute_cycles->value[layer_it][epoch] += batch_wgt_out_base_compute_cycles;
-                        bw_wgt_out_ideal_compute_cycles->value[layer_it][epoch] += batch_wgt_out_ideal_compute_cycles;
+                        bw_wgt_out_compute_cycles->value[epoch][layer_it] += batch_wgt_out_compute_cycles;
+                        bw_wgt_out_base_compute_cycles->value[epoch][layer_it] += batch_wgt_out_base_compute_cycles;
+                        bw_wgt_out_ideal_compute_cycles->value[epoch][layer_it] += batch_wgt_out_ideal_compute_cycles;
                     }
 
                     out_gradients_buffer.clear();
@@ -1038,9 +1039,9 @@ namespace core {
 
                     #pragma omp critical
                     {
-                        bw_in_compute_cycles->value[layer_it][epoch] += batch_in_compute_cycles;
-                        bw_in_base_compute_cycles->value[layer_it][epoch] += batch_in_base_compute_cycles;
-                        bw_in_ideal_compute_cycles->value[layer_it][epoch] += batch_in_ideal_compute_cycles;
+                        bw_in_compute_cycles->value[epoch][layer_it] += batch_in_compute_cycles;
+                        bw_in_base_compute_cycles->value[epoch][layer_it] += batch_in_base_compute_cycles;
+                        bw_in_ideal_compute_cycles->value[epoch][layer_it] += batch_in_ideal_compute_cycles;
                     }
 
                     // Check correctness of the outputs
@@ -1091,16 +1092,30 @@ namespace core {
 
             } // Batch
 
+            // Calculate speedups
             for (int layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
-                fw_speedup->value[layer_it][epoch] = fw_base_compute_cycles->value[layer_it][epoch] /
-                        (double)fw_compute_cycles->value[layer_it][epoch];
-                bw_wgt_act_speedup->value[layer_it][epoch] = bw_wgt_act_base_compute_cycles->value[layer_it][epoch] /
-                        (double)bw_wgt_act_compute_cycles->value[layer_it][epoch];
-                bw_wgt_out_speedup->value[layer_it][epoch] = bw_wgt_out_base_compute_cycles->value[layer_it][epoch] /
-                        (double)bw_wgt_out_compute_cycles->value[layer_it][epoch];
-                bw_in_speedup->value[layer_it][epoch] = bw_in_base_compute_cycles->value[layer_it][epoch] /
-                        (double)bw_in_compute_cycles->value[layer_it][epoch];
+                fw_speedup->value[epoch][layer_it] = fw_base_compute_cycles->value[epoch][layer_it] /
+                        (double)fw_compute_cycles->value[epoch][layer_it];
+                bw_wgt_act_speedup->value[epoch][layer_it] = bw_wgt_act_base_compute_cycles->value[epoch][layer_it] /
+                        (double)bw_wgt_act_compute_cycles->value[epoch][layer_it];
+                bw_wgt_out_speedup->value[epoch][layer_it] = bw_wgt_out_base_compute_cycles->value[epoch][layer_it] /
+                        (double)bw_wgt_out_compute_cycles->value[epoch][layer_it];
+                if (layer_it != 0) {
+                    bw_in_speedup->value[epoch][layer_it] = bw_in_base_compute_cycles->value[epoch][layer_it] /
+                            (double) bw_in_compute_cycles->value[epoch][layer_it];
+                }
             }
+
+            fw_speedup->special_value_vector.push_back(sys::get_total(fw_base_compute_cycles->value[epoch]) /
+                    (double)sys::get_total(fw_compute_cycles->value[epoch]));
+            bw_wgt_act_speedup->special_value_vector.push_back(sys::get_total(
+                    bw_wgt_act_base_compute_cycles->value[epoch]) /
+                    (double)sys::get_total(bw_wgt_act_compute_cycles->value[epoch]));
+            bw_wgt_out_speedup->special_value_vector.push_back(sys::get_total(
+                    bw_wgt_out_base_compute_cycles->value[epoch]) /
+                    (double)sys::get_total(bw_wgt_out_compute_cycles->value[epoch]));
+            bw_in_speedup->special_value_vector.push_back(sys::get_total(bw_in_base_compute_cycles->value[epoch]) /
+                    (double)sys::get_total(bw_in_compute_cycles->value[epoch]));
 
         } // Epoch
 
@@ -1135,39 +1150,40 @@ namespace core {
         // Initialize statistics
         std::string arch = "DynamicTactical";
         std::string filename = arch + "_cycles";
-        sys::Stats stats = sys::Stats(network_model.getNumLayers(), epochs, filename);
+        sys::Stats stats = sys::Stats(epochs, network_model.getNumLayers(), filename);
+        stats.setTraining(true);
 
         // Forward stats
         auto act_work_reduction = stats.register_double_t("Forward Activations Work Reduction", 0, sys::Average);
         auto act_speedup = stats.register_double_t("Forward Activations Speedup", 0, sys::Average);
-        auto act_par_mult = stats.register_double_t("Forward Activations Multiplications", 0, sys::AverageTotal);
-        auto act_bit_multiplications = stats.register_uint_t("Forward Activations Bit Multiplications", 0, sys::AverageTotal);
+        auto act_par_mult = stats.register_double_t("Forward Activations Multiplications", 0, sys::Total);
+        auto act_bit_multiplications = stats.register_uint_t("Forward Activations Bit Multiplications", 0, sys::Total);
 
         auto wgt_work_reduction = stats.register_double_t("Forward Weights Work Reduction", 0, sys::Average);
         auto wgt_speedup = stats.register_double_t("Forward Weights Speedup", 0, sys::Average);
-        auto wgt_par_mult = stats.register_double_t("Forward Weights Multiplications", 0, sys::AverageTotal);
-        auto wgt_bit_multiplications = stats.register_uint_t("Forward Weights Bit Multiplications", 0, sys::AverageTotal);
+        auto wgt_par_mult = stats.register_double_t("Forward Weights Multiplications", 0, sys::Total);
+        auto wgt_bit_multiplications = stats.register_uint_t("Forward Weights Bit Multiplications", 0, sys::Total);
 
         // Backward stats
         auto bw_wgt_work_reduction = stats.register_double_t("Backward Weights Work Reduction", 0, sys::Average);
         auto bw_wgt_speedup = stats.register_double_t("Backward Weights Speedup", 0, sys::Average);
-        auto bw_wgt_par_mult = stats.register_double_t("Backward Weights Multiplications", 0, sys::AverageTotal);
-        auto bw_wgt_bit_multiplications = stats.register_uint_t("Backward Weights Bit Multiplications", 0, sys::AverageTotal);
+        auto bw_wgt_par_mult = stats.register_double_t("Backward Weights Multiplications", 0, sys::Total);
+        auto bw_wgt_bit_multiplications = stats.register_uint_t("Backward Weights Bit Multiplications", 0, sys::Total);
 
         auto wgt_out_grad_work_reduction = stats.register_double_t("Backward Output Gradients Work Reduction", 0, sys::Average);
         auto wgt_out_grad_speedup = stats.register_double_t("Backward Output Gradients Speedup", 0, sys::Average);
-        auto wgt_out_grad_par_mult = stats.register_double_t("Backward Output Gradients Multiplications", 0, sys::AverageTotal);
-        auto wgt_out_grad_bit_multiplications = stats.register_uint_t("Backward Output Gradients Bit Multiplications", 0, sys::AverageTotal);
+        auto wgt_out_grad_par_mult = stats.register_double_t("Backward Output Gradients Multiplications", 0, sys::Total);
+        auto wgt_out_grad_bit_multiplications = stats.register_uint_t("Backward Output Gradients Bit Multiplications", 0, sys::Total);
 
         auto bw_act_work_reduction = stats.register_double_t("Backward Activations Work Reduction", 0, sys::Average);
         auto bw_act_speedup = stats.register_double_t("Backward Activations Speedup", 0, sys::Average);
-        auto bw_act_par_mult = stats.register_double_t("Backward Activations Multiplications", 0, sys::AverageTotal);
-        auto bw_act_bit_multiplications = stats.register_uint_t("Backward Activations Bit Multiplications", 0, sys::AverageTotal);
+        auto bw_act_par_mult = stats.register_double_t("Backward Activations Multiplications", 0, sys::Total);
+        auto bw_act_bit_multiplications = stats.register_uint_t("Backward Activations Bit Multiplications", 0, sys::Total);
 
         auto act_out_grad_work_reduction = stats.register_double_t("Backward Output Gradients Work Reduction", 0, sys::Average);
         auto act_out_grad_speedup = stats.register_double_t("Backward Output Gradients Speedup", 0, sys::Average);
-        auto act_out_grad_par_mult = stats.register_double_t("Backward Output Gradients Multiplications", 0, sys::AverageTotal);
-        auto act_out_grad_bit_multiplications = stats.register_uint_t("Backward Output Gradients Bit Multiplications", 0, sys::AverageTotal);
+        auto act_out_grad_par_mult = stats.register_double_t("Backward Output Gradients Multiplications", 0, sys::Total);
+        auto act_out_grad_bit_multiplications = stats.register_uint_t("Backward Output Gradients Bit Multiplications", 0, sys::Total);
 
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
@@ -1279,17 +1295,17 @@ namespace core {
                         }
                     }
 
-                    act_bit_multiplications->value[layer_it][n] = act_bit_counter;
-                    act_work_reduction->value[layer_it][n] = 100 - ((double)act_bit_counter / (double)fw_parallel_mult
+                    act_bit_multiplications->value[n][layer_it] = act_bit_counter;
+                    act_work_reduction->value[n][layer_it] = 100 - ((double)act_bit_counter / (double)fw_parallel_mult
                             / MAX_BITS * 100);
-                    act_speedup->value[layer_it][n] = (double)fw_parallel_mult * MAX_BITS / (double)act_bit_counter;
-                    act_par_mult->value[layer_it][n] = fw_parallel_mult;
+                    act_speedup->value[n][layer_it] = (double)fw_parallel_mult * MAX_BITS / (double)act_bit_counter;
+                    act_par_mult->value[n][layer_it] = fw_parallel_mult;
 
-                    wgt_bit_multiplications->value[layer_it][n] = wgt_bit_counter;
-                    wgt_work_reduction->value[layer_it][n] = 100 - ((double)wgt_bit_counter / (double)fw_parallel_mult
+                    wgt_bit_multiplications->value[n][layer_it] = wgt_bit_counter;
+                    wgt_work_reduction->value[n][layer_it] = 100 - ((double)wgt_bit_counter / (double)fw_parallel_mult
                             / MAX_BITS * 100);
-                    wgt_speedup->value[layer_it][n] = (double)fw_parallel_mult * MAX_BITS / (double)wgt_bit_counter;
-                    wgt_par_mult->value[layer_it][n] = fw_parallel_mult;
+                    wgt_speedup->value[n][layer_it] = (double)fw_parallel_mult * MAX_BITS / (double)wgt_bit_counter;
+                    wgt_par_mult->value[n][layer_it] = fw_parallel_mult;
 
                 }
 
@@ -1341,19 +1357,19 @@ namespace core {
 
                     }
 
-                    bw_act_bit_multiplications->value[layer_it][n] = act_bit_counter;
-                    bw_act_work_reduction->value[layer_it][n] = 100 - ((double)act_bit_counter /
+                    bw_act_bit_multiplications->value[n][layer_it] = act_bit_counter;
+                    bw_act_work_reduction->value[n][layer_it] = 100 - ((double)act_bit_counter /
                             (double)bw_act_parallel_mult / MAX_BITS * 100);
-                    bw_act_speedup->value[layer_it][n] = (double)bw_act_parallel_mult * MAX_BITS /
+                    bw_act_speedup->value[n][layer_it] = (double)bw_act_parallel_mult * MAX_BITS /
                             (double)act_bit_counter;
-                    bw_act_par_mult->value[layer_it][n] = bw_act_parallel_mult;
+                    bw_act_par_mult->value[n][layer_it] = bw_act_parallel_mult;
 
-                    act_out_grad_bit_multiplications->value[layer_it][n] = out_grad_bit_counter;
-                    act_out_grad_work_reduction->value[layer_it][n] = 100 - ((double)out_grad_bit_counter /
+                    act_out_grad_bit_multiplications->value[n][layer_it] = out_grad_bit_counter;
+                    act_out_grad_work_reduction->value[n][layer_it] = 100 - ((double)out_grad_bit_counter /
                             (double)bw_act_parallel_mult / MAX_BITS * 100);
-                    act_out_grad_speedup->value[layer_it][n] = (double)bw_act_parallel_mult * MAX_BITS /
+                    act_out_grad_speedup->value[n][layer_it] = (double)bw_act_parallel_mult * MAX_BITS /
                             (double)out_grad_bit_counter;
-                    act_out_grad_par_mult->value[layer_it][n] = bw_act_parallel_mult;
+                    act_out_grad_par_mult->value[n][layer_it] = bw_act_parallel_mult;
 
                 }
 
@@ -1414,19 +1430,19 @@ namespace core {
                         }
                     }
 
-                    bw_wgt_bit_multiplications->value[layer_it][n] = wgt_bit_counter;
-                    bw_wgt_work_reduction->value[layer_it][n] = 100 - ((double)wgt_bit_counter /
+                    bw_wgt_bit_multiplications->value[n][layer_it]= wgt_bit_counter;
+                    bw_wgt_work_reduction->value[n][layer_it] = 100 - ((double)wgt_bit_counter /
                             (double)bw_wgt_parallel_mult / MAX_BITS * 100);
-                    bw_wgt_speedup->value[layer_it][n] = (double)fw_parallel_mult * MAX_BITS /
+                    bw_wgt_speedup->value[n][layer_it] = (double)fw_parallel_mult * MAX_BITS /
                             (double)bw_wgt_parallel_mult;
-                    bw_wgt_par_mult->value[layer_it][n] = bw_wgt_parallel_mult;
+                    bw_wgt_par_mult->value[n][layer_it] = bw_wgt_parallel_mult;
 
-                    wgt_out_grad_bit_multiplications->value[layer_it][n] = out_grad_bit_counter;
-                    wgt_out_grad_work_reduction->value[layer_it][n] = 100 - ((double)out_grad_bit_counter /
+                    wgt_out_grad_bit_multiplications->value[n][layer_it] = out_grad_bit_counter;
+                    wgt_out_grad_work_reduction->value[n][layer_it] = 100 - ((double)out_grad_bit_counter /
                             (double)bw_wgt_parallel_mult / MAX_BITS * 100);
-                    wgt_out_grad_speedup->value[layer_it][n] = (double)bw_wgt_parallel_mult * MAX_BITS /
+                    wgt_out_grad_speedup->value[n][layer_it] = (double)bw_wgt_parallel_mult * MAX_BITS /
                             (double)out_grad_bit_counter;
-                    wgt_out_grad_par_mult->value[layer_it][n] = bw_wgt_parallel_mult;
+                    wgt_out_grad_par_mult->value[n][layer_it] = bw_wgt_parallel_mult;
 
                 }
 
