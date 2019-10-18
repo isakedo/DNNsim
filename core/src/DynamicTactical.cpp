@@ -580,7 +580,7 @@ namespace core {
                             schedule_buffer activation_buffer = schedule_buffer(time_per_window_channel,
                                     std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0, 0)));
 
-                            uint64_t ideal_time_per_window_channel = 1;
+                            uint64_t ideal_time_per_window_channel = 0;
 
                             for (int w = 0; w < x_windows.size(); ++w) {
                                 auto x_window = x_windows[w];
