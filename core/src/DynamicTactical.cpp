@@ -532,8 +532,8 @@ namespace core {
 
                     // Generate output gradients buffer
                     auto num_out_grad_sets = (uint64_t)ceil(out_channels / (double)N_ROWS);
-                    auto Ox_dil_pad = (uint64_t)ceil(Ox_dil / (double)N_LANES) * N_LANES;
-                    auto time_per_out_grad_channel = (uint64_t)ceil(Ox_dil_pad * Oy_dil / (double)N_LANES);
+                    auto spatial_pad = (uint64_t)ceil(Ox_dil * Ox_dil/ (double)N_LANES) * N_LANES;
+                    auto time_per_out_grad_channel = (uint64_t)ceil(spatial_pad / (double)N_LANES);
 
                     std::vector<schedule_buffer> out_gradients_buffer = std::vector<schedule_buffer>(num_out_grad_sets,
                             schedule_buffer(time_per_out_grad_channel, std::vector<value_mux>(N_ROWS * N_LANES,
@@ -549,9 +549,9 @@ namespace core {
 
                         uint64_t non_zeroes = 0;
 
+                        int index = 0;
                         int time = 0;
                         for (int y = 0; y < Oy_dil; ++y) {
-                            int index = 0;
                             for (int x = 0; x < Ox_dil; ++x) {
                                 auto out_bits = out_grad.get(0, o, x, y);
                                 int pos = (o % N_ROWS) * N_LANES + index;
@@ -563,8 +563,6 @@ namespace core {
                                 }
                                 if (out_bits != 0) non_zeroes++;
                             }
-                            if (index != 0)
-                                time++;
                         }
                         auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
                         if (ideal_time > ideal_time_per_out_grad_channel[set_out])
@@ -579,7 +577,7 @@ namespace core {
                         for (int k = 0; k < act_channels; k += N_COLUMNS) {
 
                             // Generate activation buffer
-                            auto time_per_act_channel = (uint64_t)ceil(Ox_dil_pad * Oy_dil / (double)N_LANES);
+                            auto time_per_act_channel = (uint64_t)ceil(spatial_pad / (double)N_LANES);
 
                             schedule_buffer activation_buffer = schedule_buffer(time_per_act_channel,
                                     std::vector<value_mux>(N_COLUMNS * N_LANES, std::make_tuple(0.0f, 0, 0)));
@@ -591,9 +589,9 @@ namespace core {
 
                                 uint64_t non_zeroes = 0;
 
+                                int index = 0;
                                 int time = 0;
                                 for (int y = 0; y < Oy_dil; ++y) {
-                                    int index = 0;
                                     for (int x = 0; x < Ox_dil; ++x) {
                                         auto act_bits = act.get(0, act_channel, x_window + x, y_window + y);
                                         int pos = (act_channel % N_COLUMNS) * N_LANES + index;
@@ -605,8 +603,6 @@ namespace core {
                                         }
                                         if (act_bits != 0) non_zeroes++;
                                     }
-                                    if (index != 0)
-                                        time++;
                                 }
                                 auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
                                 if (ideal_time > ideal_time_per_act_channel)
@@ -704,7 +700,7 @@ namespace core {
                         for (int k = 0; k < act_channels; k += N_COLUMNS) {
 
                             // Generate activation buffer
-                            auto time_per_act_channel = (uint64_t)ceil(Ox_dil_pad * Oy_dil / (double)N_LANES);
+                            auto time_per_act_channel = (uint64_t)ceil(spatial_pad / (double)N_LANES);
 
                             std::vector<std::vector<float>> activation_buffer = std::vector<std::vector<float>>(
                                     time_per_act_channel, std::vector<float>(N_COLUMNS * N_LANES, 0.0f));
@@ -712,9 +708,9 @@ namespace core {
                             for(int act_channel = k; act_channel < std::min((uint64_t)k + N_COLUMNS, act_channels);
                                 ++act_channel) {
 
+                                int index = 0;
                                 int time = 0;
                                 for (int y = 0; y < Oy_dil; ++y) {
-                                    int index = 0;
                                     for (int x = 0; x < Ox_dil; ++x) {
                                         auto act_bits = act.get(0, act_channel, x_window + x, y_window + y);
                                         int pos = (act_channel % N_COLUMNS) * N_LANES + index;
@@ -725,8 +721,6 @@ namespace core {
                                             index = 0;
                                         }
                                     }
-                                    if (index != 0)
-                                        time++;
                                 }
 
                             }
