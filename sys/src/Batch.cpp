@@ -69,9 +69,6 @@ namespace sys {
                     if(value != "L" && value != "T")
                         throw std::runtime_error("BitTactical search shape for network " + simulate.network +
                                                  " must be <L|T>.");
-                    if(value == "T" && (experiment.lookahead_h != 2 || experiment.lookaside_d != 5))
-                        throw std::runtime_error("BitTactical search T-shape for network " + simulate.network +
-                                                 " must be lookahead of 2, and lookaside of 5.");
 
                 } else throw std::runtime_error("Training architecture for network " + simulate.network +
                                                 " in BFloat16 must be <DynamicStripesFP>.");

@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <numeric>
 #include <unistd.h>
+#include <math.h>
 
 // Don't commit changes in global variables
 // If want to launch program uncomment DEBUG, and comment OPENMP

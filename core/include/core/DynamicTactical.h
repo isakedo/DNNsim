@@ -108,13 +108,20 @@ namespace core {
                 for (int h = 1; h <= LOOKAHEAD_H; ++h)
                     SEARCH_MAP.emplace_back(std::make_tuple(h,0));
 
-                for (int d = 1; d <= LOOKAHEAD_H; ++d)
-                    SEARCH_MAP.emplace_back(std::make_tuple(d,-d));
-
-                for (int d = 1; d <= LOOKAHEAD_H; ++d)
-                    SEARCH_MAP.emplace_back(std::make_tuple(d,d));
-
-                SEARCH_MAP.emplace_back(std::make_tuple(1,-3));
+                int h = 1;
+                int d = 1;
+                bool sign = false;
+                for (int i = 0; i < LOOKASIDE_D; ++i) {
+                    SEARCH_MAP.emplace_back(std::make_tuple(h,d));
+                    d *= -1;
+                    if (sign) {
+                        d++;
+                        h++;
+                        if (h > LOOKAHEAD_H) h = 1;
+                        sign = false;
+                    } else
+                        sign = true;
+                }
 
             }
         }

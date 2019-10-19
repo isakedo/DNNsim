@@ -137,7 +137,11 @@ namespace core {
 
         // Initialize statistics
         std::string arch = "DynamicTactical";
-        std::string filename = arch + "_cycles";
+        int mux_entries = LOOKAHEAD_H + LOOKASIDE_D + 1;
+        std::string filename = "DynamicTactical_L" + std::to_string(this->N_LANES) + "_C" +
+                std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS) + "_T" +
+                std::to_string(this->N_TILES) + "_" + this->SEARCH_SHAPE + std::to_string(mux_entries) + "("
+                + std::to_string(this->LOOKAHEAD_H) + "-" + std::to_string(this->LOOKASIDE_D) + ")" + "_cycles";
         sys::Stats stats = sys::Stats(epochs, network_model.getNumLayers(), filename);
         stats.setTraining(true);
 
@@ -146,22 +150,29 @@ namespace core {
         auto fw_base_compute_cycles = stats.register_uint_t("Forward base compute cycles", 0, sys::Total);
         auto fw_speedup = stats.register_double_t("Forward speedup", 0, sys::Special);
         auto fw_ideal_compute_cycles = stats.register_uint_t("Forward ideal compute cycles", 0, sys::Total);
+        auto fw_exploited_sparsity = stats.register_double_t("Forward exploited sparsity", 0, sys::Special);
 
         // Backward stats
         auto bw_wgt_act_compute_cycles = stats.register_uint_t("Backward Weights A.S compute cycles", 0, sys::Total);
         auto bw_wgt_act_base_compute_cycles = stats.register_uint_t("Backward Weights A.S base compute cycles", 0, sys::Total);
         auto bw_wgt_act_speedup = stats.register_double_t("Backward Weights A.S speedup", 0, sys::Special);
         auto bw_wgt_act_ideal_compute_cycles = stats.register_uint_t("Backward Weights A.S ideal compute cycles", 0, sys::Total);
+        auto bw_wgt_act_exploited_sparsity = stats.register_double_t("Backward Weights A.S exploited sparsity", 0, sys::Special);
 
         auto bw_wgt_out_compute_cycles = stats.register_uint_t("Backward Weights G.S compute cycles", 0, sys::Total);
         auto bw_wgt_out_base_compute_cycles = stats.register_uint_t("Backward Weights G.S base compute cycles", 0, sys::Total);
         auto bw_wgt_out_speedup = stats.register_double_t("Backward Weights G.S speedup", 0, sys::Special);
         auto bw_wgt_out_ideal_compute_cycles = stats.register_uint_t("Backward Weights G.S ideal compute cycles", 0, sys::Total);
+        auto bw_wgt_out_exploited_sparsity = stats.register_double_t("Backward Weights G.S exploited sparsity", 0, sys::Special);
+
+        auto bw_wgt_compute_cycles = stats.register_uint_t("Backward Weights compute cycles", 0, sys::Total);
+        auto bw_wgt_speedup = stats.register_double_t("Backward Weights speedup", 0, sys::Special);
 
         auto bw_in_compute_cycles = stats.register_uint_t("Backward Input compute cycles", 0, sys::Total);
         auto bw_in_base_compute_cycles = stats.register_uint_t("Backward Input base compute cycles", 0, sys::Total);
         auto bw_in_speedup = stats.register_double_t("Backward Input speedup", 0, sys::Special);
         auto bw_in_ideal_compute_cycles = stats.register_uint_t("Backward Input ideal compute cycles", 0, sys::Total);
+        auto bw_in_exploited_sparsity = stats.register_double_t("Backward Input exploited sparsity", 0, sys::Special);
 
         // Simulate epochs
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
@@ -176,8 +187,8 @@ namespace core {
             int batch;
 
             auto max_threads = omp_get_max_threads();
-            omp_set_num_threads(std::min(max_threads, this->N_THREADS));
-            #pragma omp parallel for private(batch)
+            //omp_set_num_threads(std::min(max_threads, this->N_THREADS));
+            //#pragma omp parallel for private(batch)
             for (batch = 0; batch < num_batches; ++batch) {
 
                 // Forward pass
@@ -1096,41 +1107,133 @@ namespace core {
 
             } // Batch
 
-            // Calculate speedups
+            // Calculate special stats
             for (int layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
+
                 fw_speedup->value[epoch][layer_it] = fw_base_compute_cycles->value[epoch][layer_it] /
                         (double)fw_compute_cycles->value[epoch][layer_it];
+                fw_exploited_sparsity->value[epoch][layer_it] =
+                        (fw_base_compute_cycles->value[epoch][layer_it] -
+                        fw_compute_cycles->value[epoch][layer_it])
+                        / (double)(fw_base_compute_cycles->value[epoch][layer_it] -
+                        fw_ideal_compute_cycles->value[epoch][layer_it]) * 100.;
+                if (isnan(fw_exploited_sparsity->value[epoch][layer_it]))
+                    fw_exploited_sparsity->value[epoch][layer_it] = 0;
+
                 bw_wgt_act_speedup->value[epoch][layer_it] = bw_wgt_act_base_compute_cycles->value[epoch][layer_it] /
                         (double)bw_wgt_act_compute_cycles->value[epoch][layer_it];
+                bw_wgt_act_exploited_sparsity->value[epoch][layer_it] =
+                        (bw_wgt_act_base_compute_cycles->value[epoch][layer_it] -
+                         bw_wgt_act_compute_cycles->value[epoch][layer_it])
+                        / (double)(bw_wgt_act_base_compute_cycles->value[epoch][layer_it] -
+                        bw_wgt_act_ideal_compute_cycles->value[epoch][layer_it]) * 100.;
+                if (isnan(bw_wgt_act_exploited_sparsity->value[epoch][layer_it]))
+                    bw_wgt_act_exploited_sparsity->value[epoch][layer_it] = 0;
+
                 bw_wgt_out_speedup->value[epoch][layer_it] = bw_wgt_out_base_compute_cycles->value[epoch][layer_it] /
                         (double)bw_wgt_out_compute_cycles->value[epoch][layer_it];
+                bw_wgt_out_exploited_sparsity->value[epoch][layer_it] =
+                        (bw_wgt_out_base_compute_cycles->value[epoch][layer_it] -
+                         bw_wgt_out_compute_cycles->value[epoch][layer_it])
+                        / (double)(bw_wgt_out_base_compute_cycles->value[epoch][layer_it] -
+                        bw_wgt_out_ideal_compute_cycles->value[epoch][layer_it]) * 100.;
+                if (isnan(bw_wgt_out_exploited_sparsity->value[epoch][layer_it]))
+                    bw_wgt_out_exploited_sparsity->value[epoch][layer_it] = 0;
+
+                bw_wgt_compute_cycles->value[epoch][layer_it] = std::min(bw_wgt_act_compute_cycles->value[epoch][layer_it],
+                        bw_wgt_out_compute_cycles->value[epoch][layer_it]);
+                bw_wgt_speedup->value[epoch][layer_it] = bw_wgt_out_base_compute_cycles->value[epoch][layer_it] /
+                        (double)bw_wgt_compute_cycles->value[epoch][layer_it];
+
                 if (layer_it != 0) {
                     bw_in_speedup->value[epoch][layer_it] = bw_in_base_compute_cycles->value[epoch][layer_it] /
                             (double) bw_in_compute_cycles->value[epoch][layer_it];
+                    bw_in_exploited_sparsity->value[epoch][layer_it] =
+                            (bw_in_base_compute_cycles->value[epoch][layer_it] -
+                             bw_in_compute_cycles->value[epoch][layer_it])
+                            / (double)(bw_in_base_compute_cycles->value[epoch][layer_it] -
+                            bw_in_ideal_compute_cycles->value[epoch][layer_it]) * 100.;
+                    if (isnan(bw_in_exploited_sparsity->value[epoch][layer_it]))
+                        bw_in_exploited_sparsity->value[epoch][layer_it] = 0;
                 }
+
             }
 
             fw_speedup->special_value_vector.push_back(sys::get_total(fw_base_compute_cycles->value[epoch]) /
                     (double)sys::get_total(fw_compute_cycles->value[epoch]));
-            bw_wgt_act_speedup->special_value_vector.push_back(sys::get_total(
-                    bw_wgt_act_base_compute_cycles->value[epoch]) /
+            fw_exploited_sparsity->special_value_vector.push_back((
+                    sys::get_total(fw_base_compute_cycles->value[epoch]) -
+                    sys::get_total(fw_compute_cycles->value[epoch])) /
+                    (double)(sys::get_total(fw_base_compute_cycles->value[epoch]) -
+                    sys::get_total(fw_ideal_compute_cycles->value[epoch])) * 100.);
+
+            bw_wgt_act_speedup->special_value_vector.push_back(
+                    sys::get_total(bw_wgt_act_base_compute_cycles->value[epoch]) /
                     (double)sys::get_total(bw_wgt_act_compute_cycles->value[epoch]));
-            bw_wgt_out_speedup->special_value_vector.push_back(sys::get_total(
-                    bw_wgt_out_base_compute_cycles->value[epoch]) /
+            bw_wgt_act_exploited_sparsity->special_value_vector.push_back(
+                    (sys::get_total(bw_wgt_act_base_compute_cycles->value[epoch]) -
+                    sys::get_total(bw_wgt_act_compute_cycles->value[epoch])) /
+                    (double)(sys::get_total(bw_wgt_act_base_compute_cycles->value[epoch]) -
+                    sys::get_total(bw_wgt_act_ideal_compute_cycles->value[epoch])) * 100.);
+
+            bw_wgt_out_speedup->special_value_vector.push_back(
+                    sys::get_total(bw_wgt_out_base_compute_cycles->value[epoch]) /
                     (double)sys::get_total(bw_wgt_out_compute_cycles->value[epoch]));
+            bw_wgt_out_exploited_sparsity->special_value_vector.push_back(
+                    (sys::get_total(bw_wgt_out_base_compute_cycles->value[epoch]) -
+                    sys::get_total(bw_wgt_out_compute_cycles->value[epoch])) /
+                    (double)(sys::get_total(bw_wgt_out_base_compute_cycles->value[epoch]) -
+                    sys::get_total(bw_wgt_out_ideal_compute_cycles->value[epoch])) * 100.);
+
+            bw_wgt_speedup->special_value_vector.push_back(
+                    sys::get_total(bw_wgt_out_base_compute_cycles->value[epoch]) /
+                    (double)sys::get_total(bw_wgt_compute_cycles->value[epoch]));
+
             bw_in_speedup->special_value_vector.push_back(sys::get_total(bw_in_base_compute_cycles->value[epoch]) /
                     (double)sys::get_total(bw_in_compute_cycles->value[epoch]));
+            bw_in_exploited_sparsity->special_value_vector.push_back(
+                    (sys::get_total(bw_in_base_compute_cycles->value[epoch]) -
+                    sys::get_total(bw_in_compute_cycles->value[epoch])) /
+                    (double)(sys::get_total(bw_in_base_compute_cycles->value[epoch]) -
+                    sys::get_total(bw_in_ideal_compute_cycles->value[epoch])) * 100.);
+
 
         } // Epoch
 
         fw_speedup->special_value = sys::get_total(fw_base_compute_cycles->value) /
                 (double)sys::get_total(fw_compute_cycles->value);
+        fw_exploited_sparsity->special_value =
+                (sys::get_total(fw_base_compute_cycles->value) -
+                sys::get_total(fw_compute_cycles->value)) /
+                (double)(sys::get_total(fw_base_compute_cycles->value) -
+                sys::get_total(fw_ideal_compute_cycles->value)) * 100.;
+
         bw_wgt_act_speedup->special_value = sys::get_total(bw_wgt_act_base_compute_cycles->value) /
                 (double)sys::get_total(bw_wgt_act_compute_cycles->value);
+        bw_wgt_act_exploited_sparsity->special_value =
+                (sys::get_total(bw_wgt_act_base_compute_cycles->value) -
+                sys::get_total(bw_wgt_act_compute_cycles->value)) /
+                (double)(sys::get_total(bw_wgt_act_base_compute_cycles->value) -
+                sys::get_total(bw_wgt_act_ideal_compute_cycles->value)) * 100.;
+
         bw_wgt_out_speedup->special_value = sys::get_total(bw_wgt_out_base_compute_cycles->value) /
                 (double)sys::get_total(bw_wgt_out_compute_cycles->value);
+        bw_wgt_out_exploited_sparsity->special_value =
+                (sys::get_total(bw_wgt_out_base_compute_cycles->value) -
+                sys::get_total(bw_wgt_out_compute_cycles->value)) /
+                (double)(sys::get_total(bw_wgt_out_base_compute_cycles->value) -
+                sys::get_total(bw_wgt_out_ideal_compute_cycles->value)) * 100.;
+
+        bw_wgt_speedup->special_value = sys::get_total(bw_wgt_out_base_compute_cycles->value) /
+                (double)sys::get_total(bw_wgt_compute_cycles->value);
+
         bw_in_speedup->special_value = sys::get_total(bw_in_base_compute_cycles->value) /
                 (double)sys::get_total(bw_in_compute_cycles->value);
+        bw_in_exploited_sparsity->special_value =
+                (sys::get_total(bw_in_base_compute_cycles->value) -
+                sys::get_total(bw_in_compute_cycles->value)) /
+                (double)(sys::get_total(bw_in_base_compute_cycles->value) -
+                sys::get_total(bw_in_ideal_compute_cycles->value)) * 100.;
 
         //Dump statistics
         std::string header = "DynamicTactical Number of Cycles for " + network_model.getName() + "\n";
@@ -1138,6 +1241,10 @@ namespace core {
         header += "Number of columns/windows in parallel: " + std::to_string(N_COLUMNS) + "\n";
         header += "Number of rows/filters in parallel: " + std::to_string(N_ROWS) + "\n";
         header += "Number of tiles: " + std::to_string(N_TILES) + "\n";
+        header += "Search shape: " + std::string(1, this->SEARCH_SHAPE) + "\n";
+        header += "Lookahead H: " + std::to_string(this->LOOKAHEAD_H) + "\n";
+        header += "Lookaside D: " + std::to_string(this->LOOKASIDE_D) + "\n";
+
         stats.dump_csv(network_model.getName(), network_model.getLayersName(), header, this->QUIET);
 
     }
