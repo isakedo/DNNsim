@@ -78,8 +78,19 @@ namespace core {
 
         auto max_time = schedule.size();
         auto groups = schedule.front().size() / N_LANES;
+        auto tmp_schedule = schedule;
+        schedule.clear();
 
+        int skip = 0;
         for (int time = 0; time < max_time; ++time) {
+
+            // Skip lines of zeroes
+            if (skip < LOOKAHEAD_H && check_zero_line(tmp_schedule[time])) {
+                skip++;
+                continue;
+            }
+            skip = 0;
+
             for (int group = 0; group < groups; ++group) {
 
                 int overlap = 1;
@@ -89,7 +100,7 @@ namespace core {
                     int init_lane = group * N_LANES;
                     std::vector<value_index> ineffectual_values;
                     for(int lane = init_lane; lane < init_lane + N_LANES; lane++) {
-                        auto value_tuple = schedule[time][lane];
+                        auto value_tuple = tmp_schedule[time][lane];
                         auto value_bits = std::get<0>(value_tuple);
                         if(value_bits == 0) ineffectual_values.emplace_back(std::make_tuple(time, lane));
                     }
@@ -100,7 +111,7 @@ namespace core {
                     std::vector<std::vector<value_index>> effectual_candidates (N_LANES, std::vector<value_index>());
                     for(auto inef_idx : ineffectual_values) {
                         auto lane = std::get<1>(inef_idx);
-                        effectual_candidates[lane % N_LANES] = search(schedule, inef_idx, max_time);
+                        effectual_candidates[lane % N_LANES] = search(tmp_schedule, inef_idx, max_time);
                         if(!effectual_candidates[lane % N_LANES].empty()) {
                             auto effectual_num_candidates = (uint16_t)effectual_candidates[lane % N_LANES].size();
                             num_candidates[lane % N_LANES] = effectual_num_candidates;
@@ -114,7 +125,7 @@ namespace core {
                         if(num_candidates[lane % N_LANES] == overlap) {
                             //Promote value
                             auto cand_idx = effectual_candidates[lane % N_LANES].front();
-                            promote(schedule, inef_idx, cand_idx);
+                            promote(tmp_schedule, inef_idx, cand_idx);
                             break;
                         }
                     }
@@ -122,6 +133,7 @@ namespace core {
                 } // Optimal promotion loop
 
             } // Group
+            schedule.emplace_back(tmp_schedule[time]);
         } // Time
 
     }
@@ -350,22 +362,13 @@ namespace core {
 
                         for (int set = 0; set < num_filter_sets; ++set) {
 
+                            batch_compute_cycles += activation_buffer.size();
                             batch_base_compute_cycles += time_per_window;
                             batch_ideal_compute_cycles += ideal_time_per_window;
 
-                            int skip = 0;
-                            for (int time = 0; time < time_per_window; ++time) {
+                            if (this->CHECK) {
+                                for (const auto &time_buffer : activation_buffer) {
 
-                                // Skip lines of zeroes
-                                if (skip < LOOKAHEAD_H && check_zero_line(activation_buffer[time])) {
-                                    skip++;
-                                    continue;
-                                }
-
-                                skip = 0;
-                                batch_compute_cycles++;
-
-                                if (this->CHECK) {
                                     for (int w = 0; w < x_windows.size(); ++w) {
                                         auto window_idx = w * N_LANES;
                                         auto x_window = x_windows[w];
@@ -380,9 +383,9 @@ namespace core {
 
                                             for (int lane = 0; lane < N_LANES; ++lane) {
 
-                                                auto act_bits = std::get<0>(activation_buffer[time][window_idx + lane]);
-                                                auto time_h = std::get<1>(activation_buffer[time][window_idx + lane]);
-                                                auto lane_d = std::get<2>(activation_buffer[time][window_idx + lane]);
+                                                auto act_bits = std::get<0>(time_buffer[window_idx + lane]);
+                                                auto time_h = std::get<1>(time_buffer[window_idx + lane]);
+                                                auto lane_d = std::get<2>(time_buffer[window_idx + lane]);
 
                                                 auto wgt_bits = weight_buffer[set][time_h][filter_idx + lane_d];
 
@@ -392,9 +395,8 @@ namespace core {
 
                                         } // Filter
                                     } // Window
-                                } // Check
-
-                            } // Time of the buffers
+                                } //Time of the buffer
+                            } // Check
 
                         } // Filter sets
 
@@ -625,22 +627,13 @@ namespace core {
 
                             for (int set = 0; set < num_out_grad_sets; ++set) {
 
+                                batch_wgt_act_compute_cycles += activation_buffer.size();
                                 batch_wgt_act_base_compute_cycles += time_per_act_channel;
                                 batch_wgt_act_ideal_compute_cycles += ideal_time_per_act_channel;
 
-                                int skip = 0;
-                                for (int time = 0; time < time_per_act_channel; ++time) {
+                                if (this->CHECK) {
+                                    for (const auto &time_buffer : activation_buffer) {
 
-                                    // Skip lines of zeroes
-                                    if (skip < LOOKAHEAD_H && check_zero_line(activation_buffer[time])) {
-                                        skip++;
-                                        continue;
-                                    }
-
-                                    skip = 0;
-                                    batch_wgt_act_compute_cycles++;
-
-                                    if (this->CHECK) {
                                         for (int a = 0; a < N_COLUMNS; ++a) {
                                             auto act_channel_idx = a * N_LANES;
                                             auto act_channel = k + a;
@@ -657,9 +650,9 @@ namespace core {
 
                                                 for (int lane = 0; lane < N_LANES; ++lane) {
 
-                                                    auto act_bits = std::get<0>(activation_buffer[time][act_channel_idx + lane]);
-                                                    auto time_h = std::get<1>(activation_buffer[time][act_channel_idx + lane]);
-                                                    auto lane_d = std::get<2>(activation_buffer[time][act_channel_idx + lane]);
+                                                    auto act_bits = std::get<0>(time_buffer[act_channel_idx + lane]);
+                                                    auto time_h = std::get<1>(time_buffer[act_channel_idx + lane]);
+                                                    auto lane_d = std::get<2>(time_buffer[act_channel_idx + lane]);
 
                                                     auto out_bits = std::get<0>(out_gradients_buffer
                                                             [set][time_h][out_grad_channel_idx + lane_d]);
@@ -672,9 +665,8 @@ namespace core {
 
                                             } // Output Gradients
                                         } // Window
-                                    } // Check
-
-                                } // Time of the buffers
+                                    } // Time of the buffers
+                                } // Check
 
                             } // Output Gradients Channels sets
 
@@ -738,22 +730,13 @@ namespace core {
 
                             for (int set = 0; set < num_out_grad_sets; ++set) {
 
+                                batch_wgt_out_compute_cycles += out_gradients_buffer[set].size();
                                 batch_wgt_out_base_compute_cycles += time_per_out_grad_channel;
                                 batch_wgt_out_ideal_compute_cycles += ideal_time_per_out_grad_channel[set];
 
-                                int skip = 0;
-                                for (int time = 0; time < time_per_act_channel; ++time) {
+                                if (this->CHECK) {
+                                    for (const auto &time_buffer : out_gradients_buffer[set]) {
 
-                                    // Skip lines of zeroes
-                                    if (skip < LOOKAHEAD_H && check_zero_line(out_gradients_buffer[set][time])) {
-                                        skip++;
-                                        continue;
-                                    }
-
-                                    skip = 0;
-                                    batch_wgt_out_compute_cycles++;
-
-                                    if (this->CHECK) {
                                         for (int a = 0; a < N_COLUMNS; ++a) {
                                             auto act_channel_idx = a * N_LANES;
                                             auto act_channel = k + a;
@@ -770,12 +753,9 @@ namespace core {
 
                                                 for (int lane = 0; lane < N_LANES; ++lane) {
 
-                                                    auto out_bits = std::get<0>(out_gradients_buffer
-                                                            [set][time][out_grad_channel_idx + lane]);
-                                                    auto time_h = std::get<1>(out_gradients_buffer
-                                                            [set][time][out_grad_channel_idx + lane]);
-                                                    auto lane_d = std::get<2>(out_gradients_buffer
-                                                            [set][time][out_grad_channel_idx + lane]);
+                                                    auto out_bits = std::get<0>(time_buffer[out_grad_channel_idx + lane]);
+                                                    auto time_h = std::get<1>(time_buffer[out_grad_channel_idx + lane]);
+                                                    auto lane_d = std::get<2>(time_buffer[out_grad_channel_idx + lane]);
 
                                                     auto act_bits = activation_buffer[time_h][act_channel_idx + lane_d];
 
@@ -787,9 +767,8 @@ namespace core {
 
                                             } // Output Gradients
                                         } // Window
-                                    } // Check
-
-                                } // Time of the buffers
+                                    } // Time of the buffers
+                                } // Check
 
                             } // Output Gradients Channels sets
 
@@ -1002,22 +981,13 @@ namespace core {
 
                         for (int set = 0; set < num_filter_sets; ++set) {
 
+                            batch_in_compute_cycles += gradients_buffer.size();
                             batch_in_base_compute_cycles += time_per_window;
                             batch_in_ideal_compute_cycles += ideal_time_per_window;
 
-                            int skip = 0;
-                            for (int time = 0; time < time_per_window; ++time) {
+                            if (this->CHECK) {
+                                for (const auto &time_buffer : gradients_buffer) {
 
-                                // Skip lines of zeroes
-                                if (skip < LOOKAHEAD_H && check_zero_line(gradients_buffer[time])) {
-                                    skip++;
-                                    continue;
-                                }
-
-                                skip = 0;
-                                batch_in_compute_cycles++;
-
-                                if (this->CHECK) {
                                     for (int w = 0; w < x_windows.size(); ++w) {
                                         auto window_idx = w * N_LANES;
                                         auto x_window = x_windows[w];
@@ -1032,9 +1002,9 @@ namespace core {
 
                                             for (int lane = 0; lane < N_LANES; ++lane) {
 
-                                                auto out_bits = std::get<0>(gradients_buffer[time][window_idx + lane]);
-                                                auto time_h = std::get<1>(gradients_buffer[time][window_idx + lane]);
-                                                auto lane_d = std::get<2>(gradients_buffer[time][window_idx + lane]);
+                                                auto out_bits = std::get<0>(time_buffer[window_idx + lane]);
+                                                auto time_h = std::get<1>(time_buffer[window_idx + lane]);
+                                                auto lane_d = std::get<2>(time_buffer[window_idx + lane]);
 
                                                 auto wgt_bits = weight_buffer[set][time_h][filter_idx + lane_d];
 
@@ -1044,9 +1014,8 @@ namespace core {
 
                                         } // Filter
                                     } // Window
-                                } // Check
-
-                            } // Time of the buffers
+                                } // Time of the buffers
+                            } // Check
 
                         } // Filter sets
 
