@@ -264,7 +264,7 @@ namespace core {
                     // Check window size
                     if ((Nx_pad - Kx)/stride + 1 != Ox)
                         throw std::runtime_error("Output activations incorrect X window sizes");
-                    if ((Ny_pad - Ky)/stride +1 != Oy)
+                    if ((Ny_pad - Ky)/stride + 1 != Oy)
                         throw std::runtime_error("Output activations incorrect Y window sizes");
 
                     // Simulate: Forward convolution A * W
