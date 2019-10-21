@@ -261,6 +261,12 @@ namespace core {
                     auto Nx_pad = act_shape_pad[2];
                     auto Ny_pad = act_shape_pad[3];
 
+                    // Check window size
+                    if ((Nx_pad - Kx + 1) != Ox)
+                        throw std::runtime_error("Output activations incorrect X window sizes");
+                    if ((Ny_pad - Ky + 1) != Oy)
+                        throw std::runtime_error("Output activations incorrect Y window sizes");
+
                     // Simulate: Forward convolution A * W
                     auto sim_output_activations = std::vector<std::vector<std::vector<double>>>(num_filters,
                             std::vector<std::vector<double>>(Ox, std::vector<double>(Oy, 0)));
@@ -531,7 +537,9 @@ namespace core {
 
                     // Check window size
                     if ((Nx_pad - Ox_dil + 1) != Kx)
-                        throw std::runtime_error("Weight gradients incorrect window sizes");
+                        throw std::runtime_error("Weight gradients incorrect X window sizes");
+                    if ((Ny_pad - Oy_dil + 1) != Ky)
+                        throw std::runtime_error("Weight gradients incorrect Y window sizes");
 
                     // Simulate: Backward convolution A * G = WG: Activations sparsity
                     auto sim_weight_act_gradients = std::vector<std::vector<std::vector<std::vector<double>>>>(
@@ -877,7 +885,9 @@ namespace core {
 
                     // Check window size
                     if ((Ox_pad - Kx + 1) != Nx)
-                        throw std::runtime_error("Input gradients incorrect window sizes");
+                        throw std::runtime_error("Input gradients incorrect X window sizes");
+                    if ((Oy_pad - Ky + 1) != Ny)
+                        throw std::runtime_error("Input gradients incorrect Y window sizes");
 
                     // Simulate: Backward convolution W * G = IG
                     auto sim_input_gradients = std::vector<std::vector<std::vector<double>>>(act_channels,
