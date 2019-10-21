@@ -154,6 +154,16 @@ namespace base {
          */
         void asym_zero_pad(int padding);
 
+        /** Zero padding for X dimension only
+         * @param padding   Padding of the layer
+         */
+        void zero_pad_x(int padding);
+
+        /** Zero padding for Y dimension only
+         * @param padding   Padding of the layer
+         */
+        void zero_pad_y(int padding);
+
         /**
          * Dilate the output gradrients to add splitting zeroes depeding on the stride
          * @param stride Stride of the layer

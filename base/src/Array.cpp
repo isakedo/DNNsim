@@ -587,6 +587,62 @@ namespace base {
     }
 
     template <typename T>
+    void Array<T>::zero_pad_x(int padding) {
+        auto batch_size = this->shape[0];
+        auto act_channels = this->shape[1];
+        auto Nx = this->shape[2];
+        auto Ny = this->shape[3];
+
+        auto tmp_data4D = Array4D(batch_size, Array3D(act_channels, Array2D(Nx + 2*padding, Array1D(Ny, 0))));
+
+        for(int n = 0; n < batch_size; n++) {
+            for (int k = 0; k < act_channels; k++) {
+                for (int i = 0; i < Nx; i++) {
+                    for(int j = 0; j < Ny; j++) {
+                        tmp_data4D[n][k][padding + i][j] = this->data4D[n][k][i][j];
+                    }
+                }
+            }
+        }
+
+        this->data4D.clear();
+        this->data4D = tmp_data4D;
+        this->shape.clear();
+        this->shape.push_back(batch_size);
+        this->shape.push_back(act_channels);
+        this->shape.push_back(Nx + 2*padding);
+        this->shape.push_back(Ny);
+    }
+
+    template <typename T>
+    void Array<T>::zero_pad_y(int padding) {
+        auto batch_size = this->shape[0];
+        auto act_channels = this->shape[1];
+        auto Nx = this->shape[2];
+        auto Ny = this->shape[3];
+
+        auto tmp_data4D = Array4D(batch_size, Array3D(act_channels, Array2D(Nx, Array1D(Ny + 2*padding, 0))));
+
+        for(int n = 0; n < batch_size; n++) {
+            for (int k = 0; k < act_channels; k++) {
+                for (int i = 0; i < Nx; i++) {
+                    for(int j = 0; j < Ny; j++) {
+                        tmp_data4D[n][k][i][padding + j] = this->data4D[n][k][i][j];
+                    }
+                }
+            }
+        }
+
+        this->data4D.clear();
+        this->data4D = tmp_data4D;
+        this->shape.clear();
+        this->shape.push_back(batch_size);
+        this->shape.push_back(act_channels);
+        this->shape.push_back(Nx);
+        this->shape.push_back(Ny + 2*padding);
+    }
+
+    template <typename T>
     void Array<T>::dilate_out_grad(int stride, int Nx_pad, int Kx) {
 
         auto batch_size = this->shape[0];

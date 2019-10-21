@@ -249,12 +249,12 @@ namespace core {
                     auto Ox = out_grad_shape[2];
                     auto Oy = out_grad_shape[3];
 
-                    bool asym_pad = false;
                     if (conv && padding > 0) {
-                        asym_pad = ((Nx - Kx + 2 * padding)/(double)stride + 1) != Ox;
+                        if (Kx < Ky) act.zero_pad_y(padding);
+                        else if (Ky < Kx) act.zero_pad_x(padding);
+                        else if (((Nx - Kx + 2 * padding)/(double)stride + 1) != Ox) act.asym_zero_pad(padding);
+                        else act.zero_pad(padding);
                     }
-
-                    if (conv && padding > 0) asym_pad ? act.asym_zero_pad(padding) : act.zero_pad(padding);
 
                     const std::vector<size_t> &act_shape_pad = act.getShape();
 
@@ -468,7 +468,7 @@ namespace core {
                 } // Forward pass
 
                 // Backward pass
-                for (int layer_it = network.getNumLayers() - 1; layer_it >= 0; layer_it--) {
+                for (int layer_it = 75; layer_it >= 0; layer_it--) {
 
                     if (simulate.only_forward)
                         continue;
@@ -515,12 +515,18 @@ namespace core {
                     auto Ox = out_grad_shape[2];
                     auto Oy = out_grad_shape[3];
 
-                    bool asym_pad = false;
+                    int pad_type = -1;
                     if (conv && padding > 0) {
-                        asym_pad = ((Nx - Kx + 2 * padding) / (double) stride + 1) != Ox;
+                        if (Kx < Ky) pad_type = 1;
+                        else if (Ky < Kx) pad_type = 2;
+                        else if (((Nx - Kx + 2 * padding)/(double)stride + 1) != Ox) pad_type = 3;
+                        else pad_type = 4;
                     }
 
-                    if (conv && padding > 0) asym_pad ? act.asym_zero_pad(padding) : act.zero_pad(padding);
+                    if (pad_type == 1) act.zero_pad_y(padding);
+                    else if (pad_type == 2) act.zero_pad_x(padding);
+                    else if (pad_type == 3) act.asym_zero_pad(padding);
+                    else if (pad_type == 4) act.zero_pad(padding);
 
                     const std::vector<size_t> &act_shape_pad = act.getShape();
 
@@ -902,9 +908,11 @@ namespace core {
                     if (layer_it == 0)
                         continue;
 
-                    if (conv && padding > 0)
-                        asym_pad ? out_grad.asym_zero_pad(padding + stride - 1) :
-                        out_grad.zero_pad(padding + stride - 1);
+                    if (pad_type == 1) out_grad.zero_pad_y(padding + stride - 1);
+                    else if (pad_type == 2) out_grad.zero_pad_x(padding + stride - 1);
+                    else if (pad_type == 3) out_grad.asym_zero_pad(padding + stride - 1);
+                    else if (pad_type == 4) out_grad.zero_pad(padding + stride - 1);
+                    else if ((Ox - Kx + 1) != Nx) out_grad.zero_pad(Kx - 1);
 
                     const std::vector<size_t> &out_grad_shape_pad = out_grad.getShape();
 
