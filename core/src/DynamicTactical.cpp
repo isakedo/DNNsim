@@ -19,6 +19,8 @@ namespace core {
 
     }
 
+    /* SCHEDULER */
+
     bool check_zero_line(const std::vector<value_mux> &schedule) {
         for(auto tuple : schedule) {
             auto value = std::get<0>(tuple);
@@ -78,14 +80,12 @@ namespace core {
 
         auto max_time = schedule.size();
         auto groups = schedule.front().size() / N_LANES;
-        auto tmp_schedule = schedule;
-        schedule.clear();
 
         int skip = 0;
         for (int time = 0; time < max_time; ++time) {
 
             // Skip lines of zeroes
-            if (skip < LOOKAHEAD_H && check_zero_line(tmp_schedule[time])) {
+            if (skip < LOOKAHEAD_H && check_zero_line(schedule[time])) {
                 skip++;
                 continue;
             }
@@ -100,7 +100,7 @@ namespace core {
                     int init_lane = group * N_LANES;
                     std::vector<value_index> ineffectual_values;
                     for(int lane = init_lane; lane < init_lane + N_LANES; lane++) {
-                        auto value_tuple = tmp_schedule[time][lane];
+                        auto value_tuple = schedule[time][lane];
                         auto value_bits = std::get<0>(value_tuple);
                         if(value_bits == 0) ineffectual_values.emplace_back(std::make_tuple(time, lane));
                     }
@@ -111,7 +111,7 @@ namespace core {
                     std::vector<std::vector<value_index>> effectual_candidates (N_LANES, std::vector<value_index>());
                     for(auto inef_idx : ineffectual_values) {
                         auto lane = std::get<1>(inef_idx);
-                        effectual_candidates[lane % N_LANES] = search(tmp_schedule, inef_idx, max_time);
+                        effectual_candidates[lane % N_LANES] = search(schedule, inef_idx, max_time);
                         if(!effectual_candidates[lane % N_LANES].empty()) {
                             auto effectual_num_candidates = (uint16_t)effectual_candidates[lane % N_LANES].size();
                             num_candidates[lane % N_LANES] = effectual_num_candidates;
@@ -125,7 +125,7 @@ namespace core {
                         if(num_candidates[lane % N_LANES] == overlap) {
                             //Promote value
                             auto cand_idx = effectual_candidates[lane % N_LANES].front();
-                            promote(tmp_schedule, inef_idx, cand_idx);
+                            promote(schedule, inef_idx, cand_idx);
                             break;
                         }
                     }
@@ -133,7 +133,6 @@ namespace core {
                 } // Optimal promotion loop
 
             } // Group
-            schedule.emplace_back(tmp_schedule[time]);
         } // Time
 
     }
@@ -199,8 +198,8 @@ namespace core {
             int batch;
 
             auto max_threads = omp_get_max_threads();
-            omp_set_num_threads(std::min(max_threads, this->N_THREADS));
-            #pragma omp parallel for private(batch)
+            //omp_set_num_threads(std::min(max_threads, this->N_THREADS));
+            //#pragma omp parallel for private(batch)
             for (batch = 0; batch < num_batches; ++batch) {
 
                 // Forward pass
@@ -368,12 +367,22 @@ namespace core {
 
                         for (int set = 0; set < num_filter_sets; ++set) {
 
-                            batch_compute_cycles += activation_buffer.size();
                             batch_base_compute_cycles += time_per_window;
                             batch_ideal_compute_cycles += ideal_time_per_window;
 
                             if (this->CHECK) {
+
+                                int skip = 0;
                                 for (const auto &time_buffer : activation_buffer) {
+
+                                    // Skip lines of zeroes
+                                    if (skip < LOOKAHEAD_H && check_zero_line(time_buffer)) {
+                                        skip++;
+                                        continue;
+                                    }
+                                    skip = 0;
+
+                                    batch_compute_cycles++;
 
                                     for (int w = 0; w < x_windows.size(); ++w) {
                                         auto window_idx = w * N_LANES;
@@ -468,7 +477,7 @@ namespace core {
                 } // Forward pass
 
                 // Backward pass
-                for (int layer_it = 75; layer_it >= 0; layer_it--) {
+                for (int layer_it = network.getNumLayers() - 1; layer_it >= 0; layer_it--) {
 
                     if (simulate.only_forward)
                         continue;
@@ -642,12 +651,22 @@ namespace core {
 
                             for (int set = 0; set < num_out_grad_sets; ++set) {
 
-                                batch_wgt_act_compute_cycles += activation_buffer.size();
                                 batch_wgt_act_base_compute_cycles += time_per_act_channel;
                                 batch_wgt_act_ideal_compute_cycles += ideal_time_per_act_channel;
 
                                 if (this->CHECK) {
+
+                                    int skip = 0;
                                     for (const auto &time_buffer : activation_buffer) {
+
+                                        // Skip lines of zeroes
+                                        if (skip < LOOKAHEAD_H && check_zero_line(time_buffer)) {
+                                            skip++;
+                                            continue;
+                                        }
+                                        skip = 0;
+
+                                        batch_wgt_act_compute_cycles++;
 
                                         for (int a = 0; a < N_ROWS; ++a) {
                                             auto act_channel_idx = a * N_LANES;
@@ -784,12 +803,22 @@ namespace core {
 
                             for (int set = 0; set < num_out_grad_sets_sch; ++set) {
 
-                                batch_wgt_out_compute_cycles += out_gradients_buffer_sch[set].size();
                                 batch_wgt_out_base_compute_cycles += time_per_out_grad_channel_sch;
                                 batch_wgt_out_ideal_compute_cycles += ideal_time_per_out_grad_channel_sch[set];
 
                                 if (this->CHECK) {
+
+                                    int skip = 0;
                                     for (const auto &time_buffer : out_gradients_buffer_sch[set]) {
+
+                                        // Skip lines of zeroes
+                                        if (skip < LOOKAHEAD_H && check_zero_line(time_buffer)) {
+                                            skip++;
+                                            continue;
+                                        }
+                                        skip = 0;
+
+                                        batch_wgt_out_compute_cycles++;
 
                                         for (int a = 0; a < N_COLUMNS; ++a) {
                                             auto act_channel_idx = a * N_LANES;
@@ -1039,12 +1068,22 @@ namespace core {
 
                         for (int set = 0; set < num_filter_sets; ++set) {
 
-                            batch_in_compute_cycles += gradients_buffer.size();
                             batch_in_base_compute_cycles += time_per_window;
                             batch_in_ideal_compute_cycles += ideal_time_per_window;
 
                             if (this->CHECK) {
+
+                                int skip = 0;
                                 for (const auto &time_buffer : gradients_buffer) {
+
+                                    // Skip lines of zeroes
+                                    if (skip < LOOKAHEAD_H && check_zero_line(time_buffer)) {
+                                        skip++;
+                                        continue;
+                                    }
+                                    skip = 0;
+
+                                    batch_in_compute_cycles++;
 
                                     for (int w = 0; w < x_windows.size(); ++w) {
                                         auto window_idx = w * N_LANES;
