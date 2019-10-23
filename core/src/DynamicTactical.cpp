@@ -137,6 +137,599 @@ namespace core {
 
     }
 
+    /* CHECKING FUNCTIONS */
+
+    template <typename T>
+    void check_result_channel_first(const std::vector<std::vector<std::vector<double>>> &sim_output,
+            const base::Array<T> &row_values, const base::Array<T> &column_values, uint64_t num_filters, uint64_t Ox,
+            uint64_t Oy, uint64_t Kx, uint64_t Ky, uint64_t row_channels, uint64_t column_channels, int stride) {
+
+        auto output = std::vector<std::vector<std::vector<double>>>(num_filters,
+                std::vector<std::vector<double>>(Ox, std::vector<double>(Oy, 0)));
+
+        // Actual convolution
+        for (int m = 0; m < num_filters; ++m) {
+
+            // Fix for MobileNet
+            int start_group = 0;
+            if(column_channels == 1 && row_channels != 1)
+                start_group = m;
+
+            // Number of Windows
+            for (int x = 0; x < Ox; ++x) {
+                for (int y = 0; y < Oy; ++y) {
+
+                    double sum = 0;
+
+                    // Window dimension
+                    for (int j = 0; j < Ky; ++j) {
+                        for (int i = 0; i < Kx; ++i) {
+                            for (int k = 0; k < column_channels; ++k) {
+                                sum += row_values.get(0, start_group + k, stride * x + i, stride * y + j) *
+                                       column_values.get(m, k, i, j);
+                            }
+                        }
+                    }
+
+                    output[m][x][y] = sum;
+                }
+            }
+        }
+
+        // Check values
+        for (int ch = 0; ch < num_filters; ++ch) {
+            for (int x = 0; x < Ox; ++x) {
+                for (int y = 0; y < Oy; ++y) {
+                    auto actual_value = output[ch][x][y];
+                    auto sim_value = sim_output[ch][x][y];
+                    auto error = (actual_value - sim_value) / sim_value;
+                    if (abs(error) > 1e-10)
+                        throw std::runtime_error("Forward convolution wrong value.");
+                }
+            }
+        }
+    }
+
+    template <typename T>
+    void check_result_spatial(const std::vector<std::vector<std::vector<std::vector<double>>>> &sim_output_act,
+            const std::vector<std::vector<std::vector<std::vector<double>>>> &sim_output_wgt,
+            const base::Array<T> &row_values, const base::Array<T> &column_values, uint64_t num_filters, uint64_t Ox,
+            uint64_t Oy, uint64_t Kx, uint64_t Ky, uint64_t row_channels, uint64_t column_channels,
+            uint64_t out_channels) {
+
+        auto output = std::vector<std::vector<std::vector<std::vector<double>>>>(num_filters,
+                std::vector<std::vector<std::vector<double>>>(out_channels, std::vector<std::vector<double>>(Kx,
+                std::vector<double>(Ky, 0))));
+
+        for (int o = 0; o < column_channels; ++o) {
+            for (int k = 0; k < row_channels; ++k) {
+
+                // Number of Windows
+                for (int x = 0; x < Kx; ++x) {
+                    for (int y = 0; y < Ky; ++y) {
+
+                        double sum = 0;
+
+                        // Window dimensions
+                        for (int j = 0; j < Oy; ++j) {
+                            for (int i = 0; i < Ox; ++i) {
+                                sum += column_values.get(0, o, i, j) * row_values.get(0, k, x + i, y + j);
+                            }
+                        }
+
+                        output[o][k][x][y] += sum;
+
+                    }
+                }
+
+            }
+        }
+
+        // Check values: Activations sparsity
+        for (int m = 0; m < num_filters; ++m) {
+            for (int ch = 0; ch < out_channels; ++ch) {
+                for (int x = 0; x < Kx; ++x) {
+                    for (int y = 0; y < Ky; ++y) {
+                        auto actual_value = output[m][ch][x][y];
+                        auto sim_value = sim_output_act[m][ch][x][y];
+                        auto error = (actual_value - sim_value) / sim_value;
+                        if (abs(error) > 1e-10)
+                            throw std::runtime_error("Backward weight gradients convolution "
+                                                     "(Act. Sparsity) wrong value.");
+                    }
+                }
+            }
+        }
+
+        // Check values: Gradients sparsity
+        for (int m = 0; m < num_filters; ++m) {
+            for (int ch = 0; ch < out_channels; ++ch) {
+                for (int x = 0; x < Kx; ++x) {
+                    for (int y = 0; y < Ky; ++y) {
+                        auto actual_value = output[m][ch][x][y];
+                        auto sim_value = sim_output_wgt[m][ch][x][y];
+                        auto error = (actual_value - sim_value) / sim_value;
+                        if (abs(error) > 1e-10)
+                            throw std::runtime_error("Backward weight gradients convolution "
+                                                     "(Grad. Sparsity) wrong value.");
+                    }
+                }
+            }
+        }
+
+    }
+
+    /* CONVOLUTION FUNCTIONS */
+
+    template <typename T>
+    void DynamicTactical<T>::channel_first_convolution(const base::Array<T> &values, const base::Array<T> &wgt,
+            uint64_t Wx, uint64_t Wy, uint64_t win_channels, uint64_t num_filters, uint64_t Kx, uint64_t Ky,
+            uint64_t wgt_channels, int stride, conv_stats &stats) {
+
+        auto sim_output_activations = std::vector<std::vector<std::vector<double>>>(num_filters,
+                std::vector<std::vector<double>>(Wx, std::vector<double>(Wy, 0)));
+
+        // Stats
+        stats.compute_cycles = 0;
+        stats.base_compute_cycles = 0;
+        stats.ideal_compute_cycles = 0;
+
+        // Generate weight buffer
+        auto num_filter_sets = (uint64_t)ceil(num_filters / (double)N_COLUMNS);
+
+        auto round_wgt_channels = (int)ceil(wgt_channels / (double)N_LANES) * N_LANES;
+        auto time_per_filter = (uint64_t)ceil(round_wgt_channels * Kx * Ky / (double)N_LANES);
+
+        non_schedule_buffer weight_buffer = non_schedule_buffer(num_filter_sets,
+                std::vector<std::vector<float>>(time_per_filter,std::vector<float>(N_COLUMNS * N_LANES, 0.0f)));
+
+        int set_wgt = -1;
+        for(int m = 0; m < num_filters; m++) {
+
+            if ((m % N_COLUMNS) == 0)
+                set_wgt++;
+
+            int time = 0;
+            for (int y = 0; y < Ky; ++y) {
+                for (int x = 0; x < Kx; ++x) {
+                    for (int k = 0; k < wgt_channels; k += N_LANES) {
+                        int index = 0;
+                        for(int channel = k; channel < std::min((uint64_t)k + N_LANES,
+                                                                wgt_channels); ++channel) {
+                            auto wgt_bits = wgt.get(m, channel, x, y);
+                            int pos = (m % N_COLUMNS) * N_LANES + index;
+                            weight_buffer[set_wgt][time][pos] = wgt_bits;
+                            index++;
+                            if(index == N_LANES) {
+                                time++;
+                                index = 0;
+                            }
+                        }
+                        if(index != 0)
+                            time++;
+                    }
+                }
+            }
+
+        }
+
+        std::vector<int> x_windows, y_windows;
+        int x_counter = 0, y_counter = 0;
+        while(this->iterateWindows(Wx, Wy, x_windows, y_windows, x_counter, y_counter, N_ROWS)) {
+
+            // Generate activation buffer
+            auto round_act_channels = (int)ceil(win_channels / (double)N_LANES) * N_LANES;
+            auto time_per_window = (uint64_t)ceil(round_act_channels * Kx * Ky / (double)N_LANES);
+
+            schedule_buffer activation_buffer = schedule_buffer(time_per_window,
+                    std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0, 0)));
+
+            uint64_t ideal_time_per_window = 0;
+
+            for (int w = 0; w < x_windows.size(); ++w) {
+                auto x_window = x_windows[w] * stride;
+                auto y_window = y_windows[w] * stride;
+
+                uint64_t non_zeroes = 0;
+
+                int time = 0;
+                for (int y = 0; y < Ky; ++y) {
+                    for (int x = 0; x < Kx; ++x) {
+                        for (int k = 0; k < win_channels; k += N_LANES) {
+                            int index = 0;
+                            for (int channel = k; channel < std::min((uint64_t)k + N_LANES, win_channels); ++channel) {
+                                auto value_bits = values.get(0, channel, x_window + x, y_window + y);
+                                int pos = w * N_LANES + index;
+                                activation_buffer[time][pos] = std::make_tuple(value_bits, time, index);
+                                index++;
+                                if(index == N_LANES) {
+                                    time++;
+                                    index = 0;
+                                }
+                                if (value_bits != 0) non_zeroes++;
+                            }
+                            if (index != 0)
+                                time++;
+                        }
+                    }
+                }
+                auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
+                if (ideal_time > ideal_time_per_window)
+                    ideal_time_per_window = ideal_time;
+
+            }
+
+            // Schedule buffer
+            original_schedule(activation_buffer);
+
+            for (int set = 0; set < num_filter_sets; ++set) {
+
+                stats.base_compute_cycles += time_per_window;
+                stats.ideal_compute_cycles += ideal_time_per_window;
+
+                if (this->CHECK) {
+
+                    int skip = 0;
+                    for (const auto &time_buffer : activation_buffer) {
+
+                        // Skip lines of zeroes
+                        if (skip < LOOKAHEAD_H && check_zero_line(time_buffer)) {
+                            skip++;
+                            continue;
+                        }
+                        skip = 0;
+
+                        stats.compute_cycles++;
+
+                        for (int w = 0; w < x_windows.size(); ++w) {
+                            auto window_idx = w * N_LANES;
+                            auto x_window = x_windows[w];
+                            auto y_window = y_windows[w];
+
+                            for (int f = 0; f < N_COLUMNS; ++f) {
+                                auto filter_idx = f * N_LANES;
+                                auto filter = set * N_COLUMNS + f;
+
+                                if (filter >= num_filters)
+                                    continue;
+
+                                for (int lane = 0; lane < N_LANES; ++lane) {
+
+                                    auto value_bits = std::get<0>(time_buffer[window_idx + lane]);
+                                    auto time_h = std::get<1>(time_buffer[window_idx + lane]);
+                                    auto lane_d = std::get<2>(time_buffer[window_idx + lane]);
+
+                                    auto wgt_bits = weight_buffer[set][time_h][filter_idx + lane_d];
+
+                                    sim_output_activations[filter][x_window][y_window] += value_bits * wgt_bits;
+
+                                } // Multiply 16 weights and 16 window values
+
+                            } // Filter
+                        } // Window
+                    } //Time of the buffer
+                } // Check
+
+            } // Filter sets
+
+        } // Window sets
+
+        // Check correctness of the outputs
+        if (this->CHECK)
+            check_result_channel_first(sim_output_activations, values, wgt, num_filters, Wx, Wy, Kx, Ky,
+                    win_channels, wgt_channels, stride);
+
+    }
+
+    template <typename T>
+    void DynamicTactical<T>::spatial_convolution(const base::Array<T> &act, const base::Array<T> &out_grad,
+            uint64_t act_channels, uint64_t Ox, uint64_t Oy, uint64_t out_channels, uint64_t num_filters, uint64_t Kx,
+            uint64_t Ky, uint64_t wgt_channels, conv_stats &act_stats, conv_stats &out_stats) {
+
+        // Activations sparsity
+        auto sim_weight_act_gradients = std::vector<std::vector<std::vector<std::vector<double>>>>(num_filters,
+                std::vector<std::vector<std::vector<double>>>(wgt_channels, std::vector<std::vector<double>>(Kx,
+                std::vector<double>(Ky, 0))));
+
+        // Stats
+        act_stats.compute_cycles = 0;
+        act_stats.base_compute_cycles = 0;
+        act_stats.ideal_compute_cycles = 0;
+
+        // Generate output gradients buffer
+        auto spatial_pad = (uint64_t)ceil(Ox * Ox / (double)N_LANES) * N_LANES;
+
+        auto num_out_grad_sets = (uint64_t)ceil(out_channels / (double)N_COLUMNS);
+        auto time_per_out_grad_channel = (uint64_t)ceil(spatial_pad / (double)N_LANES);
+
+        non_schedule_buffer out_gradients_buffer = non_schedule_buffer(num_out_grad_sets,
+                std::vector<std::vector<float>>(time_per_out_grad_channel,
+                std::vector<float>(N_COLUMNS * N_LANES, 0.0f)));
+
+        std::vector<uint64_t> ideal_time_per_out_grad_channel (ceil(out_channels/(double)N_COLUMNS), 0);
+
+        int set_out = -1;
+        for(int o = 0; o < out_channels; ++o) {
+
+            if ((o % N_COLUMNS) == 0)
+                set_out++;
+
+            uint64_t non_zeroes = 0;
+
+            int index = 0;
+            int time = 0;
+            for (int y = 0; y < Oy; ++y) {
+                for (int x = 0; x < Ox; ++x) {
+                    auto out_bits = out_grad.get(0, o, x, y);
+                    int pos = (o % N_COLUMNS) * N_LANES + index;
+                    out_gradients_buffer[set_out][time][pos] = out_bits;
+                    index++;
+                    if(index == N_LANES) {
+                        time++;
+                        index = 0;
+                    }
+                    if (out_bits != 0) non_zeroes++;
+                }
+            }
+            auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
+            if (ideal_time > ideal_time_per_out_grad_channel[set_out])
+                ideal_time_per_out_grad_channel[set_out] = ideal_time;
+        }
+
+
+        for (int window = 0; window < (Kx * Ky); ++window) {
+            auto x_window = window % Kx;
+            auto y_window = window / Kx;
+
+            for (int k = 0; k < act_channels; k += N_ROWS) {
+
+                // Generate activation buffer
+                auto time_per_act_channel = (uint64_t)ceil(spatial_pad / (double)N_LANES);
+
+                schedule_buffer activation_buffer = schedule_buffer(time_per_act_channel,
+                        std::vector<value_mux>(N_ROWS * N_LANES, std::make_tuple(0.0f, 0, 0)));
+
+                uint64_t ideal_time_per_act_channel = 0;
+
+                for(int act_channel = k; act_channel < std::min((uint64_t)k + N_ROWS, act_channels);
+                    ++act_channel) {
+
+                    uint64_t non_zeroes = 0;
+
+                    int index = 0;
+                    int time = 0;
+                    for (int y = 0; y < Oy; ++y) {
+                        for (int x = 0; x < Ox; ++x) {
+                            auto act_bits = act.get(0, act_channel, x_window + x, y_window + y);
+                            int pos = (act_channel % N_ROWS) * N_LANES + index;
+                            activation_buffer[time][pos] = std::make_tuple(act_bits, time, index);
+                            index++;
+                            if(index == N_LANES) {
+                                time++;
+                                index = 0;
+                            }
+                            if (act_bits != 0) non_zeroes++;
+                        }
+                    }
+                    auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
+                    if (ideal_time > ideal_time_per_act_channel)
+                        ideal_time_per_act_channel = ideal_time;
+                }
+
+                // Schedule buffer
+                original_schedule(activation_buffer);
+
+                for (int set = 0; set < num_out_grad_sets; ++set) {
+
+                    act_stats.base_compute_cycles += time_per_act_channel;
+                    act_stats.ideal_compute_cycles += ideal_time_per_act_channel;
+
+                    if (this->CHECK) {
+
+                        int skip = 0;
+                        for (const auto &time_buffer : activation_buffer) {
+
+                            // Skip lines of zeroes
+                            if (skip < LOOKAHEAD_H && check_zero_line(time_buffer)) {
+                                skip++;
+                                continue;
+                            }
+                            skip = 0;
+
+                            act_stats.compute_cycles++;
+
+                            for (int a = 0; a < N_ROWS; ++a) {
+                                auto act_channel_idx = a * N_LANES;
+                                auto act_channel = k + a;
+
+                                if (act_channel >= act_channels)
+                                    continue;
+
+                                for (int o = 0; o < N_COLUMNS; ++o) {
+                                    auto out_grad_channel_idx = o * N_LANES;
+                                    auto out_grad_channel = set * N_COLUMNS + o;
+
+                                    if (out_grad_channel >= out_channels)
+                                        continue;
+
+                                    for (int lane = 0; lane < N_LANES; ++lane) {
+
+                                        auto act_bits = std::get<0>(time_buffer[act_channel_idx + lane]);
+                                        auto time_h = std::get<1>(time_buffer[act_channel_idx + lane]);
+                                        auto lane_d = std::get<2>(time_buffer[act_channel_idx + lane]);
+
+                                        auto out_bits = out_gradients_buffer
+                                        [set][time_h][out_grad_channel_idx + lane_d];
+
+                                        sim_weight_act_gradients
+                                        [out_grad_channel][act_channel][x_window][y_window]
+                                                += act_bits * out_bits;
+
+                                    } // Multiply 16 output gradients and 16 activations
+
+                                } // Output Gradients
+                            } // Window
+                        } // Time of the buffers
+                    } // Check
+
+                } // Output Gradients Channels sets
+
+            } // Activations Channels sets
+
+        } // Windows
+
+        out_gradients_buffer.clear();
+
+        // Simulate: Backward convolution A * G = WG: Gradients sparsity
+        auto sim_weight_out_gradients = std::vector<std::vector<std::vector<std::vector<double>>>>(
+                num_filters, std::vector<std::vector<std::vector<double>>>(wgt_channels,
+                std::vector<std::vector<double>>(Kx, std::vector<double>(Ky, 0))));
+
+        // Stats
+        out_stats.compute_cycles = 0;
+        out_stats.base_compute_cycles = 0;
+        out_stats.ideal_compute_cycles = 0;
+
+        // Schedule output gradients
+        auto num_out_grad_sets_sch = (uint64_t)ceil(out_channels / (double)N_ROWS);
+        auto time_per_out_grad_channel_sch = (uint64_t)ceil(spatial_pad / (double)N_LANES);
+
+        std::vector<schedule_buffer> out_gradients_buffer_sch = std::vector<schedule_buffer>(
+                num_out_grad_sets_sch, schedule_buffer(time_per_out_grad_channel_sch,
+                std::vector<value_mux>(N_ROWS * N_LANES, std::make_tuple(0.0f, 0, 0))));
+
+        std::vector<uint64_t> ideal_time_per_out_grad_channel_sch (ceil(out_channels/(double)N_ROWS), 0);
+
+        int set_out_sch = -1;
+        for(int o = 0; o < out_channels; ++o) {
+
+            if ((o % N_ROWS) == 0)
+                set_out_sch++;
+
+            uint64_t non_zeroes = 0;
+
+            int index = 0;
+            int time = 0;
+            for (int y = 0; y < Oy; ++y) {
+                for (int x = 0; x < Ox; ++x) {
+                    auto out_bits = out_grad.get(0, o, x, y);
+                    int pos = (o % N_ROWS) * N_LANES + index;
+                    out_gradients_buffer_sch[set_out_sch][time][pos] = std::make_tuple(out_bits, time, index);
+                    index++;
+                    if(index == N_LANES) {
+                        time++;
+                        index = 0;
+                    }
+                    if (out_bits != 0) non_zeroes++;
+                }
+            }
+            auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
+            if (ideal_time > ideal_time_per_out_grad_channel_sch[set_out_sch])
+                ideal_time_per_out_grad_channel_sch[set_out_sch] = ideal_time;
+        }
+
+        for (auto &gradients_channel_buffer : out_gradients_buffer_sch) {
+            original_schedule(gradients_channel_buffer);
+        }
+
+        for (int window = 0; window < (Kx * Ky); ++window) {
+            auto x_window = window % Kx;
+            auto y_window = window / Kx;
+
+            for (int k = 0; k < act_channels; k += N_COLUMNS) {
+
+                // Generate activation buffer
+                auto time_per_act_channel = (uint64_t)ceil(spatial_pad / (double)N_LANES);
+
+                std::vector<std::vector<float>> activation_buffer = std::vector<std::vector<float>>(
+                        time_per_act_channel, std::vector<float>(N_COLUMNS * N_LANES, 0.0f));
+
+                for(int act_channel = k; act_channel < std::min((uint64_t)k + N_COLUMNS, act_channels);
+                    ++act_channel) {
+
+                    int index = 0;
+                    int time = 0;
+                    for (int y = 0; y < Oy; ++y) {
+                        for (int x = 0; x < Ox; ++x) {
+                            auto act_bits = act.get(0, act_channel, x_window + x, y_window + y);
+                            int pos = (act_channel % N_COLUMNS) * N_LANES + index;
+                            activation_buffer[time][pos] = act_bits;
+                            index++;
+                            if(index == N_LANES) {
+                                time++;
+                                index = 0;
+                            }
+                        }
+                    }
+
+                }
+
+                for (int set = 0; set < num_out_grad_sets_sch; ++set) {
+
+                    out_stats.base_compute_cycles += time_per_out_grad_channel_sch;
+                    out_stats.ideal_compute_cycles += ideal_time_per_out_grad_channel_sch[set];
+
+                    if (this->CHECK) {
+
+                        int skip = 0;
+                        for (const auto &time_buffer : out_gradients_buffer_sch[set]) {
+
+                            // Skip lines of zeroes
+                            if (skip < LOOKAHEAD_H && check_zero_line(time_buffer)) {
+                                skip++;
+                                continue;
+                            }
+                            skip = 0;
+
+                            out_stats.compute_cycles++;
+
+                            for (int a = 0; a < N_COLUMNS; ++a) {
+                                auto act_channel_idx = a * N_LANES;
+                                auto act_channel = k + a;
+
+                                if (act_channel >= act_channels)
+                                    continue;
+
+                                for (int o = 0; o < N_ROWS; ++o) {
+                                    auto out_grad_channel_idx = o * N_LANES;
+                                    auto out_grad_channel = set * N_ROWS + o;
+
+                                    if (out_grad_channel >= out_channels)
+                                        continue;
+
+                                    for (int lane = 0; lane < N_LANES; ++lane) {
+
+                                        auto out_bits = std::get<0>(time_buffer[out_grad_channel_idx + lane]);
+                                        auto time_h = std::get<1>(time_buffer[out_grad_channel_idx + lane]);
+                                        auto lane_d = std::get<2>(time_buffer[out_grad_channel_idx + lane]);
+
+                                        auto act_bits = activation_buffer[time_h][act_channel_idx + lane_d];
+
+                                        sim_weight_out_gradients
+                                        [out_grad_channel][act_channel][x_window][y_window]
+                                                += act_bits * out_bits;
+
+                                    } // Multiply 16 output gradients and 16 activations
+
+                                } // Output Gradients
+                            } // Window
+                        } // Time of the buffers
+                    } // Check
+
+                } // Output Gradients Channels sets
+            } // Activations Channels sets
+        } // Windows
+
+        out_gradients_buffer_sch.clear();
+
+        // Check correctness of the outputs
+        if (this->CHECK)
+            check_result_spatial(sim_weight_act_gradients, sim_weight_out_gradients, act, out_grad, num_filters,
+                                 Ox, Oy, Kx, Ky, act_channels, out_channels, wgt_channels);
+
+    }
+
+
     /* CYCLES */
 
     template <typename T>
@@ -267,212 +860,21 @@ namespace core {
                         throw std::runtime_error("Output activations incorrect Y window sizes");
 
                     // Simulate: Forward convolution A * W
-                    auto sim_output_activations = std::vector<std::vector<std::vector<double>>>(num_filters,
-                            std::vector<std::vector<double>>(Ox, std::vector<double>(Oy, 0)));
-
-                    // Stats
-                    uint64_t batch_compute_cycles = 0;
-                    uint64_t batch_base_compute_cycles = 0;
-                    uint64_t batch_ideal_compute_cycles = 0;
-
-                    // Generate weight buffer
-                    auto num_filter_sets = (uint64_t)ceil(num_filters / (double)N_COLUMNS);
-
-                    auto round_wgt_channels = (int)ceil(wgt_channels / (double)N_LANES) * N_LANES;
-                    auto time_per_filter = (uint64_t)ceil(round_wgt_channels * Kx * Ky / (double)N_LANES);
-
-                    non_schedule_buffer weight_buffer = non_schedule_buffer(num_filter_sets,
-                            std::vector<std::vector<float>>(time_per_filter,
-                            std::vector<float>(N_COLUMNS * N_LANES, 0.0f)));
-
-                    int set_wgt = -1;
-                    for(int m = 0; m < num_filters; m++) {
-
-                        if ((m % N_COLUMNS) == 0)
-                            set_wgt++;
-
-                        int time = 0;
-                        for (int y = 0; y < Ky; ++y) {
-                            for (int x = 0; x < Kx; ++x) {
-                                for (int k = 0; k < wgt_channels; k += N_LANES) {
-                                    int index = 0;
-                                    for(int channel = k; channel < std::min((uint64_t)k + N_LANES,
-                                            wgt_channels); ++channel) {
-                                        auto wgt_bits = wgt.get(m, channel, x, y);
-                                        int pos = (m % N_COLUMNS) * N_LANES + index;
-                                        weight_buffer[set_wgt][time][pos] = wgt_bits;
-                                        index++;
-                                        if(index == N_LANES) {
-                                            time++;
-                                            index = 0;
-                                        }
-                                    }
-                                    if(index != 0)
-                                        time++;
-                                }
-                            }
-                        }
-
+                    conv_stats batch_stats;
+                    if (wgt_channels == 1 && act_channels != 1) {
+                        //spatial_2d_convolution(act, wgt, Ox, Oy, act_channels, num_filters, Kx, Ky, wgt_channels,
+                        //                       stride, batch_stats);
+                    } else {
+                        channel_first_convolution(act, wgt, Ox, Oy, act_channels, num_filters, Kx, Ky, wgt_channels,
+                                stride, batch_stats);
                     }
-
-                    std::vector<int> x_windows, y_windows;
-                    int x_counter = 0, y_counter = 0;
-                    while(this->iterateWindows(Ox, Oy, x_windows, y_windows, x_counter, y_counter, N_ROWS)) {
-
-                        // Generate activation buffer
-                        auto round_act_channels = (int)ceil(act_channels / (double)N_LANES) * N_LANES;
-                        auto time_per_window = (uint64_t)ceil(round_act_channels * Kx * Ky / (double)N_LANES);
-
-                        schedule_buffer activation_buffer = schedule_buffer(time_per_window,
-                                std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0, 0)));
-
-                        uint64_t ideal_time_per_window = 0;
-
-                        for (int w = 0; w < x_windows.size(); ++w) {
-                            auto x_window = x_windows[w] * stride;
-                            auto y_window = y_windows[w] * stride;
-
-                            uint64_t non_zeroes = 0;
-
-                            int time = 0;
-                            for (int y = 0; y < Ky; ++y) {
-                                for (int x = 0; x < Kx; ++x) {
-                                    for (int k = 0; k < act_channels; k += N_LANES) {
-                                        int index = 0;
-                                        for (int channel = k; channel < std::min((uint64_t)k + N_LANES,
-                                                act_channels); ++channel) {
-                                            auto act_bits = act.get(0, channel, x_window + x, y_window + y);
-                                            int pos = w * N_LANES + index;
-                                            activation_buffer[time][pos] = std::make_tuple(act_bits, time, index);
-                                            index++;
-                                            if(index == N_LANES) {
-                                                time++;
-                                                index = 0;
-                                            }
-                                            if (act_bits != 0) non_zeroes++;
-                                        }
-                                        if (index != 0)
-                                            time++;
-                                    }
-                                }
-                            }
-                            auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
-                            if (ideal_time > ideal_time_per_window)
-                                ideal_time_per_window = ideal_time;
-
-                        }
-
-                        // Schedule buffer
-                        original_schedule(activation_buffer);
-
-                        for (int set = 0; set < num_filter_sets; ++set) {
-
-                            batch_base_compute_cycles += time_per_window;
-                            batch_ideal_compute_cycles += ideal_time_per_window;
-
-                            if (this->CHECK) {
-
-                                int skip = 0;
-                                for (const auto &time_buffer : activation_buffer) {
-
-                                    // Skip lines of zeroes
-                                    if (skip < LOOKAHEAD_H && check_zero_line(time_buffer)) {
-                                        skip++;
-                                        continue;
-                                    }
-                                    skip = 0;
-
-                                    batch_compute_cycles++;
-
-                                    for (int w = 0; w < x_windows.size(); ++w) {
-                                        auto window_idx = w * N_LANES;
-                                        auto x_window = x_windows[w];
-                                        auto y_window = y_windows[w];
-
-                                        for (int f = 0; f < N_COLUMNS; ++f) {
-                                            auto filter_idx = f * N_LANES;
-                                            auto filter = set * N_COLUMNS + f;
-
-                                            if (filter >= num_filters)
-                                                continue;
-
-                                            for (int lane = 0; lane < N_LANES; ++lane) {
-
-                                                auto act_bits = std::get<0>(time_buffer[window_idx + lane]);
-                                                auto time_h = std::get<1>(time_buffer[window_idx + lane]);
-                                                auto lane_d = std::get<2>(time_buffer[window_idx + lane]);
-
-                                                auto wgt_bits = weight_buffer[set][time_h][filter_idx + lane_d];
-
-                                                sim_output_activations[filter][x_window][y_window] += act_bits * wgt_bits;
-
-                                            } // Multiply 16 weights and 16 activations
-
-                                        } // Filter
-                                    } // Window
-                                } //Time of the buffer
-                            } // Check
-
-                        } // Filter sets
-
-                    } // Window sets
 
                     #pragma omp critical
                     {
-                        fw_compute_cycles->value[epoch][layer_it] += batch_compute_cycles;
-                        fw_base_compute_cycles->value[epoch][layer_it] += batch_base_compute_cycles;
-                        fw_ideal_compute_cycles->value[epoch][layer_it] += batch_ideal_compute_cycles;
+                        fw_compute_cycles->value[epoch][layer_it] += batch_stats.compute_cycles;
+                        fw_base_compute_cycles->value[epoch][layer_it] += batch_stats.base_compute_cycles;
+                        fw_ideal_compute_cycles->value[epoch][layer_it] += batch_stats.ideal_compute_cycles;
                     }
-
-                    // Check correctness of the outputs
-                    if (this->CHECK) {
-
-                        auto output_activations = std::vector<std::vector<std::vector<double>>>(num_filters,
-                                std::vector<std::vector<double>>(Ox, std::vector<double>(Oy, 0)));
-
-                        // Actual convolution
-                        for (int m = 0; m < num_filters; ++m) {
-
-                            // Fix for MobileNet
-                            int start_group = 0;
-                            if(wgt_channels == 1 && act_channels != 1)
-                                start_group = m;
-
-                            // Number of Windows
-                            for (int x = 0; x < Ox; ++x) {
-                                for (int y = 0; y < Oy; ++y) {
-
-                                    double sum = 0;
-
-                                    // Window dimension
-                                    for (int j = 0; j < Ky; ++j) {
-                                        for (int i = 0; i < Kx; ++i) {
-                                            for (int k = 0; k < wgt_channels; ++k) {
-                                                sum += act.get(0, start_group + k, stride * x + i,
-                                                        stride * y + j) * wgt.get(m, k, i, j);
-                                            }
-                                        }
-                                    }
-
-                                    output_activations[m][x][y] = sum;
-                                }
-                            }
-                        }
-
-                        // Check values
-                        for (int ch = 0; ch < num_filters; ++ch) {
-                            for (int x = 0; x < Ox; ++x) {
-                                for (int y = 0; y < Oy; ++y) {
-                                    auto actual_value = output_activations[ch][x][y];
-                                    auto sim_value = sim_output_activations[ch][x][y];
-                                    auto error = (actual_value - sim_value) / sim_value;
-                                    if (abs(error) > 1e-10)
-                                        throw std::runtime_error("Forward convolution wrong value.");
-                                }
-                            }
-                        }
-
-                    } // Check results
 
                 } // Forward pass
 
@@ -557,381 +959,20 @@ namespace core {
                         throw std::runtime_error("Weight gradients incorrect Y window sizes");
 
                     // Simulate: Backward convolution A * G = WG: Activations sparsity
-                    auto sim_weight_act_gradients = std::vector<std::vector<std::vector<std::vector<double>>>>(
-                            num_filters, std::vector<std::vector<std::vector<double>>>(wgt_channels,
-                            std::vector<std::vector<double>>(Kx, std::vector<double>(Ky, 0))));
-
-                    // Stats
-                    uint64_t batch_wgt_act_compute_cycles = 0;
-                    uint64_t batch_wgt_act_base_compute_cycles = 0;
-                    uint64_t batch_wgt_act_ideal_compute_cycles = 0;
-
-                    // Generate output gradients buffer
-                    auto spatial_pad = (uint64_t)ceil(Ox_dil * Ox_dil/ (double)N_LANES) * N_LANES;
-
-                    auto num_out_grad_sets = (uint64_t)ceil(out_channels / (double)N_COLUMNS);
-                    auto time_per_out_grad_channel = (uint64_t)ceil(spatial_pad / (double)N_LANES);
-
-                    non_schedule_buffer out_gradients_buffer = non_schedule_buffer(num_out_grad_sets,
-                            std::vector<std::vector<float>>(time_per_out_grad_channel,
-                            std::vector<float>(N_COLUMNS * N_LANES, 0.0f)));
-
-                    std::vector<uint64_t> ideal_time_per_out_grad_channel (ceil(out_channels/(double)N_COLUMNS), 0);
-
-                    int set_out = -1;
-                    for(int o = 0; o < out_channels; ++o) {
-
-                        if ((o % N_COLUMNS) == 0)
-                            set_out++;
-
-                        uint64_t non_zeroes = 0;
-
-                        int index = 0;
-                        int time = 0;
-                        for (int y = 0; y < Oy_dil; ++y) {
-                            for (int x = 0; x < Ox_dil; ++x) {
-                                auto out_bits = out_grad.get(0, o, x, y);
-                                int pos = (o % N_COLUMNS) * N_LANES + index;
-                                out_gradients_buffer[set_out][time][pos] = out_bits;
-                                index++;
-                                if(index == N_LANES) {
-                                    time++;
-                                    index = 0;
-                                }
-                                if (out_bits != 0) non_zeroes++;
-                            }
-                        }
-                        auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
-                        if (ideal_time > ideal_time_per_out_grad_channel[set_out])
-                            ideal_time_per_out_grad_channel[set_out] = ideal_time;
-                    }
-
-
-                    for (int window = 0; window < (Kx * Ky); ++window) {
-                        auto x_window = window % Kx;
-                        auto y_window = window / Kx;
-
-                        for (int k = 0; k < act_channels; k += N_ROWS) {
-
-                            // Generate activation buffer
-                            auto time_per_act_channel = (uint64_t)ceil(spatial_pad / (double)N_LANES);
-
-                            schedule_buffer activation_buffer = schedule_buffer(time_per_act_channel,
-                                    std::vector<value_mux>(N_ROWS * N_LANES, std::make_tuple(0.0f, 0, 0)));
-
-                            uint64_t ideal_time_per_act_channel = 0;
-
-                            for(int act_channel = k; act_channel < std::min((uint64_t)k + N_ROWS, act_channels);
-                                    ++act_channel) {
-
-                                uint64_t non_zeroes = 0;
-
-                                int index = 0;
-                                int time = 0;
-                                for (int y = 0; y < Oy_dil; ++y) {
-                                    for (int x = 0; x < Ox_dil; ++x) {
-                                        auto act_bits = act.get(0, act_channel, x_window + x, y_window + y);
-                                        int pos = (act_channel % N_ROWS) * N_LANES + index;
-                                        activation_buffer[time][pos] = std::make_tuple(act_bits, time, index);
-                                        index++;
-                                        if(index == N_LANES) {
-                                            time++;
-                                            index = 0;
-                                        }
-                                        if (act_bits != 0) non_zeroes++;
-                                    }
-                                }
-                                auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
-                                if (ideal_time > ideal_time_per_act_channel)
-                                    ideal_time_per_act_channel = ideal_time;
-                            }
-
-                            // Schedule buffer
-                            original_schedule(activation_buffer);
-
-                            for (int set = 0; set < num_out_grad_sets; ++set) {
-
-                                batch_wgt_act_base_compute_cycles += time_per_act_channel;
-                                batch_wgt_act_ideal_compute_cycles += ideal_time_per_act_channel;
-
-                                if (this->CHECK) {
-
-                                    int skip = 0;
-                                    for (const auto &time_buffer : activation_buffer) {
-
-                                        // Skip lines of zeroes
-                                        if (skip < LOOKAHEAD_H && check_zero_line(time_buffer)) {
-                                            skip++;
-                                            continue;
-                                        }
-                                        skip = 0;
-
-                                        batch_wgt_act_compute_cycles++;
-
-                                        for (int a = 0; a < N_ROWS; ++a) {
-                                            auto act_channel_idx = a * N_LANES;
-                                            auto act_channel = k + a;
-
-                                            if (act_channel >= act_channels)
-                                                continue;
-
-                                            for (int o = 0; o < N_COLUMNS; ++o) {
-                                                auto out_grad_channel_idx = o * N_LANES;
-                                                auto out_grad_channel = set * N_COLUMNS + o;
-
-                                                if (out_grad_channel >= out_channels)
-                                                    continue;
-
-                                                for (int lane = 0; lane < N_LANES; ++lane) {
-
-                                                    auto act_bits = std::get<0>(time_buffer[act_channel_idx + lane]);
-                                                    auto time_h = std::get<1>(time_buffer[act_channel_idx + lane]);
-                                                    auto lane_d = std::get<2>(time_buffer[act_channel_idx + lane]);
-
-                                                    auto out_bits = out_gradients_buffer
-                                                            [set][time_h][out_grad_channel_idx + lane_d];
-
-                                                    sim_weight_act_gradients
-                                                    [out_grad_channel][act_channel][x_window][y_window]
-                                                            += act_bits * out_bits;
-
-                                                } // Multiply 16 output gradients and 16 activations
-
-                                            } // Output Gradients
-                                        } // Window
-                                    } // Time of the buffers
-                                } // Check
-
-                            } // Output Gradients Channels sets
-
-                        } // Activations Channels sets
-
-                    } // Windows
+                    conv_stats act_stats, out_stats;
+                    spatial_convolution(act, out_grad, act_channels, Ox_dil, Oy_dil, out_channels, num_filters, Kx, Ky,
+                            wgt_channels, act_stats, out_stats);
 
                     #pragma omp critical
                     {
-                        bw_wgt_act_compute_cycles->value[epoch][layer_it] += batch_wgt_act_compute_cycles;
-                        bw_wgt_act_base_compute_cycles->value[epoch][layer_it] += batch_wgt_act_base_compute_cycles;
-                        bw_wgt_act_ideal_compute_cycles->value[epoch][layer_it] += batch_wgt_act_ideal_compute_cycles;
+                        bw_wgt_act_compute_cycles->value[epoch][layer_it] += act_stats.compute_cycles;
+                        bw_wgt_act_base_compute_cycles->value[epoch][layer_it] += act_stats.base_compute_cycles;
+                        bw_wgt_act_ideal_compute_cycles->value[epoch][layer_it] += act_stats.ideal_compute_cycles;
+
+                        bw_wgt_out_compute_cycles->value[epoch][layer_it] += out_stats.compute_cycles;
+                        bw_wgt_out_base_compute_cycles->value[epoch][layer_it] += out_stats.base_compute_cycles;
+                        bw_wgt_out_ideal_compute_cycles->value[epoch][layer_it] += out_stats.ideal_compute_cycles;
                     }
-
-                    out_gradients_buffer.clear();
-
-                    // Simulate: Backward convolution A * G = WG: Gradients sparsity
-                    auto sim_weight_out_gradients = std::vector<std::vector<std::vector<std::vector<double>>>>(
-                            num_filters, std::vector<std::vector<std::vector<double>>>(wgt_channels,
-                            std::vector<std::vector<double>>(Kx, std::vector<double>(Ky, 0))));
-
-                    // Stats
-                    uint64_t batch_wgt_out_compute_cycles = 0;
-                    uint64_t batch_wgt_out_base_compute_cycles = 0;
-                    uint64_t batch_wgt_out_ideal_compute_cycles = 0;
-
-                    // Schedule output gradients
-                    auto num_out_grad_sets_sch = (uint64_t)ceil(out_channels / (double)N_ROWS);
-                    auto time_per_out_grad_channel_sch = (uint64_t)ceil(spatial_pad / (double)N_LANES);
-
-                    std::vector<schedule_buffer> out_gradients_buffer_sch = std::vector<schedule_buffer>(
-                            num_out_grad_sets_sch, schedule_buffer(time_per_out_grad_channel_sch,
-                            std::vector<value_mux>(N_ROWS * N_LANES, std::make_tuple(0.0f, 0, 0))));
-
-                    std::vector<uint64_t> ideal_time_per_out_grad_channel_sch (ceil(out_channels/(double)N_ROWS), 0);
-
-                    int set_out_sch = -1;
-                    for(int o = 0; o < out_channels; ++o) {
-
-                        if ((o % N_ROWS) == 0)
-                            set_out_sch++;
-
-                        uint64_t non_zeroes = 0;
-
-                        int index = 0;
-                        int time = 0;
-                        for (int y = 0; y < Oy_dil; ++y) {
-                            for (int x = 0; x < Ox_dil; ++x) {
-                                auto out_bits = out_grad.get(0, o, x, y);
-                                int pos = (o % N_ROWS) * N_LANES + index;
-                                out_gradients_buffer_sch[set_out_sch][time][pos] = std::make_tuple(out_bits, time, index);
-                                index++;
-                                if(index == N_LANES) {
-                                    time++;
-                                    index = 0;
-                                }
-                                if (out_bits != 0) non_zeroes++;
-                            }
-                        }
-                        auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
-                        if (ideal_time > ideal_time_per_out_grad_channel_sch[set_out_sch])
-                            ideal_time_per_out_grad_channel_sch[set_out_sch] = ideal_time;
-                    }
-
-                    for (auto &gradients_channel_buffer : out_gradients_buffer_sch) {
-                        original_schedule(gradients_channel_buffer);
-                    }
-
-                    for (int window = 0; window < (Kx * Ky); ++window) {
-                        auto x_window = window % Kx;
-                        auto y_window = window / Kx;
-
-                        for (int k = 0; k < act_channels; k += N_COLUMNS) {
-
-                            // Generate activation buffer
-                            auto time_per_act_channel = (uint64_t)ceil(spatial_pad / (double)N_LANES);
-
-                            std::vector<std::vector<float>> activation_buffer = std::vector<std::vector<float>>(
-                                    time_per_act_channel, std::vector<float>(N_COLUMNS * N_LANES, 0.0f));
-
-                            for(int act_channel = k; act_channel < std::min((uint64_t)k + N_COLUMNS, act_channels);
-                                ++act_channel) {
-
-                                int index = 0;
-                                int time = 0;
-                                for (int y = 0; y < Oy_dil; ++y) {
-                                    for (int x = 0; x < Ox_dil; ++x) {
-                                        auto act_bits = act.get(0, act_channel, x_window + x, y_window + y);
-                                        int pos = (act_channel % N_COLUMNS) * N_LANES + index;
-                                        activation_buffer[time][pos] = act_bits;
-                                        index++;
-                                        if(index == N_LANES) {
-                                            time++;
-                                            index = 0;
-                                        }
-                                    }
-                                }
-
-                            }
-
-                            for (int set = 0; set < num_out_grad_sets_sch; ++set) {
-
-                                batch_wgt_out_base_compute_cycles += time_per_out_grad_channel_sch;
-                                batch_wgt_out_ideal_compute_cycles += ideal_time_per_out_grad_channel_sch[set];
-
-                                if (this->CHECK) {
-
-                                    int skip = 0;
-                                    for (const auto &time_buffer : out_gradients_buffer_sch[set]) {
-
-                                        // Skip lines of zeroes
-                                        if (skip < LOOKAHEAD_H && check_zero_line(time_buffer)) {
-                                            skip++;
-                                            continue;
-                                        }
-                                        skip = 0;
-
-                                        batch_wgt_out_compute_cycles++;
-
-                                        for (int a = 0; a < N_COLUMNS; ++a) {
-                                            auto act_channel_idx = a * N_LANES;
-                                            auto act_channel = k + a;
-
-                                            if (act_channel >= act_channels)
-                                                continue;
-
-                                            for (int o = 0; o < N_ROWS; ++o) {
-                                                auto out_grad_channel_idx = o * N_LANES;
-                                                auto out_grad_channel = set * N_ROWS + o;
-
-                                                if (out_grad_channel >= out_channels)
-                                                    continue;
-
-                                                for (int lane = 0; lane < N_LANES; ++lane) {
-
-                                                    auto out_bits = std::get<0>(time_buffer[out_grad_channel_idx + lane]);
-                                                    auto time_h = std::get<1>(time_buffer[out_grad_channel_idx + lane]);
-                                                    auto lane_d = std::get<2>(time_buffer[out_grad_channel_idx + lane]);
-
-                                                    auto act_bits = activation_buffer[time_h][act_channel_idx + lane_d];
-
-                                                    sim_weight_out_gradients
-                                                    [out_grad_channel][act_channel][x_window][y_window]
-                                                            += act_bits * out_bits;
-
-                                                } // Multiply 16 output gradients and 16 activations
-
-                                            } // Output Gradients
-                                        } // Window
-                                    } // Time of the buffers
-                                } // Check
-
-                            } // Output Gradients Channels sets
-
-                        } // Activations Channels sets
-
-                    } // Windows
-
-                    #pragma omp critical
-                    {
-                        bw_wgt_out_compute_cycles->value[epoch][layer_it] += batch_wgt_out_compute_cycles;
-                        bw_wgt_out_base_compute_cycles->value[epoch][layer_it] += batch_wgt_out_base_compute_cycles;
-                        bw_wgt_out_ideal_compute_cycles->value[epoch][layer_it] += batch_wgt_out_ideal_compute_cycles;
-                    }
-
-                    out_gradients_buffer_sch.clear();
-
-                    // Check correctness of the outputs
-                    if (this->CHECK) {
-
-                        auto weight_gradients = std::vector<std::vector<std::vector<std::vector<double>>>>(num_filters,
-                                std::vector<std::vector<std::vector<double>>>(wgt_channels,
-                                std::vector<std::vector<double>>(Kx, std::vector<double>(Ky, 0))));
-
-                        for (int o = 0; o < out_channels; ++o) {
-                            for (int k = 0; k < act_channels; ++k) {
-
-                                // Number of Windows
-                                for (int x = 0; x < Kx; ++x) {
-                                    for (int y = 0; y < Ky; ++y) {
-
-                                        double sum = 0;
-
-                                        // Window dimensions
-                                        for (int j = 0; j < Oy_dil; ++j) {
-                                            for (int i = 0; i < Ox_dil; ++i) {
-                                                sum += out_grad.get(0, o, i, j) * act.get(0, k, x + i, y + j);
-                                            }
-                                        }
-
-                                        weight_gradients[o][k][x][y] += sum;
-
-                                    }
-                                }
-                            }
-
-                        }
-
-                        // Check values: Activations sparsity
-                        for (int m = 0; m < num_filters; ++m) {
-                            for (int ch = 0; ch < wgt_channels; ++ch) {
-                                for (int x = 0; x < Kx; ++x) {
-                                    for (int y = 0; y < Ky; ++y) {
-                                        auto actual_value = weight_gradients[m][ch][x][y];
-                                        auto sim_value = sim_weight_act_gradients[m][ch][x][y];
-                                        auto error = (actual_value - sim_value) / sim_value;
-                                        if (abs(error) > 1e-10)
-                                            throw std::runtime_error("Backward weight gradients convolution "
-                                                                     "(Act. Sparsity) wrong value.");
-                                    }
-                                }
-                            }
-                        }
-
-                        // Check values: Gradients sparsity
-                        for (int m = 0; m < num_filters; ++m) {
-                            for (int ch = 0; ch < wgt_channels; ++ch) {
-                                for (int x = 0; x < Kx; ++x) {
-                                    for (int y = 0; y < Ky; ++y) {
-                                        auto actual_value = weight_gradients[m][ch][x][y];
-                                        auto sim_value = sim_weight_out_gradients[m][ch][x][y];
-                                        auto error = (actual_value - sim_value) / sim_value;
-                                        if (abs(error) > 1e-10)
-                                            throw std::runtime_error("Backward weight gradients convolution "
-                                                                     "(Grad. Sparsity) wrong value.");
-                                    }
-                                }
-                            }
-                        }
-
-                    } // Check results
 
                     // Backward pass - Calculate Input gradients
                     if (layer_it == 0)
@@ -967,207 +1008,16 @@ namespace core {
                         throw std::runtime_error("Input gradients incorrect Y window sizes");
 
                     // Simulate: Backward convolution W * G = IG
-                    auto sim_input_gradients = std::vector<std::vector<std::vector<double>>>(act_channels,
-                            std::vector<std::vector<double>>(Nx, std::vector<double>(Ny, 0)));
-
-                    // Stats
-                    uint64_t batch_in_compute_cycles = 0;
-                    uint64_t batch_in_base_compute_cycles = 0;
-                    uint64_t batch_in_ideal_compute_cycles = 0;
-
-                    // Generate weight buffer
-                    auto num_filter_sets = (uint64_t)ceil(num_filters_rot / (double)N_COLUMNS);
-
-                    auto round_wgt_channels = (int)ceil(wgt_channels_rot / (double)N_LANES) * N_LANES;
-                    auto time_per_filter = (uint64_t)ceil(round_wgt_channels * Kx * Ky / (double)N_LANES);
-
-                    non_schedule_buffer weight_buffer = non_schedule_buffer(num_filter_sets,
-                            std::vector<std::vector<float>>(time_per_filter,
-                            std::vector<float>(N_COLUMNS * N_LANES, 0.0f)));
-
-                    int set_wgt = -1;
-                    for(int m = 0; m < num_filters_rot; m++) {
-
-                        if ((m % N_COLUMNS) == 0)
-                            set_wgt++;
-
-                        int time = 0;
-                        for (int y = 0; y < Ky; ++y) {
-                            for (int x = 0; x < Kx; ++x) {
-                                for (int k = 0; k < wgt_channels_rot; k += N_LANES) {
-                                    int index = 0;
-                                    for(int channel = k; channel < std::min((uint64_t)k + N_LANES,
-                                            wgt_channels_rot); channel++) {
-                                        auto wgt_bits = wgt.get(m, channel, x, y);
-                                        int pos = (m % N_COLUMNS) * N_LANES + index;
-                                        weight_buffer[set_wgt][time][pos] = wgt_bits;
-                                        index++;
-                                        if(index == N_LANES) {
-                                            time++;
-                                            index = 0;
-                                        }
-                                    }
-                                    if(index != 0)
-                                        time++;
-                                }
-                            }
-                        }
-
-                    }
-
-                    std::vector<int> x_windows, y_windows;
-                    int x_counter = 0, y_counter = 0;
-                    while(this->iterateWindows(Nx, Ny, x_windows, y_windows, x_counter, y_counter, N_ROWS)) {
-
-                        // Generate gradients buffer
-                        auto round_out_channels = (int)ceil(out_channels / (double)N_LANES) * N_LANES;
-                        auto time_per_window = (uint64_t)ceil(round_out_channels * Kx * Ky / (double)N_LANES);
-
-                        schedule_buffer gradients_buffer = schedule_buffer(time_per_window,
-                                std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0, 0)));
-
-                        uint64_t ideal_time_per_window = 0;
-
-                        for (int w = 0; w < x_windows.size(); ++w) {
-                            auto x_window = x_windows[w];
-                            auto y_window = y_windows[w];
-
-                            uint64_t non_zeroes = 0;
-
-                            int time = 0;
-                            for (int y = 0; y < Ky; ++y) {
-                                for (int x = 0; x < Kx; ++x) {
-                                    for (int k = 0; k < out_channels; k += N_LANES) {
-                                        int index = 0;
-                                        for (int channel = k; channel < std::min((uint64_t)k + N_LANES,
-                                                out_channels); channel++) {
-                                            auto out_bits = out_grad.get(0, channel, x_window + x, y_window + y);
-                                            int pos = w * N_LANES + index;
-                                            gradients_buffer[time][pos] = std::make_tuple(out_bits, time, index);
-                                            index++;
-                                            if(index == N_LANES) {
-                                                time++;
-                                                index = 0;
-                                            }
-                                            if (out_bits != 0) non_zeroes++;
-                                        }
-                                        if (index != 0)
-                                            time++;
-                                    }
-                                }
-                            }
-
-                            auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
-                            if (ideal_time > ideal_time_per_window)
-                                ideal_time_per_window = ideal_time;
-
-                        }
-
-                        // Schedule buffer
-                        original_schedule(gradients_buffer);
-
-                        for (int set = 0; set < num_filter_sets; ++set) {
-
-                            batch_in_base_compute_cycles += time_per_window;
-                            batch_in_ideal_compute_cycles += ideal_time_per_window;
-
-                            if (this->CHECK) {
-
-                                int skip = 0;
-                                for (const auto &time_buffer : gradients_buffer) {
-
-                                    // Skip lines of zeroes
-                                    if (skip < LOOKAHEAD_H && check_zero_line(time_buffer)) {
-                                        skip++;
-                                        continue;
-                                    }
-                                    skip = 0;
-
-                                    batch_in_compute_cycles++;
-
-                                    for (int w = 0; w < x_windows.size(); ++w) {
-                                        auto window_idx = w * N_LANES;
-                                        auto x_window = x_windows[w];
-                                        auto y_window = y_windows[w];
-
-                                        for (int f = 0; f < N_COLUMNS; ++f) {
-                                            auto filter_idx = f * N_LANES;
-                                            auto filter = set * N_COLUMNS + f;
-
-                                            if (filter >= num_filters_rot)
-                                                continue;
-
-                                            for (int lane = 0; lane < N_LANES; ++lane) {
-
-                                                auto out_bits = std::get<0>(time_buffer[window_idx + lane]);
-                                                auto time_h = std::get<1>(time_buffer[window_idx + lane]);
-                                                auto lane_d = std::get<2>(time_buffer[window_idx + lane]);
-
-                                                auto wgt_bits = weight_buffer[set][time_h][filter_idx + lane_d];
-
-                                                sim_input_gradients[filter][x_window][y_window] += out_bits * wgt_bits;
-
-                                            } // Multiply 16 weights and 16 output gradients
-
-                                        } // Filter
-                                    } // Window
-                                } // Time of the buffers
-                            } // Check
-
-                        } // Filter sets
-
-                    } // Window sets
+                    conv_stats batch_stats;
+                    channel_first_convolution(out_grad, wgt, Nx, Ny, out_channels, num_filters_rot, Kx, Ky,
+                            wgt_channels_rot, 1, batch_stats);
 
                     #pragma omp critical
                     {
-                        bw_in_compute_cycles->value[epoch][layer_it] += batch_in_compute_cycles;
-                        bw_in_base_compute_cycles->value[epoch][layer_it] += batch_in_base_compute_cycles;
-                        bw_in_ideal_compute_cycles->value[epoch][layer_it] += batch_in_ideal_compute_cycles;
+                        bw_in_compute_cycles->value[epoch][layer_it] += batch_stats.compute_cycles;
+                        bw_in_base_compute_cycles->value[epoch][layer_it] += batch_stats.base_compute_cycles;
+                        bw_in_ideal_compute_cycles->value[epoch][layer_it] += batch_stats.ideal_compute_cycles;
                     }
-
-                    // Check correctness of the outputs
-                    if (this->CHECK) {
-
-                        auto input_gradients = std::vector<std::vector<std::vector<double>>>(act_channels,
-                                std::vector<std::vector<double>>(Nx, std::vector<double>(Ny, 0)));
-
-                        // Actual convolution
-                        for (int m = 0; m < num_filters_rot; ++m) {
-
-                            // Number of Windows
-                            for (int x = 0; x < Nx; ++x) {
-                                for (int y = 0; y < Ny; ++y) {
-
-                                    double sum = 0;
-
-                                    // Windows dimension
-                                    for (int j = 0; j < Ky; ++j) {
-                                        for (int i = 0; i < Kx; ++i) {
-                                            for (int k = 0; k < wgt_channels_rot; ++k) {
-                                                sum += out_grad.get(0, k, x + i, y + j) * wgt.get(m, k, i, j);
-                                            }
-                                        }
-                                    }
-
-                                    input_gradients[m][x][y] = sum;
-                                }
-                            }
-                        }
-
-                        // Check values
-                        for (int ch = 0; ch < act_channels; ++ch) {
-                            for (int x = 0; x < Nx; ++x) {
-                                for (int y = 0; y < Ny; ++y) {
-                                    auto actual_value = input_gradients[ch][x][y];
-                                    auto sim_value = sim_input_gradients[ch][x][y];
-                                    auto error = (actual_value - sim_value) / sim_value;
-                                    if (abs(error) > 1e-10)
-                                        throw std::runtime_error("Backward input gradients convolution wrong value.");
-                                }
-                            }
-                        }
-
-                    } // Check results
 
                 } // Backward pass
 

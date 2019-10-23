@@ -43,6 +43,12 @@ namespace core {
         /** Search space for the scheduler */
         std::vector<std::tuple<int8_t, int8_t>> SEARCH_MAP;
 
+        struct conv_stats {
+            uint64_t compute_cycles = 0;
+            uint64_t base_compute_cycles = 0;
+            uint64_t ideal_compute_cycles = 0;
+        };
+
         /** Compute number of one bit multiplications given a first and a second value
          * @param first         First value
          * @param second        Second value
@@ -73,6 +79,14 @@ namespace core {
          * @param schedule Buffer to scheduler (Overwritten)
          */
         void original_schedule(schedule_buffer &schedule);
+
+        void channel_first_convolution(const base::Array<T> &values, const base::Array<T> &wgt, uint64_t Wx,
+                uint64_t Wy, uint64_t win_channels, uint64_t num_filters, uint64_t Kx, uint64_t Ky,
+                uint64_t wgt_channels, int stride, conv_stats &stats);
+
+        void spatial_convolution(const base::Array<T> &act, const base::Array<T> &out_grad, uint64_t act_channels,
+                uint64_t Ox, uint64_t Oy, uint64_t out_channels, uint64_t num_filters, uint64_t Kx, uint64_t Ky,
+                uint64_t wgt_channels, conv_stats &act_stats, conv_stats &out_stats);
 
     public:
 
