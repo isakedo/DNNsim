@@ -7,6 +7,7 @@ typedef std::tuple<uint16_t, uint16_t> value_index;
 typedef std::tuple<float, uint16_t, uint16_t> value_mux;
 typedef std::vector<std::vector<std::vector<float>>> non_schedule_buffer;
 typedef std::vector<std::vector<value_mux>> schedule_buffer;
+typedef std::vector<std::vector<int>> bank_map;
 
 namespace core {
 
@@ -40,6 +41,9 @@ namespace core {
         /** Search shape for the scheduler: must be 'L' or 'T' */
         const char SEARCH_SHAPE;
 
+        /** Number of banks on-chip memory*/
+        const int BANKS;
+
         /** Search space for the scheduler */
         std::vector<std::tuple<int8_t, int8_t>> SEARCH_MAP;
 
@@ -47,6 +51,7 @@ namespace core {
             uint64_t compute_cycles = 0;
             uint64_t base_compute_cycles = 0;
             uint64_t ideal_compute_cycles = 0;
+            uint64_t read_bank_conflicts = 0;
         };
 
         /** Compute number of one bit multiplications given a first and a second value
@@ -80,13 +85,11 @@ namespace core {
          */
         void original_schedule(schedule_buffer &schedule);
 
-        void channel_first_convolution(const base::Array<T> &values, const base::Array<T> &wgt, uint64_t Wx,
-                uint64_t Wy, uint64_t win_channels, uint64_t num_filters, uint64_t Kx, uint64_t Ky,
-                uint64_t wgt_channels, int stride, conv_stats &stats);
+        void channel_first_convolution(const base::Array<T> &input, const base::Array<T> &wgt, uint64_t Ox, uint64_t Oy,
+                int stride, conv_stats &stats);
 
-        void spatial_convolution(const base::Array<T> &act, const base::Array<T> &out_grad, uint64_t act_channels,
-                uint64_t Ox, uint64_t Oy, uint64_t out_channels, uint64_t num_filters, uint64_t Kx, uint64_t Ky,
-                uint64_t wgt_channels, conv_stats &act_stats, conv_stats &out_stats);
+        void spatial_convolution(const base::Array<T> &act, const base::Array<T> &out_grad, uint64_t num_filters,
+                uint64_t Kx, uint64_t Ky, uint64_t wgt_channels, conv_stats &act_stats, conv_stats &out_stats);
 
     public:
 
@@ -98,16 +101,17 @@ namespace core {
          * @param _LOOKAHEAD_H      Value for scheduler lookahead
          * @param _LOOKASIDE_D      Value for scheduler lookaside
          * @param _SEARCH_SHAPE     Type of search
+         * @param _BANKS            Number of banks on-chip memory
          * @param _N_THREADS        Number of parallel threads for multi-threading execution
          * @param _FAST_MODE        Enable fast mode to simulate only one image
          * @param _QUIET            Avoid std::out messages
          * @param _CHECK            Check the correctness of the simulations
          */
         DynamicTactical(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES,
-                uint32_t _LOOKAHEAD_H, uint32_t _LOOKASIDE_D, const char _SEARCH_SHAPE, uint8_t _N_THREADS,
+                uint32_t _LOOKAHEAD_H, uint32_t _LOOKASIDE_D, const char _SEARCH_SHAPE, int _BANKS, uint8_t _N_THREADS,
                 bool _FAST_MODE, bool _QUIET, bool _CHECK) : Simulator<T>(_N_THREADS,_FAST_MODE,_QUIET,_CHECK),
                 N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), N_TILES(_N_TILES), LOOKAHEAD_H(_LOOKAHEAD_H),
-                LOOKASIDE_D(_LOOKASIDE_D), SEARCH_SHAPE(_SEARCH_SHAPE) {
+                LOOKASIDE_D(_LOOKASIDE_D), SEARCH_SHAPE(_SEARCH_SHAPE), BANKS(_BANKS) {
 
             if (SEARCH_SHAPE == 'L') {
 

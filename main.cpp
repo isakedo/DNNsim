@@ -215,8 +215,8 @@ int main(int argc, char *argv[]) {
                         } else if (experiment.architecture == "DynamicTactical") {
                             core::DynamicTactical<float> DNNsim(experiment.n_lanes, experiment.n_columns,
                                     experiment.n_rows, experiment.n_tiles, experiment.lookahead_h,
-                                    experiment.lookaside_d, experiment.search_shape, N_THREADS, FAST_MODE, QUIET,
-                                    CHECK);
+                                    experiment.lookaside_d, experiment.search_shape, experiment.banks, N_THREADS,
+                                    FAST_MODE, QUIET, CHECK);
                             if (experiment.task == "Cycles") DNNsim.run(simulate, epochs);
                             else if (experiment.task == "Potentials") DNNsim.potentials(simulate, epochs);
                         }

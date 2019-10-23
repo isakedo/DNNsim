@@ -65,6 +65,8 @@ namespace sys {
                     experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();
                     experiment.search_shape = experiment_proto.search_shape().empty() ? 'T' :
                             experiment_proto.search_shape().c_str()[0];
+                    experiment.banks = experiment_proto.banks() < 1 ? 32 : experiment_proto.banks();
+
                     value = experiment.search_shape;
                     if(value != "L" && value != "T")
                         throw std::runtime_error("BitTactical search shape for network " + simulate.network +

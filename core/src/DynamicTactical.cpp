@@ -141,8 +141,19 @@ namespace core {
 
     template <typename T>
     void check_result_channel_first(const std::vector<std::vector<std::vector<double>>> &sim_output,
-            const base::Array<T> &row_values, const base::Array<T> &column_values, uint64_t num_filters, uint64_t Ox,
-            uint64_t Oy, uint64_t Kx, uint64_t Ky, uint64_t row_channels, uint64_t column_channels, int stride) {
+            const base::Array<T> &input, const base::Array<T> &wgt, uint64_t Ox, uint64_t Oy, int stride) {
+
+        const std::vector<size_t> &in_shape = input.getShape();
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+        // Input values
+        auto in_channels = in_shape[1];
+
+        // Weights
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
 
         auto output = std::vector<std::vector<std::vector<double>>>(num_filters,
                 std::vector<std::vector<double>>(Ox, std::vector<double>(Oy, 0)));
@@ -152,7 +163,7 @@ namespace core {
 
             // Fix for MobileNet
             int start_group = 0;
-            if(column_channels == 1 && row_channels != 1)
+            if(wgt_channels == 1 && in_channels != 1)
                 start_group = m;
 
             // Number of Windows
@@ -164,9 +175,9 @@ namespace core {
                     // Window dimension
                     for (int j = 0; j < Ky; ++j) {
                         for (int i = 0; i < Kx; ++i) {
-                            for (int k = 0; k < column_channels; ++k) {
-                                sum += row_values.get(0, start_group + k, stride * x + i, stride * y + j) *
-                                       column_values.get(m, k, i, j);
+                            for (int k = 0; k < wgt_channels; ++k) {
+                                sum += input.get(0, start_group + k, stride * x + i, stride * y + j) *
+                                        wgt.get(m, k, i, j);
                             }
                         }
                     }
@@ -193,16 +204,26 @@ namespace core {
     template <typename T>
     void check_result_spatial(const std::vector<std::vector<std::vector<std::vector<double>>>> &sim_output_act,
             const std::vector<std::vector<std::vector<std::vector<double>>>> &sim_output_wgt,
-            const base::Array<T> &row_values, const base::Array<T> &column_values, uint64_t num_filters, uint64_t Ox,
-            uint64_t Oy, uint64_t Kx, uint64_t Ky, uint64_t row_channels, uint64_t column_channels,
-            uint64_t out_channels) {
+            const base::Array<T> &act, const base::Array<T> &out_grad, uint64_t num_filters, uint64_t Kx, uint64_t Ky,
+            uint64_t wgt_channels) {
+
+        const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &out_grad_shape = out_grad.getShape();
+
+        // Activations
+        auto act_channels = act_shape[1];
+
+        // Output gradients
+        auto out_channels = out_grad_shape[1];
+        auto Ox = out_grad_shape[2];
+        auto Oy = out_grad_shape[3];
 
         auto output = std::vector<std::vector<std::vector<std::vector<double>>>>(num_filters,
-                std::vector<std::vector<std::vector<double>>>(out_channels, std::vector<std::vector<double>>(Kx,
+                std::vector<std::vector<std::vector<double>>>(wgt_channels, std::vector<std::vector<double>>(Kx,
                 std::vector<double>(Ky, 0))));
 
-        for (int o = 0; o < column_channels; ++o) {
-            for (int k = 0; k < row_channels; ++k) {
+        for (int o = 0; o < out_channels; ++o) {
+            for (int k = 0; k < act_channels; ++k) {
 
                 // Number of Windows
                 for (int x = 0; x < Kx; ++x) {
@@ -213,7 +234,7 @@ namespace core {
                         // Window dimensions
                         for (int j = 0; j < Oy; ++j) {
                             for (int i = 0; i < Ox; ++i) {
-                                sum += column_values.get(0, o, i, j) * row_values.get(0, k, x + i, y + j);
+                                sum += out_grad.get(0, o, i, j) * act.get(0, k, x + i, y + j);
                             }
                         }
 
@@ -227,7 +248,7 @@ namespace core {
 
         // Check values: Activations sparsity
         for (int m = 0; m < num_filters; ++m) {
-            for (int ch = 0; ch < out_channels; ++ch) {
+            for (int ch = 0; ch < wgt_channels; ++ch) {
                 for (int x = 0; x < Kx; ++x) {
                     for (int y = 0; y < Ky; ++y) {
                         auto actual_value = output[m][ch][x][y];
@@ -243,7 +264,7 @@ namespace core {
 
         // Check values: Gradients sparsity
         for (int m = 0; m < num_filters; ++m) {
-            for (int ch = 0; ch < out_channels; ++ch) {
+            for (int ch = 0; ch < wgt_channels; ++ch) {
                 for (int x = 0; x < Kx; ++x) {
                     for (int y = 0; y < Ky; ++y) {
                         auto actual_value = output[m][ch][x][y];
@@ -262,17 +283,34 @@ namespace core {
     /* CONVOLUTION FUNCTIONS */
 
     template <typename T>
-    void DynamicTactical<T>::channel_first_convolution(const base::Array<T> &values, const base::Array<T> &wgt,
-            uint64_t Wx, uint64_t Wy, uint64_t win_channels, uint64_t num_filters, uint64_t Kx, uint64_t Ky,
-            uint64_t wgt_channels, int stride, conv_stats &stats) {
+    void DynamicTactical<T>::channel_first_convolution(const base::Array<T> &input, const base::Array<T> &wgt,
+            uint64_t Ox, uint64_t Oy, int stride, conv_stats &stats) {
+
+        const std::vector<size_t> &in_shape = input.getShape();
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+        // Input values
+        auto in_channels = in_shape[1];
+        auto Nx = in_shape[2];
+        auto Ny = in_shape[3];
+
+        // Weights
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
 
         auto sim_output_activations = std::vector<std::vector<std::vector<double>>>(num_filters,
-                std::vector<std::vector<double>>(Wx, std::vector<double>(Wy, 0)));
+                std::vector<std::vector<double>>(Ox, std::vector<double>(Oy, 0)));
+
+        int IN_BANKS = BANKS/2;
+        std::vector<int> bank_reads (IN_BANKS, 0);
 
         // Stats
         stats.compute_cycles = 0;
         stats.base_compute_cycles = 0;
         stats.ideal_compute_cycles = 0;
+        stats.read_bank_conflicts = 0;
 
         // Generate weight buffer
         auto num_filter_sets = (uint64_t)ceil(num_filters / (double)N_COLUMNS);
@@ -294,8 +332,7 @@ namespace core {
                 for (int x = 0; x < Kx; ++x) {
                     for (int k = 0; k < wgt_channels; k += N_LANES) {
                         int index = 0;
-                        for(int channel = k; channel < std::min((uint64_t)k + N_LANES,
-                                                                wgt_channels); ++channel) {
+                        for(int channel = k; channel < std::min((uint64_t)k + N_LANES, wgt_channels); ++channel) {
                             auto wgt_bits = wgt.get(m, channel, x, y);
                             int pos = (m % N_COLUMNS) * N_LANES + index;
                             weight_buffer[set_wgt][time][pos] = wgt_bits;
@@ -313,16 +350,31 @@ namespace core {
 
         }
 
+        bank_map input_bank_map = bank_map(Ny, std::vector<int>(Nx, -1));
+
+        int bank_in = 0;
+        int bkp_bank_in = 0;
+        for (int y = 0; y < Ny; ++y) {
+            for (int x = 0; x < Nx; ++x) {
+                if (x == 0) bank_in = bkp_bank_in;
+                input_bank_map[y][x] = bank_in;
+                if (x == Ox) bkp_bank_in = bank_in;
+                bank_in = (bank_in + 1) % IN_BANKS;
+            }
+        }
+
         std::vector<int> x_windows, y_windows;
         int x_counter = 0, y_counter = 0;
-        while(this->iterateWindows(Wx, Wy, x_windows, y_windows, x_counter, y_counter, N_ROWS)) {
+        while(this->iterateWindows(Ox, Oy, x_windows, y_windows, x_counter, y_counter, N_ROWS)) {
 
             // Generate activation buffer
-            auto round_act_channels = (int)ceil(win_channels / (double)N_LANES) * N_LANES;
-            auto time_per_window = (uint64_t)ceil(round_act_channels * Kx * Ky / (double)N_LANES);
+            auto round_in_channels = (int)ceil(in_channels / (double)N_LANES) * N_LANES;
+            auto time_per_window = (uint64_t)ceil(round_in_channels * Kx * Ky / (double)N_LANES);
 
-            schedule_buffer activation_buffer = schedule_buffer(time_per_window,
+            schedule_buffer window_buffer = schedule_buffer(time_per_window,
                     std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0, 0)));
+
+            bank_map window_bank_map = bank_map(time_per_window, std::vector<int>(N_ROWS, -1));
 
             uint64_t ideal_time_per_window = 0;
 
@@ -335,21 +387,24 @@ namespace core {
                 int time = 0;
                 for (int y = 0; y < Ky; ++y) {
                     for (int x = 0; x < Kx; ++x) {
-                        for (int k = 0; k < win_channels; k += N_LANES) {
+                        for (int k = 0; k < in_channels; k += N_LANES) {
                             int index = 0;
-                            for (int channel = k; channel < std::min((uint64_t)k + N_LANES, win_channels); ++channel) {
-                                auto value_bits = values.get(0, channel, x_window + x, y_window + y);
+                            for (int channel = k; channel < std::min((uint64_t)k + N_LANES, in_channels); ++channel) {
+                                auto in_bits = input.get(0, channel, x_window + x, y_window + y);
                                 int pos = w * N_LANES + index;
-                                activation_buffer[time][pos] = std::make_tuple(value_bits, time, index);
+                                window_buffer[time][pos] = std::make_tuple(in_bits, time, index);
                                 index++;
                                 if(index == N_LANES) {
+                                    window_bank_map[time][w] = input_bank_map[y_window + y][x_window + x];
                                     time++;
                                     index = 0;
                                 }
-                                if (value_bits != 0) non_zeroes++;
+                                if (in_bits != 0) non_zeroes++;
                             }
-                            if (index != 0)
+                            if (index != 0) {
+                                window_bank_map[time][w] = input_bank_map[y_window + y][x_window + x];
                                 time++;
+                            }
                         }
                     }
                 }
@@ -360,26 +415,35 @@ namespace core {
             }
 
             // Schedule buffer
-            original_schedule(activation_buffer);
+            original_schedule(window_buffer);
 
             for (int set = 0; set < num_filter_sets; ++set) {
 
                 stats.base_compute_cycles += time_per_window;
                 stats.ideal_compute_cycles += ideal_time_per_window;
 
-                if (this->CHECK) {
+                int skip = 0;
+                for (int time = 0; time < time_per_window; ++time) {
 
-                    int skip = 0;
-                    for (const auto &time_buffer : activation_buffer) {
+                    bank_reads = std::vector<int>(IN_BANKS, 0);
 
-                        // Skip lines of zeroes
-                        if (skip < LOOKAHEAD_H && check_zero_line(time_buffer)) {
-                            skip++;
-                            continue;
-                        }
-                        skip = 0;
+                    // Input requests
+                    for (int w = 0; w < x_windows.size(); ++w) {
+                        bank_reads[window_bank_map[time][w]]++;
+                    }
 
-                        stats.compute_cycles++;
+                    stats.read_bank_conflicts += *std::max_element(bank_reads.begin(), bank_reads.end()) - 1;
+
+                    // Skip lines of zeroes
+                    if (skip < LOOKAHEAD_H && check_zero_line(window_buffer[time])) {
+                        skip++;
+                        continue;
+                    }
+                    skip = 0;
+
+                    stats.compute_cycles++;
+
+                    if (this->CHECK) {
 
                         for (int w = 0; w < x_windows.size(); ++w) {
                             auto window_idx = w * N_LANES;
@@ -395,36 +459,45 @@ namespace core {
 
                                 for (int lane = 0; lane < N_LANES; ++lane) {
 
-                                    auto value_bits = std::get<0>(time_buffer[window_idx + lane]);
-                                    auto time_h = std::get<1>(time_buffer[window_idx + lane]);
-                                    auto lane_d = std::get<2>(time_buffer[window_idx + lane]);
+                                    auto in_bits = std::get<0>(window_buffer[time][window_idx + lane]);
+                                    auto time_h = std::get<1>(window_buffer[time][window_idx + lane]);
+                                    auto lane_d = std::get<2>(window_buffer[time][window_idx + lane]);
 
                                     auto wgt_bits = weight_buffer[set][time_h][filter_idx + lane_d];
 
-                                    sim_output_activations[filter][x_window][y_window] += value_bits * wgt_bits;
+                                    sim_output_activations[filter][x_window][y_window] += in_bits * wgt_bits;
 
                                 } // Multiply 16 weights and 16 window values
 
                             } // Filter
                         } // Window
-                    } //Time of the buffer
-                } // Check
+                    } //Check
 
+                } // Time of the buffers
             } // Filter sets
-
         } // Window sets
 
         // Check correctness of the outputs
         if (this->CHECK)
-            check_result_channel_first(sim_output_activations, values, wgt, num_filters, Wx, Wy, Kx, Ky,
-                    win_channels, wgt_channels, stride);
+            check_result_channel_first(sim_output_activations, input, wgt, Ox, Oy, stride);
 
     }
 
     template <typename T>
     void DynamicTactical<T>::spatial_convolution(const base::Array<T> &act, const base::Array<T> &out_grad,
-            uint64_t act_channels, uint64_t Ox, uint64_t Oy, uint64_t out_channels, uint64_t num_filters, uint64_t Kx,
-            uint64_t Ky, uint64_t wgt_channels, conv_stats &act_stats, conv_stats &out_stats) {
+            uint64_t num_filters, uint64_t Kx, uint64_t Ky, uint64_t wgt_channels, conv_stats &act_stats,
+            conv_stats &out_stats) {
+
+        const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &out_grad_shape = out_grad.getShape();
+
+        // Activations
+        auto act_channels = act_shape[1];
+
+        // Output gradients
+        auto out_channels = out_grad_shape[1];
+        auto Ox = out_grad_shape[2];
+        auto Oy = out_grad_shape[3];
 
         // Activations sparsity
         auto sim_weight_act_gradients = std::vector<std::vector<std::vector<std::vector<double>>>>(num_filters,
@@ -524,19 +597,19 @@ namespace core {
                     act_stats.base_compute_cycles += time_per_act_channel;
                     act_stats.ideal_compute_cycles += ideal_time_per_act_channel;
 
-                    if (this->CHECK) {
+                    int skip = 0;
+                    for (const auto &time_buffer : activation_buffer) {
 
-                        int skip = 0;
-                        for (const auto &time_buffer : activation_buffer) {
+                        // Skip lines of zeroes
+                        if (skip < LOOKAHEAD_H && check_zero_line(time_buffer)) {
+                            skip++;
+                            continue;
+                        }
+                        skip = 0;
 
-                            // Skip lines of zeroes
-                            if (skip < LOOKAHEAD_H && check_zero_line(time_buffer)) {
-                                skip++;
-                                continue;
-                            }
-                            skip = 0;
+                        act_stats.compute_cycles++;
 
-                            act_stats.compute_cycles++;
+                        if (this->CHECK) {
 
                             for (int a = 0; a < N_ROWS; ++a) {
                                 auto act_channel_idx = a * N_LANES;
@@ -569,13 +642,11 @@ namespace core {
 
                                 } // Output Gradients
                             } // Window
-                        } // Time of the buffers
-                    } // Check
+                        } // Check
 
+                    } // Time of the buffers
                 } // Output Gradients Channels sets
-
             } // Activations Channels sets
-
         } // Windows
 
         out_gradients_buffer.clear();
@@ -669,19 +740,19 @@ namespace core {
                     out_stats.base_compute_cycles += time_per_out_grad_channel_sch;
                     out_stats.ideal_compute_cycles += ideal_time_per_out_grad_channel_sch[set];
 
-                    if (this->CHECK) {
+                    int skip = 0;
+                    for (const auto &time_buffer : out_gradients_buffer_sch[set]) {
 
-                        int skip = 0;
-                        for (const auto &time_buffer : out_gradients_buffer_sch[set]) {
+                        // Skip lines of zeroes
+                        if (skip < LOOKAHEAD_H && check_zero_line(time_buffer)) {
+                            skip++;
+                            continue;
+                        }
+                        skip = 0;
 
-                            // Skip lines of zeroes
-                            if (skip < LOOKAHEAD_H && check_zero_line(time_buffer)) {
-                                skip++;
-                                continue;
-                            }
-                            skip = 0;
+                        out_stats.compute_cycles++;
 
-                            out_stats.compute_cycles++;
+                        if (this->CHECK) {
 
                             for (int a = 0; a < N_COLUMNS; ++a) {
                                 auto act_channel_idx = a * N_LANES;
@@ -713,9 +784,9 @@ namespace core {
 
                                 } // Output Gradients
                             } // Window
-                        } // Time of the buffers
-                    } // Check
+                        } // Check
 
+                    } // Time of the buffers
                 } // Output Gradients Channels sets
             } // Activations Channels sets
         } // Windows
@@ -724,8 +795,8 @@ namespace core {
 
         // Check correctness of the outputs
         if (this->CHECK)
-            check_result_spatial(sim_weight_act_gradients, sim_weight_out_gradients, act, out_grad, num_filters,
-                                 Ox, Oy, Kx, Ky, act_channels, out_channels, wgt_channels);
+            check_result_spatial(sim_weight_act_gradients, sim_weight_out_gradients, act, out_grad, num_filters, Kx, Ky,
+                    wgt_channels);
 
     }
 
@@ -865,8 +936,7 @@ namespace core {
                         //spatial_2d_convolution(act, wgt, Ox, Oy, act_channels, num_filters, Kx, Ky, wgt_channels,
                         //                       stride, batch_stats);
                     } else {
-                        channel_first_convolution(act, wgt, Ox, Oy, act_channels, num_filters, Kx, Ky, wgt_channels,
-                                stride, batch_stats);
+                        channel_first_convolution(act, wgt, Ox, Oy, stride, batch_stats);
                     }
 
                     #pragma omp critical
@@ -960,8 +1030,7 @@ namespace core {
 
                     // Simulate: Backward convolution A * G = WG: Activations sparsity
                     conv_stats act_stats, out_stats;
-                    spatial_convolution(act, out_grad, act_channels, Ox_dil, Oy_dil, out_channels, num_filters, Kx, Ky,
-                            wgt_channels, act_stats, out_stats);
+                    spatial_convolution(act, out_grad, num_filters, Kx, Ky, wgt_channels, act_stats, out_stats);
 
                     #pragma omp critical
                     {
@@ -1009,8 +1078,7 @@ namespace core {
 
                     // Simulate: Backward convolution W * G = IG
                     conv_stats batch_stats;
-                    channel_first_convolution(out_grad, wgt, Nx, Ny, out_channels, num_filters_rot, Kx, Ky,
-                            wgt_channels_rot, 1, batch_stats);
+                    channel_first_convolution(out_grad, wgt, Nx, Ny, 1, batch_stats);
 
                     #pragma omp critical
                     {
