@@ -282,9 +282,26 @@ namespace core {
 
     /* CONVOLUTION FUNCTIONS */
 
+    bank_map map_on_chip(uint64_t X, uint64_t Y, uint64_t BANKS) {
+
+        auto HBANKS = BANKS/2 + 1;
+        bank_map values_bank_map = bank_map(Y, std::vector<int>(X, 0));
+
+        int bank = 1;
+        for (int y = 0; y < Y; ++y) {
+            for (int x = 0; x < X; ++x) {
+                values_bank_map[y][x] = bank;
+                bank++;
+                if (bank == HBANKS) bank = 1;
+            }
+        }
+
+        return values_bank_map;
+    }
+
     template <typename T>
     void DynamicTactical<T>::channel_first_convolution(const base::Array<T> &input, const base::Array<T> &wgt,
-            uint64_t Ox, uint64_t Oy, int stride, conv_stats &stats) {
+            const bank_map &input_bank_map, uint64_t Ox, uint64_t Oy, int stride, conv_stats &stats) {
 
         const std::vector<size_t> &in_shape = input.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
@@ -300,11 +317,12 @@ namespace core {
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
 
+        // Prepare bank
+        int IN_BANKS = BANKS/2 + 1;
+        std::vector<int> read_requests (IN_BANKS, 0);
+
         auto sim_output_activations = std::vector<std::vector<std::vector<double>>>(num_filters,
                 std::vector<std::vector<double>>(Ox, std::vector<double>(Oy, 0)));
-
-        int IN_BANKS = BANKS/2;
-        std::vector<int> bank_reads (IN_BANKS, 0);
 
         // Stats
         stats.compute_cycles = 0;
@@ -350,19 +368,6 @@ namespace core {
 
         }
 
-        bank_map input_bank_map = bank_map(Ny, std::vector<int>(Nx, -1));
-
-        int bank_in = 0;
-        int bkp_bank_in = 0;
-        for (int y = 0; y < Ny; ++y) {
-            for (int x = 0; x < Nx; ++x) {
-                if (x == 0) bank_in = bkp_bank_in;
-                input_bank_map[y][x] = bank_in;
-                if (x == Ox) bkp_bank_in = bank_in;
-                bank_in = (bank_in + 1) % IN_BANKS;
-            }
-        }
-
         std::vector<int> x_windows, y_windows;
         int x_counter = 0, y_counter = 0;
         while(this->iterateWindows(Ox, Oy, x_windows, y_windows, x_counter, y_counter, N_ROWS)) {
@@ -374,7 +379,7 @@ namespace core {
             schedule_buffer window_buffer = schedule_buffer(time_per_window,
                     std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0, 0)));
 
-            bank_map window_bank_map = bank_map(time_per_window, std::vector<int>(N_ROWS, -1));
+            bank_map window_bank_map = bank_map(time_per_window, std::vector<int>(N_ROWS, 0));
 
             uint64_t ideal_time_per_window = 0;
 
@@ -425,14 +430,14 @@ namespace core {
                 int skip = 0;
                 for (int time = 0; time < time_per_window; ++time) {
 
-                    bank_reads = std::vector<int>(IN_BANKS, 0);
+                    read_requests = std::vector<int>(IN_BANKS, 0);
 
                     // Input requests
                     for (int w = 0; w < x_windows.size(); ++w) {
-                        bank_reads[window_bank_map[time][w]]++;
+                        read_requests[window_bank_map[time][w]]++;
                     }
 
-                    stats.read_bank_conflicts += *std::max_element(bank_reads.begin(), bank_reads.end()) - 1;
+                    stats.read_bank_conflicts += *std::max_element(read_requests.begin() +1 , read_requests.end()) - 1;
 
                     // Skip lines of zeroes
                     if (skip < LOOKAHEAD_H && check_zero_line(window_buffer[time])) {
@@ -485,19 +490,26 @@ namespace core {
 
     template <typename T>
     void DynamicTactical<T>::spatial_convolution(const base::Array<T> &act, const base::Array<T> &out_grad,
-            uint64_t num_filters, uint64_t Kx, uint64_t Ky, uint64_t wgt_channels, conv_stats &act_stats,
-            conv_stats &out_stats) {
+            const bank_map &act_bank_map, const bank_map &out_bank_map, uint64_t num_filters, uint64_t Kx, uint64_t Ky,
+            uint64_t wgt_channels, conv_stats &act_stats, conv_stats &out_stats) {
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &out_grad_shape = out_grad.getShape();
 
         // Activations
         auto act_channels = act_shape[1];
+        auto Nx = act_shape[2];
+        auto Ny = act_shape[3];
 
         // Output gradients
         auto out_channels = out_grad_shape[1];
         auto Ox = out_grad_shape[2];
         auto Oy = out_grad_shape[3];
+
+        // Prepare bank
+        int HBANKS = BANKS/2 + 1;
+        std::vector<int> act_read_requests (HBANKS, 0);
+        std::vector<int> out_read_requests (HBANKS, 0);
 
         // Activations sparsity
         auto sim_weight_act_gradients = std::vector<std::vector<std::vector<std::vector<double>>>>(num_filters,
@@ -508,6 +520,7 @@ namespace core {
         act_stats.compute_cycles = 0;
         act_stats.base_compute_cycles = 0;
         act_stats.ideal_compute_cycles = 0;
+        act_stats.read_bank_conflicts = 0;
 
         // Generate output gradients buffer
         auto spatial_pad = (uint64_t)ceil(Ox * Ox / (double)N_LANES) * N_LANES;
@@ -518,6 +531,9 @@ namespace core {
         non_schedule_buffer out_gradients_buffer = non_schedule_buffer(num_out_grad_sets,
                 std::vector<std::vector<float>>(time_per_out_grad_channel,
                 std::vector<float>(N_COLUMNS * N_LANES, 0.0f)));
+
+        std::vector<bank_map> out_sets_bank_map = std::vector<bank_map>(num_out_grad_sets,
+                bank_map(time_per_out_grad_channel, std::vector<int>(N_COLUMNS, 0)));
 
         std::vector<uint64_t> ideal_time_per_out_grad_channel (ceil(out_channels/(double)N_COLUMNS), 0);
 
@@ -536,6 +552,8 @@ namespace core {
                     auto out_bits = out_grad.get(0, o, x, y);
                     int pos = (o % N_COLUMNS) * N_LANES + index;
                     out_gradients_buffer[set_out][time][pos] = out_bits;
+                    if ((o % N_COLUMNS) == 0)
+                        out_sets_bank_map[set_out][time][index] = out_bank_map[y][x];
                     index++;
                     if(index == N_LANES) {
                         time++;
@@ -562,10 +580,11 @@ namespace core {
                 schedule_buffer activation_buffer = schedule_buffer(time_per_act_channel,
                         std::vector<value_mux>(N_ROWS * N_LANES, std::make_tuple(0.0f, 0, 0)));
 
+                bank_map window_bank_map = bank_map(time_per_act_channel, std::vector<int>(N_ROWS, 0));
+
                 uint64_t ideal_time_per_act_channel = 0;
 
-                for(int act_channel = k; act_channel < std::min((uint64_t)k + N_ROWS, act_channels);
-                    ++act_channel) {
+                for(int act_channel = k; act_channel < std::min((uint64_t)k + N_ROWS, act_channels); ++act_channel) {
 
                     uint64_t non_zeroes = 0;
 
@@ -576,6 +595,8 @@ namespace core {
                             auto act_bits = act.get(0, act_channel, x_window + x, y_window + y);
                             int pos = (act_channel % N_ROWS) * N_LANES + index;
                             activation_buffer[time][pos] = std::make_tuple(act_bits, time, index);
+                            if (act_channel == k)
+                                window_bank_map[time][index] = act_bank_map[y_window + y][x_window + x];
                             index++;
                             if(index == N_LANES) {
                                 time++;
@@ -598,10 +619,29 @@ namespace core {
                     act_stats.ideal_compute_cycles += ideal_time_per_act_channel;
 
                     int skip = 0;
-                    for (const auto &time_buffer : activation_buffer) {
+                    for (int time = 0; time < time_per_act_channel; ++time) {
+
+                        act_read_requests = std::vector<int>(HBANKS, 0);
+                        out_read_requests = std::vector<int>(HBANKS, 0);
+
+                        // Activations requests
+                        for (int a = 0; a < N_ROWS; ++a) {
+                            act_read_requests[window_bank_map[time][a]]++;
+                        }
+
+                        // Output gradients requests
+                        for (int o = 0; o < N_COLUMNS; ++o) {
+                            out_read_requests[out_sets_bank_map[set_out][time][o]]++;
+                        }
+
+                        auto act_bank_conflicts = *std::max_element(act_read_requests.begin() + 1,
+                                act_read_requests.end()) - 1;
+                        auto out_bank_conflicts = *std::max_element(out_read_requests.begin() + 1,
+                                out_read_requests.end()) - 1;
+                        act_stats.read_bank_conflicts += std::min(act_bank_conflicts, out_bank_conflicts);
 
                         // Skip lines of zeroes
-                        if (skip < LOOKAHEAD_H && check_zero_line(time_buffer)) {
+                        if (skip < LOOKAHEAD_H && check_zero_line(activation_buffer[time])) {
                             skip++;
                             continue;
                         }
@@ -627,15 +667,13 @@ namespace core {
 
                                     for (int lane = 0; lane < N_LANES; ++lane) {
 
-                                        auto act_bits = std::get<0>(time_buffer[act_channel_idx + lane]);
-                                        auto time_h = std::get<1>(time_buffer[act_channel_idx + lane]);
-                                        auto lane_d = std::get<2>(time_buffer[act_channel_idx + lane]);
+                                        auto act_bits = std::get<0>(activation_buffer[time][act_channel_idx + lane]);
+                                        auto time_h = std::get<1>(activation_buffer[time][act_channel_idx + lane]);
+                                        auto lane_d = std::get<2>(activation_buffer[time][act_channel_idx + lane]);
 
-                                        auto out_bits = out_gradients_buffer
-                                        [set][time_h][out_grad_channel_idx + lane_d];
+                                        auto out_bits = out_gradients_buffer[set][time_h][out_grad_channel_idx + lane_d];
 
-                                        sim_weight_act_gradients
-                                        [out_grad_channel][act_channel][x_window][y_window]
+                                        sim_weight_act_gradients[out_grad_channel][act_channel][x_window][y_window]
                                                 += act_bits * out_bits;
 
                                     } // Multiply 16 output gradients and 16 activations
@@ -660,6 +698,7 @@ namespace core {
         out_stats.compute_cycles = 0;
         out_stats.base_compute_cycles = 0;
         out_stats.ideal_compute_cycles = 0;
+        out_stats.read_bank_conflicts = 0;
 
         // Schedule output gradients
         auto num_out_grad_sets_sch = (uint64_t)ceil(out_channels / (double)N_ROWS);
@@ -715,8 +754,9 @@ namespace core {
                 std::vector<std::vector<float>> activation_buffer = std::vector<std::vector<float>>(
                         time_per_act_channel, std::vector<float>(N_COLUMNS * N_LANES, 0.0f));
 
-                for(int act_channel = k; act_channel < std::min((uint64_t)k + N_COLUMNS, act_channels);
-                    ++act_channel) {
+                bank_map window_bank_map = bank_map(time_per_act_channel, std::vector<int>(N_ROWS, 0));
+
+                for(int act_channel = k; act_channel < std::min((uint64_t)k + N_COLUMNS, act_channels); ++act_channel) {
 
                     int index = 0;
                     int time = 0;
@@ -776,8 +816,7 @@ namespace core {
 
                                         auto act_bits = activation_buffer[time_h][act_channel_idx + lane_d];
 
-                                        sim_weight_out_gradients
-                                        [out_grad_channel][act_channel][x_window][y_window]
+                                        sim_weight_out_gradients[out_grad_channel][act_channel][x_window][y_window]
                                                 += act_bits * out_bits;
 
                                     } // Multiply 16 output gradients and 16 activations
@@ -826,6 +865,7 @@ namespace core {
         auto fw_speedup = stats.register_double_t("Forward speedup", 0, sys::Special);
         auto fw_ideal_compute_cycles = stats.register_uint_t("Forward ideal compute cycles", 0, sys::Total);
         auto fw_exploited_sparsity = stats.register_double_t("Forward exploited sparsity", 0, sys::Special);
+        auto fw_read_conflicts = stats.register_uint_t("Forward read bank conflicts", 0, sys::Total);
 
         // Backward stats
         auto bw_wgt_act_compute_cycles = stats.register_uint_t("Backward Weights A.S compute cycles", 0, sys::Total);
@@ -833,12 +873,14 @@ namespace core {
         auto bw_wgt_act_speedup = stats.register_double_t("Backward Weights A.S speedup", 0, sys::Special);
         auto bw_wgt_act_ideal_compute_cycles = stats.register_uint_t("Backward Weights A.S ideal compute cycles", 0, sys::Total);
         auto bw_wgt_act_exploited_sparsity = stats.register_double_t("Backward Weights A.S exploited sparsity", 0, sys::Special);
+        auto bw_wgt_act_read_conflicts = stats.register_uint_t("Backward Weights A.S read bank conflicts", 0, sys::Total);
 
         auto bw_wgt_out_compute_cycles = stats.register_uint_t("Backward Weights G.S compute cycles", 0, sys::Total);
         auto bw_wgt_out_base_compute_cycles = stats.register_uint_t("Backward Weights G.S base compute cycles", 0, sys::Total);
         auto bw_wgt_out_speedup = stats.register_double_t("Backward Weights G.S speedup", 0, sys::Special);
         auto bw_wgt_out_ideal_compute_cycles = stats.register_uint_t("Backward Weights G.S ideal compute cycles", 0, sys::Total);
         auto bw_wgt_out_exploited_sparsity = stats.register_double_t("Backward Weights G.S exploited sparsity", 0, sys::Special);
+        auto bw_wgt_out_read_conflicts = stats.register_uint_t("Backward Weights G.S read bank conflicts", 0, sys::Total);
 
         auto bw_wgt_compute_cycles = stats.register_uint_t("Backward Weights compute cycles", 0, sys::Total);
         auto bw_wgt_speedup = stats.register_double_t("Backward Weights speedup", 0, sys::Special);
@@ -848,6 +890,7 @@ namespace core {
         auto bw_in_speedup = stats.register_double_t("Backward Input speedup", 0, sys::Special);
         auto bw_in_ideal_compute_cycles = stats.register_uint_t("Backward Input ideal compute cycles", 0, sys::Total);
         auto bw_in_exploited_sparsity = stats.register_double_t("Backward Input exploited sparsity", 0, sys::Special);
+        auto bw_in_read_conflicts = stats.register_uint_t("Backward Input read bank conflicts", 0, sys::Total);
 
         // Simulate epochs
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
@@ -930,13 +973,16 @@ namespace core {
                     if ((Ny_pad - Ky)/stride + 1 != Oy)
                         throw std::runtime_error("Output activations incorrect Y window sizes");
 
+                    // Generate bank map
+                    auto act_bank_map = map_on_chip(Nx_pad, Ny_pad, BANKS);
+
                     // Simulate: Forward convolution A * W
                     conv_stats batch_stats;
                     if (wgt_channels == 1 && act_channels != 1) {
                         //spatial_2d_convolution(act, wgt, Ox, Oy, act_channels, num_filters, Kx, Ky, wgt_channels,
                         //                       stride, batch_stats);
                     } else {
-                        channel_first_convolution(act, wgt, Ox, Oy, stride, batch_stats);
+                        channel_first_convolution(act, wgt, act_bank_map, Ox, Oy, stride, batch_stats);
                     }
 
                     #pragma omp critical
@@ -944,6 +990,7 @@ namespace core {
                         fw_compute_cycles->value[epoch][layer_it] += batch_stats.compute_cycles;
                         fw_base_compute_cycles->value[epoch][layer_it] += batch_stats.base_compute_cycles;
                         fw_ideal_compute_cycles->value[epoch][layer_it] += batch_stats.ideal_compute_cycles;
+                        fw_read_conflicts->value[epoch][layer_it] += batch_stats.read_bank_conflicts;
                     }
 
                 } // Forward pass
@@ -1028,19 +1075,26 @@ namespace core {
                     if ((Ny_pad - Oy_dil + 1) != Ky)
                         throw std::runtime_error("Weight gradients incorrect Y window sizes");
 
+                    // Generate bank map
+                    auto act_bank_map = map_on_chip(Nx_pad, Ny_pad, BANKS);
+                    auto out_bank_map = map_on_chip(Ox_dil, Oy_dil, BANKS);
+
                     // Simulate: Backward convolution A * G = WG: Activations sparsity
                     conv_stats act_stats, out_stats;
-                    spatial_convolution(act, out_grad, num_filters, Kx, Ky, wgt_channels, act_stats, out_stats);
+                    spatial_convolution(act, out_grad, act_bank_map, out_bank_map, num_filters, Kx, Ky, wgt_channels,
+                            act_stats, out_stats);
 
                     #pragma omp critical
                     {
                         bw_wgt_act_compute_cycles->value[epoch][layer_it] += act_stats.compute_cycles;
                         bw_wgt_act_base_compute_cycles->value[epoch][layer_it] += act_stats.base_compute_cycles;
                         bw_wgt_act_ideal_compute_cycles->value[epoch][layer_it] += act_stats.ideal_compute_cycles;
+                        bw_wgt_act_read_conflicts->value[epoch][layer_it] += act_stats.read_bank_conflicts;
 
                         bw_wgt_out_compute_cycles->value[epoch][layer_it] += out_stats.compute_cycles;
                         bw_wgt_out_base_compute_cycles->value[epoch][layer_it] += out_stats.base_compute_cycles;
                         bw_wgt_out_ideal_compute_cycles->value[epoch][layer_it] += out_stats.ideal_compute_cycles;
+                        bw_wgt_out_read_conflicts->value[epoch][layer_it] += out_stats.read_bank_conflicts;
                     }
 
                     // Backward pass - Calculate Input gradients
@@ -1076,15 +1130,19 @@ namespace core {
                     if ((Oy_pad - Ky + 1) != Ny)
                         throw std::runtime_error("Input gradients incorrect Y window sizes");
 
+                    // Generate bank map
+                    out_bank_map = map_on_chip(Ox_pad, Oy_pad, BANKS);
+
                     // Simulate: Backward convolution W * G = IG
                     conv_stats batch_stats;
-                    channel_first_convolution(out_grad, wgt, Nx, Ny, 1, batch_stats);
+                    channel_first_convolution(out_grad, wgt, out_bank_map, Nx, Ny, 1, batch_stats);
 
                     #pragma omp critical
                     {
                         bw_in_compute_cycles->value[epoch][layer_it] += batch_stats.compute_cycles;
                         bw_in_base_compute_cycles->value[epoch][layer_it] += batch_stats.base_compute_cycles;
                         bw_in_ideal_compute_cycles->value[epoch][layer_it] += batch_stats.ideal_compute_cycles;
+                        bw_in_read_conflicts->value[epoch][layer_it] += batch_stats.read_bank_conflicts;
                     }
 
                 } // Backward pass

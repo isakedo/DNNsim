@@ -85,10 +85,11 @@ namespace core {
          */
         void original_schedule(schedule_buffer &schedule);
 
-        void channel_first_convolution(const base::Array<T> &input, const base::Array<T> &wgt, uint64_t Ox, uint64_t Oy,
-                int stride, conv_stats &stats);
+        void channel_first_convolution(const base::Array<T> &input, const base::Array<T> &wgt,
+                const bank_map &input_bank_map, uint64_t Ox, uint64_t Oy, int stride, conv_stats &stats);
 
-        void spatial_convolution(const base::Array<T> &act, const base::Array<T> &out_grad, uint64_t num_filters,
+        void spatial_convolution(const base::Array<T> &act, const base::Array<T> &out_grad,
+                const bank_map &act_bank_map, const bank_map &out_bank_map, uint64_t num_filters,
                 uint64_t Kx, uint64_t Ky, uint64_t wgt_channels, conv_stats &act_stats, conv_stats &out_stats);
 
     public:
