@@ -284,15 +284,13 @@ namespace core {
 
     bank_map map_on_chip(uint64_t X, uint64_t Y, uint64_t BANKS) {
 
-        auto HBANKS = BANKS/2 + 1;
-        bank_map values_bank_map = bank_map(Y, std::vector<int>(X, 0));
+        bank_map values_bank_map = bank_map(Y, std::vector<int>(X, -1));
 
-        int bank = 1;
+        int bank = 0;
         for (int y = 0; y < Y; ++y) {
             for (int x = 0; x < X; ++x) {
                 values_bank_map[y][x] = bank;
-                bank++;
-                if (bank == HBANKS) bank = 1;
+                bank = (bank + 1) % BANKS;
             }
         }
 
@@ -318,8 +316,7 @@ namespace core {
         auto Ky = wgt_shape[3];
 
         // Prepare bank
-        int IN_BANKS = BANKS/2 + 1;
-        std::vector<int> read_requests (IN_BANKS, 0);
+        std::vector<int> read_requests (BANKS, 0);
 
         auto sim_output_activations = std::vector<std::vector<std::vector<double>>>(num_filters,
                 std::vector<std::vector<double>>(Ox, std::vector<double>(Oy, 0)));
@@ -430,14 +427,15 @@ namespace core {
                 int skip = 0;
                 for (int time = 0; time < time_per_window; ++time) {
 
-                    read_requests = std::vector<int>(IN_BANKS, 0);
+                    read_requests = std::vector<int>(BANKS, 0);
 
                     // Input requests
                     for (int w = 0; w < x_windows.size(); ++w) {
-                        read_requests[window_bank_map[time][w]]++;
+                        auto bank = window_bank_map[time][w];
+                        if (bank >= 0) read_requests[bank]++;
                     }
 
-                    stats.read_bank_conflicts += *std::max_element(read_requests.begin() +1 , read_requests.end()) - 1;
+                    stats.read_bank_conflicts += *std::max_element(read_requests.begin(), read_requests.end()) - 1;
 
                     // Skip lines of zeroes
                     if (skip < LOOKAHEAD_H && check_zero_line(window_buffer[time])) {
@@ -507,9 +505,8 @@ namespace core {
         auto Oy = out_grad_shape[3];
 
         // Prepare bank
-        int HBANKS = BANKS/2 + 1;
-        std::vector<int> act_read_requests (HBANKS, 0);
-        std::vector<int> out_read_requests (HBANKS, 0);
+        std::vector<int> act_read_requests (BANKS, 0);
+        std::vector<int> out_read_requests (BANKS, 0);
 
         // Activations sparsity
         auto sim_weight_act_gradients = std::vector<std::vector<std::vector<std::vector<double>>>>(num_filters,
@@ -621,22 +618,24 @@ namespace core {
                     int skip = 0;
                     for (int time = 0; time < time_per_act_channel; ++time) {
 
-                        act_read_requests = std::vector<int>(HBANKS, 0);
-                        out_read_requests = std::vector<int>(HBANKS, 0);
+                        act_read_requests = std::vector<int>(BANKS, 0);
+                        out_read_requests = std::vector<int>(BANKS, 0);
 
                         // Activations requests
                         for (int a = 0; a < N_ROWS; ++a) {
-                            act_read_requests[window_bank_map[time][a]]++;
+                            auto bank = window_bank_map[time][a];
+                            if (bank >= 0) act_read_requests[bank]++;
                         }
 
                         // Output gradients requests
                         for (int o = 0; o < N_COLUMNS; ++o) {
-                            out_read_requests[out_sets_bank_map[set_out][time][o]]++;
+                            auto bank = out_sets_bank_map[set_out][time][o];
+                            if (bank >= 0) out_read_requests[bank]++;
                         }
 
-                        auto act_bank_conflicts = *std::max_element(act_read_requests.begin() + 1,
+                        auto act_bank_conflicts = *std::max_element(act_read_requests.begin(),
                                 act_read_requests.end()) - 1;
-                        auto out_bank_conflicts = *std::max_element(out_read_requests.begin() + 1,
+                        auto out_bank_conflicts = *std::max_element(out_read_requests.begin(),
                                 out_read_requests.end()) - 1;
                         act_stats.read_bank_conflicts += std::min(act_bank_conflicts, out_bank_conflicts);
 
@@ -765,6 +764,8 @@ namespace core {
                             auto act_bits = act.get(0, act_channel, x_window + x, y_window + y);
                             int pos = (act_channel % N_COLUMNS) * N_LANES + index;
                             activation_buffer[time][pos] = act_bits;
+                            if (act_channel == k)
+                                window_bank_map[time][index] = act_bank_map[y_window + y][x_window + x];
                             index++;
                             if(index == N_LANES) {
                                 time++;
@@ -781,10 +782,31 @@ namespace core {
                     out_stats.ideal_compute_cycles += ideal_time_per_out_grad_channel_sch[set];
 
                     int skip = 0;
-                    for (const auto &time_buffer : out_gradients_buffer_sch[set]) {
+                    for (int time = 0; time < time_per_out_grad_channel_sch; ++time) {
+
+                        act_read_requests = std::vector<int>(BANKS, 0);
+                        out_read_requests = std::vector<int>(BANKS, 0);
+
+                        // Activations requests
+                        for (int a = 0; a < N_ROWS; ++a) {
+                            auto bank = window_bank_map[time][a];
+                            if (bank >= 0) act_read_requests[bank]++;
+                        }
+
+                        // Output gradients requests
+                        for (int o = 0; o < N_COLUMNS; ++o) {
+                            auto bank = out_sets_bank_map[set_out][time][o];
+                            if (bank >= 0) out_read_requests[bank]++;
+                        }
+
+                        auto act_bank_conflicts = *std::max_element(act_read_requests.begin(),
+                                act_read_requests.end()) - 1;
+                        auto out_bank_conflicts = *std::max_element(out_read_requests.begin(),
+                                out_read_requests.end()) - 1;
+                        act_stats.read_bank_conflicts += std::min(act_bank_conflicts, out_bank_conflicts);
 
                         // Skip lines of zeroes
-                        if (skip < LOOKAHEAD_H && check_zero_line(time_buffer)) {
+                        if (skip < LOOKAHEAD_H && check_zero_line(out_gradients_buffer_sch[set][time])) {
                             skip++;
                             continue;
                         }
@@ -810,9 +832,12 @@ namespace core {
 
                                     for (int lane = 0; lane < N_LANES; ++lane) {
 
-                                        auto out_bits = std::get<0>(time_buffer[out_grad_channel_idx + lane]);
-                                        auto time_h = std::get<1>(time_buffer[out_grad_channel_idx + lane]);
-                                        auto lane_d = std::get<2>(time_buffer[out_grad_channel_idx + lane]);
+                                        auto out_bits = std::get<0>(out_gradients_buffer_sch[set][time]
+                                                [out_grad_channel_idx + lane]);
+                                        auto time_h = std::get<1>(out_gradients_buffer_sch[set][time]
+                                                [out_grad_channel_idx + lane]);
+                                        auto lane_d = std::get<2>(out_gradients_buffer_sch[set][time]
+                                                [out_grad_channel_idx + lane]);
 
                                         auto act_bits = activation_buffer[time_h][act_channel_idx + lane_d];
 
