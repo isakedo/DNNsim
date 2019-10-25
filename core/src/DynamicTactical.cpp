@@ -477,6 +477,242 @@ namespace core {
     }
 
     template <typename T>
+    void DynamicTactical<T>::channel_first_dilated_convolution(const base::Array<T> &input, const base::Array<T> &wgt,
+            const bank_map &input_bank_map, int stride, conv_stats &stats, output_tensor &output) {
+
+        const std::vector<size_t> &in_shape = input.getShape();
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+        // Input values
+        auto in_channels = in_shape[1];
+        auto Wx = in_shape[2];
+        auto Wy = in_shape[3];
+
+        // Weights
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
+
+        // Prepare bank
+        std::vector<int> read_requests (BANKS, 0);
+
+        // Stats
+        stats.compute_cycles = 0;
+        stats.base_compute_cycles = 0;
+        stats.ideal_compute_cycles = 0;
+        stats.read_bank_conflicts = 0;
+
+        // Generate new kernels
+        std::vector<bool> free_pos (Kx * Ky, true);
+        auto next_pos = free_pos.begin();
+        std::vector<std::vector<std::tuple<int, int>>> kernel_sets;
+        do {
+
+            int init_pos = std::distance(free_pos.begin(), next_pos);
+            int pos_x = init_pos % Kx;
+            int pos_y = init_pos / Kx;
+
+            std::vector<std::tuple<int, int>> positions;
+            while(pos_y < Ky) {
+                while(pos_x < Kx) {
+                    int index = pos_y * Kx + pos_x;
+                    positions.push_back(std::make_tuple(pos_x, pos_y));
+                    free_pos[index] = false;
+                    pos_x += stride;
+                }
+                pos_x = init_pos % Kx;
+                pos_y += stride;
+            }
+
+            kernel_sets.push_back(positions);
+            next_pos = std::find(free_pos.begin(), free_pos.end(), true);
+
+        } while(next_pos != free_pos.end());
+
+        for (const auto &kernel_positions : kernel_sets) {
+
+            std::list<int> kx, ky;
+            for (const auto &index_tuple : kernel_positions) {
+                kx.push_back(std::get<0>(index_tuple));
+                ky.push_back(std::get<1>(index_tuple));
+            }
+
+            kx.sort();
+            ky.sort();
+            kx.unique();
+            ky.unique();
+            Kx = kx.size();
+            Ky = ky.size();
+
+            auto pad_x = std::get<0>(kernel_positions.front());
+            auto pad_y = std::get<1>(kernel_positions.front());
+
+            // Generate weight buffer
+            auto num_filter_sets = (uint64_t)ceil(num_filters / (double)N_COLUMNS);
+
+            auto round_wgt_channels = (int)ceil(wgt_channels / (double)N_LANES) * N_LANES;
+            auto time_per_filter = (uint64_t)ceil(round_wgt_channels * Kx * Ky / (double)N_LANES);
+
+            non_schedule_buffer weight_buffer = non_schedule_buffer(num_filter_sets,
+                    std::vector<std::vector<float>>(time_per_filter,std::vector<float>(N_COLUMNS * N_LANES, 0.0f)));
+
+            int set_wgt = -1;
+            for(int m = 0; m < num_filters; m++) {
+
+                if ((m % N_COLUMNS) == 0)
+                    set_wgt++;
+
+                int time = 0;
+
+                for (auto index_tuple : kernel_positions) {
+                    auto x = std::get<0>(index_tuple);
+                    auto y = std::get<1>(index_tuple);
+
+                    for (int k = 0; k < wgt_channels; k += N_LANES) {
+                        int index = 0;
+                        for (int channel = k; channel < std::min((uint64_t) k + N_LANES, wgt_channels); ++channel) {
+                            auto wgt_bits = wgt.get(m, channel, x, y);
+                            int pos = (m % N_COLUMNS) * N_LANES + index;
+                            weight_buffer[set_wgt][time][pos] = wgt_bits;
+                            index++;
+                            if (index == N_LANES) {
+                                time++;
+                                index = 0;
+                            }
+                        }
+                        if (index != 0)
+                            time++;
+                    }
+                }
+
+            }
+
+            auto Ox = Wx - Kx - 2 * pad_x + 1;
+            auto Oy = Wy - Ky - 2 * pad_y + 1;
+
+            std::vector<int> x_windows, y_windows;
+            int x_counter = 0, y_counter = 0;
+            while(this->iterateWindows(Ox, Oy, x_windows, y_windows, x_counter, y_counter, N_ROWS)) {
+
+                // Generate activation buffer
+                auto round_in_channels = (int)ceil(in_channels / (double)N_LANES) * N_LANES;
+                auto time_per_window = (uint64_t)ceil(round_in_channels * Kx * Ky / (double)N_LANES);
+
+                schedule_buffer window_buffer = schedule_buffer(time_per_window,
+                        std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0, 0)));
+
+                bank_map window_bank_map = bank_map(time_per_window, std::vector<int>(N_ROWS, 0));
+
+                uint64_t ideal_time_per_window = 0;
+
+                for (int w = 0; w < x_windows.size(); ++w) {
+                    auto x_window = x_windows[w];
+                    auto y_window = y_windows[w];
+
+                    uint64_t non_zeroes = 0;
+
+                    int time = 0;
+                    for (int y = 0; y < Ky; ++y) {
+                        for (int x = 0; x < Kx; ++x) {
+                            for (int k = 0; k < in_channels; k += N_LANES) {
+                                int index = 0;
+                                for (int channel = k; channel < std::min((uint64_t)k + N_LANES, in_channels); ++channel) {
+                                    auto in_bits = input.get(0, channel, x_window + x + pad_x, y_window + y + pad_y);
+                                    int pos = w * N_LANES + index;
+                                    window_buffer[time][pos] = std::make_tuple(in_bits, time, index);
+                                    index++;
+                                    if(index == N_LANES) {
+                                        window_bank_map[time][w] = input_bank_map[y_window + y + pad_y][x_window + x + pad_x];
+                                        time++;
+                                        index = 0;
+                                    }
+                                    if (in_bits != 0) non_zeroes++;
+                                }
+                                if (index != 0) {
+                                    window_bank_map[time][w] = input_bank_map[y_window + y + pad_y][x_window + x + pad_x];
+                                    time++;
+                                }
+                            }
+                        }
+                    }
+                    auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
+                    if (ideal_time > ideal_time_per_window)
+                        ideal_time_per_window = ideal_time;
+
+                }
+
+                // Schedule buffer
+                original_schedule(window_buffer);
+
+                for (int set = 0; set < num_filter_sets; ++set) {
+
+                    stats.base_compute_cycles += time_per_window;
+                    stats.ideal_compute_cycles += ideal_time_per_window;
+
+                    int skip = 0;
+                    for (int time = 0; time < time_per_window; ++time) {
+
+                        read_requests = std::vector<int>(BANKS, 0);
+
+                        // Input requests
+                        for (int w = 0; w < x_windows.size(); ++w) {
+                            auto bank = window_bank_map[time][w];
+                            if (bank >= 0) read_requests[bank]++;
+                        }
+
+                        stats.read_bank_conflicts += *std::max_element(read_requests.begin(), read_requests.end()) - 1;
+
+                        // Skip lines of zeroes
+                        if (skip < LOOKAHEAD_H && check_zero_line(window_buffer[time])) {
+                            skip++;
+                            continue;
+                        }
+                        skip = 0;
+
+                        stats.compute_cycles++;
+
+                        if (this->CHECK) {
+
+                            for (int w = 0; w < x_windows.size(); ++w) {
+                                auto window_idx = w * N_LANES;
+                                auto x_window = x_windows[w];
+                                auto y_window = y_windows[w];
+
+                                for (int f = 0; f < N_COLUMNS; ++f) {
+                                    auto filter_idx = f * N_LANES;
+                                    auto filter = set * N_COLUMNS + f;
+
+                                    if (filter >= num_filters)
+                                        continue;
+
+                                    for (int lane = 0; lane < N_LANES; ++lane) {
+
+                                        auto in_bits = std::get<0>(window_buffer[time][window_idx + lane]);
+                                        auto time_h = std::get<1>(window_buffer[time][window_idx + lane]);
+                                        auto lane_d = std::get<2>(window_buffer[time][window_idx + lane]);
+
+                                        auto wgt_bits = weight_buffer[set][time_h][filter_idx + lane_d];
+
+                                        output[0][filter][stride * x_window + pad_x][stride * y_window + pad_y]
+                                                += in_bits * wgt_bits;
+
+                                    } // Multiply 16 weights and 16 window values
+
+                                } // Filter
+                            } // Window
+                        } //Check
+
+                    } // Time of the buffers
+                } // Filter sets
+            } // Window sets
+
+
+        } // Kernel sets
+
+    }
+
+    template <typename T>
     void DynamicTactical<T>::spatial_convolution(const base::Array<T> &act, const base::Array<T> &out_grad,
             const bank_map &act_bank_map, const bank_map &out_bank_map, uint64_t Kx, uint64_t Ky, int stride,
             conv_stats &act_stats, conv_stats &out_stats, output_tensor &act_output, output_tensor &out_output) {
@@ -1024,7 +1260,6 @@ namespace core {
 
                     int padding = layer.getPadding();
                     int stride = layer.getStride();
-                    if (stride > 1) continue;
 
                     const std::vector<size_t> &act_shape = act.getShape();
                     const std::vector<size_t> &wgt_shape = wgt.getShape();
@@ -1109,16 +1344,26 @@ namespace core {
                     if (layer_it == 0)
                         continue;
 
-                    if (pad_type == 1) out_grad.zero_pad_y(padding + stride - 1);
-                    else if (pad_type == 2) out_grad.zero_pad_x(padding + stride - 1);
-                    else if (pad_type == 3) out_grad.asym_zero_pad(padding + stride - 1);
-                    else if (pad_type == 4) out_grad.zero_pad(padding + stride - 1);
-                    else if ((Ox - Kx + 1) != Nx) out_grad.zero_pad(Kx - 1);
+                    int pad_x = 0, pad_y = 0;
+                    if (pad_type == 1) {
+                        out_grad.zero_pad_y(padding);
+                        pad_y = 2 * (padding + stride - 1);
+                    } else if (pad_type == 2) {
+                        out_grad.zero_pad_x(padding);
+                        pad_x = 2 * (padding + stride - 1);
+                    } else if (pad_type == 3) {
+                        out_grad.asym_zero_pad(padding);
+                        pad_x = pad_y = 2 * (padding + stride - 1) - 1;
+                    } else if (pad_type == 4) {
+                        out_grad.zero_pad(padding);
+                        pad_x = pad_y = 2 * (padding + stride - 1);
+                    } else if ((Ox - Kx + 1) != Nx) {
+                        out_grad.zero_pad((Kx - 1) / stride);
+                        pad_x = pad_y = 2 * (Kx - 1);
+                    }
 
-                    const std::vector<size_t> &out_grad_shape_pad = out_grad.getShape();
-
-                    auto Ox_pad = out_grad_shape_pad[2];
-                    auto Oy_pad = out_grad_shape_pad[3];
+                    auto Ox_pad = Ox_dil + pad_x;
+                    auto Oy_pad = Oy_dil + pad_y;
 
                     wgt.rotate_180deg();
                     wgt.reshape_channel_wise(out_channels);
@@ -1149,7 +1394,12 @@ namespace core {
                             std::vector<std::vector<double>>(Nx, std::vector<double>(Ny, 0))));
 
                     conv_stats batch_stats;
-                    channel_first_convolution(out_grad, wgt, out_bank_map, Nx, Ny, 1, batch_stats, sim_input_gradients);
+                    if (stride > 1)
+                        channel_first_dilated_convolution(out_grad, wgt, out_bank_map, stride, batch_stats,
+                                sim_input_gradients);
+                    else
+                        channel_first_convolution(out_grad, wgt, out_bank_map, Nx, Ny, 1, batch_stats,
+                                sim_input_gradients);
 
                     #pragma omp critical
                     {
