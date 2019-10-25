@@ -1024,6 +1024,7 @@ namespace core {
 
                     int padding = layer.getPadding();
                     int stride = layer.getStride();
+                    if (stride > 1) continue;
 
                     const std::vector<size_t> &act_shape = act.getShape();
                     const std::vector<size_t> &wgt_shape = wgt.getShape();
@@ -1108,7 +1109,7 @@ namespace core {
                     if (layer_it == 0)
                         continue;
 
-                    /*if (pad_type == 1) out_grad.zero_pad_y(padding + stride - 1);
+                    if (pad_type == 1) out_grad.zero_pad_y(padding + stride - 1);
                     else if (pad_type == 2) out_grad.zero_pad_x(padding + stride - 1);
                     else if (pad_type == 3) out_grad.asym_zero_pad(padding + stride - 1);
                     else if (pad_type == 4) out_grad.zero_pad(padding + stride - 1);
@@ -1130,6 +1131,8 @@ namespace core {
                     // Check window size
                     if (wgt_channels_rot != out_channels)
                         throw std::runtime_error("Wrong weights rotated channels");
+                    if (num_filters_rot != act_channels)
+                        throw std::runtime_error("Wrong weights rotated filters");
 
                     // Check window size
                     if ((Ox_pad - Kx + 1) != Nx)
@@ -1142,11 +1145,11 @@ namespace core {
 
                     // Simulate: Backward convolution W * G = IG
                     output_tensor sim_input_gradients = output_tensor(1,
-                            std::vector<std::vector<std::vector<double>>>(num_filters,
-                            std::vector<std::vector<double>>(Ox, std::vector<double>(Oy, 0))));
+                            std::vector<std::vector<std::vector<double>>>(num_filters_rot,
+                            std::vector<std::vector<double>>(Nx, std::vector<double>(Ny, 0))));
 
                     conv_stats batch_stats;
-                    channel_first_convolution(out_grad, wgt, out_bank_map, Nx, Ny, 1, batch_stats);
+                    channel_first_convolution(out_grad, wgt, out_bank_map, Nx, Ny, 1, batch_stats, sim_input_gradients);
 
                     #pragma omp critical
                     {
@@ -1154,17 +1157,28 @@ namespace core {
                         bw_in_base_compute_cycles->value[epoch][layer_it] += batch_stats.base_compute_cycles;
                         bw_in_ideal_compute_cycles->value[epoch][layer_it] += batch_stats.ideal_compute_cycles;
                         //bw_in_read_conflicts->value[epoch][layer_it] += batch_stats.read_bank_conflicts;
-                    }*/
+                    }
 
                     // Check correctness of the outputs
                     if (this->CHECK) {
+
+                        // Reload output gradients without padding
+                        out_grad = layer.getOutputGradients();
+                        if (fc) out_grad.reshape_to_4D();
+                        out_grad.get_batch(batch);
 
                         // Check weight gradients
                         if (conv) out_grad.dilate_out_grad(stride, Nx_pad, Kx);
                         check_result_spatial(sim_weight_act_gradients, sim_weight_out_gradients, act, out_grad,
                                 num_filters, Kx, Ky, wgt_channels);
 
-                        //check_result_channel_first(sim_input_gradients, act, wgt, Ox, Oy, stride);
+                        // Check input gradients
+                        if (pad_type == 1) out_grad.zero_pad_y(padding + stride - 1);
+                        else if (pad_type == 2) out_grad.zero_pad_x(padding + stride - 1);
+                        else if (pad_type == 3) out_grad.asym_zero_pad(padding + stride - 1);
+                        else if (pad_type == 4) out_grad.zero_pad(padding + stride - 1);
+                        else if ((Ox - Kx + 1) != Nx) out_grad.zero_pad(Kx - 1);
+                        check_result_channel_first(sim_input_gradients, out_grad, wgt, Nx, Ny, 1);
 
                     }
 
