@@ -195,7 +195,7 @@ namespace core {
                     auto sim_value = sim_output[0][ch][x][y];
                     auto error = (actual_value - sim_value) / sim_value;
                     if (abs(error) > 1e-10)
-                        throw std::runtime_error("Forward convolution wrong value.");
+                        throw std::runtime_error("Channel First convolution wrong value.");
                 }
             }
         }
@@ -478,7 +478,7 @@ namespace core {
 
     template <typename T>
     void DynamicTactical<T>::channel_first_dilated_convolution(const base::Array<T> &input, const base::Array<T> &wgt,
-            const bank_map &input_bank_map, int stride, conv_stats &stats, output_tensor &output) {
+            const bank_map &input_bank_map, int stride, bool asym_pad, conv_stats &stats, output_tensor &output) {
 
         const std::vector<size_t> &in_shape = input.getShape();
         const std::vector<size_t> &wgt_shape = wgt.getShape();
@@ -517,7 +517,7 @@ namespace core {
             while(pos_y < Ky) {
                 while(pos_x < Kx) {
                     int index = pos_y * Kx + pos_x;
-                    positions.push_back(std::make_tuple(pos_x, pos_y));
+                    positions.emplace_back(std::make_tuple(pos_x, pos_y));
                     free_pos[index] = false;
                     pos_x += stride;
                 }
@@ -545,8 +545,12 @@ namespace core {
             Kx = kx.size();
             Ky = ky.size();
 
+            auto max_Kx = ceil(Kx / (double)stride);
+            auto max_Ky = ceil(Ky / (double)stride);
             auto pad_x = std::get<0>(kernel_positions.front());
             auto pad_y = std::get<1>(kernel_positions.front());
+            auto padw_x = asym_pad ? max_Kx - pad_x : pad_x;
+            auto padw_y = asym_pad ? max_Ky - pad_y : pad_y;
 
             // Generate weight buffer
             auto num_filter_sets = (uint64_t)ceil(num_filters / (double)N_COLUMNS);
@@ -588,8 +592,10 @@ namespace core {
 
             }
 
-            auto Ox = Wx - Kx - 2 * pad_x + 1;
-            auto Oy = Wy - Ky - 2 * pad_y + 1;
+            auto Ox = asym_pad ? Wx - Kx - pad_x + 1 : Wx - Kx - 2 * pad_x + 1;
+            auto Oy = asym_pad ? Wy - Ky - pad_y + 1 : Wy - Ky - 2 * pad_y + 1;
+            pad_x = asym_pad ? 0 : pad_x;
+            pad_y = asym_pad ? 0 : pad_y;
 
             std::vector<int> x_windows, y_windows;
             int x_counter = 0, y_counter = 0;
@@ -694,7 +700,7 @@ namespace core {
 
                                         auto wgt_bits = weight_buffer[set][time_h][filter_idx + lane_d];
 
-                                        output[0][filter][stride * x_window + pad_x][stride * y_window + pad_y]
+                                        output[0][filter][stride * x_window + padw_x][stride * y_window + padw_y]
                                                 += in_bits * wgt_bits;
 
                                     } // Multiply 16 weights and 16 window values
@@ -1192,7 +1198,7 @@ namespace core {
                     if (conv && padding > 0) {
                         if (Kx < Ky) act.zero_pad_y(padding);
                         else if (Ky < Kx) act.zero_pad_x(padding);
-                        else if (((Nx - Kx + 2 * padding)/(double)stride + 1) != Ox) act.asym_zero_pad(padding);
+                        else if (((Nx - Kx + 2 * padding)/(double)stride + 1) != Ox) act.asym_right_zero_pad(padding);
                         else act.zero_pad(padding);
                     }
 
@@ -1291,7 +1297,7 @@ namespace core {
 
                     if (pad_type == 1) act.zero_pad_y(padding);
                     else if (pad_type == 2) act.zero_pad_x(padding);
-                    else if (pad_type == 3) act.asym_zero_pad(padding);
+                    else if (pad_type == 3) act.asym_right_zero_pad(padding);
                     else if (pad_type == 4) act.zero_pad(padding);
 
                     const std::vector<size_t> &act_shape_pad = act.getShape();
@@ -1352,7 +1358,7 @@ namespace core {
                         out_grad.zero_pad_x(padding);
                         pad_x = 2 * (padding + stride - 1);
                     } else if (pad_type == 3) {
-                        out_grad.asym_zero_pad(padding);
+                        out_grad.asym_left_zero_pad(padding);
                         pad_x = pad_y = 2 * (padding + stride - 1) - 1;
                     } else if (pad_type == 4) {
                         out_grad.zero_pad(padding);
@@ -1395,8 +1401,8 @@ namespace core {
 
                     conv_stats batch_stats;
                     if (stride > 1)
-                        channel_first_dilated_convolution(out_grad, wgt, out_bank_map, stride, batch_stats,
-                                sim_input_gradients);
+                        channel_first_dilated_convolution(out_grad, wgt, out_bank_map, stride, pad_type == 3,
+                                batch_stats, sim_input_gradients);
                     else
                         channel_first_convolution(out_grad, wgt, out_bank_map, Nx, Ny, 1, batch_stats,
                                 sim_input_gradients);
@@ -1425,7 +1431,7 @@ namespace core {
                         // Check input gradients
                         if (pad_type == 1) out_grad.zero_pad_y(padding + stride - 1);
                         else if (pad_type == 2) out_grad.zero_pad_x(padding + stride - 1);
-                        else if (pad_type == 3) out_grad.asym_zero_pad(padding + stride - 1);
+                        else if (pad_type == 3) out_grad.asym_left_zero_pad(padding + stride - 1);
                         else if (pad_type == 4) out_grad.zero_pad(padding + stride - 1);
                         else if ((Ox - Kx + 1) != Nx) out_grad.zero_pad(Kx - 1);
                         check_result_channel_first(sim_input_gradients, out_grad, wgt, Nx, Ny, 1);
@@ -1682,7 +1688,7 @@ namespace core {
                     asym_pad = ((Nx - Kx + 2 * padding)/(double)stride + 1) != Ox;
                 }
 
-                if (conv && padding > 0) asym_pad ? act.asym_zero_pad(padding) : act.zero_pad(padding);
+                if (conv && padding > 0) asym_pad ? act.asym_right_zero_pad(padding) : act.zero_pad(padding);
 
                 const std::vector<size_t> &act_shape_pad = act.getShape();
 
@@ -1814,7 +1820,7 @@ namespace core {
                 }
 
                 // Backward pass - Calculate Input gradients
-                if (conv && padding > 0) asym_pad ? out_grad.asym_zero_pad(padding + stride - 1) :
+                if (conv && padding > 0) asym_pad ? out_grad.asym_left_zero_pad(padding + stride - 1) :
                         out_grad.zero_pad(padding + stride - 1);
 
                 const std::vector<size_t> &out_grad_shape_pad = out_grad.getShape();

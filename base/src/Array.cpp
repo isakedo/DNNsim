@@ -558,7 +558,7 @@ namespace base {
     }
 
     template <typename T>
-    void Array<T>::asym_zero_pad(int padding) {
+    void Array<T>::asym_right_zero_pad(int padding) {
         auto batch_size = this->shape[0];
         auto act_channels = this->shape[1];
         auto Nx = this->shape[2];
@@ -572,6 +572,35 @@ namespace base {
                 for (int i = 0; i < Nx; i++) {
                     for(int j = 0; j < Ny; j++) {
                         tmp_data4D[n][k][padding + i][padding + j] = this->data4D[n][k][i][j];
+                    }
+                }
+            }
+        }
+
+        this->data4D.clear();
+        this->data4D = tmp_data4D;
+        this->shape.clear();
+        this->shape.push_back(batch_size);
+        this->shape.push_back(act_channels);
+        this->shape.push_back(Nx + 2 * padding - 1);
+        this->shape.push_back(Ny + 2 * padding - 1);
+    }
+
+    template <typename T>
+    void Array<T>::asym_left_zero_pad(int padding) {
+        auto batch_size = this->shape[0];
+        auto act_channels = this->shape[1];
+        auto Nx = this->shape[2];
+        auto Ny = this->shape[3];
+
+        auto tmp_data4D = Array4D(batch_size, Array3D(act_channels, Array2D(Nx + 2 * padding - 1,
+                Array1D(Ny + 2 * padding - 1, 0))));
+
+        for(int n = 0; n < batch_size; n++) {
+            for (int k = 0; k < act_channels; k++) {
+                for (int i = 0; i < Nx; i++) {
+                    for(int j = 0; j < Ny; j++) {
+                        tmp_data4D[n][k][padding - 1 + i][padding - 1 + j] = this->data4D[n][k][i][j];
                     }
                 }
             }

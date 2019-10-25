@@ -152,7 +152,12 @@ namespace base {
         /** Asymmetric zero pad the activations
          * @param padding   Padding of the layer
          */
-        void asym_zero_pad(int padding);
+        void asym_right_zero_pad(int padding);
+
+        /** Asymmetric zero pad the output gradients
+         * @param padding   Padding of the layer
+         */
+        void asym_left_zero_pad(int padding);
 
         /** Zero padding for X dimension only
          * @param padding   Padding of the layer
