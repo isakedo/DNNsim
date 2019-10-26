@@ -545,12 +545,10 @@ namespace core {
             Kx = kx.size();
             Ky = ky.size();
 
-            auto max_Kx = ceil(Kx / (double)stride);
-            auto max_Ky = ceil(Ky / (double)stride);
             auto pad_x = std::get<0>(kernel_positions.front());
             auto pad_y = std::get<1>(kernel_positions.front());
-            auto padw_x = asym_pad ? max_Kx - pad_x : pad_x;
-            auto padw_y = asym_pad ? max_Ky - pad_y : pad_y;
+            auto padw_x = asym_pad ? stride - 1 - pad_x : pad_x;
+            auto padw_y = asym_pad ? stride - 1 - pad_y : pad_y;
 
             // Generate weight buffer
             auto num_filter_sets = (uint64_t)ceil(num_filters / (double)N_COLUMNS);
