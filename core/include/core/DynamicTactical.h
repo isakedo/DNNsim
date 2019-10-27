@@ -97,7 +97,7 @@ namespace core {
 
         void spatial_convolution(const base::Array<T> &act, const base::Array<T> &out_grad,
                 const bank_map &act_bank_map, const bank_map &out_bank_map, uint64_t Kx, uint64_t Ky, int stride,
-                conv_stats &act_stats, conv_stats &out_stats, output_tensor &act_output, output_tensor &out_output);
+                conv_stats &stats, output_tensor &output);
 
     public:
 

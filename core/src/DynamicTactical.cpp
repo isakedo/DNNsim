@@ -202,9 +202,8 @@ namespace core {
     }
 
     template <typename T>
-    void check_result_spatial(const output_tensor &sim_output_act, const output_tensor &sim_output_wgt,
-            const base::Array<T> &act, const base::Array<T> &out_grad, uint64_t num_filters, uint64_t Kx, uint64_t Ky,
-            uint64_t wgt_channels) {
+    void check_result_spatial(const output_tensor &sim_output, const base::Array<T> &act,
+            const base::Array<T> &out_grad, uint64_t num_filters, uint64_t Kx, uint64_t Ky, uint64_t wgt_channels) {
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &out_grad_shape = out_grad.getShape();
@@ -250,27 +249,10 @@ namespace core {
                 for (int x = 0; x < Kx; ++x) {
                     for (int y = 0; y < Ky; ++y) {
                         auto actual_value = output[m][ch][x][y];
-                        auto sim_value = sim_output_act[m][ch][x][y];
+                        auto sim_value = sim_output[m][ch][x][y];
                         auto error = (actual_value - sim_value) / sim_value;
                         if (abs(error) > 1e-10)
-                            throw std::runtime_error("Backward weight gradients convolution "
-                                                     "(Act. Sparsity) wrong value.");
-                    }
-                }
-            }
-        }
-
-        // Check values: Gradients sparsity
-        for (int m = 0; m < num_filters; ++m) {
-            for (int ch = 0; ch < wgt_channels; ++ch) {
-                for (int x = 0; x < Kx; ++x) {
-                    for (int y = 0; y < Ky; ++y) {
-                        auto actual_value = output[m][ch][x][y];
-                        auto sim_value = sim_output_wgt[m][ch][x][y];
-                        auto error = (actual_value - sim_value) / sim_value;
-                        if (abs(error) > 1e-10)
-                            throw std::runtime_error("Backward weight gradients convolution "
-                                                     "(Grad. Sparsity) wrong value.");
+                            throw std::runtime_error("Spatial 2D convolution wrong value.");
                     }
                 }
             }
@@ -739,18 +721,42 @@ namespace core {
     template <typename T>
     void DynamicTactical<T>::spatial_convolution(const base::Array<T> &act, const base::Array<T> &out_grad,
             const bank_map &act_bank_map, const bank_map &out_bank_map, uint64_t Kx, uint64_t Ky, int stride,
-            conv_stats &act_stats, conv_stats &out_stats, output_tensor &act_output, output_tensor &out_output) {
+            conv_stats &stats, output_tensor &output) {
 
         const std::vector<size_t> &act_shape = act.getShape();
         const std::vector<size_t> &out_grad_shape = out_grad.getShape();
 
         // Activations
         auto act_channels = act_shape[1];
+        auto Nx = out_grad_shape[2];
+        auto Ny = out_grad_shape[3];
 
         // Output gradients
         auto out_channels = out_grad_shape[1];
         auto Ox = out_grad_shape[2];
         auto Oy = out_grad_shape[3];
+
+        uint64_t act_zeroes = 0;
+        for (int ch = 0; ch < act_channels; ++ch) {
+            for (int x = 0; x < Nx; ++x) {
+                for (int y = 0; y < Ny; ++y) {
+                    if (act.get(0, ch, x, y) == 0) act_zeroes++;
+                }
+            }
+        }
+
+        uint64_t out_grad_zeroes = 0;
+        for (int ch = 0; ch < out_channels; ++ch) {
+            for (int x = 0; x < Ox; ++x) {
+                for (int y = 0; y < Oy; ++y) {
+                    if (out_grad.get(0, ch, x, y) == 0) out_grad_zeroes++;
+                }
+            }
+        }
+
+        bool schedule_act = act_zeroes > out_grad_zeroes;
+        auto OUT_SET_SIZE = schedule_act ? N_COLUMNS : N_ROWS;
+        auto ACT_SET_SIZE = schedule_act ? N_ROWS : N_COLUMNS;
 
         // Prepare banks
         std::vector<int> act_read_requests (BANKS, 0);
@@ -758,30 +764,30 @@ namespace core {
 
         // Activations sparsity
         // Stats
-        act_stats.compute_cycles = 0;
-        act_stats.base_compute_cycles = 0;
-        act_stats.ideal_compute_cycles = 0;
-        act_stats.read_bank_conflicts = 0;
+        stats.compute_cycles = 0;
+        stats.base_compute_cycles = 0;
+        stats.ideal_compute_cycles = 0;
+        stats.read_bank_conflicts = 0;
 
         // Generate output gradients buffer
         auto spatial_pad = (uint64_t)ceil(Ox * Ox / (double)N_LANES) * N_LANES;
 
-        auto num_out_grad_sets = (uint64_t)ceil(out_channels / (double)N_COLUMNS);
+        auto num_out_grad_sets = (uint64_t)ceil(out_channels / (double)OUT_SET_SIZE);
         auto time_per_out_grad_channel = (uint64_t)ceil(spatial_pad / (double)N_LANES);
 
-        non_schedule_buffer out_gradients_buffer = non_schedule_buffer(num_out_grad_sets,
-                std::vector<std::vector<float>>(time_per_out_grad_channel,
-                std::vector<float>(N_COLUMNS * N_LANES, 0.0f)));
+        std::vector<schedule_buffer> out_gradients_buffer = std::vector<schedule_buffer>(
+                num_out_grad_sets, schedule_buffer(time_per_out_grad_channel,
+                std::vector<value_mux>(OUT_SET_SIZE * N_LANES, std::make_tuple(0.0f, 0, 0))));
 
         std::vector<bank_map> out_sets_bank_map = std::vector<bank_map>(num_out_grad_sets,
-                bank_map(time_per_out_grad_channel, std::vector<int>(N_COLUMNS, -1)));
+                bank_map(time_per_out_grad_channel, std::vector<int>(OUT_SET_SIZE, -1)));
 
-        std::vector<uint64_t> ideal_time_per_out_grad_channel (ceil(out_channels/(double)N_COLUMNS), 0);
+        std::vector<uint64_t> ideal_time_per_out_grad_channel (ceil(out_channels/(double)OUT_SET_SIZE), 0);
 
         int set_out = -1;
         for(int o = 0; o < out_channels; ++o) {
 
-            if ((o % N_COLUMNS) == 0)
+            if ((o % OUT_SET_SIZE) == 0)
                 set_out++;
 
             uint64_t non_zeroes = 0;
@@ -791,9 +797,9 @@ namespace core {
             for (int y = 0; y < Oy; ++y) {
                 for (int x = 0; x < Ox; ++x) {
                     auto out_bits = out_grad.get(0, o, x, y);
-                    int pos = (o % N_COLUMNS) * N_LANES + index;
-                    out_gradients_buffer[set_out][time][pos] = out_bits;
-                    if ((o % N_COLUMNS) == 0)
+                    int pos = (o % OUT_SET_SIZE) * N_LANES + index;
+                    out_gradients_buffer[set_out][time][pos] = std::make_tuple(out_bits, time, index);
+                    if ((o % OUT_SET_SIZE) == 0)
                         out_sets_bank_map[set_out][time][index] = out_bank_map[y][x];
                     index++;
                     if(index == N_LANES) {
@@ -808,24 +814,30 @@ namespace core {
                 ideal_time_per_out_grad_channel[set_out] = ideal_time;
         }
 
+        if (!schedule_act) {
+            for (auto &gradients_channel_buffer : out_gradients_buffer) {
+                original_schedule(gradients_channel_buffer);
+            }
+        }
 
         for (int window = 0; window < (Kx * Ky); ++window) {
             auto x_window = window % Kx;
             auto y_window = window / Kx;
 
-            for (int k = 0; k < act_channels; k += N_ROWS) {
+            for (int k = 0; k < act_channels; k += ACT_SET_SIZE) {
 
                 // Generate activation buffer
                 auto time_per_act_channel = (uint64_t)ceil(spatial_pad / (double)N_LANES);
 
                 schedule_buffer activation_buffer = schedule_buffer(time_per_act_channel,
-                        std::vector<value_mux>(N_ROWS * N_LANES, std::make_tuple(0.0f, 0, 0)));
+                        std::vector<value_mux>(ACT_SET_SIZE * N_LANES, std::make_tuple(0.0f, 0, 0)));
 
-                bank_map window_bank_map = bank_map(time_per_act_channel, std::vector<int>(N_ROWS, -1));
+                bank_map window_bank_map = bank_map(time_per_act_channel, std::vector<int>(ACT_SET_SIZE, -1));
 
                 uint64_t ideal_time_per_act_channel = 0;
 
-                for(int act_channel = k; act_channel < std::min((uint64_t)k + N_ROWS, act_channels); ++act_channel) {
+                for(int act_channel = k; act_channel < std::min((uint64_t)k + ACT_SET_SIZE, act_channels);
+                        ++act_channel) {
 
                     uint64_t non_zeroes = 0;
 
@@ -834,7 +846,7 @@ namespace core {
                     for (int y = 0; y < Oy; ++y) {
                         for (int x = 0; x < Ox; ++x) {
                             auto act_bits = act.get(0, act_channel, x_window + x * stride, y_window + y * stride);
-                            int pos = (act_channel % N_ROWS) * N_LANES + index;
+                            int pos = (act_channel % ACT_SET_SIZE) * N_LANES + index;
                             activation_buffer[time][pos] = std::make_tuple(act_bits, time, index);
                             if (act_channel == k)
                                 window_bank_map[time][index] = act_bank_map[y_window + y * stride][x_window + x * stride];
@@ -852,12 +864,17 @@ namespace core {
                 }
 
                 // Schedule buffer
-                original_schedule(activation_buffer);
+                if (schedule_act) original_schedule(activation_buffer);
 
                 for (int set = 0; set < num_out_grad_sets; ++set) {
 
-                    act_stats.base_compute_cycles += time_per_act_channel;
-                    act_stats.ideal_compute_cycles += ideal_time_per_act_channel;
+                    if (schedule_act) {
+                        stats.base_compute_cycles += time_per_act_channel;
+                        stats.ideal_compute_cycles += ideal_time_per_act_channel;
+                    } else {
+                        stats.base_compute_cycles += time_per_out_grad_channel;
+                        stats.ideal_compute_cycles += ideal_time_per_out_grad_channel[set];
+                    }
 
                     int skip = 0;
                     for (int time = 0; time < time_per_act_channel; ++time) {
@@ -866,13 +883,13 @@ namespace core {
                         out_read_requests = std::vector<int>(BANKS, 0);
 
                         // Activations requests
-                        for (int a = 0; a < N_ROWS; ++a) {
+                        for (int a = 0; a < ACT_SET_SIZE; ++a) {
                             auto bank = window_bank_map[time][a];
                             if (bank >= 0) act_read_requests[bank]++;
                         }
 
                         // Output gradients requests
-                        for (int o = 0; o < N_COLUMNS; ++o) {
+                        for (int o = 0; o < OUT_SET_SIZE; ++o) {
                             auto bank = out_sets_bank_map[set_out][time][o];
                             if (bank >= 0) out_read_requests[bank]++;
                         }
@@ -881,207 +898,57 @@ namespace core {
                                 act_read_requests.end()) - 1;
                         auto out_bank_conflicts = *std::max_element(out_read_requests.begin(),
                                 out_read_requests.end()) - 1;
-                        act_stats.read_bank_conflicts += std::min(act_bank_conflicts, out_bank_conflicts);
+                        stats.read_bank_conflicts += std::max(act_bank_conflicts, out_bank_conflicts);
 
                         // Skip lines of zeroes
-                        if (skip < LOOKAHEAD_H && check_zero_line(activation_buffer[time])) {
+                        bool zero_line = schedule_act ? check_zero_line(activation_buffer[time]) :
+                                check_zero_line(out_gradients_buffer[set][time]);
+                        if (skip < LOOKAHEAD_H && zero_line) {
                             skip++;
                             continue;
                         }
                         skip = 0;
 
-                        act_stats.compute_cycles++;
+                        stats.compute_cycles++;
 
                         if (this->CHECK) {
 
-                            for (int a = 0; a < N_ROWS; ++a) {
+                            for (int a = 0; a < ACT_SET_SIZE; ++a) {
                                 auto act_channel_idx = a * N_LANES;
                                 auto act_channel = k + a;
 
                                 if (act_channel >= act_channels)
                                     continue;
 
-                                for (int o = 0; o < N_COLUMNS; ++o) {
+                                for (int o = 0; o < OUT_SET_SIZE; ++o) {
                                     auto out_grad_channel_idx = o * N_LANES;
-                                    auto out_grad_channel = set * N_COLUMNS + o;
+                                    auto out_grad_channel = set * OUT_SET_SIZE + o;
 
                                     if (out_grad_channel >= out_channels)
                                         continue;
 
                                     for (int lane = 0; lane < N_LANES; ++lane) {
 
-                                        auto act_bits = std::get<0>(activation_buffer[time][act_channel_idx + lane]);
-                                        auto time_h = std::get<1>(activation_buffer[time][act_channel_idx + lane]);
-                                        auto lane_d = std::get<2>(activation_buffer[time][act_channel_idx + lane]);
+                                        float act_bits, out_bits;
+                                        if (schedule_act) {
+                                            act_bits = std::get<0>(activation_buffer[time][act_channel_idx + lane]);
+                                            auto time_h = std::get<1>(activation_buffer[time][act_channel_idx + lane]);
+                                            auto lane_d = std::get<2>(activation_buffer[time][act_channel_idx + lane]);
 
-                                        auto out_bits = out_gradients_buffer[set][time_h][out_grad_channel_idx + lane_d];
+                                            out_bits = std::get<0>(out_gradients_buffer[set][time_h]
+                                                    [out_grad_channel_idx + lane_d]);
+                                        } else {
+                                            out_bits = std::get<0>(out_gradients_buffer[set][time]
+                                                    [out_grad_channel_idx + lane]);
+                                            auto time_h = std::get<1>(out_gradients_buffer[set][time]
+                                                    [out_grad_channel_idx + lane]);
+                                            auto lane_d = std::get<2>(out_gradients_buffer[set][time]
+                                                    [out_grad_channel_idx + lane]);
 
-                                        act_output[out_grad_channel][act_channel][x_window][y_window]
-                                                += act_bits * out_bits;
+                                            act_bits = std::get<0>(activation_buffer[time_h][act_channel_idx + lane]);
+                                        }
 
-                                    } // Multiply 16 output gradients and 16 activations
-
-                                } // Output Gradients
-                            } // Window
-                        } // Check
-
-                    } // Time of the buffers
-                } // Output Gradients Channels sets
-            } // Activations Channels sets
-        } // Windows
-
-        out_gradients_buffer.clear();
-
-        // Gradients sparsity
-        // Stats
-        out_stats.compute_cycles = 0;
-        out_stats.base_compute_cycles = 0;
-        out_stats.ideal_compute_cycles = 0;
-        out_stats.read_bank_conflicts = 0;
-
-        // Schedule output gradients
-        auto num_out_grad_sets_sch = (uint64_t)ceil(out_channels / (double)N_ROWS);
-        auto time_per_out_grad_channel_sch = (uint64_t)ceil(spatial_pad / (double)N_LANES);
-
-        std::vector<schedule_buffer> out_gradients_buffer_sch = std::vector<schedule_buffer>(
-                num_out_grad_sets_sch, schedule_buffer(time_per_out_grad_channel_sch,
-                std::vector<value_mux>(N_ROWS * N_LANES, std::make_tuple(0.0f, 0, 0))));
-
-        std::vector<uint64_t> ideal_time_per_out_grad_channel_sch (ceil(out_channels/(double)N_ROWS), -1);
-
-        int set_out_sch = -1;
-        for(int o = 0; o < out_channels; ++o) {
-
-            if ((o % N_ROWS) == 0)
-                set_out_sch++;
-
-            uint64_t non_zeroes = 0;
-
-            int index = 0;
-            int time = 0;
-            for (int y = 0; y < Oy; ++y) {
-                for (int x = 0; x < Ox; ++x) {
-                    auto out_bits = out_grad.get(0, o, x, y);
-                    int pos = (o % N_ROWS) * N_LANES + index;
-                    out_gradients_buffer_sch[set_out_sch][time][pos] = std::make_tuple(out_bits, time, index);
-                    index++;
-                    if(index == N_LANES) {
-                        time++;
-                        index = 0;
-                    }
-                    if (out_bits != 0) non_zeroes++;
-                }
-            }
-            auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
-            if (ideal_time > ideal_time_per_out_grad_channel_sch[set_out_sch])
-                ideal_time_per_out_grad_channel_sch[set_out_sch] = ideal_time;
-        }
-
-        for (auto &gradients_channel_buffer : out_gradients_buffer_sch) {
-            original_schedule(gradients_channel_buffer);
-        }
-
-        for (int window = 0; window < (Kx * Ky); ++window) {
-            auto x_window = window % Kx;
-            auto y_window = window / Kx;
-
-            for (int k = 0; k < act_channels; k += N_COLUMNS) {
-
-                // Generate activation buffer
-                auto time_per_act_channel = (uint64_t)ceil(spatial_pad / (double)N_LANES);
-
-                std::vector<std::vector<float>> activation_buffer = std::vector<std::vector<float>>(
-                        time_per_act_channel, std::vector<float>(N_COLUMNS * N_LANES, 0.0f));
-
-                bank_map window_bank_map = bank_map(time_per_act_channel, std::vector<int>(N_ROWS, 0));
-
-                for(int act_channel = k; act_channel < std::min((uint64_t)k + N_COLUMNS, act_channels); ++act_channel) {
-
-                    int index = 0;
-                    int time = 0;
-                    for (int y = 0; y < Oy; ++y) {
-                        for (int x = 0; x < Ox; ++x) {
-                            auto act_bits = act.get(0, act_channel, x_window + x * stride, y_window + y * stride);
-                            int pos = (act_channel % N_COLUMNS) * N_LANES + index;
-                            activation_buffer[time][pos] = act_bits;
-                            if (act_channel == k)
-                                window_bank_map[time][index] = act_bank_map[y_window + y * stride][x_window + x * stride];
-                            index++;
-                            if(index == N_LANES) {
-                                time++;
-                                index = 0;
-                            }
-                        }
-                    }
-
-                }
-
-                for (int set = 0; set < num_out_grad_sets_sch; ++set) {
-
-                    out_stats.base_compute_cycles += time_per_out_grad_channel_sch;
-                    out_stats.ideal_compute_cycles += ideal_time_per_out_grad_channel_sch[set];
-
-                    int skip = 0;
-                    for (int time = 0; time < time_per_out_grad_channel_sch; ++time) {
-
-                        act_read_requests = std::vector<int>(BANKS, 0);
-                        out_read_requests = std::vector<int>(BANKS, 0);
-
-                        // Activations requests
-                        for (int a = 0; a < N_ROWS; ++a) {
-                            auto bank = window_bank_map[time][a];
-                            if (bank >= 0) act_read_requests[bank]++;
-                        }
-
-                        // Output gradients requests
-                        for (int o = 0; o < N_COLUMNS; ++o) {
-                            auto bank = out_sets_bank_map[set_out][time][o];
-                            if (bank >= 0) out_read_requests[bank]++;
-                        }
-
-                        auto act_bank_conflicts = *std::max_element(act_read_requests.begin(),
-                                act_read_requests.end()) - 1;
-                        auto out_bank_conflicts = *std::max_element(out_read_requests.begin(),
-                                out_read_requests.end()) - 1;
-                        act_stats.read_bank_conflicts += std::min(act_bank_conflicts, out_bank_conflicts);
-
-                        // Skip lines of zeroes
-                        if (skip < LOOKAHEAD_H && check_zero_line(out_gradients_buffer_sch[set][time])) {
-                            skip++;
-                            continue;
-                        }
-                        skip = 0;
-
-                        out_stats.compute_cycles++;
-
-                        if (this->CHECK) {
-
-                            for (int a = 0; a < N_COLUMNS; ++a) {
-                                auto act_channel_idx = a * N_LANES;
-                                auto act_channel = k + a;
-
-                                if (act_channel >= act_channels)
-                                    continue;
-
-                                for (int o = 0; o < N_ROWS; ++o) {
-                                    auto out_grad_channel_idx = o * N_LANES;
-                                    auto out_grad_channel = set * N_ROWS + o;
-
-                                    if (out_grad_channel >= out_channels)
-                                        continue;
-
-                                    for (int lane = 0; lane < N_LANES; ++lane) {
-
-                                        auto out_bits = std::get<0>(out_gradients_buffer_sch[set][time]
-                                                [out_grad_channel_idx + lane]);
-                                        auto time_h = std::get<1>(out_gradients_buffer_sch[set][time]
-                                                [out_grad_channel_idx + lane]);
-                                        auto lane_d = std::get<2>(out_gradients_buffer_sch[set][time]
-                                                [out_grad_channel_idx + lane]);
-
-                                        auto act_bits = activation_buffer[time_h][act_channel_idx + lane_d];
-
-                                        out_output[out_grad_channel][act_channel][x_window][y_window]
+                                        output[out_grad_channel][act_channel][x_window][y_window]
                                                 += act_bits * out_bits;
 
                                     } // Multiply 16 output gradients and 16 activations
@@ -1127,29 +994,19 @@ namespace core {
         auto fw_read_conflicts = stats.register_uint_t("Forward read bank conflicts", 0, sys::Total);
 
         // Backward stats
-        auto bw_wgt_act_compute_cycles = stats.register_uint_t("Backward Weights A.S compute cycles", 0, sys::Total);
-        auto bw_wgt_act_base_compute_cycles = stats.register_uint_t("Backward Weights A.S base compute cycles", 0, sys::Total);
-        auto bw_wgt_act_speedup = stats.register_double_t("Backward Weights A.S speedup", 0, sys::Special);
-        auto bw_wgt_act_ideal_compute_cycles = stats.register_uint_t("Backward Weights A.S ideal compute cycles", 0, sys::Total);
-        auto bw_wgt_act_exploited_sparsity = stats.register_double_t("Backward Weights A.S exploited sparsity", 0, sys::Special);
-        //auto bw_wgt_act_read_conflicts = stats.register_uint_t("Backward Weights A.S read bank conflicts", 0, sys::Total);
-
-        auto bw_wgt_out_compute_cycles = stats.register_uint_t("Backward Weights G.S compute cycles", 0, sys::Total);
-        auto bw_wgt_out_base_compute_cycles = stats.register_uint_t("Backward Weights G.S base compute cycles", 0, sys::Total);
-        auto bw_wgt_out_speedup = stats.register_double_t("Backward Weights G.S speedup", 0, sys::Special);
-        auto bw_wgt_out_ideal_compute_cycles = stats.register_uint_t("Backward Weights G.S ideal compute cycles", 0, sys::Total);
-        auto bw_wgt_out_exploited_sparsity = stats.register_double_t("Backward Weights G.S exploited sparsity", 0, sys::Special);
-        //auto bw_wgt_out_read_conflicts = stats.register_uint_t("Backward Weights G.S read bank conflicts", 0, sys::Total);
-
         auto bw_wgt_compute_cycles = stats.register_uint_t("Backward Weights compute cycles", 0, sys::Total);
+        auto bw_wgt_base_compute_cycles = stats.register_uint_t("Backward Weights base compute cycles", 0, sys::Total);
         auto bw_wgt_speedup = stats.register_double_t("Backward Weights speedup", 0, sys::Special);
+        auto bw_wgt_ideal_compute_cycles = stats.register_uint_t("Backward Weights ideal compute cycles", 0, sys::Total);
+        auto bw_wgt_exploited_sparsity = stats.register_double_t("Backward Weights exploited sparsity", 0, sys::Special);
+        auto bw_wgt_read_conflicts = stats.register_uint_t("Backward Weights read bank conflicts", 0, sys::Total);
 
         auto bw_in_compute_cycles = stats.register_uint_t("Backward Input compute cycles", 0, sys::Total);
         auto bw_in_base_compute_cycles = stats.register_uint_t("Backward Input base compute cycles", 0, sys::Total);
         auto bw_in_speedup = stats.register_double_t("Backward Input speedup", 0, sys::Special);
         auto bw_in_ideal_compute_cycles = stats.register_uint_t("Backward Input ideal compute cycles", 0, sys::Total);
         auto bw_in_exploited_sparsity = stats.register_double_t("Backward Input exploited sparsity", 0, sys::Special);
-        //auto bw_in_read_conflicts = stats.register_uint_t("Backward Input read bank conflicts", 0, sys::Total);
+        auto bw_in_read_conflicts = stats.register_uint_t("Backward Input read bank conflicts", 0, sys::Total);
 
         // Simulate epochs
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
@@ -1340,29 +1197,20 @@ namespace core {
                     auto out_bank_map = map_on_chip(Ox, Oy, BANKS);
 
                     // Simulate: Backward convolution A * G = WG: Activations sparsity
-                    output_tensor sim_weight_act_gradients = output_tensor(num_filters,
+                    output_tensor sim_weight_gradients = output_tensor(num_filters,
                             std::vector<std::vector<std::vector<double>>>(wgt_channels,
                             std::vector<std::vector<double>>(Kx, std::vector<double>(Ky, 0))));
 
-                    output_tensor sim_weight_out_gradients = output_tensor(num_filters,
-                            std::vector<std::vector<std::vector<double>>>(wgt_channels,
-                            std::vector<std::vector<double>>(Kx, std::vector<double>(Ky, 0))));
-
-                    conv_stats act_stats, out_stats;
-                    spatial_convolution(act, out_grad, act_bank_map, out_bank_map, Kx, Ky, stride, act_stats, out_stats,
-                            sim_weight_act_gradients, sim_weight_out_gradients);
+                    conv_stats batch_stats;
+                    spatial_convolution(act, out_grad, act_bank_map, out_bank_map, Kx, Ky, stride, batch_stats,
+                            sim_weight_gradients);
 
                     #pragma omp critical
                     {
-                        bw_wgt_act_compute_cycles->value[epoch][layer_it] += act_stats.compute_cycles;
-                        bw_wgt_act_base_compute_cycles->value[epoch][layer_it] += act_stats.base_compute_cycles;
-                        bw_wgt_act_ideal_compute_cycles->value[epoch][layer_it] += act_stats.ideal_compute_cycles;
-                        //bw_wgt_act_read_conflicts->value[epoch][layer_it] += act_stats.read_bank_conflicts;
-
-                        bw_wgt_out_compute_cycles->value[epoch][layer_it] += out_stats.compute_cycles;
-                        bw_wgt_out_base_compute_cycles->value[epoch][layer_it] += out_stats.base_compute_cycles;
-                        bw_wgt_out_ideal_compute_cycles->value[epoch][layer_it] += out_stats.ideal_compute_cycles;
-                        //bw_wgt_out_read_conflicts->value[epoch][layer_it] += out_stats.read_bank_conflicts;
+                        bw_wgt_compute_cycles->value[epoch][layer_it] += batch_stats.compute_cycles;
+                        bw_wgt_base_compute_cycles->value[epoch][layer_it] += batch_stats.base_compute_cycles;
+                        bw_wgt_ideal_compute_cycles->value[epoch][layer_it] += batch_stats.ideal_compute_cycles;
+                        bw_wgt_read_conflicts->value[epoch][layer_it] += batch_stats.read_bank_conflicts;
                     }
 
                     // Backward pass - Calculate Input gradients
@@ -1418,7 +1266,6 @@ namespace core {
                             std::vector<std::vector<std::vector<double>>>(num_filters_rot,
                             std::vector<std::vector<double>>(Nx, std::vector<double>(Ny, 0))));
 
-                    conv_stats batch_stats;
                     if (stride > 1)
                         channel_first_dilated_convolution(out_grad, wgt, out_bank_map, stride, pad_type == 3,
                                 batch_stats, sim_input_gradients);
@@ -1431,7 +1278,7 @@ namespace core {
                         bw_in_compute_cycles->value[epoch][layer_it] += batch_stats.compute_cycles;
                         bw_in_base_compute_cycles->value[epoch][layer_it] += batch_stats.base_compute_cycles;
                         bw_in_ideal_compute_cycles->value[epoch][layer_it] += batch_stats.ideal_compute_cycles;
-                        //bw_in_read_conflicts->value[epoch][layer_it] += batch_stats.read_bank_conflicts;
+                        bw_in_read_conflicts->value[epoch][layer_it] += batch_stats.read_bank_conflicts;
                     }
 
                     // Check correctness of the outputs
@@ -1444,8 +1291,7 @@ namespace core {
 
                         // Check weight gradients
                         if (conv) out_grad.dilate_out_grad(stride, Nx_pad, Kx);
-                        check_result_spatial(sim_weight_act_gradients, sim_weight_out_gradients, act, out_grad,
-                                num_filters, Kx, Ky, wgt_channels);
+                        check_result_spatial(sim_weight_gradients, act, out_grad, num_filters, Kx, Ky, wgt_channels);
 
                         // Check input gradients
                         if (pad_type == 1) out_grad.zero_pad_y(padding + stride - 1);
@@ -1474,30 +1320,15 @@ namespace core {
                 if (isnan(fw_exploited_sparsity->value[epoch][layer_it]))
                     fw_exploited_sparsity->value[epoch][layer_it] = 0;
 
-                bw_wgt_act_speedup->value[epoch][layer_it] = bw_wgt_act_base_compute_cycles->value[epoch][layer_it] /
-                        (double)bw_wgt_act_compute_cycles->value[epoch][layer_it];
-                bw_wgt_act_exploited_sparsity->value[epoch][layer_it] =
-                        (bw_wgt_act_base_compute_cycles->value[epoch][layer_it] -
-                         bw_wgt_act_compute_cycles->value[epoch][layer_it])
-                        / (double)(bw_wgt_act_base_compute_cycles->value[epoch][layer_it] -
-                        bw_wgt_act_ideal_compute_cycles->value[epoch][layer_it]) * 100.;
-                if (isnan(bw_wgt_act_exploited_sparsity->value[epoch][layer_it]))
-                    bw_wgt_act_exploited_sparsity->value[epoch][layer_it] = 0;
-
-                bw_wgt_out_speedup->value[epoch][layer_it] = bw_wgt_out_base_compute_cycles->value[epoch][layer_it] /
-                        (double)bw_wgt_out_compute_cycles->value[epoch][layer_it];
-                bw_wgt_out_exploited_sparsity->value[epoch][layer_it] =
-                        (bw_wgt_out_base_compute_cycles->value[epoch][layer_it] -
-                         bw_wgt_out_compute_cycles->value[epoch][layer_it])
-                        / (double)(bw_wgt_out_base_compute_cycles->value[epoch][layer_it] -
-                        bw_wgt_out_ideal_compute_cycles->value[epoch][layer_it]) * 100.;
-                if (isnan(bw_wgt_out_exploited_sparsity->value[epoch][layer_it]))
-                    bw_wgt_out_exploited_sparsity->value[epoch][layer_it] = 0;
-
-                bw_wgt_compute_cycles->value[epoch][layer_it] = std::min(bw_wgt_act_compute_cycles->value[epoch][layer_it],
-                        bw_wgt_out_compute_cycles->value[epoch][layer_it]);
-                bw_wgt_speedup->value[epoch][layer_it] = bw_wgt_out_base_compute_cycles->value[epoch][layer_it] /
+                bw_wgt_speedup->value[epoch][layer_it] = bw_wgt_base_compute_cycles->value[epoch][layer_it] /
                         (double)bw_wgt_compute_cycles->value[epoch][layer_it];
+                bw_wgt_exploited_sparsity->value[epoch][layer_it] =
+                        (bw_wgt_base_compute_cycles->value[epoch][layer_it] -
+                         bw_wgt_compute_cycles->value[epoch][layer_it])
+                        / (double)(bw_wgt_base_compute_cycles->value[epoch][layer_it] -
+                        bw_wgt_ideal_compute_cycles->value[epoch][layer_it]) * 100.;
+                if (isnan(bw_wgt_exploited_sparsity->value[epoch][layer_it]))
+                    bw_wgt_exploited_sparsity->value[epoch][layer_it] = 0;
 
                 if (layer_it != 0) {
                     bw_in_speedup->value[epoch][layer_it] = bw_in_base_compute_cycles->value[epoch][layer_it] /
@@ -1521,27 +1352,14 @@ namespace core {
                     (double)(sys::get_total(fw_base_compute_cycles->value[epoch]) -
                     sys::get_total(fw_ideal_compute_cycles->value[epoch])) * 100.);
 
-            bw_wgt_act_speedup->special_value_vector.push_back(
-                    sys::get_total(bw_wgt_act_base_compute_cycles->value[epoch]) /
-                    (double)sys::get_total(bw_wgt_act_compute_cycles->value[epoch]));
-            bw_wgt_act_exploited_sparsity->special_value_vector.push_back(
-                    (sys::get_total(bw_wgt_act_base_compute_cycles->value[epoch]) -
-                    sys::get_total(bw_wgt_act_compute_cycles->value[epoch])) /
-                    (double)(sys::get_total(bw_wgt_act_base_compute_cycles->value[epoch]) -
-                    sys::get_total(bw_wgt_act_ideal_compute_cycles->value[epoch])) * 100.);
-
-            bw_wgt_out_speedup->special_value_vector.push_back(
-                    sys::get_total(bw_wgt_out_base_compute_cycles->value[epoch]) /
-                    (double)sys::get_total(bw_wgt_out_compute_cycles->value[epoch]));
-            bw_wgt_out_exploited_sparsity->special_value_vector.push_back(
-                    (sys::get_total(bw_wgt_out_base_compute_cycles->value[epoch]) -
-                    sys::get_total(bw_wgt_out_compute_cycles->value[epoch])) /
-                    (double)(sys::get_total(bw_wgt_out_base_compute_cycles->value[epoch]) -
-                    sys::get_total(bw_wgt_out_ideal_compute_cycles->value[epoch])) * 100.);
-
             bw_wgt_speedup->special_value_vector.push_back(
-                    sys::get_total(bw_wgt_out_base_compute_cycles->value[epoch]) /
+                    sys::get_total(bw_wgt_base_compute_cycles->value[epoch]) /
                     (double)sys::get_total(bw_wgt_compute_cycles->value[epoch]));
+            bw_wgt_exploited_sparsity->special_value_vector.push_back(
+                    (sys::get_total(bw_wgt_base_compute_cycles->value[epoch]) -
+                    sys::get_total(bw_wgt_compute_cycles->value[epoch])) /
+                    (double)(sys::get_total(bw_wgt_base_compute_cycles->value[epoch]) -
+                    sys::get_total(bw_wgt_ideal_compute_cycles->value[epoch])) * 100.);
 
             bw_in_speedup->special_value_vector.push_back(sys::get_total(bw_in_base_compute_cycles->value[epoch]) /
                     (double)sys::get_total(bw_in_compute_cycles->value[epoch]));
@@ -1556,35 +1374,21 @@ namespace core {
 
         fw_speedup->special_value = sys::get_total(fw_base_compute_cycles->value) /
                 (double)sys::get_total(fw_compute_cycles->value);
-        fw_exploited_sparsity->special_value =
-                (sys::get_total(fw_base_compute_cycles->value) -
+        fw_exploited_sparsity->special_value = (sys::get_total(fw_base_compute_cycles->value) -
                 sys::get_total(fw_compute_cycles->value)) /
                 (double)(sys::get_total(fw_base_compute_cycles->value) -
                 sys::get_total(fw_ideal_compute_cycles->value)) * 100.;
 
-        bw_wgt_act_speedup->special_value = sys::get_total(bw_wgt_act_base_compute_cycles->value) /
-                (double)sys::get_total(bw_wgt_act_compute_cycles->value);
-        bw_wgt_act_exploited_sparsity->special_value =
-                (sys::get_total(bw_wgt_act_base_compute_cycles->value) -
-                sys::get_total(bw_wgt_act_compute_cycles->value)) /
-                (double)(sys::get_total(bw_wgt_act_base_compute_cycles->value) -
-                sys::get_total(bw_wgt_act_ideal_compute_cycles->value)) * 100.;
-
-        bw_wgt_out_speedup->special_value = sys::get_total(bw_wgt_out_base_compute_cycles->value) /
-                (double)sys::get_total(bw_wgt_out_compute_cycles->value);
-        bw_wgt_out_exploited_sparsity->special_value =
-                (sys::get_total(bw_wgt_out_base_compute_cycles->value) -
-                sys::get_total(bw_wgt_out_compute_cycles->value)) /
-                (double)(sys::get_total(bw_wgt_out_base_compute_cycles->value) -
-                sys::get_total(bw_wgt_out_ideal_compute_cycles->value)) * 100.;
-
-        bw_wgt_speedup->special_value = sys::get_total(bw_wgt_out_base_compute_cycles->value) /
+        bw_wgt_speedup->special_value = sys::get_total(bw_wgt_base_compute_cycles->value) /
                 (double)sys::get_total(bw_wgt_compute_cycles->value);
+        bw_wgt_exploited_sparsity->special_value = (sys::get_total(bw_wgt_base_compute_cycles->value) -
+                sys::get_total(bw_wgt_compute_cycles->value)) /
+                (double)(sys::get_total(bw_wgt_base_compute_cycles->value) -
+                sys::get_total(bw_wgt_ideal_compute_cycles->value)) * 100.;
 
         bw_in_speedup->special_value = sys::get_total(bw_in_base_compute_cycles->value) /
                 (double)sys::get_total(bw_in_compute_cycles->value);
-        bw_in_exploited_sparsity->special_value =
-                (sys::get_total(bw_in_base_compute_cycles->value) -
+        bw_in_exploited_sparsity->special_value = (sys::get_total(bw_in_base_compute_cycles->value) -
                 sys::get_total(bw_in_compute_cycles->value)) /
                 (double)(sys::get_total(bw_in_base_compute_cycles->value) -
                 sys::get_total(bw_in_ideal_compute_cycles->value)) * 100.;
