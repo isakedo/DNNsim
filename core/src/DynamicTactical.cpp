@@ -280,6 +280,26 @@ namespace core {
 
     /* CONVOLUTION FUNCTIONS */
 
+    bank_map map_on_chip_forward_activations(uint64_t X, uint64_t Y, uint64_t Ox, int stride, uint64_t BANKS) {
+
+        bank_map values_bank_map = bank_map(Y, std::vector<int>(X, -1));
+
+        int bank = 0;
+        int bkp_bank = 0;
+        for (int y = 0; y < Y; ++y) {
+            for (int x = 0; x < X; ++x) {
+                if (y % stride == 0 && x == 0)
+                    bank = bkp_bank;
+                values_bank_map[y][x] = bank;
+                bank = (bank + 1) % BANKS;
+                if (y % stride == 0 && x == Ox * stride - 1)
+                    bkp_bank = bank;
+            }
+        }
+
+        return values_bank_map;
+    }
+
     bank_map map_on_chip(uint64_t X, uint64_t Y, uint64_t BANKS) {
 
         bank_map values_bank_map = bank_map(Y, std::vector<int>(X, -1));
@@ -370,7 +390,7 @@ namespace core {
             schedule_buffer window_buffer = schedule_buffer(time_per_window,
                     std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0, 0)));
 
-            bank_map window_bank_map = bank_map(time_per_window, std::vector<int>(N_ROWS, 0));
+            bank_map window_bank_map = bank_map(time_per_window, std::vector<int>(N_ROWS, -1));
 
             uint64_t ideal_time_per_window = 0;
 
@@ -606,7 +626,7 @@ namespace core {
                 schedule_buffer window_buffer = schedule_buffer(time_per_window,
                         std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0, 0)));
 
-                bank_map window_bank_map = bank_map(time_per_window, std::vector<int>(N_ROWS, 0));
+                bank_map window_bank_map = bank_map(time_per_window, std::vector<int>(N_ROWS, -1));
 
                 uint64_t ideal_time_per_window = 0;
 
@@ -754,7 +774,7 @@ namespace core {
                 std::vector<float>(N_COLUMNS * N_LANES, 0.0f)));
 
         std::vector<bank_map> out_sets_bank_map = std::vector<bank_map>(num_out_grad_sets,
-                bank_map(time_per_out_grad_channel, std::vector<int>(N_COLUMNS, 0)));
+                bank_map(time_per_out_grad_channel, std::vector<int>(N_COLUMNS, -1)));
 
         std::vector<uint64_t> ideal_time_per_out_grad_channel (ceil(out_channels/(double)N_COLUMNS), 0);
 
@@ -801,7 +821,7 @@ namespace core {
                 schedule_buffer activation_buffer = schedule_buffer(time_per_act_channel,
                         std::vector<value_mux>(N_ROWS * N_LANES, std::make_tuple(0.0f, 0, 0)));
 
-                bank_map window_bank_map = bank_map(time_per_act_channel, std::vector<int>(N_ROWS, 0));
+                bank_map window_bank_map = bank_map(time_per_act_channel, std::vector<int>(N_ROWS, -1));
 
                 uint64_t ideal_time_per_act_channel = 0;
 
@@ -927,7 +947,7 @@ namespace core {
                 num_out_grad_sets_sch, schedule_buffer(time_per_out_grad_channel_sch,
                 std::vector<value_mux>(N_ROWS * N_LANES, std::make_tuple(0.0f, 0, 0))));
 
-        std::vector<uint64_t> ideal_time_per_out_grad_channel_sch (ceil(out_channels/(double)N_ROWS), 0);
+        std::vector<uint64_t> ideal_time_per_out_grad_channel_sch (ceil(out_channels/(double)N_ROWS), -1);
 
         int set_out_sch = -1;
         for(int o = 0; o < out_channels; ++o) {
@@ -1092,8 +1112,9 @@ namespace core {
         int mux_entries = LOOKAHEAD_H + LOOKASIDE_D + 1;
         std::string filename = "DynamicTactical_L" + std::to_string(this->N_LANES) + "_C" +
                 std::to_string(this->N_COLUMNS) + "_R" + std::to_string(this->N_ROWS) + "_T" +
-                std::to_string(this->N_TILES) + "_" + this->SEARCH_SHAPE + std::to_string(mux_entries) + "("
-                + std::to_string(this->LOOKAHEAD_H) + "-" + std::to_string(this->LOOKASIDE_D) + ")" + "_cycles";
+                std::to_string(this->N_TILES) + "_" + this->SEARCH_SHAPE + std::to_string(mux_entries) + "(" +
+                std::to_string(this->LOOKAHEAD_H) + "-" + std::to_string(this->LOOKASIDE_D) + ")" + "_B" +
+                std::to_string(BANKS) + "_cycles";
         sys::Stats stats = sys::Stats(epochs, network_model.getNumLayers(), filename);
         stats.setTraining(true);
 
@@ -1103,7 +1124,7 @@ namespace core {
         auto fw_speedup = stats.register_double_t("Forward speedup", 0, sys::Special);
         auto fw_ideal_compute_cycles = stats.register_uint_t("Forward ideal compute cycles", 0, sys::Total);
         auto fw_exploited_sparsity = stats.register_double_t("Forward exploited sparsity", 0, sys::Special);
-        //auto fw_read_conflicts = stats.register_uint_t("Forward read bank conflicts", 0, sys::Total);
+        auto fw_read_conflicts = stats.register_uint_t("Forward read bank conflicts", 0, sys::Total);
 
         // Backward stats
         auto bw_wgt_act_compute_cycles = stats.register_uint_t("Backward Weights A.S compute cycles", 0, sys::Total);
@@ -1212,7 +1233,7 @@ namespace core {
                         throw std::runtime_error("Output activations incorrect Y window sizes");
 
                     // Generate bank map
-                    auto act_bank_map = map_on_chip(Nx_pad, Ny_pad, BANKS);
+                    auto act_bank_map = map_on_chip_forward_activations(Nx_pad, Ny_pad, Ox, stride, BANKS);
 
                     // Simulate: Forward convolution A * W
                     output_tensor sim_output_activations = output_tensor(1,
@@ -1228,7 +1249,7 @@ namespace core {
                         fw_compute_cycles->value[epoch][layer_it] += batch_stats.compute_cycles;
                         fw_base_compute_cycles->value[epoch][layer_it] += batch_stats.base_compute_cycles;
                         fw_ideal_compute_cycles->value[epoch][layer_it] += batch_stats.ideal_compute_cycles;
-                        //fw_read_conflicts->value[epoch][layer_it] += batch_stats.read_bank_conflicts;
+                        fw_read_conflicts->value[epoch][layer_it] += batch_stats.read_bank_conflicts;
                     }
 
                     // Check correctness of the outputs
@@ -1577,6 +1598,7 @@ namespace core {
         header += "Search shape: " + std::string(1, this->SEARCH_SHAPE) + "\n";
         header += "Lookahead H: " + std::to_string(this->LOOKAHEAD_H) + "\n";
         header += "Lookaside D: " + std::to_string(this->LOOKASIDE_D) + "\n";
+        header += "Number of banks: " + std::to_string(BANKS) + "\n";
 
         stats.dump_csv(network_model.getName(), network_model.getLayersName(), header, this->QUIET);
 
