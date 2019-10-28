@@ -51,6 +51,7 @@ namespace core {
         std::vector<std::tuple<int8_t, int8_t>> SEARCH_MAP;
 
         struct conv_stats {
+            uint64_t cycles = 0;
             uint64_t compute_cycles = 0;
             uint64_t base_compute_cycles = 0;
             uint64_t ideal_compute_cycles = 0;
@@ -97,7 +98,7 @@ namespace core {
 
         void spatial_convolution(const base::Array<T> &act, const base::Array<T> &out_grad,
                 const bank_map &act_bank_map, const bank_map &out_bank_map, uint64_t Kx, uint64_t Ky, int stride,
-                conv_stats &stats, output_tensor &output);
+                int pad_x, int pad_y, conv_stats &stats, output_tensor &output);
 
     public:
 
