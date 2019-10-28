@@ -909,8 +909,6 @@ namespace core {
                                 act_read_requests.end()) - 1;
                         auto out_bank_conflicts = *std::max_element(out_read_requests.begin(),
                                 out_read_requests.end()) - 1;
-                        if (act_bank_conflicts)
-                            std::cout << "ME cago en san pito pato\n";
                         auto read_bank_conflicts = std::max(act_bank_conflicts, out_bank_conflicts);
                         stats.read_bank_conflicts += read_bank_conflicts;
                         stats.cycles += read_bank_conflicts;
