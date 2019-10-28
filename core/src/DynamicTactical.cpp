@@ -959,7 +959,7 @@ namespace core {
                                             auto lane_d = std::get<2>(out_gradients_buffer[set][time]
                                                     [out_grad_channel_idx + lane]);
 
-                                            act_bits = std::get<0>(activation_buffer[time_h][act_channel_idx + lane]);
+                                            act_bits = std::get<0>(activation_buffer[time_h][act_channel_idx + lane_d]);
                                         }
 
                                         output[out_grad_channel][act_channel][x_window][y_window]
