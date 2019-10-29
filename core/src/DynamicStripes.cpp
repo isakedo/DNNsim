@@ -741,7 +741,7 @@ namespace core {
             base::Array<T> act = layer.getActivations();
             act.sign_magnitude_representation(layer.getActPrecision());
             if(fc && act.getDimensions() == 4) act.reshape_to_2D();
-            if(fc) act.reshape_to_4D();
+            if(act.getDimensions() == 2) act.reshape_to_4D();
 
             base::Array<T> wgt = layer.getWeights();
             wgt.sign_magnitude_representation(layer.getWgtPrecision());
@@ -1048,10 +1048,8 @@ namespace core {
 
     /* ON CHIP */
 
-    const uint64_t GROUP_SIZE = 16;
-
     uint16_t get_value(std::map<uint64_t, uint16_t> &memory_map, uint64_t block_offset, uint64_t mem_pointer,
-            uint16_t width, int network_bits) {
+            uint16_t width, int network_bits, int GROUP_SIZE) {
 
         if ((width + mem_pointer) > (network_bits - 1)) {
 
@@ -1090,7 +1088,7 @@ namespace core {
     void DynamicStripes<T>::on_chip(const base::Network<T> &network) {
 
         // Initialize statistics
-        std::string filename = "DynamicStripes_on_chip";
+        std::string filename = "DynamicStripes_on_chip_PG" + std::to_string(PRECISION_GRANULARITY);
         sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
         auto act_baseline_size = stats.register_uint_t("act_baseline_size", 0, sys::AverageTotal);
@@ -1130,7 +1128,7 @@ namespace core {
             base::Array<T> act = layer.getActivations();
             act.sign_magnitude_representation(layer.getActPrecision());
             if(fc && act.getDimensions() == 4) act.reshape_to_2D();
-            if(fc) act.reshape_to_4D();
+            if(act.getDimensions() == 2) act.reshape_to_4D();
 
             base::Array<T> wgt = layer.getWeights();
             wgt.sign_magnitude_representation(layer.getWgtPrecision());
@@ -1218,10 +1216,10 @@ namespace core {
 
                     for (int x = 0; x < Kx; ++x) {
 
-                        for (int k = 0; k < wgt_channels; k += GROUP_SIZE) {
+                        for (int k = 0; k < wgt_channels; k += PRECISION_GRANULARITY) {
 
                             uint8_t max_bit = 0;
-                            for (int ss = k; ss < std::min((uint64_t) (k + GROUP_SIZE), wgt_channels); ++ss) {
+                            for (int ss = k; ss < std::min((uint64_t) (k + PRECISION_GRANULARITY), wgt_channels); ++ss) {
 
                                 uint16_t wgt_bits = wgt.get(m, ss, x, y);
 
@@ -1258,7 +1256,7 @@ namespace core {
 
                             // Store data
                             bool split = width + wgt_data_pt > (network_bits - 1);
-                            for (int ss = 0; ss < GROUP_SIZE; ++ss) {
+                            for (int ss = 0; ss < PRECISION_GRANULARITY; ++ss) {
 
                                 if ((ss + k) < wgt_channels) {
                                     uint16_t weight = wgt.get(m, ss + k, x, y);
@@ -1275,30 +1273,30 @@ namespace core {
 
                                     if (split) {
                                         uint16_t rem_weight = weight >> (network_bits - wgt_data_pt);
-                                        wgt_memory_map[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss] = rem_weight;
-                                        metadata[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
+                                        wgt_memory_map[wgt_data_start + wgt_data_offset + PRECISION_GRANULARITY + ss] = rem_weight;
+                                        metadata[wgt_data_start + wgt_data_offset + PRECISION_GRANULARITY + ss].emplace_back(metadata_tuple);
                                     }
                                 } else {
                                     auto metadata_tuple = std::make_tuple(m, ss + k, x, y, 0, width, false);
                                     wgt_memory_map[wgt_data_start + wgt_data_offset + ss] |= 0;
                                     metadata[wgt_data_start + wgt_data_offset + ss].emplace_back(metadata_tuple);
-                                    if (split) metadata[wgt_data_start + wgt_data_offset + GROUP_SIZE + ss].emplace_back(metadata_tuple);
+                                    if (split) metadata[wgt_data_start + wgt_data_offset + PRECISION_GRANULARITY + ss].emplace_back(metadata_tuple);
                                 }
                             }
 
                             batch_wgt_group_size += log2(network_bits);
                             batch_wgt_group_diff_size += (prev_group == width ? 1 : 1 + log2(network_bits));
-                            batch_wgt_datawidth_size += GROUP_SIZE * width;
+                            batch_wgt_datawidth_size += PRECISION_GRANULARITY * width;
                             wgt_data_pt = (wgt_data_pt + width) % network_bits;
                             if (split || wgt_data_pt == 0)
-                                wgt_data_offset += GROUP_SIZE;
+                                wgt_data_offset += PRECISION_GRANULARITY;
 
                             // Proteus
-                            proteus_wgt_size += GROUP_SIZE * wgt_layer_prec;
+                            proteus_wgt_size += PRECISION_GRANULARITY * wgt_layer_prec;
                             proteus_wgt_data_pt = (proteus_wgt_data_pt + wgt_layer_prec) % network_bits;
 
                             prev_group = width;
-                            channel_counter += GROUP_SIZE;
+                            channel_counter += PRECISION_GRANULARITY;
 
                             // Fully connected
                             if (!conv && channel_counter == channels_per_column) {
@@ -1306,14 +1304,14 @@ namespace core {
                                 channel_counter = 0;
 
                                 if (wgt_data_pt != 0) {
-                                    batch_wgt_padding_size += (network_bits - wgt_data_pt) * GROUP_SIZE;
-                                    wgt_data_offset += GROUP_SIZE;
+                                    batch_wgt_padding_size += (network_bits - wgt_data_pt) * PRECISION_GRANULARITY;
+                                    wgt_data_offset += PRECISION_GRANULARITY;
                                     wgt_data_pt = 0;
                                 }
 
                                 // Proteus
                                 if (proteus_wgt_data_pt != 0) {
-                                    proteus_wgt_padding += (network_bits - proteus_wgt_data_pt) * GROUP_SIZE;
+                                    proteus_wgt_padding += (network_bits - proteus_wgt_data_pt) * PRECISION_GRANULARITY;
                                     proteus_wgt_data_pt = 0;
                                 }
                             }
@@ -1323,14 +1321,14 @@ namespace core {
                 }
 
                 if (wgt_data_pt != 0) {
-                    batch_wgt_padding_size += (network_bits - wgt_data_pt) * GROUP_SIZE;
-                    wgt_data_offset += GROUP_SIZE;
+                    batch_wgt_padding_size += (network_bits - wgt_data_pt) * PRECISION_GRANULARITY;
+                    wgt_data_offset += PRECISION_GRANULARITY;
                     wgt_data_pt = 0;
                 }
 
                 // Proteus
                 if (proteus_wgt_data_pt != 0) {
-                    proteus_wgt_padding += (network_bits - proteus_wgt_data_pt) * GROUP_SIZE;
+                    proteus_wgt_padding += (network_bits - proteus_wgt_data_pt) * PRECISION_GRANULARITY;
                     proteus_wgt_data_pt = 0;
                 }
 
@@ -1371,10 +1369,10 @@ namespace core {
                             // Generated from "previous" layer
                             act_positions[y][x] = act_data_offset + act_data_start;
 
-                            for (int k = 0; k < act_channels; k += GROUP_SIZE) {
+                            for (int k = 0; k < act_channels; k += PRECISION_GRANULARITY) {
 
                                 uint8_t max_bit = 0;
-                                for (int ss = k; ss < std::min((uint64_t) (k + GROUP_SIZE), act_channels); ++ss) {
+                                for (int ss = k; ss < std::min((uint64_t) (k + PRECISION_GRANULARITY), act_channels); ++ss) {
 
                                     uint16_t act_bits = lstm ? act.get(r, n, ss) : act.get(n, ss, x, y);
 
@@ -1395,7 +1393,7 @@ namespace core {
                                 auto width_mask = (uint16_t) (1u << (width - 1u));
 
                                 if (width > network_bits) {
-                                    throw std::runtime_error("OnChip activations dynamic size bigger than network size");
+                                    //throw std::runtime_error("OnChip activations dynamic size bigger than network size");
                                 }
 
                                 // Store group
@@ -1411,7 +1409,7 @@ namespace core {
 
                                 // Store data
                                 bool split = width + act_data_pt > (network_bits - 1);
-                                for (int ss = 0; ss < GROUP_SIZE; ++ss) {
+                                for (int ss = 0; ss < PRECISION_GRANULARITY; ++ss) {
 
                                     if ((ss + k) < act_channels) {
                                         uint16_t activation = lstm ? act.get(r, n, ss + k) : act.get(n, ss + k, x, y);
@@ -1428,9 +1426,9 @@ namespace core {
 
                                         if (split) {
                                             uint16_t rem_activation = activation >> (network_bits - act_data_pt);
-                                            memory_map[act_data_start + act_data_offset + GROUP_SIZE +
+                                            memory_map[act_data_start + act_data_offset + PRECISION_GRANULARITY +
                                                        ss] = rem_activation;
-                                            metadata[act_data_start + act_data_offset + GROUP_SIZE + ss].emplace_back(
+                                            metadata[act_data_start + act_data_offset + PRECISION_GRANULARITY + ss].emplace_back(
                                                     metadata_tuple);
                                         }
                                     } else {
@@ -1438,38 +1436,38 @@ namespace core {
                                         memory_map[act_data_start + act_data_offset + ss] |= 0;
                                         metadata[act_data_start + act_data_offset + ss].emplace_back(metadata_tuple);
                                         if (split)
-                                            metadata[act_data_start + act_data_offset + GROUP_SIZE + ss].emplace_back(
+                                            metadata[act_data_start + act_data_offset + PRECISION_GRANULARITY + ss].emplace_back(
                                                     metadata_tuple);
                                     }
                                 }
 
                                 batch_act_group_size += log2(network_bits);
                                 batch_act_group_diff_size += (prev_group == width ? 1 : 1 + log2(network_bits));
-                                batch_act_datawidth_size += GROUP_SIZE * width;
+                                batch_act_datawidth_size += PRECISION_GRANULARITY * width;
                                 act_data_pt = (act_data_pt + width) % network_bits;
                                 if (split || act_data_pt == 0)
-                                    act_data_offset += GROUP_SIZE;
+                                    act_data_offset += PRECISION_GRANULARITY;
 
                                 // Proteus
-                                proteus_act_size += GROUP_SIZE * act_layer_prec;
+                                proteus_act_size += PRECISION_GRANULARITY * act_layer_prec;
                                 proteus_act_data_pt = (proteus_wgt_data_pt + act_layer_prec) % network_bits;
 
                                 prev_group = width;
-                                channel_counter += GROUP_SIZE;
+                                channel_counter += PRECISION_GRANULARITY;
 
                                 if (!conv && channel_counter >= channels_per_column) {
                                     prev_group = 0;
                                     channel_counter = 0;
 
                                     if (act_data_pt != 0) {
-                                        batch_act_padding_size += (network_bits - act_data_pt) * GROUP_SIZE;
-                                        act_data_offset += GROUP_SIZE;
+                                        batch_act_padding_size += (network_bits - act_data_pt) * PRECISION_GRANULARITY;
+                                        act_data_offset += PRECISION_GRANULARITY;
                                         act_data_pt = 0;
                                     }
 
                                     // Proteus
                                     if (proteus_act_data_pt != 0) {
-                                        proteus_act_padding += (network_bits - proteus_act_data_pt) * GROUP_SIZE;
+                                        proteus_act_padding += (network_bits - proteus_act_data_pt) * PRECISION_GRANULARITY;
                                         proteus_act_data_pt = 0;
                                     }
                                 }
@@ -1477,14 +1475,14 @@ namespace core {
                             }
 
                             if (act_data_pt != 0) {
-                                batch_act_padding_size += (network_bits - act_data_pt) * GROUP_SIZE;
-                                act_data_offset += GROUP_SIZE;
+                                batch_act_padding_size += (network_bits - act_data_pt) * PRECISION_GRANULARITY;
+                                act_data_offset += PRECISION_GRANULARITY;
                                 act_data_pt = 0;
                             }
 
                             // Proteus
                             if (proteus_act_data_pt != 0) {
-                                proteus_act_padding += (network_bits - proteus_act_data_pt) * GROUP_SIZE;
+                                proteus_act_padding += (network_bits - proteus_act_data_pt) * PRECISION_GRANULARITY;
                                 proteus_act_data_pt = 0;
                             }
 
@@ -1527,7 +1525,7 @@ namespace core {
                         uint32_t wgt_next_blk = 0;
 
                         // Activations starting positions
-                        auto channel_groups = (uint64_t) ceil(act_channels / (double) GROUP_SIZE);
+                        auto channel_groups = (uint64_t) ceil(act_channels / (double) PRECISION_GRANULARITY);
 
                         auto num_windows = out_x * out_y;
                         auto windows_per_column = (uint16_t) ceil(num_windows / (double) N_COLUMNS);
@@ -1569,7 +1567,7 @@ namespace core {
                                                 uint32_t act_block_offset = act_group_index * 4 / network_bits + act_group_start;
                                                 uint32_t act_mem_pointer = act_group_index * 4 % network_bits;
                                                 int act_width = get_value(memory_map, act_block_offset, act_mem_pointer,
-                                                        4, network_bits) + 1;
+                                                        4, network_bits,PRECISION_GRANULARITY) + 1;
                                                 auto act_width_mask = (uint16_t) (1u << (act_width - 1u));
 
 
@@ -1579,15 +1577,15 @@ namespace core {
                                                 uint32_t wgt_block_offset = wgt_group_index * 4 / network_bits + wgt_group_start;
                                                 uint32_t wgt_mem_pointer = wgt_group_index * 4 % network_bits;
                                                 int wgt_width = get_value(memory_map, wgt_block_offset, wgt_mem_pointer,
-                                                        4, network_bits) + 1;
+                                                        4, network_bits,PRECISION_GRANULARITY) + 1;
                                                 auto wgt_width_mask = (uint16_t) (1u << (wgt_width - 1u));
 
-                                                for (int ss = 0; ss < GROUP_SIZE; ++ss) {
+                                                for (int ss = 0; ss < PRECISION_GRANULARITY; ++ss) {
 
                                                     // Activations values
                                                     act_block_offset = ss + act_next_blk;
                                                     uint16_t ch_act = get_value(memory_map, act_block_offset,
-                                                            act_blk_index, act_width, network_bits);
+                                                            act_blk_index, act_width, network_bits,PRECISION_GRANULARITY);
 
                                                     if ((ch_act & act_width_mask) != 0) {
                                                         ch_act &= ~act_width_mask;
@@ -1597,7 +1595,7 @@ namespace core {
                                                     // Weights values
                                                     wgt_block_offset = ss + wgt_next_blk + wgt_base_addr;
                                                     uint16_t ch_wgt = get_value(memory_map, wgt_block_offset,
-                                                            wgt_blk_index, wgt_width, network_bits);
+                                                            wgt_blk_index, wgt_width, network_bits,PRECISION_GRANULARITY);
 
                                                     if ((ch_wgt & wgt_width_mask) != 0) {
                                                         ch_wgt &= ~wgt_width_mask;
@@ -1610,18 +1608,18 @@ namespace core {
                                                 }
 
                                                 if ((act_width + act_blk_index) > (network_bits - 1)) {
-                                                    act_next_blk += GROUP_SIZE;
+                                                    act_next_blk += PRECISION_GRANULARITY;
                                                 }
                                                 act_blk_index = (act_blk_index + act_width) % network_bits;
 
                                                 if ((wgt_width + wgt_blk_index) > (network_bits - 1)) {
-                                                    wgt_next_blk += GROUP_SIZE;
+                                                    wgt_next_blk += PRECISION_GRANULARITY;
                                                 }
                                                 wgt_blk_index = (wgt_blk_index + wgt_width) % network_bits;
 
                                             }
 
-                                            if (act_blk_index != 0) act_next_blk += GROUP_SIZE;
+                                            if (act_blk_index != 0) act_next_blk += PRECISION_GRANULARITY;
 
                                         } // Kernel X
 
@@ -1639,7 +1637,7 @@ namespace core {
                         std::vector<uint32_t> act_next_blk = std::vector<uint32_t>(N_COLUMNS);
 
                         // Activations starting positions
-                        auto channel_groups = (uint64_t) ceil(act_channels / (double) GROUP_SIZE);
+                        auto channel_groups = (uint64_t) ceil(act_channels / (double) PRECISION_GRANULARITY);
                         std::vector<std::vector<uint32_t>> act_column_offsets = std::vector<std::vector<uint32_t>>(
                                 N_COLUMNS, std::vector<uint32_t>(Ky, 0));
                         std::vector<std::vector<uint32_t>> act_registers = std::vector<std::vector<uint32_t>>(N_COLUMNS,
@@ -1705,7 +1703,7 @@ namespace core {
                                                 uint32_t act_block_offset = act_group_index * 4 / network_bits + act_group_start;
                                                 uint32_t act_mem_pointer = act_group_index * 4 % network_bits;
                                                 int act_width = get_value(memory_map, act_block_offset, act_mem_pointer,
-                                                        4, network_bits) + 1;
+                                                        4, network_bits,PRECISION_GRANULARITY) + 1;
                                                 auto act_width_mask = (uint16_t) (1u << (act_width - 1u));
 
                                                 // Weights width
@@ -1714,12 +1712,12 @@ namespace core {
                                                 uint32_t wgt_block_offset = wgt_group_index * 4 / network_bits + wgt_group_start;
                                                 uint32_t wgt_mem_pointer = wgt_group_index * 4 % network_bits;
                                                 int wgt_width = get_value(memory_map, wgt_block_offset, wgt_mem_pointer,
-                                                        4, network_bits) + 1;
+                                                        4, network_bits,PRECISION_GRANULARITY) + 1;
                                                 auto wgt_width_mask = (uint16_t) (1u << (wgt_width - 1u));
 
                                                 /*int act_index = act_mem_pointer / 4;
                                                 auto act_metadata = metadata[act_block_offset];
-                                                if (std::get<1>(act_metadata[act_index]) != (ch * GROUP_SIZE))
+                                                if (std::get<1>(act_metadata[act_index]) != (ch * PRECISION_GRANULARITY))
                                                     exit(-1);
                                                 if (std::get<2>(act_metadata[act_index]) != (x + kx))
                                                     exit(-1);
@@ -1732,7 +1730,7 @@ namespace core {
                                                 auto wgt_metadata = metadata[wgt_block_offset];
                                                 if (std::get<0>(wgt_metadata[wgt_index]) != m)
                                                     exit(-1);
-                                                if (std::get<1>(wgt_metadata[wgt_index]) != (ch * GROUP_SIZE))
+                                                if (std::get<1>(wgt_metadata[wgt_index]) != (ch * PRECISION_GRANULARITY))
                                                     exit(-1);
                                                 if (std::get<2>(wgt_metadata[wgt_index]) != kx)
                                                     exit(-1);
@@ -1741,12 +1739,12 @@ namespace core {
                                                 if (std::get<4>(wgt_metadata[wgt_index]) != wgt_width)
                                                     exit(-1);*/
 
-                                                for (int ss = 0; ss < GROUP_SIZE; ++ss) {
+                                                for (int ss = 0; ss < PRECISION_GRANULARITY; ++ss) {
 
                                                     // Activations values
                                                     act_block_offset = ss + act_next_blk[C] + act_base_addr[C];
                                                     uint16_t ch_act = get_value(memory_map, act_block_offset,
-                                                            act_blk_index, act_width, network_bits);
+                                                            act_blk_index, act_width, network_bits,PRECISION_GRANULARITY);
 
                                                     if ((ch_act & act_width_mask) != 0) {
                                                         ch_act &= ~act_width_mask;
@@ -1756,7 +1754,7 @@ namespace core {
                                                     // Weights values
                                                     wgt_block_offset = ss + wgt_next_blk + wgt_base_addr;
                                                     uint16_t ch_wgt = get_value(memory_map, wgt_block_offset,
-                                                            wgt_blk_index, wgt_width, network_bits);
+                                                            wgt_blk_index, wgt_width, network_bits,PRECISION_GRANULARITY);
 
                                                     if ((ch_wgt & wgt_width_mask) != 0) {
                                                         ch_wgt &= ~wgt_width_mask;
@@ -1764,14 +1762,14 @@ namespace core {
                                                     }
 
                                                     /*act_metadata = metadata[act_block_offset];
-                                                    if (((ch * GROUP_SIZE) + ss) < act_channels &&
-                                                        act.get(n, (ch * GROUP_SIZE) + ss, x + kx, y + ky) != ch_act)
+                                                    if (((ch * PRECISION_GRANULARITY) + ss) < act_channels &&
+                                                        act.get(n, (ch * PRECISION_GRANULARITY) + ss, x + kx, y + ky) != ch_act)
                                                         exit(-1);
 
 
                                                     wgt_metadata = metadata[wgt_block_offset];
-                                                    if (((ch * GROUP_SIZE) + ss) < wgt_channels &&
-                                                        wgt.get(m, (ch * GROUP_SIZE) + ss, kx, ky) != ch_wgt)
+                                                    if (((ch * PRECISION_GRANULARITY) + ss) < wgt_channels &&
+                                                        wgt.get(m, (ch * PRECISION_GRANULARITY) + ss, kx, ky) != ch_wgt)
                                                         exit(-1);*/
 
                                                     // Multiply - Accumulate
@@ -1780,18 +1778,18 @@ namespace core {
                                                 }
 
                                                 if ((act_width + act_blk_index) > (network_bits - 1)) {
-                                                    act_next_blk[C] += GROUP_SIZE;
+                                                    act_next_blk[C] += PRECISION_GRANULARITY;
                                                 }
                                                 act_blk_index = (act_blk_index + act_width) % network_bits;
 
                                                 if ((wgt_width + wgt_blk_index) > (network_bits - 1)) {
-                                                    wgt_next_blk += GROUP_SIZE;
+                                                    wgt_next_blk += PRECISION_GRANULARITY;
                                                 }
                                                 wgt_blk_index = (wgt_blk_index + wgt_width) % network_bits;
 
                                             }
 
-                                            if (act_blk_index != 0) act_next_blk[C] += GROUP_SIZE;
+                                            if (act_blk_index != 0) act_next_blk[C] += PRECISION_GRANULARITY;
 
                                             // Update pointer to next window after last filter
                                             if (m == (num_filters - 1) && (kx == (stride - 1) || Kx == 1)) {
@@ -1849,7 +1847,7 @@ namespace core {
                 }
 
                 // Act Bits
-                auto num_act = (uint64_t)(R * Nx * Ny * ceil(act_channels / (double) GROUP_SIZE) * GROUP_SIZE);
+                auto num_act = (uint64_t)(R * Nx * Ny * act_channels);//ceil(act_channels / (double) PRECISION_GRANULARITY) * PRECISION_GRANULARITY);
                 act_baseline_size->value[layer_it][n] = num_act * network_bits;
                 act_profiled_size->value[layer_it][n] = proteus_act_size;
                 act_profiled_padding->value[layer_it][n] = proteus_act_padding;
@@ -1879,7 +1877,7 @@ namespace core {
                 }
 
                 // Wgt Bits
-                auto num_wgt = (uint64_t) (num_filters * Kx * Ky * ceil(wgt_channels/(double)GROUP_SIZE) * GROUP_SIZE);
+                auto num_wgt = (uint64_t) (num_filters * Kx * Ky * wgt_channels);//ceil(wgt_channels/(double)PRECISION_GRANULARITY) * PRECISION_GRANULARITY);
                 wgt_baseline_size->value[layer_it][n] = num_wgt * network_bits;
 
                 wgt_profiled_size->value[layer_it][n] = proteus_wgt_size;
@@ -1897,6 +1895,7 @@ namespace core {
 
         //Dump statistics
         std::string header = "DynamicStripes On Chip Compression for " + network.getName() + "\n";
+        header += "Number of values per group: " + std::to_string(PRECISION_GRANULARITY) + "\n";
         stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
 
     }
@@ -2168,10 +2167,10 @@ namespace core {
                             uint8_t prev_group = 0;
                             uint64_t channel_size = 0;
 
-                            for (int k = 0; k < act_channels; k += GROUP_SIZE) {
+                            for (int k = 0; k < act_channels; k += PRECISION_GRANULARITY) {
 
                                 uint8_t max_bit = 0;
-                                for (int ss = k; ss < std::min((uint64_t) (k + GROUP_SIZE), act_channels); ++ss) {
+                                for (int ss = k; ss < std::min((uint64_t) (k + PRECISION_GRANULARITY), act_channels); ++ss) {
 
                                     uint16_t act_bits = lstm ? act.get(r, n, ss) : act.get(n, ss, x, y);
 
@@ -2189,12 +2188,12 @@ namespace core {
                                 }
 
                                 uint8_t width = max_bit + 1u;
-                                if (act_channels < GROUP_SIZE)
-                                    channel_size += GROUP_SIZE * network_bits; // Baseline values
+                                if (act_channels < PRECISION_GRANULARITY)
+                                    channel_size += PRECISION_GRANULARITY * network_bits; // Baseline values
                                 else {
                                     //channel_size += log2(network_bits); // Group overhead
                                     channel_size += width == prev_group ? 1 : 1 + log2(network_bits); // Group overhead
-                                    channel_size += GROUP_SIZE * width; // Values
+                                    channel_size += PRECISION_GRANULARITY * width; // Values
                                 }
                                 act_data_pt = (act_data_pt + width) % network_bits;
                                 prev_group = width;
@@ -2203,7 +2202,7 @@ namespace core {
 
                             // Padding overhead
                             if (act_data_pt != 0) {
-                                channel_size += (network_bits - act_data_pt) * GROUP_SIZE;
+                                channel_size += (network_bits - act_data_pt) * PRECISION_GRANULARITY;
                                 act_data_pt = 0;
                             }
 
@@ -2228,10 +2227,10 @@ namespace core {
 
                         for (int x = 0; x < Kx; ++x) {
 
-                            for (int k = 0; k < wgt_channels; k += GROUP_SIZE) {
+                            for (int k = 0; k < wgt_channels; k += PRECISION_GRANULARITY) {
 
                                 uint8_t max_bit = 0;
-                                for (int ss = k; ss < std::min((uint64_t) (k + GROUP_SIZE), wgt_channels); ++ss) {
+                                for (int ss = k; ss < std::min((uint64_t) (k + PRECISION_GRANULARITY), wgt_channels); ++ss) {
 
                                     uint16_t wgt_bits = wgt.get(m, ss, x, y);
 
@@ -2251,8 +2250,8 @@ namespace core {
                                 uint8_t width = max_bit + 1u;
                                 //filter_size += log2(network_bits); // Group overhead
                                 filter_size += width == prev_group ? 1 : 1 + log2(network_bits); // Group overhead
-                                filter_size += GROUP_SIZE * width; // Values
-                                //filter_size += GROUP_SIZE * network_bits; // Baseline values
+                                filter_size += PRECISION_GRANULARITY * width; // Values
+                                //filter_size += PRECISION_GRANULARITY * network_bits; // Baseline values
 
                                 wgt_data_pt = (wgt_data_pt + width) % network_bits;
                                 prev_group = width;
@@ -2265,7 +2264,7 @@ namespace core {
 
                     // Padding overhead
                     if (wgt_data_pt != 0) {
-                        filter_size += (network_bits - wgt_data_pt) * GROUP_SIZE;
+                        filter_size += (network_bits - wgt_data_pt) * PRECISION_GRANULARITY;
                         wgt_data_pt = 0;
                     }
 

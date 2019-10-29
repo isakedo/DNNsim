@@ -274,8 +274,10 @@ namespace core {
             act_precision->value[layer_it][0] = layer.getActPrecision();
             wgt_precision->value[layer_it][0] = layer.getWgtPrecision();
 
-            out_x->value[layer_it][0] = (Nx->value[layer_it][0] - Kx->value[layer_it][0])/stride->value[layer_it][0] + 1;
-            out_y->value[layer_it][0] = (Ny->value[layer_it][0] - Ky->value[layer_it][0])/stride->value[layer_it][0] + 1;
+            out_x->value[layer_it][0] = (Nx->value[layer_it][0] - Kx->value[layer_it][0] +
+                    2 * padding->value[layer_it][0]) / stride->value[layer_it][0] + 1;
+            out_y->value[layer_it][0] = (Ny->value[layer_it][0] - Ky->value[layer_it][0] +
+                    2 * padding->value[layer_it][0])/stride->value[layer_it][0] + 1;
 
             act_size->value[layer_it][0] = act_channels->value[layer_it][0] * Nx->value[layer_it][0] *
                     Ny->value[layer_it][0] * R->value[layer_it][0] * network.getNetwork_bits() / 8000000.;
