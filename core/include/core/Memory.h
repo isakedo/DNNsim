@@ -74,8 +74,8 @@ namespace core {
             clock_cycle = 0;
             mem_cycle = 0;
 
-            on_chip_act_size = 1048576/8; //1MiB
-            on_chip_wgt_size = 1048576/8; //1MiB
+            on_chip_act_size = 1048576/80; //1MiB
+            on_chip_wgt_size = 1048576/80; //1MiB
         }
 
         Memory(const std::string &dram_conf, const std::string &system_conf, uint64_t size) {

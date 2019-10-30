@@ -2031,6 +2031,10 @@ namespace core {
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
         auto compute_cycles = stats.register_uint_t("compute_cycles", 0, sys::AverageTotal);
         auto memory_cycles = stats.register_uint_t("memory_cycles", 0, sys::AverageTotal);
+        auto act_off_chip = stats.register_uint_t("act_off_chip bytes", 0 , sys::AverageTotal);
+        auto act_off_chip_bytes = stats.register_uint_t("act_off_chip", 0 , sys::AverageTotal);
+        auto wgt_off_chip = stats.register_uint_t("wgt_off_chip bytes", 0 , sys::AverageTotal);
+        auto wgt_off_chip_bytes = stats.register_uint_t("wgt_off_chip", 0 , sys::AverageTotal);
 
         uint64_t act_next_addr = 0;
         uint64_t act_base_addr = 0x40000000;
@@ -2284,6 +2288,7 @@ namespace core {
                 // Select windows that fit on-chip
                 while (!window_list.empty()) {
 
+                    act_off_chip->value[layer_it][n]++;
                     this->memory.requests.clear();
 
                     std::vector<int> windows_on_chip;
@@ -2301,6 +2306,7 @@ namespace core {
                     // Select filters that fit on-chip
                     while (!filter_list.empty()) {
 
+                        wgt_off_chip->value[layer_it][n]++;
                         std::vector<int> filters_on_chip;
                         std::vector<std::list<uint64_t>> filter_requests;
 
@@ -2317,20 +2323,23 @@ namespace core {
                             // Request the memory addresses
                             if (first && i < window_requests.size()) {
                                 for (auto address : window_requests[i]) {
-                                    this->memory.request_address(address, false);
+                                    //this->memory.request_address(address, false);
+                                    act_off_chip_bytes->value[layer_it][n] += 8;
                                 }
                             }
 
                             // Request the memory addresses
                             if (i < filter_requests.size()) {
                                 for (auto address : filter_requests[i]) {
-                                    this->memory.request_address(address, false);
+                                    //this->memory.request_address(address, false);
+                                    wgt_off_chip_bytes->value[layer_it][n] += 8;
                                 }
                             }
 
                         }
 
                         first = false;
+                        continue;
 
                         // Convolute windows and filters on the on-chip memory
                         for (int w = 0; w < windows_on_chip.size(); w += N_COLUMNS) {
