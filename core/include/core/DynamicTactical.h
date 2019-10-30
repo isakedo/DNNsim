@@ -9,6 +9,8 @@ typedef std::vector<std::vector<std::vector<float>>> non_schedule_buffer;
 typedef std::vector<std::vector<value_mux>> schedule_buffer;
 
 typedef std::vector<std::vector<int>> bank_map;
+typedef std::vector<std::tuple<uint64_t, uint64_t>> off_chip_map;
+
 
 typedef std::vector<std::vector<std::vector<std::vector<double>>>> output_tensor;
 
@@ -53,6 +55,7 @@ namespace core {
         struct conv_stats {
             uint64_t cycles = 0;
             uint64_t compute_cycles = 0;
+            uint64_t memory_cycles = 0;
             uint64_t base_compute_cycles = 0;
             uint64_t ideal_compute_cycles = 0;
             uint64_t read_bank_conflicts = 0;
@@ -90,8 +93,8 @@ namespace core {
         void original_schedule(schedule_buffer &schedule);
 
         void channel_first_convolution(const base::Array<T> &input, const base::Array<T> &wgt,
-                const bank_map &input_bank_map, uint64_t Ox, uint64_t Oy, int stride, conv_stats &stats,
-                output_tensor &output);
+                const bank_map &input_bank_map, const off_chip_map &act_addresses, const off_chip_map &wgt_addresses,
+                uint64_t batch, uint64_t Ox, uint64_t Oy, int stride, conv_stats &stats, output_tensor &output);
 
         void channel_first_dilated_convolution(const base::Array<T> &input, const base::Array<T> &wgt,
                 const bank_map &input_bank_map, int stride, bool asym_pad, conv_stats &stats, output_tensor &output);

@@ -1847,7 +1847,7 @@ namespace core {
                 }
 
                 // Act Bits
-                auto num_act = (uint64_t)(R * Nx * Ny * act_channels);//ceil(act_channels / (double) PRECISION_GRANULARITY) * PRECISION_GRANULARITY);
+                auto num_act = (uint64_t)(R * Nx * Ny * ceil(act_channels / (double) PRECISION_GRANULARITY) * PRECISION_GRANULARITY);
                 act_baseline_size->value[layer_it][n] = num_act * network_bits;
                 act_profiled_size->value[layer_it][n] = proteus_act_size;
                 act_profiled_padding->value[layer_it][n] = proteus_act_padding;
@@ -1877,7 +1877,7 @@ namespace core {
                 }
 
                 // Wgt Bits
-                auto num_wgt = (uint64_t) (num_filters * Kx * Ky * wgt_channels);//ceil(wgt_channels/(double)PRECISION_GRANULARITY) * PRECISION_GRANULARITY);
+                auto num_wgt = (uint64_t) (num_filters * Kx * Ky * ceil(wgt_channels/(double)PRECISION_GRANULARITY) * PRECISION_GRANULARITY);
                 wgt_baseline_size->value[layer_it][n] = num_wgt * network_bits;
 
                 wgt_profiled_size->value[layer_it][n] = proteus_wgt_size;
