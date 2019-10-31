@@ -107,6 +107,16 @@ namespace sys {
 
                 /** Dynamic width precision: Loom */
                 bool dynamic_weights = false;
+
+                /** Simulate baseline */
+                bool baseline;
+
+                /** On-chip activations size */
+                uint64_t act_memory_size = 0;
+
+                /** On-chip weights size */
+                uint64_t wgt_memory_size = 0;
+
             };
 
             /** Batch number of the traces */

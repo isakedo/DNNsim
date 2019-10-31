@@ -485,6 +485,7 @@ namespace sys {
             }
             line = line.substr(0, line.size() - 1);
             o_file << line << std::endl;
+            std::cout << line << std::endl;
         }
 
 

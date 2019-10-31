@@ -131,6 +131,18 @@ namespace core {
         Simulator(uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) : N_THREADS(_N_THREADS),
                 FAST_MODE(_FAST_MODE), QUIET(_QUIET), CHECK(_CHECK), memory(Memory()) {}
 
+        /** Constructor
+         * @param _MEMORY      Memory model
+        * @param _N_THREADS    Number of parallel threads for multi-threading execution
+        * @param _FAST_MODE    Enable fast mode to simulate only one image
+        * @param _QUIET        Avoid std::out messages
+        * @param _CHECK        Check the correctness of the simulations
+        */
+        Simulator(const Memory &_MEMORY, uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) :
+                N_THREADS(_N_THREADS), FAST_MODE(_FAST_MODE), QUIET(_QUIET), CHECK(_CHECK) {
+            memory = _MEMORY;
+        }
+
 
        /** Returns network information
         * @param network   Network we want to check

@@ -161,6 +161,11 @@ namespace sys {
                     experiment.bits_pe = experiment_proto.bits_pe() < 1 ? 16 : experiment_proto.bits_pe();
                     experiment.leading_bit = experiment_proto.leading_bit();
                     experiment.diffy = experiment_proto.diffy();
+                    experiment.baseline = experiment_proto.baseline();
+                    experiment.act_memory_size = experiment_proto.act_memory_size() < 1 ? 1048576 :
+                            experiment_proto.act_memory_size();
+                    experiment.wgt_memory_size = experiment_proto.wgt_memory_size() < 1 ? 1048576 :
+                            experiment_proto.wgt_memory_size();
 
                 } else if(experiment_proto.architecture() == "Loom") {
                     experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();

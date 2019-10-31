@@ -90,8 +90,8 @@ namespace interface {
                     type = "Decoder";
                 else if (words[0].find("encoder") != std::string::npos)
                     type = "Encoder";
-                else if (words[0].find("fc") != std::string::npos || words[0].find("inner_prod") != std::string::npos ||
-                        words[0].find("Linear") != std::string::npos || words[0].find("linear") != std::string::npos)
+                else if (words[0].find("fc") != std::string::npos || words[0].find("Linear") != std::string::npos
+                        || words[0].find("linear") != std::string::npos)
                     type = "InnerProduct";
                 else if (words[0].find("lstm") != std::string::npos)
                     type = "LSTM";

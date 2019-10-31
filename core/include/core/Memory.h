@@ -12,7 +12,7 @@ namespace core {
      */
     class Memory {
 
-    private:
+    protected:
 
         /** Memory system */
         DRAMSim::MultiChannelMemorySystem *memory;
@@ -78,7 +78,8 @@ namespace core {
             on_chip_wgt_size = 1048576/80; //1MiB
         }
 
-        Memory(const std::string &dram_conf, const std::string &system_conf, uint64_t size) {
+        Memory(const std::string &dram_conf, const std::string &system_conf, uint64_t size, uint64_t act_size,
+                uint64_t wgt_size) {
             memory = DRAMSim::getMemorySystemInstance(dram_conf, system_conf, "./DRAMSim2/", "DNNsim", size);
 
             DRAMSim::TransactionCompleteCB *read_cb =
@@ -91,8 +92,8 @@ namespace core {
             clock_cycle = 0;
             mem_cycle = 0;
 
-            on_chip_act_size = 1048576; //1MiB
-            on_chip_wgt_size = 1048576; //1MiB
+            on_chip_act_size = act_size;
+            on_chip_wgt_size = wgt_size;
         }
 
         /**

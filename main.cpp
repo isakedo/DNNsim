@@ -197,6 +197,10 @@ int main(int argc, char *argv[]) {
                     uint32_t epochs = simulate.epochs;
 					for(const auto &experiment : simulate.experiments) {
 
+					    // Generate memory
+					    core::Memory memory = core::Memory("ini/DDR2_micron_16M_8b_x8_sg3E.ini", "system.ini", 16384,
+					            experiment.act_memory_size, experiment.wgt_memory_size);
+
                         if(experiment.architecture == "None") {
                             core::Simulator<float> DNNsim(N_THREADS, FAST_MODE, QUIET, CHECK);
                             if (experiment.task == "Sparsity") DNNsim.training_sparsity(simulate, epochs);
@@ -253,6 +257,10 @@ int main(int argc, char *argv[]) {
 
 						for(const auto &experiment : simulate.experiments) {
 
+                            // Generate memory
+                            core::Memory memory = core::Memory("ini/DDR2_micron_16M_8b_x8_sg3E.ini", "system.ini",
+                                    16384, experiment.act_memory_size, experiment.wgt_memory_size);
+
                             if(!QUIET) std::cout << "Starting simulation " << experiment.task << " for architecture "
                                     << experiment.architecture << std::endl;
 
@@ -281,7 +289,8 @@ int main(int argc, char *argv[]) {
 		                        core::DynamicStripes<uint16_t> DNNsim(experiment.n_lanes, experiment.n_columns,
 		                                experiment.n_rows, experiment.n_tiles, experiment.precision_granularity,
 		                                experiment.column_registers, experiment.bits_pe, experiment.leading_bit,
-		                                experiment.diffy, N_THREADS, FAST_MODE, QUIET, CHECK);
+		                                experiment.diffy, experiment.baseline, memory, N_THREADS, FAST_MODE, QUIET,
+		                                CHECK);
 		                        if(experiment.task == "Cycles") DNNsim.run(network);
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 		                        else if (experiment.task == "AvgWidth") DNNsim.average_width(network);

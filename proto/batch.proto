@@ -54,6 +54,9 @@ message Batch {
             bool diffy = 28;
 
             bool dynamic_weights = 29;
+            bool baseline = 30;
+            uint32 act_memory_size = 31;
+            uint32 wgt_memory_size = 32;
         }
 
         uint32 batch = 1;

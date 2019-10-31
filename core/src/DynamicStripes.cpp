@@ -1847,7 +1847,8 @@ namespace core {
                 }
 
                 // Act Bits
-                auto num_act = (uint64_t)(R * Nx * Ny * ceil(act_channels / (double) PRECISION_GRANULARITY) * PRECISION_GRANULARITY);
+                auto num_act = (uint64_t)(R * Nx * Ny * ceil(act_channels / (double) PRECISION_GRANULARITY) *
+                        PRECISION_GRANULARITY);
                 act_baseline_size->value[layer_it][n] = num_act * network_bits;
                 act_profiled_size->value[layer_it][n] = proteus_act_size;
                 act_profiled_padding->value[layer_it][n] = proteus_act_padding;
@@ -1877,7 +1878,8 @@ namespace core {
                 }
 
                 // Wgt Bits
-                auto num_wgt = (uint64_t) (num_filters * Kx * Ky * ceil(wgt_channels/(double)PRECISION_GRANULARITY) * PRECISION_GRANULARITY);
+                auto num_wgt = (uint64_t) (num_filters * Kx * Ky * ceil(wgt_channels/(double)PRECISION_GRANULARITY) *
+                        PRECISION_GRANULARITY);
                 wgt_baseline_size->value[layer_it][n] = num_wgt * network_bits;
 
                 wgt_profiled_size->value[layer_it][n] = proteus_wgt_size;
@@ -2025,7 +2027,8 @@ namespace core {
     void DynamicStripes<T>::on_chip_cycles(const base::Network<T> &network) {
 
         std::string filename = "DynamicStripes_L" + std::to_string(N_LANES) + "_C" + std::to_string(N_COLUMNS) + "_R" +
-                std::to_string(N_ROWS) + "_on_chip_cycles";
+                std::to_string(N_ROWS) + "_AS" + std::to_string(this->memory.getOnChipActSize()) + "_WS" +
+                std::to_string(this->memory.getOnChipWgtSize())+ (BASELINE ? "_baseline" : "") + "_on_chip_cycles";
         sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
@@ -2054,12 +2057,12 @@ namespace core {
             bool lstm = layer.getType() == "LSTM";
             bool fc = layer.getType() == "InnerProduct";
 
-            std::cout << layer.getName() << std::endl;
+            if (!this->QUIET) std::cout << layer.getName() << std::endl;
 
             base::Array<T> act = layer.getActivations();
             act.sign_magnitude_representation(layer.getActPrecision());
             if (fc && act.getDimensions() == 4) act.reshape_to_2D();
-            if (fc) act.reshape_to_4D();
+            if (act.getDimensions() == 2) act.reshape_to_4D();
 
             base::Array<T> wgt = layer.getWeights();
             wgt.sign_magnitude_representation(layer.getWgtPrecision());
@@ -2192,7 +2195,7 @@ namespace core {
                                 }
 
                                 uint8_t width = max_bit + 1u;
-                                if (act_channels < PRECISION_GRANULARITY)
+                                if (BASELINE || act_channels < PRECISION_GRANULARITY)
                                     channel_size += PRECISION_GRANULARITY * network_bits; // Baseline values
                                 else {
                                     //channel_size += log2(network_bits); // Group overhead
@@ -2252,10 +2255,13 @@ namespace core {
                                 }
 
                                 uint8_t width = max_bit + 1u;
-                                //filter_size += log2(network_bits); // Group overhead
-                                filter_size += width == prev_group ? 1 : 1 + log2(network_bits); // Group overhead
-                                filter_size += PRECISION_GRANULARITY * width; // Values
-                                //filter_size += PRECISION_GRANULARITY * network_bits; // Baseline values
+                                if (BASELINE) {
+                                    filter_size += PRECISION_GRANULARITY * network_bits; // Baseline values
+                                } else {
+                                    //filter_size += log2(network_bits); // Group overhead
+                                    filter_size += width == prev_group ? 1 : 1 + log2(network_bits); // Group overhead
+                                    filter_size += PRECISION_GRANULARITY * width; // Values
+                                }
 
                                 wgt_data_pt = (wgt_data_pt + width) % network_bits;
                                 prev_group = width;
@@ -2404,6 +2410,8 @@ namespace core {
         header += "Number of lanes/terms per PE: " + std::to_string(N_LANES) + "\n";
         header += "Number of columns/windows in parallel: " + std::to_string(N_COLUMNS) + "\n";
         header += "Number of rows/filters in parallel: " + std::to_string(N_ROWS) + "\n";
+        header += "On-chip activations size: " + std::to_string(this->memory.getOnChipActSize()) + "\n";
+        header += "On-chip weights size: " + std::to_string(this->memory.getOnChipWgtSize()) + "\n";
 
         stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
 
