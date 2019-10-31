@@ -765,7 +765,11 @@ namespace core {
             }
         }
 
-        bool schedule_act = act_zeroes > out_grad_zeroes;
+        double total_act = Nx * Ny * act_channels;
+        double total_out = Ox * Oy * out_channels;
+        auto act_sparsity = act_zeroes / total_act;
+        auto out_sparsity = out_grad_zeroes / total_out;
+        bool schedule_act = act_sparsity > out_sparsity;
         auto OUT_SET_SIZE = schedule_act ? N_COLUMNS : N_ROWS;
         auto ACT_SET_SIZE = schedule_act ? N_ROWS : N_COLUMNS;
 
