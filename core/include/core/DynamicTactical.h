@@ -93,8 +93,8 @@ namespace core {
         void original_schedule(schedule_buffer &schedule);
 
         void channel_first_convolution(const base::Array<T> &input, const base::Array<T> &wgt,
-                const bank_map &input_bank_map, const off_chip_map &act_addresses, const off_chip_map &wgt_addresses,
-                uint64_t batch, uint64_t Ox, uint64_t Oy, int stride, conv_stats &stats, output_tensor &output);
+                const bank_map &input_bank_map, uint64_t Ox, uint64_t Oy, int stride, conv_stats &stats,
+                output_tensor &output);
 
         void channel_first_dilated_convolution(const base::Array<T> &input, const base::Array<T> &wgt,
                 const bank_map &input_bank_map, int stride, bool asym_pad, conv_stats &stats, output_tensor &output);

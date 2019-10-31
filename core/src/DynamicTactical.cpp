@@ -302,8 +302,7 @@ namespace core {
 
     template <typename T>
     void DynamicTactical<T>::channel_first_convolution(const base::Array<T> &input, const base::Array<T> &wgt,
-            const bank_map &input_bank_map, const off_chip_map &act_addresses, const off_chip_map &wgt_addresses,
-            uint64_t batch, uint64_t Ox, uint64_t Oy, int stride, conv_stats &stats,
+            const bank_map &input_bank_map, uint64_t Ox, uint64_t Oy, int stride, conv_stats &stats,
             output_tensor &output) {
 
         const std::vector<size_t> &in_shape = input.getShape();
@@ -326,12 +325,9 @@ namespace core {
         // Stats
         stats.cycles = 0;
         stats.compute_cycles = 0;
-        stats.memory_cycles = 0;
         stats.base_compute_cycles = 0;
         stats.ideal_compute_cycles = 0;
         stats.read_bank_conflicts = 0;
-        this->memory.resetClockCycle();
-        this->memory.resetMemCycle();
 
         // Generate weight buffer
         auto num_filter_sets = (uint64_t)ceil(num_filters / (double)N_COLUMNS);
@@ -371,7 +367,6 @@ namespace core {
 
         }
 
-        bool first_window = true;
         std::vector<int> x_windows, y_windows;
         int x_counter = 0, y_counter = 0;
         while(this->iterateWindows(Ox, Oy, x_windows, y_windows, x_counter, y_counter, N_ROWS)) {
@@ -426,51 +421,10 @@ namespace core {
             // Schedule buffer
             original_schedule(window_buffer);
 
-            // Check if windows on-chip
-            uint64_t act_init_address = std::get<0>(act_addresses[batch]);
-            const uint64_t block_size = 64;
-            const uint64_t values_per_block = block_size / 16;
-            auto channel_blocks = in_channels / values_per_block;
-
-            std::vector<uint64_t> windows_addresses;
-            for (int w = 0; w < x_windows.size(); ++w) {
-                auto x_window = x_windows[w] * stride;
-                auto y_window = y_windows[w] * stride;
-
-                for (int y = 0; y < Ky; ++y) {
-                    for (int x = 0; x < Kx; ++x) {
-                        for (int k = 0; k < channel_blocks; ++k) {
-                            auto pos = (y_window + y) * Nx * channel_blocks + (x_window + x) * channel_blocks + k;
-                            windows_addresses.push_back(act_init_address + pos * 0x40);
-                        }
-                    }
-                }
-            }
-
-            for (const auto &address : windows_addresses) {
-                this->memory.wait_for(address);
-            }
-
             for (int set = 0; set < num_filter_sets; ++set) {
 
                 stats.base_compute_cycles += time_per_window;
                 stats.ideal_compute_cycles += ideal_time_per_window;
-
-                // Check if filters on-chip
-                if (first_window) {
-                    for (int f = 0; f < N_COLUMNS; ++f) {
-                        auto filter = set * N_COLUMNS + f;
-                        if (filter >= num_filters)
-                            continue;
-
-                        auto first_address = std::get<0>(wgt_addresses[f]);
-                        auto last_address = std::get<1>(wgt_addresses[f]);
-                        for (uint64_t address = first_address; address <= last_address; address += 0x40) {
-                            this->memory.wait_for(address);
-                        }
-                    }
-                    first_window = false;
-                }
 
                 int skip = 0;
                 for (int time = 0; time < time_per_window; ++time) {
@@ -493,10 +447,6 @@ namespace core {
                         continue;
                     }
                     skip = 0;
-
-                    if (this->memory.getClockCycle() > stats.cycles)
-                        stats.cycles = this->memory.getClockCycle();
-                    else this->memory.wait_until(stats.cycles);
 
                     stats.compute_cycles++;
                     stats.cycles++;
@@ -534,8 +484,6 @@ namespace core {
                 } // Time of the buffers
             } // Filter sets
         } // Window sets
-
-        stats.memory_cycles = this->memory.getMemCycle();
 
     }
 
@@ -1056,7 +1004,6 @@ namespace core {
         // Forward stats
         auto fw_cycles = stats.register_uint_t("Forward cycles", 0, sys::Total);
         auto fw_compute_cycles = stats.register_uint_t("Forward compute cycles", 0, sys::Total);
-        auto fw_memory_cycles = stats.register_uint_t("Forward memory cycles", 0, sys::Total);
         auto fw_base_compute_cycles = stats.register_uint_t("Forward base compute cycles", 0, sys::Total);
         auto fw_speedup = stats.register_double_t("Forward speedup", 0, sys::Special);
         auto fw_ideal_compute_cycles = stats.register_uint_t("Forward ideal compute cycles", 0, sys::Total);
@@ -1091,93 +1038,6 @@ namespace core {
 
             auto num_batches = this->FAST_MODE ? 1 : network.getBatches();
             int batch;
-
-            uint64_t act_base_addr = 0x40000000;
-            uint64_t act_next_addr = 0;
-            uint64_t wgt_base_addr = 0x00000000;
-            uint64_t wgt_next_addr = 0;
-            const uint64_t block_size = 64;
-            const uint64_t values_per_block = block_size / 16;
-
-            std::vector<off_chip_map> act_addresses;
-            std::vector<off_chip_map> wgt_addresses;
-            if (epoch == 0) {
-
-                act_addresses = std::vector<off_chip_map>(network.getNumLayers());
-                wgt_addresses = std::vector<off_chip_map>(network.getNumLayers());
-
-                for (int layer_it = 0; layer_it < network.getNumLayers(); layer_it++) {
-
-                    const base::Layer<float> &layer = network.getLayers()[layer_it];
-                    bool conv = layer.getType() == "Convolution";
-                    bool fc = layer.getType() == "InnerProduct";
-
-                    base::Array<T> act = layer.getActivations();
-                    if(fc && act.getDimensions() == 4) act.reshape_to_2D();
-                    if(fc) act.reshape_to_4D();
-
-                    base::Array<T> wgt = layer.getWeights();
-                    if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
-
-                    base::Array<T> out_grad = layer.getOutputGradients();
-                    if(fc) out_grad.reshape_to_4D();
-
-                    int padding = layer.getPadding();
-                    int stride = layer.getStride();
-
-                    const std::vector<size_t> &act_shape = act.getShape();
-                    const std::vector<size_t> &wgt_shape = wgt.getShape();
-                    const std::vector<size_t> &out_grad_shape = out_grad.getShape();
-
-                    // Activations
-                    auto batch_size = act_shape[0];
-                    auto act_channels = act_shape[1];
-                    auto Nx = act_shape[2];
-                    auto Ny = act_shape[3];
-
-                    // Weights
-                    auto num_filters = wgt_shape[0];
-                    auto wgt_channels = wgt_shape[1];
-                    auto Kx = wgt_shape[2];
-                    auto Ky = wgt_shape[3];
-
-                    // Output Gradients
-                    auto Ox = out_grad_shape[2];
-                    auto Oy = out_grad_shape[3];
-
-                    if (conv && padding > 0) {
-                        if (Kx < Ky) Ny += 2 * padding;
-                        else if (Ky < Kx) Nx += 2 * padding;
-                        else if (((Nx - Kx + 2 * padding)/(double)stride + 1) != Ox) {
-                            Nx += 2 * padding - 1;
-                            Ny += 2 * padding - 1;
-                        } else {
-                            Nx += 2 * padding;
-                            Ny += 2 * padding;
-                        }
-                    }
-
-                    // Activations address map
-                    uint64_t act_per_image = Nx * Ny * act_channels / values_per_block;
-                    act_addresses[layer_it] = std::vector<std::tuple<uint64_t, uint64_t>>(batch_size);
-                    for (int n = 0; n < batch_size; ++n) {
-                        act_addresses[layer_it][n] = std::make_tuple(act_base_addr + act_next_addr,
-                                act_base_addr + act_next_addr + (act_per_image - 1) * 0x40);
-                        act_next_addr += act_per_image * 0x40;
-                    }
-
-                    // Weights address map
-                    uint64_t wgt_per_filter = Kx * Ky * wgt_channels / values_per_block;
-                    wgt_addresses[layer_it] = std::vector<std::tuple<uint64_t, uint64_t>>(num_filters);
-                    for (int m = 0; m < num_filters; ++m) {
-                        wgt_addresses[layer_it][m] = std::make_tuple(wgt_base_addr + wgt_next_addr,
-                                wgt_base_addr + wgt_next_addr + (wgt_per_filter - 1) * 0x40);
-                        wgt_next_addr += wgt_per_filter * 0x40;
-                    }
-
-                }
-
-            }
 
             auto max_threads = omp_get_max_threads();
             //omp_set_num_threads(std::min(max_threads, this->N_THREADS));
@@ -1248,49 +1108,6 @@ namespace core {
                     if ((Ny_pad - Ky)/stride + 1 != Oy)
                         throw std::runtime_error("Output activations incorrect Y window sizes");
 
-                    // Request off-chip memory addresses
-                    if (layer_it == 0) {
-                        // Request required images, filters for first layers, and filters for next layer
-                        const auto &layer_filters = wgt_addresses[layer_it];
-                        for (const auto &filter_address : layer_filters) {
-                            auto first_address = std::get<0>(filter_address);
-                            auto last_address = std::get<1>(filter_address);
-                            for (uint64_t address = first_address; address <= last_address; address += 0x40) {
-                                this->memory.request_address(address, false);
-                            }
-                        }
-
-                        const auto &image = act_addresses[layer_it][batch];
-                        auto first_act_address = std::get<0>(image);
-                        auto last_act_address = std::get<1>(image);
-                        for (uint64_t address = first_act_address; address <= last_act_address; address += 0x40) {
-                            this->memory.request_address(address, false);
-                        }
-
-                        const auto &next_layer_filters = wgt_addresses[layer_it + 1];
-                        for (const auto &filter_address : next_layer_filters) {
-                            auto first_address = std::get<0>(filter_address);
-                            auto last_address = std::get<1>(filter_address);
-                            for (uint64_t address = first_address; address <= last_address; address += 0x40) {
-                                this->memory.request_address(address, false);
-                            }
-                        }
-                    } else if (layer_it == network.getNumLayers() - 1) {
-                        // Request filters for backward pass
-
-                    } else {
-                        // Request filters for next layer
-
-                        const auto &next_layer_filters = wgt_addresses[layer_it + 1];
-                        for (const auto &filter_address : next_layer_filters) {
-                            auto first_address = std::get<0>(filter_address);
-                            auto last_address = std::get<1>(filter_address);
-                            for (uint64_t address = first_address; address <= last_address; address += 0x40) {
-                                this->memory.request_address(address, false);
-                            }
-                        }
-                    }
-
                     // Generate on-chip bank map
                     auto act_bank_map = map_on_chip_activations(Nx_pad, Ny_pad, Ox, stride, BANKS);
 
@@ -1300,14 +1117,13 @@ namespace core {
                             std::vector<std::vector<double>>(Ox, std::vector<double>(Oy, 0))));
 
                     conv_stats batch_stats;
-                    channel_first_convolution(act, wgt, act_bank_map, act_addresses[layer_it], wgt_addresses[layer_it],
-                            batch, Ox, Oy, stride, batch_stats, sim_output_activations);
+                    channel_first_convolution(act, wgt, act_bank_map, Ox, Oy, stride, batch_stats,
+                            sim_output_activations);
 
                     #pragma omp critical
                     {
                         fw_cycles->value[epoch][layer_it] += batch_stats.cycles;
                         fw_compute_cycles->value[epoch][layer_it] += batch_stats.compute_cycles;
-                        fw_memory_cycles->value[epoch][layer_it] += batch_stats.memory_cycles;
                         fw_base_compute_cycles->value[epoch][layer_it] += batch_stats.base_compute_cycles;
                         fw_ideal_compute_cycles->value[epoch][layer_it] += batch_stats.ideal_compute_cycles;
                         fw_read_conflicts->value[epoch][layer_it] += batch_stats.read_bank_conflicts;
@@ -1482,8 +1298,8 @@ namespace core {
                         channel_first_dilated_convolution(out_grad, wgt, out_bank_map, stride, pad_type == 3,
                                 batch_stats, sim_input_gradients);
                     else
-                        channel_first_convolution(out_grad, wgt, out_bank_map, act_addresses[layer_it],
-                                wgt_addresses[layer_it], batch, Nx, Ny, 1, batch_stats, sim_input_gradients);
+                        channel_first_convolution(out_grad, wgt, out_bank_map, Nx, Ny, 1, batch_stats,
+                                sim_input_gradients);
 
                     #pragma omp critical
                     {
