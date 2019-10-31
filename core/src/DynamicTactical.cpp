@@ -439,7 +439,6 @@ namespace core {
 
                     auto read_bank_conflicts = *std::max_element(read_requests.begin(), read_requests.end()) - 1;
                     stats.read_bank_conflicts += read_bank_conflicts;
-                    stats.cycles += read_bank_conflicts;
 
                     // Skip lines of zeroes
                     if (skip < LOOKAHEAD_H && check_zero_line(window_buffer[time])) {
@@ -679,7 +678,6 @@ namespace core {
 
                         auto read_bank_conflicts = *std::max_element(read_requests.begin(), read_requests.end()) - 1;
                         stats.read_bank_conflicts += read_bank_conflicts;
-                        stats.cycles += read_bank_conflicts;
 
                         // Skip lines of zeroes
                         if (skip < LOOKAHEAD_H && check_zero_line(window_buffer[time])) {
@@ -845,7 +843,7 @@ namespace core {
                 schedule_buffer activation_buffer = schedule_buffer(time_per_act_channel,
                         std::vector<value_mux>(ACT_SET_SIZE * N_LANES, std::make_tuple(0.0f, 0, 0)));
 
-                bank_map window_bank_map = bank_map(time_per_act_channel, std::vector<int>(ACT_SET_SIZE, -1));
+                bank_map window_bank_map = bank_map(time_per_act_channel, std::vector<int>(N_LANES, -1));
 
                 uint64_t ideal_time_per_act_channel = 0;
 
@@ -896,7 +894,7 @@ namespace core {
                         out_read_requests = std::vector<int>(BANKS, 0);
 
                         // Activations requests
-                        for (int a = 0; a < ACT_SET_SIZE; ++a) {
+                        for (int a = 0; a < N_LANES; ++a) {
                             auto bank = window_bank_map[time][a];
                             if (bank >= 0) act_read_requests[bank]++;
                         }
@@ -913,7 +911,6 @@ namespace core {
                                 out_read_requests.end()) - 1;
                         auto read_bank_conflicts = std::max(act_bank_conflicts, out_bank_conflicts);
                         stats.read_bank_conflicts += read_bank_conflicts;
-                        stats.cycles += read_bank_conflicts;
 
                         // Skip lines of zeroes
                         bool zero_line = schedule_act ? check_zero_line(activation_buffer[time]) :
@@ -1040,8 +1037,8 @@ namespace core {
             int batch;
 
             auto max_threads = omp_get_max_threads();
-            //omp_set_num_threads(std::min(max_threads, this->N_THREADS));
-            //#pragma omp parallel for private(batch)
+            omp_set_num_threads(std::min(max_threads, this->N_THREADS));
+            #pragma omp parallel for private(batch)
             for (batch = 0; batch < num_batches; ++batch) {
 
                 // Forward pass
