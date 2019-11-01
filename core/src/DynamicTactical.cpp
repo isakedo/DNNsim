@@ -795,7 +795,7 @@ namespace core {
                 std::vector<value_mux>(OUT_SET_SIZE * N_LANES, std::make_tuple(0.0f, 0, 0))));
 
         std::vector<bank_map> out_sets_bank_map = std::vector<bank_map>(num_out_grad_sets,
-                bank_map(time_per_out_grad_channel, std::vector<int>(OUT_SET_SIZE, -1)));
+                bank_map(time_per_out_grad_channel, std::vector<int>(N_LANES, -1)));
 
         std::vector<uint64_t> ideal_time_per_out_grad_channel (ceil(out_channels/(double)OUT_SET_SIZE), 0);
 
@@ -814,7 +814,7 @@ namespace core {
                     auto out_bits = out_grad.get(0, o, x, y);
                     int pos = (o % OUT_SET_SIZE) * N_LANES + index;
                     out_gradients_buffer[set_out][time][pos] = std::make_tuple(out_bits, time, index);
-                    if ((o % OUT_SET_SIZE) == 0)
+                    if ((o % N_LANES) == 0)
                         out_sets_bank_map[set_out][time][index] = out_bank_map[pad_y + y][pad_x + x];
                     index++;
                     if(index == N_LANES) {
