@@ -328,6 +328,9 @@ namespace core {
         stats.base_compute_cycles = 0;
         stats.ideal_compute_cycles = 0;
         stats.read_bank_conflicts = 0;
+        stats.scheduled_pe = 0;
+        stats.bank_reads = 0;
+        stats.bank_writes = 0;
 
         // Generate weight buffer
         auto num_filter_sets = (uint64_t)ceil(num_filters / (double)N_COLUMNS);
@@ -423,11 +426,16 @@ namespace core {
 
             for (int set = 0; set < num_filter_sets; ++set) {
 
+                stats.bank_writes++;
                 stats.base_compute_cycles += time_per_window;
                 stats.ideal_compute_cycles += ideal_time_per_window;
+                uint64_t filter_pes = set == num_filter_sets - 1? num_filters % N_COLUMNS : N_COLUMNS;
+                if (filter_pes == 0) filter_pes = N_COLUMNS;
 
                 int skip = 0;
                 for (int time = 0; time < time_per_window; ++time) {
+
+                    stats.bank_reads++;
 
                     read_requests = std::vector<int>(BANKS, 0);
 
@@ -449,6 +457,7 @@ namespace core {
 
                     stats.compute_cycles++;
                     stats.cycles++;
+                    stats.scheduled_pe += filter_pes * x_windows.size();
 
                     if (this->CHECK) {
 
@@ -513,6 +522,9 @@ namespace core {
         stats.base_compute_cycles = 0;
         stats.ideal_compute_cycles = 0;
         stats.read_bank_conflicts = 0;
+        stats.scheduled_pe = 0;
+        stats.bank_reads = 0;
+        stats.bank_writes = 0;
 
         // Generate new kernels
         std::vector<bool> free_pos (Kx * Ky, true);
@@ -662,11 +674,16 @@ namespace core {
 
                 for (int set = 0; set < num_filter_sets; ++set) {
 
+                    stats.bank_writes++;
                     stats.base_compute_cycles += time_per_window;
                     stats.ideal_compute_cycles += ideal_time_per_window;
+                    uint64_t filter_pes = set == num_filter_sets - 1? num_filters % N_COLUMNS : N_COLUMNS;
+                    if (filter_pes == 0) filter_pes = N_COLUMNS;
 
                     int skip = 0;
                     for (int time = 0; time < time_per_window; ++time) {
+
+                        stats.bank_reads++;
 
                         read_requests = std::vector<int>(BANKS, 0);
 
@@ -688,6 +705,7 @@ namespace core {
 
                         stats.compute_cycles++;
                         stats.cycles++;
+                        stats.scheduled_pe += filter_pes * x_windows.size();
 
                         if (this->CHECK) {
 
@@ -783,6 +801,9 @@ namespace core {
         stats.base_compute_cycles = 0;
         stats.ideal_compute_cycles = 0;
         stats.read_bank_conflicts = 0;
+        stats.scheduled_pe = 0;
+        stats.bank_reads = 0;
+        stats.bank_writes = 0;
 
         // Generate output gradients buffer
         auto spatial_pad = (uint64_t)ceil(Ox * Ox / (double)N_LANES) * N_LANES;
@@ -795,7 +816,7 @@ namespace core {
                 std::vector<value_mux>(OUT_SET_SIZE * N_LANES, std::make_tuple(0.0f, 0, 0))));
 
         std::vector<bank_map> out_sets_bank_map = std::vector<bank_map>(num_out_grad_sets,
-                bank_map(time_per_out_grad_channel, std::vector<int>(OUT_SET_SIZE, -1)));
+                bank_map(time_per_out_grad_channel, std::vector<int>(N_LANES, -1)));
 
         std::vector<uint64_t> ideal_time_per_out_grad_channel (ceil(out_channels/(double)OUT_SET_SIZE), 0);
 
@@ -814,7 +835,7 @@ namespace core {
                     auto out_bits = out_grad.get(0, o, x, y);
                     int pos = (o % OUT_SET_SIZE) * N_LANES + index;
                     out_gradients_buffer[set_out][time][pos] = std::make_tuple(out_bits, time, index);
-                    if ((o % OUT_SET_SIZE) == 0)
+                    if ((o % N_LANES) == 0)
                         out_sets_bank_map[set_out][time][index] = out_bank_map[pad_y + y][pad_x + x];
                     index++;
                     if(index == N_LANES) {
@@ -835,6 +856,7 @@ namespace core {
             }
         }
 
+        auto num_act_ch_sets = (uint64_t)ceil(act_channels / (double)ACT_SET_SIZE);
         for (int window = 0; window < (Kx * Ky); ++window) {
             auto x_window = window % Kx;
             auto y_window = window / Kx;
@@ -881,7 +903,12 @@ namespace core {
                 // Schedule buffer
                 if (schedule_act) original_schedule(activation_buffer);
 
+                uint64_t act_channel_pes = k == num_act_ch_sets - 1? act_channels % ACT_SET_SIZE : ACT_SET_SIZE;
+                if (act_channel_pes == 0) act_channel_pes = ACT_SET_SIZE;
+
                 for (int set = 0; set < num_out_grad_sets; ++set) {
+
+                    stats.bank_writes++;
 
                     if (schedule_act) {
                         stats.base_compute_cycles += time_per_act_channel;
@@ -891,8 +918,13 @@ namespace core {
                         stats.ideal_compute_cycles += ideal_time_per_out_grad_channel[set];
                     }
 
+                    uint64_t out_grad_pes = set == num_out_grad_sets - 1? out_channels % OUT_SET_SIZE : OUT_SET_SIZE;
+                    if (out_grad_pes == 0) out_grad_pes = OUT_SET_SIZE;
+
                     int skip = 0;
                     for (int time = 0; time < time_per_act_channel; ++time) {
+
+                        stats.bank_reads++;
 
                         act_read_requests = std::vector<int>(BANKS, 0);
                         out_read_requests = std::vector<int>(BANKS, 0);
@@ -927,6 +959,7 @@ namespace core {
 
                         stats.compute_cycles++;
                         stats.cycles++;
+                        stats.scheduled_pe += act_channel_pes * out_grad_pes;
 
                         if (this->CHECK) {
 
@@ -1010,6 +1043,9 @@ namespace core {
         auto fw_ideal_compute_cycles = stats.register_uint_t("Forward ideal compute cycles", 0, sys::Total);
         auto fw_exploited_sparsity = stats.register_double_t("Forward exploited sparsity", 0, sys::Special);
         auto fw_read_conflicts = stats.register_uint_t("Forward read bank conflicts", 0, sys::Total);
+        auto fw_scheduled_pe = stats.register_uint_t("Forward scheduled PEs", 0, sys::Total);
+        auto fw_bank_reads = stats.register_uint_t("Forward bank reads", 0, sys::Total);
+        auto fw_bank_writes = stats.register_uint_t("Forward bank writes", 0, sys::Total);
 
         // Backward stats
         auto bw_wgt_cycles = stats.register_uint_t("Backward Weights cycles", 0, sys::Total);
@@ -1019,6 +1055,9 @@ namespace core {
         auto bw_wgt_ideal_compute_cycles = stats.register_uint_t("Backward Weights ideal compute cycles", 0, sys::Total);
         auto bw_wgt_exploited_sparsity = stats.register_double_t("Backward Weights exploited sparsity", 0, sys::Special);
         auto bw_wgt_read_conflicts = stats.register_uint_t("Backward Weights read bank conflicts", 0, sys::Total);
+        auto bw_wgt_scheduled_pe = stats.register_uint_t("Backward Weights scheduled PEs", 0, sys::Total);
+        auto bw_wgt_bank_reads = stats.register_uint_t("Backward Weights bank reads", 0, sys::Total);
+        auto bw_wgt_bank_writes = stats.register_uint_t("Backward Weights bank writes", 0, sys::Total);
 
         auto bw_in_cycles = stats.register_uint_t("Backward Input cycles", 0, sys::Total);
         auto bw_in_compute_cycles = stats.register_uint_t("Backward Input compute cycles", 0, sys::Total);
@@ -1027,6 +1066,9 @@ namespace core {
         auto bw_in_ideal_compute_cycles = stats.register_uint_t("Backward Input ideal compute cycles", 0, sys::Total);
         auto bw_in_exploited_sparsity = stats.register_double_t("Backward Input exploited sparsity", 0, sys::Special);
         auto bw_in_read_conflicts = stats.register_uint_t("Backward Input read bank conflicts", 0, sys::Total);
+        auto bw_in_scheduled_pe = stats.register_uint_t("Backward Input scheduled PEs", 0, sys::Total);
+        auto bw_in_bank_reads = stats.register_uint_t("Backward Input bank reads", 0, sys::Total);
+        auto bw_in_bank_writes = stats.register_uint_t("Backward Input bank writes", 0, sys::Total);
 
         // Simulate epochs
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
@@ -1128,6 +1170,9 @@ namespace core {
                         fw_base_compute_cycles->value[epoch][layer_it] += batch_stats.base_compute_cycles;
                         fw_ideal_compute_cycles->value[epoch][layer_it] += batch_stats.ideal_compute_cycles;
                         fw_read_conflicts->value[epoch][layer_it] += batch_stats.read_bank_conflicts;
+                        fw_scheduled_pe->value[epoch][layer_it] += batch_stats.scheduled_pe;
+                        fw_bank_reads->value[epoch][layer_it] += batch_stats.bank_reads;
+                        fw_bank_writes->value[epoch][layer_it] += batch_stats.bank_writes;
                     }
 
                     // Check correctness of the outputs
@@ -1244,6 +1289,9 @@ namespace core {
                         bw_wgt_base_compute_cycles->value[epoch][layer_it] += batch_stats.base_compute_cycles;
                         bw_wgt_ideal_compute_cycles->value[epoch][layer_it] += batch_stats.ideal_compute_cycles;
                         bw_wgt_read_conflicts->value[epoch][layer_it] += batch_stats.read_bank_conflicts;
+                        bw_wgt_scheduled_pe->value[epoch][layer_it] += batch_stats.scheduled_pe;
+                        bw_wgt_bank_reads->value[epoch][layer_it] += batch_stats.bank_reads;
+                        bw_wgt_bank_writes->value[epoch][layer_it] += batch_stats.bank_writes;
                     }
 
                     // Backward pass - Calculate Input gradients
@@ -1309,6 +1357,9 @@ namespace core {
                         bw_in_base_compute_cycles->value[epoch][layer_it] += batch_stats.base_compute_cycles;
                         bw_in_ideal_compute_cycles->value[epoch][layer_it] += batch_stats.ideal_compute_cycles;
                         bw_in_read_conflicts->value[epoch][layer_it] += batch_stats.read_bank_conflicts;
+                        bw_in_scheduled_pe->value[epoch][layer_it] += batch_stats.scheduled_pe;
+                        bw_in_bank_reads->value[epoch][layer_it] += batch_stats.bank_reads;
+                        bw_in_bank_writes->value[epoch][layer_it] += batch_stats.bank_writes;
                     }
 
                     // Check correctness of the outputs
