@@ -435,7 +435,7 @@ namespace core {
                 int skip = 0;
                 for (int time = 0; time < time_per_window; ++time) {
 
-                    stats.bank_reads++;
+                    stats.bank_reads += x_windows.size();
 
                     read_requests = std::vector<int>(BANKS, 0);
 
@@ -683,7 +683,7 @@ namespace core {
                     int skip = 0;
                     for (int time = 0; time < time_per_window; ++time) {
 
-                        stats.bank_reads++;
+                        stats.bank_reads += x_windows.size();
 
                         read_requests = std::vector<int>(BANKS, 0);
 
@@ -905,6 +905,7 @@ namespace core {
 
                 uint64_t act_channel_pes = k == num_act_ch_sets - 1? act_channels % ACT_SET_SIZE : ACT_SET_SIZE;
                 if (act_channel_pes == 0) act_channel_pes = ACT_SET_SIZE;
+                int counter = 0;
 
                 for (int set = 0; set < num_out_grad_sets; ++set) {
 
@@ -924,7 +925,11 @@ namespace core {
                     int skip = 0;
                     for (int time = 0; time < time_per_act_channel; ++time) {
 
-                        stats.bank_reads++;
+                        counter += N_ROWS;
+                        if (counter == 16) {
+                            stats.bank_reads += 16;
+                            counter = 0;
+                        }
 
                         act_read_requests = std::vector<int>(BANKS, 0);
                         out_read_requests = std::vector<int>(BANKS, 0);
