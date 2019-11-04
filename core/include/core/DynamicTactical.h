@@ -55,10 +55,12 @@ namespace core {
         struct conv_stats {
             uint64_t cycles = 0;
             uint64_t compute_cycles = 0;
-            uint64_t memory_cycles = 0;
             uint64_t base_compute_cycles = 0;
             uint64_t ideal_compute_cycles = 0;
             uint64_t read_bank_conflicts = 0;
+            uint64_t scheduled_pe = 0;
+            uint64_t bank_reads = 0;
+            uint64_t bank_writes = 0;
         };
 
         /** Compute number of one bit multiplications given a first and a second value
