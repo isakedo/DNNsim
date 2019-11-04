@@ -319,6 +319,34 @@ namespace core {
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
 
+        uint64_t in_zeroes = 0;
+        for (int ch = 0; ch < in_channels; ++ch) {
+            for (int x = 0; x < Nx; ++x) {
+                for (int y = 0; y < Ny; ++y) {
+                    if (input.get(0, ch, x, y) == 0) in_zeroes++;
+                }
+            }
+        }
+
+        uint64_t wgt_zeroes = 0;
+        for (int m = 0; m < num_filters; ++m) {
+            for (int ch = 0; ch < wgt_channels; ++ch) {
+                for (int x = 0; x < Kx; ++x) {
+                    for (int y = 0; y < Ky; ++y) {
+                        if (wgt.get(m, ch, x, y) == 0) wgt_zeroes++;
+                    }
+                }
+            }
+        }
+
+        double total_in = Nx * Ny * in_channels;
+        double total_wgt = num_filters * Kx * Ky * wgt_channels;
+        auto in_sparsity = in_zeroes / total_in;
+        auto wgt_sparsity = wgt_zeroes / total_wgt;
+        bool schedule_in = in_sparsity > wgt_sparsity;
+        auto WGT_SET_SIZE = schedule_in ? N_COLUMNS : N_ROWS;
+        auto IN_SET_SIZE = schedule_in ? N_ROWS : N_COLUMNS;
+
         // Prepare bank
         std::vector<int> read_requests (BANKS, 0);
 
@@ -333,19 +361,24 @@ namespace core {
         stats.bank_writes = 0;
 
         // Generate weight buffer
-        auto num_filter_sets = (uint64_t)ceil(num_filters / (double)N_COLUMNS);
+        auto num_filter_sets = (uint64_t)ceil(num_filters / (double)WGT_SET_SIZE);
 
         auto round_wgt_channels = (int)ceil(wgt_channels / (double)N_LANES) * N_LANES;
         auto time_per_filter = (uint64_t)ceil(round_wgt_channels * Kx * Ky / (double)N_LANES);
 
-        non_schedule_buffer weight_buffer = non_schedule_buffer(num_filter_sets,
-                std::vector<std::vector<float>>(time_per_filter,std::vector<float>(N_COLUMNS * N_LANES, 0.0f)));
+        std::vector<schedule_buffer> weight_buffer = std::vector<schedule_buffer>(num_filter_sets,
+                schedule_buffer(time_per_filter, std::vector<value_mux>(WGT_SET_SIZE * N_LANES,
+                std::make_tuple(0.0f, 0, 0))));
+
+        std::vector<uint64_t> ideal_time_per_filter (num_filter_sets, 0);
 
         int set_wgt = -1;
         for(int m = 0; m < num_filters; m++) {
 
-            if ((m % N_COLUMNS) == 0)
+            if ((m % WGT_SET_SIZE) == 0)
                 set_wgt++;
+
+            uint64_t non_zeroes = 0;
 
             int time = 0;
             for (int y = 0; y < Ky; ++y) {
@@ -354,25 +387,35 @@ namespace core {
                         int index = 0;
                         for(int channel = k; channel < std::min((uint64_t)k + N_LANES, wgt_channels); ++channel) {
                             auto wgt_bits = wgt.get(m, channel, x, y);
-                            int pos = (m % N_COLUMNS) * N_LANES + index;
-                            weight_buffer[set_wgt][time][pos] = wgt_bits;
+                            int pos = (m % WGT_SET_SIZE) * N_LANES + index;
+                            weight_buffer[set_wgt][time][pos] = std::make_tuple(wgt_bits, time, index);
                             index++;
                             if(index == N_LANES) {
                                 time++;
                                 index = 0;
                             }
+                            if (wgt_bits != 0) non_zeroes++;
                         }
                         if(index != 0)
                             time++;
                     }
                 }
             }
+            auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
+            if (ideal_time > ideal_time_per_filter[set_wgt])
+                ideal_time_per_filter[set_wgt] = ideal_time;
 
+        }
+
+        if (!schedule_in) {
+            for (auto &filter_buffer : weight_buffer) {
+                original_schedule(filter_buffer);
+            }
         }
 
         std::vector<int> x_windows, y_windows;
         int x_counter = 0, y_counter = 0;
-        while(this->iterateWindows(Ox, Oy, x_windows, y_windows, x_counter, y_counter, N_ROWS)) {
+        while(this->iterateWindows(Ox, Oy, x_windows, y_windows, x_counter, y_counter, IN_SET_SIZE)) {
 
             // Generate activation buffer
             auto round_in_channels = (int)ceil(in_channels / (double)N_LANES) * N_LANES;
@@ -381,7 +424,7 @@ namespace core {
             schedule_buffer window_buffer = schedule_buffer(time_per_window,
                     std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0, 0)));
 
-            bank_map window_bank_map = bank_map(time_per_window, std::vector<int>(N_ROWS, -1));
+            bank_map window_bank_map = bank_map(time_per_window, std::vector<int>(IN_SET_SIZE, -1));
 
             uint64_t ideal_time_per_window = 0;
 
@@ -422,15 +465,22 @@ namespace core {
             }
 
             // Schedule buffer
-            original_schedule(window_buffer);
+            if (schedule_in) original_schedule(window_buffer);
 
             for (int set = 0; set < num_filter_sets; ++set) {
 
                 stats.bank_writes++;
-                stats.base_compute_cycles += time_per_window;
-                stats.ideal_compute_cycles += ideal_time_per_window;
-                uint64_t filter_pes = set == num_filter_sets - 1? num_filters % N_COLUMNS : N_COLUMNS;
-                if (filter_pes == 0) filter_pes = N_COLUMNS;
+
+                if (schedule_in) {
+                    stats.base_compute_cycles += time_per_window;
+                    stats.ideal_compute_cycles += ideal_time_per_window;
+                } else {
+                    stats.base_compute_cycles += time_per_filter;
+                    stats.ideal_compute_cycles += ideal_time_per_filter[set];
+                }
+
+                uint64_t filter_pes = set == num_filter_sets - 1? num_filters % WGT_SET_SIZE : WGT_SET_SIZE;
+                if (filter_pes == 0) filter_pes = WGT_SET_SIZE;
 
                 int skip = 0;
                 for (int time = 0; time < time_per_window; ++time) {
@@ -449,7 +499,9 @@ namespace core {
                     stats.read_bank_conflicts += read_bank_conflicts;
 
                     // Skip lines of zeroes
-                    if (skip < LOOKAHEAD_H && check_zero_line(window_buffer[time])) {
+                    bool zero_line = schedule_in ? check_zero_line(window_buffer[time]) :
+                            check_zero_line(weight_buffer[set][time]);
+                    if (skip < LOOKAHEAD_H && zero_line) {
                         skip++;
                         continue;
                     }
@@ -466,20 +518,29 @@ namespace core {
                             auto x_window = x_windows[w];
                             auto y_window = y_windows[w];
 
-                            for (int f = 0; f < N_COLUMNS; ++f) {
+                            for (int f = 0; f < WGT_SET_SIZE; ++f) {
                                 auto filter_idx = f * N_LANES;
-                                auto filter = set * N_COLUMNS + f;
+                                auto filter = set * WGT_SET_SIZE + f;
 
                                 if (filter >= num_filters)
                                     continue;
 
                                 for (int lane = 0; lane < N_LANES; ++lane) {
 
-                                    auto in_bits = std::get<0>(window_buffer[time][window_idx + lane]);
-                                    auto time_h = std::get<1>(window_buffer[time][window_idx + lane]);
-                                    auto lane_d = std::get<2>(window_buffer[time][window_idx + lane]);
+                                    float in_bits, wgt_bits;
+                                    if (schedule_in) {
+                                        in_bits = std::get<0>(window_buffer[time][window_idx + lane]);
+                                        auto time_h = std::get<1>(window_buffer[time][window_idx + lane]);
+                                        auto lane_d = std::get<2>(window_buffer[time][window_idx + lane]);
 
-                                    auto wgt_bits = weight_buffer[set][time_h][filter_idx + lane_d];
+                                        wgt_bits = std::get<0>(weight_buffer[set][time_h][filter_idx + lane_d]);
+                                    } else {
+                                        wgt_bits = std::get<0>(weight_buffer[set][time][filter_idx + lane]);
+                                        auto time_h = std::get<1>(weight_buffer[set][time][filter_idx + lane]);
+                                        auto lane_d = std::get<2>(weight_buffer[set][time][filter_idx + lane]);
+
+                                        in_bits = std::get<0>(window_buffer[time_h][window_idx + lane_d]);
+                                    }
 
                                     output[0][filter][x_window][y_window] += in_bits * wgt_bits;
 
@@ -504,14 +565,43 @@ namespace core {
 
         // Input values
         auto in_channels = in_shape[1];
-        auto Wx = in_shape[2];
-        auto Wy = in_shape[3];
+        auto Nx = in_shape[2];
+        auto Ny = in_shape[3];
 
         // Weights
         auto num_filters = wgt_shape[0];
         auto wgt_channels = wgt_shape[1];
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
+
+
+        uint64_t in_zeroes = 0;
+        for (int ch = 0; ch < in_channels; ++ch) {
+            for (int x = 0; x < Nx; ++x) {
+                for (int y = 0; y < Ny; ++y) {
+                    if (input.get(0, ch, x, y) == 0) in_zeroes++;
+                }
+            }
+        }
+
+        uint64_t wgt_zeroes = 0;
+        for (int m = 0; m < num_filters; ++m) {
+            for (int ch = 0; ch < wgt_channels; ++ch) {
+                for (int x = 0; x < Kx; ++x) {
+                    for (int y = 0; y < Ky; ++y) {
+                        if (wgt.get(m, ch, x, y) == 0) wgt_zeroes++;
+                    }
+                }
+            }
+        }
+
+        double total_in = Nx * Ny * in_channels;
+        double total_wgt = num_filters * Kx * Ky * wgt_channels;
+        auto in_sparsity = in_zeroes / total_in;
+        auto wgt_sparsity = wgt_zeroes / total_wgt;
+        bool schedule_in = in_sparsity > wgt_sparsity;
+        auto WGT_SET_SIZE = schedule_in ? N_COLUMNS : N_ROWS;
+        auto IN_SET_SIZE = schedule_in ? N_ROWS : N_COLUMNS;
 
         // Prepare bank
         std::vector<int> read_requests (BANKS, 0);
@@ -574,22 +664,26 @@ namespace core {
             auto padw_y = asym_pad ? stride - 1 - pad_y : pad_y;
 
             // Generate weight buffer
-            auto num_filter_sets = (uint64_t)ceil(num_filters / (double)N_COLUMNS);
+            auto num_filter_sets = (uint64_t)ceil(num_filters / (double)WGT_SET_SIZE);
 
             auto round_wgt_channels = (int)ceil(wgt_channels / (double)N_LANES) * N_LANES;
             auto time_per_filter = (uint64_t)ceil(round_wgt_channels * Kx * Ky / (double)N_LANES);
 
-            non_schedule_buffer weight_buffer = non_schedule_buffer(num_filter_sets,
-                    std::vector<std::vector<float>>(time_per_filter,std::vector<float>(N_COLUMNS * N_LANES, 0.0f)));
+            std::vector<schedule_buffer> weight_buffer = std::vector<schedule_buffer>(num_filter_sets,
+                    schedule_buffer(time_per_filter, std::vector<value_mux>(WGT_SET_SIZE * N_LANES,
+                    std::make_tuple(0.0f, 0, 0))));
+
+            std::vector<uint64_t> ideal_time_per_filter (num_filter_sets, 0);
 
             int set_wgt = -1;
             for(int m = 0; m < num_filters; m++) {
 
-                if ((m % N_COLUMNS) == 0)
+                if ((m % WGT_SET_SIZE) == 0)
                     set_wgt++;
 
-                int time = 0;
+                uint64_t non_zeroes = 0;
 
+                int time = 0;
                 for (auto index_tuple : kernel_positions) {
                     auto x = std::get<0>(index_tuple);
                     auto y = std::get<1>(index_tuple);
@@ -598,8 +692,8 @@ namespace core {
                         int index = 0;
                         for (int channel = k; channel < std::min((uint64_t) k + N_LANES, wgt_channels); ++channel) {
                             auto wgt_bits = wgt.get(m, channel, x, y);
-                            int pos = (m % N_COLUMNS) * N_LANES + index;
-                            weight_buffer[set_wgt][time][pos] = wgt_bits;
+                            int pos = (m % WGT_SET_SIZE) * N_LANES + index;
+                            weight_buffer[set_wgt][time][pos] = std::make_tuple(wgt_bits, time, index);
                             index++;
                             if (index == N_LANES) {
                                 time++;
@@ -610,17 +704,19 @@ namespace core {
                             time++;
                     }
                 }
-
+                auto ideal_time = (uint64_t)ceil(non_zeroes / (double)N_LANES);
+                if (ideal_time > ideal_time_per_filter[set_wgt])
+                    ideal_time_per_filter[set_wgt] = ideal_time;
             }
 
-            auto Ox = asym_pad ? Wx - Kx - pad_x + 1 : Wx - Kx - 2 * pad_x + 1;
-            auto Oy = asym_pad ? Wy - Ky - pad_y + 1 : Wy - Ky - 2 * pad_y + 1;
+            auto Ox = asym_pad ? Nx - Kx - pad_x + 1 : Nx - Kx - 2 * pad_x + 1;
+            auto Oy = asym_pad ? Ny - Ky - pad_y + 1 : Ny - Ky - 2 * pad_y + 1;
             pad_x = asym_pad ? 0 : pad_x;
             pad_y = asym_pad ? 0 : pad_y;
 
             std::vector<int> x_windows, y_windows;
             int x_counter = 0, y_counter = 0;
-            while(this->iterateWindows(Ox, Oy, x_windows, y_windows, x_counter, y_counter, N_ROWS)) {
+            while(this->iterateWindows(Ox, Oy, x_windows, y_windows, x_counter, y_counter, IN_SET_SIZE)) {
 
                 // Generate activation buffer
                 auto round_in_channels = (int)ceil(in_channels / (double)N_LANES) * N_LANES;
@@ -629,7 +725,7 @@ namespace core {
                 schedule_buffer window_buffer = schedule_buffer(time_per_window,
                         std::vector<value_mux>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0, 0)));
 
-                bank_map window_bank_map = bank_map(time_per_window, std::vector<int>(N_ROWS, -1));
+                bank_map window_bank_map = bank_map(time_per_window, std::vector<int>(IN_SET_SIZE, -1));
 
                 uint64_t ideal_time_per_window = 0;
 
@@ -670,15 +766,22 @@ namespace core {
                 }
 
                 // Schedule buffer
-                original_schedule(window_buffer);
+                if (schedule_in) original_schedule(window_buffer);
 
                 for (int set = 0; set < num_filter_sets; ++set) {
 
                     stats.bank_writes++;
-                    stats.base_compute_cycles += time_per_window;
-                    stats.ideal_compute_cycles += ideal_time_per_window;
-                    uint64_t filter_pes = set == num_filter_sets - 1? num_filters % N_COLUMNS : N_COLUMNS;
-                    if (filter_pes == 0) filter_pes = N_COLUMNS;
+
+                    if (schedule_in) {
+                        stats.base_compute_cycles += time_per_window;
+                        stats.ideal_compute_cycles += ideal_time_per_window;
+                    } else {
+                        stats.base_compute_cycles += time_per_filter;
+                        stats.ideal_compute_cycles += ideal_time_per_filter[set];
+                    }
+
+                    uint64_t filter_pes = set == num_filter_sets - 1? num_filters % WGT_SET_SIZE : WGT_SET_SIZE;
+                    if (filter_pes == 0) filter_pes = WGT_SET_SIZE;
 
                     int skip = 0;
                     for (int time = 0; time < time_per_window; ++time) {
@@ -697,7 +800,9 @@ namespace core {
                         stats.read_bank_conflicts += read_bank_conflicts;
 
                         // Skip lines of zeroes
-                        if (skip < LOOKAHEAD_H && check_zero_line(window_buffer[time])) {
+                        bool zero_line = schedule_in ? check_zero_line(window_buffer[time]) :
+                                check_zero_line(weight_buffer[set][time]);
+                        if (skip < LOOKAHEAD_H && zero_line) {
                             skip++;
                             continue;
                         }
@@ -714,20 +819,29 @@ namespace core {
                                 auto x_window = x_windows[w];
                                 auto y_window = y_windows[w];
 
-                                for (int f = 0; f < N_COLUMNS; ++f) {
+                                for (int f = 0; f < WGT_SET_SIZE; ++f) {
                                     auto filter_idx = f * N_LANES;
-                                    auto filter = set * N_COLUMNS + f;
+                                    auto filter = set * WGT_SET_SIZE + f;
 
                                     if (filter >= num_filters)
                                         continue;
 
                                     for (int lane = 0; lane < N_LANES; ++lane) {
 
-                                        auto in_bits = std::get<0>(window_buffer[time][window_idx + lane]);
-                                        auto time_h = std::get<1>(window_buffer[time][window_idx + lane]);
-                                        auto lane_d = std::get<2>(window_buffer[time][window_idx + lane]);
+                                        float in_bits, wgt_bits;
+                                        if (schedule_in) {
+                                            in_bits = std::get<0>(window_buffer[time][window_idx + lane]);
+                                            auto time_h = std::get<1>(window_buffer[time][window_idx + lane]);
+                                            auto lane_d = std::get<2>(window_buffer[time][window_idx + lane]);
 
-                                        auto wgt_bits = weight_buffer[set][time_h][filter_idx + lane_d];
+                                            wgt_bits = std::get<0>(weight_buffer[set][time_h][filter_idx + lane_d]);
+                                        } else {
+                                            wgt_bits = std::get<0>(weight_buffer[set][time][filter_idx + lane]);
+                                            auto time_h = std::get<1>(weight_buffer[set][time][filter_idx + lane]);
+                                            auto lane_d = std::get<2>(weight_buffer[set][time][filter_idx + lane]);
+
+                                            in_bits = std::get<0>(window_buffer[time_h][window_idx + lane_d]);
+                                        }
 
                                         output[0][filter][stride * x_window + padw_x][stride * y_window + padw_y]
                                                 += in_bits * wgt_bits;
@@ -818,7 +932,7 @@ namespace core {
         std::vector<bank_map> out_sets_bank_map = std::vector<bank_map>(num_out_grad_sets,
                 bank_map(time_per_out_grad_channel, std::vector<int>(N_LANES, -1)));
 
-        std::vector<uint64_t> ideal_time_per_out_grad_channel (ceil(out_channels/(double)OUT_SET_SIZE), 0);
+        std::vector<uint64_t> ideal_time_per_out_grad_channel (num_out_grad_sets, 0);
 
         int set_out = -1;
         for(int o = 0; o < out_channels; ++o) {
@@ -1088,8 +1202,8 @@ namespace core {
             int batch;
 
             auto max_threads = omp_get_max_threads();
-            omp_set_num_threads(std::min(max_threads, this->N_THREADS));
-            #pragma omp parallel for private(batch)
+            //omp_set_num_threads(std::min(max_threads, this->N_THREADS));
+            //#pragma omp parallel for private(batch)
             for (batch = 0; batch < num_batches; ++batch) {
 
                 // Forward pass

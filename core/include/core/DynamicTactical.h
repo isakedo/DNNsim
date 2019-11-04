@@ -5,7 +5,7 @@
 
 typedef std::tuple<uint16_t, uint16_t> value_index;
 typedef std::tuple<float, uint16_t, uint16_t> value_mux;
-typedef std::vector<std::vector<std::vector<float>>> non_schedule_buffer;
+//typedef std::vector<std::vector<std::vector<float>>> non_schedule_buffer;
 typedef std::vector<std::vector<value_mux>> schedule_buffer;
 
 typedef std::vector<std::vector<int>> bank_map;
