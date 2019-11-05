@@ -292,8 +292,8 @@ namespace base {
     template <typename T>
     Array<uint16_t> Array<T>::tensorflow_fixed_point() const {
         //const int NUM_BITS = 8;
-        const int max_fixed = 127;
-        const int min_fixed = -127;
+        int max_fixed = 127;
+        int min_fixed = -127;
         //const int num_discrete_values = 1u << NUM_BITS;
         //const auto range_adjust = num_discrete_values / (num_discrete_values - 1.0);
 
@@ -302,10 +302,17 @@ namespace base {
 
             auto min_value = min_1D(this->data1D);
             auto max_value = max_1D(this->data1D);
+            auto m = std::max(abs(max_value), abs(min_value));
+            float scale;
+            if (min_value == 0) {
+                min_fixed = 0;
+                max_fixed = 255;
+                scale = (max_fixed - min_fixed) / m;
+            } else {
+                scale = (max_fixed - min_fixed) / (2 * m);
+            }
             //auto range = (max_value - min_value) * range_adjust;
             //auto scale = num_discrete_values / range;
-            auto m = std::max(abs(max_value), abs(min_value));
-            auto scale = (max_fixed - min_fixed) / (2 * m);
 
             for(int i = 0; i < this->shape[0]; i++) {
                 auto float_value = this->data1D[i];
@@ -316,10 +323,17 @@ namespace base {
 
             auto min_value = min_2D(this->data2D);
             auto max_value = max_2D(this->data2D);
+            auto m = std::max(abs(max_value), abs(min_value));
+            float scale;
+            if (min_value == 0) {
+                min_fixed = 0;
+                max_fixed = 255;
+                scale = (max_fixed - min_fixed) / m;
+            } else {
+                scale = (max_fixed - min_fixed) / (2 * m);
+            }
             //auto range = (max_value - min_value) * range_adjust;
             //auto scale = num_discrete_values / range;
-            auto m = std::max(abs(max_value), abs(min_value));
-            auto scale = (max_fixed - min_fixed) / (2 * m);
 
             for(int i = 0; i < this->shape[0]; i++) {
                 for(int j = 0; j < this->shape[1]; j++) {
@@ -332,10 +346,17 @@ namespace base {
 
             auto min_value = min_3D(this->data3D);
             auto max_value = max_3D(this->data3D);
+            auto m = std::max(abs(max_value), abs(min_value));
+            float scale;
+            if (min_value == 0) {
+                min_fixed = 0;
+                max_fixed = 255;
+                scale = (max_fixed - min_fixed) / m;
+            } else {
+                scale = (max_fixed - min_fixed) / (2 * m);
+            }
             //auto range = (max_value - min_value) * range_adjust;
             //auto scale = num_discrete_values / range;
-            auto m = std::max(abs(max_value), abs(min_value));
-            auto scale = (max_fixed - min_fixed) / (2 * m);
 
             for(int i = 0; i < this->shape[0]; i++) {
                 for(int j = 0; j < this->shape[1]; j++) {
@@ -350,10 +371,17 @@ namespace base {
 
             auto min_value = min_4D(this->data4D);
             auto max_value = max_4D(this->data4D);
+            auto m = std::max(abs(max_value), abs(min_value));
+            float scale;
+            if (min_value == 0) {
+                min_fixed = 0;
+                max_fixed = 255;
+                scale = (max_fixed - min_fixed) / m;
+            } else {
+                scale = (max_fixed - min_fixed) / (2 * m);
+            }
             //auto range = (max_value - min_value) * range_adjust;
             //auto scale = num_discrete_values / range;
-            auto m = std::max(abs(max_value), abs(min_value));
-            auto scale = (max_fixed - min_fixed) / (2 * m);
 
             for(int i = 0; i < this->shape[0]; i++) {
                 for(int j = 0; j < this->shape[1]; j++) {

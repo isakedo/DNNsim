@@ -1120,6 +1120,8 @@ namespace core {
 
         for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
+            if (layer_it != 0) signed_activations = false;
+
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
             bool lstm = layer.getType() == "LSTM";
@@ -1240,7 +1242,7 @@ namespace core {
                             auto width_mask = (uint16_t)(1u << (width - 1u));
 
                             if (width > network_bits) {
-                                throw std::runtime_error("OnChip weights dynamic size bigger than network size");
+                            //    throw std::runtime_error("OnChip weights dynamic size bigger than network size");
                             }
 
                             // Store group
@@ -2051,6 +2053,8 @@ namespace core {
         auto values_block = 64 / network_bits;
 
         for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
+
+            if (layer_it != 0) signed_activations = false;
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
