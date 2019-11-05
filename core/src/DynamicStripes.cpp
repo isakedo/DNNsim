@@ -730,6 +730,8 @@ namespace core {
         auto network_bits = network.getNetwork_bits();
         auto act_width_need = stats.register_double_dist_t("act_width_need",0,network_bits,0.0,sys::Average);
         auto wgt_width_need = stats.register_double_dist_t("wgt_width_need",0,network_bits,0.0,sys::Average);
+        auto act_distr = stats.register_double_dist_t("act_width_need",0,pow(2,network_bits),0.0,sys::Average);
+        auto wgt_distr = stats.register_double_dist_t("wgt_width_need",0,pow(2,network_bits),0.0,sys::Average);
         auto signed_activations = !network.isUnsignedAct();
         auto signed_weights = !network.isUnsignedWgt();
 
@@ -830,7 +832,11 @@ namespace core {
                                     if ((act_bits & act_mask) != 0) {
                                         act_bits = act_bits & ~act_mask;
                                     }
+                                    act_distr->value[act_bits + 127][layer_it][n]++;
+                                } else {
+                                    act_distr->value[act_bits][layer_it][n]++;
                                 }
+
 
                                 const auto &min_max_act_bits = this->minMax(act_bits);
                                 auto max_act_bit = std::get<1>(min_max_act_bits);
@@ -944,7 +950,11 @@ namespace core {
                                  if ((wgt_bits & wgt_mask) != 0) {
                                      wgt_bits = wgt_bits & ~wgt_mask;
                                  }
+                                 wgt_distr->value[wgt_bits + 127][layer_it][0]++;
+                             } else {
+                                 wgt_distr->value[wgt_bits][layer_it][0]++;
                              }
+
 
                              const auto &min_max_wgt_bits = this->minMax(wgt_bits);
                              auto max_wgt_bit = std::get<1>(min_max_wgt_bits);
