@@ -728,10 +728,14 @@ namespace core {
         auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
         auto network_bits = network.getNetwork_bits();
-        auto act_width_need = stats.register_double_dist_t("act_width_need",0,network_bits,0.0,sys::AverageTotal);
-        auto wgt_width_need = stats.register_double_dist_t("wgt_width_need",0,network_bits,0.0,sys::AverageTotal);
+        auto act_width_need = stats.register_double_dist_t("act_width_need",0,network_bits,0.0,sys::Average);
+        auto wgt_width_need = stats.register_double_dist_t("wgt_width_need",0,network_bits,0.0,sys::Average);
+        auto signed_activations = !network.isUnsignedAct();
+        auto signed_weights = !network.isUnsignedWgt();
 
         for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
+
+            if (layer_it != 0) signed_activations = false;
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
@@ -794,7 +798,9 @@ namespace core {
             // Activations
             for(int n=0; n<batch_size; n++) {
 
-                std::vector<int> list_x, list_y;
+                std::vector<double> act_width;
+
+                /*std::vector<int> list_x, list_y;
                 int x_counter = 0, y_counter = 0;
                 std::vector<double> act_width;
 
@@ -807,6 +813,30 @@ namespace core {
                                             j, k, stride, act, (int)act_channels, act_mask, lstm);
                                     act_width.insert(act_width.end(), tile_act_width.begin(), tile_act_width.end());
                                 }
+                            }
+                        }
+                    }
+                }*/
+
+                for(int r = 0; r < R; r++) {
+                    for (int ch = 0; ch < act_channels; ++ch) {
+                        for (int x = 0; x < Nx; ++x) {
+                            for (int y = 0; y < Ny; ++y) {
+                                auto act_bits = lstm ? act.get(r, n, ch) : act.get(n, ch, x, y);
+
+                                if (act_bits == 0) continue;
+
+                                if (signed_activations) {
+                                    if ((act_bits & act_mask) != 0) {
+                                        act_bits = act_bits & ~act_mask;
+                                    }
+                                }
+
+                                const auto &min_max_act_bits = this->minMax(act_bits);
+                                auto max_act_bit = std::get<1>(min_max_act_bits);
+                                if (signed_activations) max_act_bit += 1;
+
+                                act_width.push_back((max_act_bit + 1));
                             }
                         }
                     }
@@ -891,7 +921,7 @@ namespace core {
             std::vector<double> wgt_width;
             for(int m = 0; m < num_filters; m += N_ROWS) {
 
-                for (int i = 0; i < Kx; i++) {
+                /*for (int i = 0; i < Kx; i++) {
                     for (int j = 0; j < Ky; j++) {
                         for (int k = 0; k < wgt_channels; k += N_LANES) {
                             auto tile_wgt_width = computeAvgWidthDynamicStripesWgtTile(i,j,k,m,wgt,(int)wgt_channels,
@@ -901,7 +931,29 @@ namespace core {
                         }
                     }
 
-                }
+                }*/
+
+                 for (int ch = 0; ch < wgt_channels; ++ch) {
+                     for (int x = 0; x < Kx; ++x) {
+                         for (int y = 0; y < Ky; ++y) {
+                             auto wgt_bits = wgt.get(m, ch, x, y);
+
+                             if (wgt_bits == 0) continue;
+
+                             if (signed_weights) {
+                                 if ((wgt_bits & wgt_mask) != 0) {
+                                     wgt_bits = wgt_bits & ~wgt_mask;
+                                 }
+                             }
+
+                             const auto &min_max_wgt_bits = this->minMax(wgt_bits);
+                             auto max_wgt_bit = std::get<1>(min_max_wgt_bits);
+                             if (signed_weights) max_wgt_bit += 1;
+
+                             wgt_width.push_back((max_wgt_bit + 1));
+                         }
+                     }
+                 }
             }
 
             uint64_t batch_wgt_bits_datawidth = 0;
