@@ -435,7 +435,7 @@ namespace sys {
                             if (table.var->measure == Measure::Special)
                                 line += std::to_string(table.var->special_value_vector[layer]) + ',';
                             else
-                                line += table.var->network_to_string() + ',';
+                                line += table.var->layer_to_string(layer) + ',';
                         }
                     }
                     line = line.substr(0, line.size() - 1);
