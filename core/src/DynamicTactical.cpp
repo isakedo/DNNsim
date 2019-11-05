@@ -137,6 +137,71 @@ namespace core {
 
     }
 
+    template <typename T>
+    void DynamicTactical<T>::non_overlapping_schedule(schedule_buffer &schedule) {
+
+        auto max_time = schedule.size();
+        auto groups = schedule.front().size() / N_LANES;
+
+        int skip = 0;
+        for (int time = 0; time < max_time; ++time) {
+
+            // Skip lines of zeroes
+            if (skip < LOOKAHEAD_H && check_zero_line(schedule[time])) {
+                skip++;
+                continue;
+            }
+            skip = 0;
+
+            for (int group = 0; group < groups; ++group) {
+
+                int still_candidates = 1;
+                while(still_candidates > 0) {
+
+                    still_candidates = 0;
+                    for (const auto &non_overlapping_set : NON_OVERLAPPING_POS) {
+                        // Get ineffectual values
+                        int init_lane = group * N_LANES;
+                        std::vector<value_index> ineffectual_values;
+                        for(auto pos : non_overlapping_set) {
+                            int lane = init_lane + pos;
+                            auto value_tuple = schedule[time][lane];
+                            auto value_bits = std::get<0>(value_tuple);
+                            if(value_bits == 0) ineffectual_values.emplace_back(std::make_tuple(time, lane));
+                        }
+
+                        // Num of candidates for each ineffectual values
+                        std::vector<uint16_t> num_candidates (N_LANES, 0);
+                        std::vector<std::vector<value_index>> effectual_candidates (N_LANES, std::vector<value_index>());
+                        for(auto inef_idx : ineffectual_values) {
+                            auto lane = std::get<1>(inef_idx);
+                            effectual_candidates[lane % N_LANES] = search(schedule, inef_idx, max_time);
+                        }
+
+                        for(auto inef_idx : ineffectual_values) {
+                            auto lane = std::get<1>(inef_idx);
+                            if(effectual_candidates[lane % N_LANES].size() > 1) {
+                                //Promote value
+                                auto cand_idx = effectual_candidates[lane % N_LANES].front();
+                                promote(schedule, inef_idx, cand_idx);
+                                still_candidates++;
+                            }
+                        }
+                    }
+
+                } // Optimal promotion loop
+
+            } // Group
+        } // Time
+
+    }
+
+    template <typename T>
+    void DynamicTactical<T>::tactical_schedule(schedule_buffer &schedule) {
+        //original_schedule(schedule);
+        non_overlapping_schedule(schedule);
+    }
+
     /* CHECKING FUNCTIONS */
 
     template <typename T>
@@ -409,7 +474,7 @@ namespace core {
 
         if (!schedule_in) {
             for (auto &filter_buffer : weight_buffer) {
-                original_schedule(filter_buffer);
+                tactical_schedule(filter_buffer);
             }
         }
 
@@ -465,7 +530,7 @@ namespace core {
             }
 
             // Schedule buffer
-            if (schedule_in) original_schedule(window_buffer);
+            if (schedule_in) tactical_schedule(window_buffer);
 
             for (int set = 0; set < num_filter_sets; ++set) {
 
@@ -766,7 +831,7 @@ namespace core {
                 }
 
                 // Schedule buffer
-                if (schedule_in) original_schedule(window_buffer);
+                if (schedule_in) tactical_schedule(window_buffer);
 
                 for (int set = 0; set < num_filter_sets; ++set) {
 
@@ -966,7 +1031,7 @@ namespace core {
 
         if (!schedule_act) {
             for (auto &gradients_channel_buffer : out_gradients_buffer) {
-                original_schedule(gradients_channel_buffer);
+                tactical_schedule(gradients_channel_buffer);
             }
         }
 
@@ -1015,7 +1080,7 @@ namespace core {
                 }
 
                 // Schedule buffer
-                if (schedule_act) original_schedule(activation_buffer);
+                if (schedule_act) tactical_schedule(activation_buffer);
 
                 uint64_t act_channel_pes = k == num_act_ch_sets - 1? act_channels % ACT_SET_SIZE : ACT_SET_SIZE;
                 if (act_channel_pes == 0) act_channel_pes = ACT_SET_SIZE;
@@ -1202,8 +1267,8 @@ namespace core {
             int batch;
 
             auto max_threads = omp_get_max_threads();
-            //omp_set_num_threads(std::min(max_threads, this->N_THREADS));
-            //#pragma omp parallel for private(batch)
+            omp_set_num_threads(std::min(max_threads, this->N_THREADS));
+            #pragma omp parallel for private(batch)
             for (batch = 0; batch < num_batches; ++batch) {
 
                 // Forward pass

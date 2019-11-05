@@ -46,6 +46,8 @@ namespace core {
         /** Search shape for the scheduler: must be 'L' or 'T' */
         const char SEARCH_SHAPE;
 
+        std::vector<std::vector<int>> NON_OVERLAPPING_POS;
+
         /** Number of banks on-chip memory*/
         const int BANKS;
 
@@ -93,6 +95,18 @@ namespace core {
          * @param schedule Buffer to scheduler (Overwritten)
          */
         void original_schedule(schedule_buffer &schedule);
+
+        /**
+         * Schedule buffer using non-overlapping schedule
+         * @param schedule Buffer to scheduler (Overwritten)
+         */
+        void non_overlapping_schedule(schedule_buffer &schedule);
+
+        /**
+         * Stub schedule buffer function
+         * @param schedule Buffer to scheduler (Overwritten)
+         */
+        void tactical_schedule(schedule_buffer &schedule);
 
         void channel_first_convolution(const base::Array<T> &input, const base::Array<T> &wgt,
                 const bank_map &input_bank_map, uint64_t Ox, uint64_t Oy, int stride, conv_stats &stats,
@@ -156,6 +170,30 @@ namespace core {
                 }
 
             }
+
+            // Generate non-overlapping positions
+            std::vector<bool> free_pos (N_LANES, true);
+            auto next_pos = free_pos.begin();
+            do {
+
+                int init_pos = std::distance(free_pos.begin(), next_pos);
+                int pos = init_pos;
+
+                std::vector<int> non_overlapping_set;
+                while (pos < (N_LANES - LOOKASIDE_D + init_pos) && pos < N_LANES) {
+                    non_overlapping_set.push_back(pos);
+                    free_pos[pos] = false;
+                    pos += LOOKASIDE_D;
+                }
+
+                std::reverse(non_overlapping_set.begin(), non_overlapping_set.end());
+                NON_OVERLAPPING_POS.emplace_back(non_overlapping_set);
+                next_pos = std::find(free_pos.begin(), free_pos.end(), true);
+
+            } while(next_pos != free_pos.end());
+            std::reverse(NON_OVERLAPPING_POS.begin(), NON_OVERLAPPING_POS.end());
+
+
         }
 
         /** Run the timing simulator of the architecture
