@@ -660,10 +660,15 @@ namespace core {
 
                 // Pre-allocate act queues
                 act_addr_queue act_queue = act_addr_queue(C,
-                        std::vector<std::vector<std::vector<std::vector<act_idxAddrMap>>>>(Wt,
-                        std::vector<std::vector<std::vector<act_idxAddrMap>>>(Ht,
-                        std::vector<std::vector<act_idxAddrMap>>(stride, std::vector<act_idxAddrMap>(stride,
+                        std::vector<std::vector<std::vector<std::vector<act_idxAddrMap>>>>(stride,
+                        std::vector<std::vector<std::vector<act_idxAddrMap>>>(stride,
+                        std::vector<std::vector<act_idxAddrMap>>(Wt, std::vector<act_idxAddrMap>(Ht,
                         act_idxAddrMap())))));
+
+                std::vector<std::vector<std::vector<std::vector<std::vector<uint64_t>>>>> queue_size (C,
+                    std::vector<std::vector<std::vector<std::vector<uint64_t>>>>(stride,
+                    std::vector<std::vector<std::vector<uint64_t>>>(stride, std::vector<std::vector<uint64_t>>(Wt,
+                    std::vector<uint64_t>(Ht, 0)))));
 
                 for (int c = 0; c < C; c++) {
 
@@ -678,8 +683,10 @@ namespace core {
                                 for(int y = y_begin; y < y_end; y++) {
                                     int sy = y % stride;
                                     auto act_bits = act.get(n, c, x, y);
-                                    if(act_bits != 0)
-                                        act_queue[c][pex][pey][sx][sy].emplace_back(std::make_tuple(x, y, 0));
+                                    if(act_bits != 0) {
+                                        act_queue[c][sx][sy][pex][pey].emplace_back(std::make_tuple(x, y, 0));
+                                        queue_size[c][sx][sy][pex][pey]++;
+                                    }
                                 } // Y
                             } // X
 
@@ -696,19 +703,21 @@ namespace core {
 
                     for(int ck = 0; ck < Ck; ck++) {
 
-                        uint64_t tile_cycles = 0;
-                        for(int pex = 0; pex < Wt; pex++) {
-                            for(int pey = 0; pey < Ht; pey++) {
+                        std::vector<uint64_t> pe_cycles (Wt * Ht, 0);
+                        for (int sx = 0; sx < stride; sx++) {
+                            for (int sy = 0; sy < stride; sy++) {
 
-                                uint64_t pe_cycles = 0;
-                                for(int sx = 0; sx < stride; sx++) {
-                                    for(int sy = 0; sy < stride; sy++) {
+                                const auto &wgt_queue_pe = wgt_queue[kc / Kc][ck][sx][sy];
+                                auto act_queue_size = sys::get_max(queue_size[ct + ck][sx][sy]);
 
-                                        const auto &wgt_queue_pe = wgt_queue[kc/Kc][ck][sx][sy];
-                                        const auto &act_queue_pe = act_queue[ct + ck][pex][pey][sx][sy];
+                                for (int i = 0; i < act_queue_size; i += I) {
+                                    for (int f = 0; f < wgt_queue_pe.size(); f += F) {
 
-                                        for(int i = 0; i < act_queue_pe.size(); i+=I) {
-                                            for(int f = 0; f < wgt_queue_pe.size(); f+=F) {
+                                        for(int pex = 0; pex < Wt; pex++) {
+                                            for (int pey = 0; pey < Ht; pey++) {
+
+                                                const auto &act_queue_pe = act_queue[ct + ck][sx][sy][pex][pey];
+
                                                 std::vector<uint8_t> acc(2 * F * I, 0);
                                                 for(int ii = i; ii < std::min(i + (int)I, (int)act_queue_pe.size()); ii++) {
                                                     for(int ff = f; ff < std::min(f + (int)F, (int)wgt_queue_pe.size()); ff++) {
@@ -731,26 +740,25 @@ namespace core {
                                                             int acc_idx = map_accumulator(k, w, h);
                                                             acc[acc_idx] += 1;
                                                         }
-                                                    }
-                                                }
+                                                    } // Inner prod Wgt
+                                                } // Inner prod Act
                                                 auto max_acc = *std::max_element(acc.begin(), acc.end());
                                                 auto warp_time = std::max(max_acc, (uint8_t) 1);
-                                                pe_cycles += std::max(warp_time, (uint8_t)1);
+                                                pe_cycles[pey * Wt + pex] += std::max(warp_time, (uint8_t)1);
 
-                                            }
-                                        }
-                                    }
-                                }
+                                            } // PE Y
+                                        } // PE X
 
-                                if (pe_cycles > tile_cycles)
-                                    tile_cycles = pe_cycles;
+                                    } // Queue Wgt
+                                } // Queue Act
 
-                            }
-                        }
+                            } // Stride Y
+                        } // Stride X
 
+                        auto tile_cycles = sys::get_max(pe_cycles);
                         compute_cycles->value[layer_it][n] += tile_cycles;
 
-                    }
+                    } // Channel
 
                     // resolve halos
                     // compute the areas of the halo regions around a non edge PE
@@ -775,7 +783,7 @@ namespace core {
                     auto max_psums = max_psum * std::min(Kc, (int)K - kc);
                     compute_cycles->value[layer_it][n] += max_psums;
                 }
-            }
+            } // Filter sets
 
         }
 
