@@ -578,6 +578,7 @@ namespace core {
             auto tw = W_round / Wt;
             auto th = H_round / Ht;
             auto Kc = (int) floor(out_acc_size / (double) (th * tw));
+            Kc = std::min(Kc, (int)Kg);
 
             X = (int) (ceil(X / (double) Wt)) * Wt;
             Y = (int) (ceil(Y / (double) Ht)) * Ht;
@@ -611,7 +612,7 @@ namespace core {
             for (int k = 0; k < K; ++k) {
 
                 // Channel second
-                for (int ch = 0; ch < C; ++ch) {
+                for (int ch = 0; ch < Ck; ++ch) {
 
                     // Spatial first
                     for (int xy = 0; xy < (R * S); ++xy) {
@@ -627,10 +628,65 @@ namespace core {
             auto wgt_layer_prec = layer.getWgtPrecision();
             auto wgt_mask = (uint16_t) (1u << (wgt_layer_prec - 1));
 
+            // Pre-allocate wgt queues
+            wgt_addr_queue wgt_queue (ceil(K/(double)Kc), std::vector<std::vector<std::vector<wgt_idxAddrMap>>>(Ck,
+                    std::vector<std::vector<wgt_idxAddrMap>>(stride, std::vector<wgt_idxAddrMap>(stride,
+                    wgt_idxAddrMap()))));
+
+            for(int kc = 0; kc < K; kc += Kc) {
+
+                int k_begin = kc;
+                int k_end = std::min(kc + Kc, (int)K);
+
+                for(int ck = 0; ck < Ck; ck++) {
+
+                    for(int r = 0; r < R; r++) {
+                        int sx = (r + padding) % stride;
+                        for(int s = 0; s < S; s++) {
+                            int sy = (s + padding) % stride;
+                            for(int k = k_begin; k < k_end; k++) {
+                                auto wgt_bits = wgt.get(k, ck, r, s);
+                                if(wgt_bits != 0)
+                                    wgt_queue[kc/Kc][ck][sx][sy].emplace_back(std::make_tuple(k, r, s, 0));
+                            } // Filters
+                        } // Y
+                    } // X
+
+                } // Channels
+            } // Filter sets
+
+
             for(int n = 0; n < N; n++) {
 
-                // Pre-allocate queues
+                // Pre-allocate act queues
+                act_addr_queue act_queue = act_addr_queue(C,
+                        std::vector<std::vector<std::vector<std::vector<act_idxAddrMap>>>>(Wt,
+                        std::vector<std::vector<std::vector<act_idxAddrMap>>>(Ht,
+                        std::vector<std::vector<act_idxAddrMap>>(stride, std::vector<act_idxAddrMap>(stride,
+                        act_idxAddrMap())))));
 
+                for (int c = 0; c < C; c++) {
+
+                    for(int pex = 0; pex < Wt; pex++) {
+                        for(int pey = 0; pey < Ht; pey++) {
+                            int x_begin = pex * tw, y_begin = pey * th;
+                            int x_end = std::min(x_begin + (int)tw, (int)X),
+                                    y_end = std::min(y_begin + (int)th, (int)Y);
+
+                            for(int x = x_begin; x < x_end; x++) {
+                                int sx = x % stride;
+                                for(int y = y_begin; y < y_end; y++) {
+                                    int sy = y % stride;
+                                    auto act_bits = act.get(n, c, x, y);
+                                    if(act_bits != 0)
+                                        act_queue[c][pex][pey][sx][sy].emplace_back(std::make_tuple(x, y, 0));
+                                } // Y
+                            } // X
+
+                        } // PE Y
+                    } // PE X
+
+                } // Channels
 
                 for(int kc = 0; kc < K; kc += Kc) {
 
@@ -643,55 +699,30 @@ namespace core {
                         uint64_t tile_cycles = 0;
                         for(int pex = 0; pex < Wt; pex++) {
                             for(int pey = 0; pey < Ht; pey++) {
-                                int x_begin = pex * tw, y_begin = pey * th, k_begin = kc;
-                                int x_end = std::min(x_begin + (int)tw, (int)X),
-                                    y_end = std::min(y_begin + (int)th, (int)Y),
-                                    k_end = std::min(kc + Kc, (int)K);
-
-                                std::vector<std::vector<act_idxMap>> act_queue = std::vector<std::vector<act_idxMap>>(
-                                        (unsigned)stride, std::vector<act_idxMap>((unsigned)stride,act_idxMap()));
-                                for(int x = x_begin; x < x_end; x++) {
-                                    int sx = x % stride;
-                                    for(int y = y_begin; y < y_end; y++) {
-                                        int sy = y % stride;
-                                        auto act_bits = act.get(n,ct+ck,x,y);
-                                        if(act_bits != 0)
-                                            act_queue[sx][sy].emplace_back(std::make_tuple(x,y));
-                                    }
-                                }
-
-                                std::vector<std::vector<wgt_idxMap>> wgt_queue = std::vector<std::vector<wgt_idxMap>>(
-                                        (unsigned)stride, std::vector<wgt_idxMap>((unsigned)stride,wgt_idxMap()));
-                                for(int r = 0; r < R; r++) {
-                                    int sx = (r + padding) % stride;
-                                    for(int s = 0; s < S; s++) {
-                                        int sy = (s + padding) % stride;
-                                        for(int k = k_begin; k < k_end; k++) {
-                                            auto wgt_bits = wgt.get(k,ck,r,s);
-                                            if(wgt_bits != 0)
-                                                wgt_queue[sx][sy].emplace_back(std::make_tuple(k,r,s));
-                                        }
-                                    }
-                                }
 
                                 uint64_t pe_cycles = 0;
                                 for(int sx = 0; sx < stride; sx++) {
                                     for(int sy = 0; sy < stride; sy++) {
 
-                                        for(int i = 0; i < act_queue[sx][sy].size(); i+=I) {
-                                            for(int f = 0; f < wgt_queue[sx][sy].size(); f+=F) {
+                                        const auto &wgt_queue_pe = wgt_queue[kc/Kc][ck][sx][sy];
+                                        const auto &act_queue_pe = act_queue[ct + ck][pex][pey][sx][sy];
+
+                                        for(int i = 0; i < act_queue_pe.size(); i+=I) {
+                                            for(int f = 0; f < wgt_queue_pe.size(); f+=F) {
                                                 std::vector<uint8_t> acc(2 * F * I, 0);
-                                                for(int ii = i; ii < std::min(i + (int)I, (int)act_queue[sx][sy].size()); ii++) {
-                                                    for(int ff = f; ff < std::min(f + (int)F, (int)wgt_queue[sx][sy].size()); ff++) {
-                                                        const auto &act_index = act_queue[sx][sy][ii];
-                                                        const auto &wgt_index = wgt_queue[sx][sy][ff];
+                                                for(int ii = i; ii < std::min(i + (int)I, (int)act_queue_pe.size()); ii++) {
+                                                    for(int ff = f; ff < std::min(f + (int)F, (int)wgt_queue_pe.size()); ff++) {
+                                                        const auto &act_index = act_queue_pe[ii];
+                                                        const auto &wgt_index = wgt_queue_pe[ff];
 
                                                         auto x = std::get<0>(act_index);
                                                         auto y = std::get<1>(act_index);
+                                                        auto act_addr = std::get<2>(act_index);
 
                                                         auto k = std::get<0>(wgt_index);
                                                         auto r = std::get<1>(wgt_index);
                                                         auto s = std::get<2>(wgt_index);
+                                                        auto wgt_addr = std::get<3>(wgt_index);
 
                                                         int w = (x - r) / stride;
                                                         int h = (y - s) / stride;
