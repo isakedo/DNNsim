@@ -247,6 +247,11 @@ namespace sys {
                     experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
                             1024 : experiment_proto.out_acc_size();
                     experiment.banks = experiment_proto.banks() < 1 ? 32 : experiment_proto.banks();
+                    experiment.baseline = experiment_proto.baseline();
+                    experiment.act_memory_size = experiment_proto.act_memory_size() < 1 ? 1048576 :
+                            experiment_proto.act_memory_size();
+                    experiment.wgt_memory_size = experiment_proto.wgt_memory_size() < 1 ? 1048576 :
+                            experiment_proto.wgt_memory_size();
                     if(experiment.banks > 32)
                         throw std::runtime_error("Banks for SCNN in network " + simulate.network +
                                                  " must be from 1 to 32");
@@ -304,9 +309,13 @@ namespace sys {
                                              " in Fixed16 is only allowed for BitTactialP and BitTacticalE.");
 
                 if(experiment_proto.architecture() != "DynamicStripes" && (experiment_proto.task() == "AvgWidth" ||
-                        experiment_proto.task() == "OnChip" || experiment_proto.task() == "OnChipCycles"))
+                        experiment_proto.task() == "OnChip"))
                     throw std::runtime_error("Tasks <AvgWidth|OnChip|OnChipCycles> for network " + simulate.network +
                                              " in Fixed16 is only allowed for DynamicStripes.");
+                if(experiment_proto.task() == "OnChipCycles" && experiment_proto.architecture() != "DynamicStripes" &&
+                        experiment_proto.architecture() != "SCNN")
+                    throw std::runtime_error("Tasks <OnChipCycles> for network " + simulate.network +
+                                             " in Fixed16 is only allowed for DynamicStripes|SCNN.");
 
                 experiment.architecture = experiment_proto.architecture();
                 experiment.task = experiment_proto.task();

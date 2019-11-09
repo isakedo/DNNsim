@@ -831,8 +831,12 @@ namespace core {
                                 if (signed_activations) {
                                     if ((act_bits & act_mask) != 0) {
                                         act_bits = act_bits & ~act_mask;
+                                        int pos = 128 - act_bits;
+                                        act_distr->value[pos][layer_it][n]++;
+                                    } else {
+                                        int pos = act_bits + 127;
+                                        act_distr->value[pos][layer_it][n]++;
                                     }
-                                    act_distr->value[act_bits + 127][layer_it][n]++;
                                 } else {
                                     act_distr->value[act_bits][layer_it][n]++;
                                 }
@@ -949,8 +953,12 @@ namespace core {
                              if (signed_weights) {
                                  if ((wgt_bits & wgt_mask) != 0) {
                                      wgt_bits = wgt_bits & ~wgt_mask;
+                                     int pos = 128 - wgt_bits;
+                                     wgt_distr->value[pos][layer_it][0]++;
+                                 } else {
+                                     int pos = wgt_bits + 127;
+                                     wgt_distr->value[pos][layer_it][0]++;
                                  }
-                                 wgt_distr->value[wgt_bits + 127][layer_it][0]++;
                              } else {
                                  wgt_distr->value[wgt_bits][layer_it][0]++;
                              }
@@ -1271,7 +1279,6 @@ namespace core {
             for(int m = 0; m < num_filters; m++) {
 
                 uint8_t prev_group = 0;
-                uint16_t channel_counter = 0;
 
                 // Generated statically
                 wgt_filter_position[m] = wgt_data_offset + wgt_data_start;
@@ -1360,25 +1367,6 @@ namespace core {
                             proteus_wgt_data_pt = (proteus_wgt_data_pt + wgt_layer_prec) % network_bits;
 
                             prev_group = width;
-                            channel_counter += PRECISION_GRANULARITY;
-
-                            // Fully connected
-                            if (!conv && channel_counter == channels_per_column) {
-                                prev_group = 0;
-                                channel_counter = 0;
-
-                                if (wgt_data_pt != 0) {
-                                    batch_wgt_padding_size += (network_bits - wgt_data_pt) * PRECISION_GRANULARITY;
-                                    wgt_data_offset += PRECISION_GRANULARITY;
-                                    wgt_data_pt = 0;
-                                }
-
-                                // Proteus
-                                if (proteus_wgt_data_pt != 0) {
-                                    proteus_wgt_padding += (network_bits - proteus_wgt_data_pt) * PRECISION_GRANULARITY;
-                                    proteus_wgt_data_pt = 0;
-                                }
-                            }
 
                         }
                     }
@@ -1428,7 +1416,6 @@ namespace core {
                         for (int x = 0; x < Nx; ++x) {
 
                             uint8_t prev_group = 0;
-                            uint16_t channel_counter = 0;
 
                             // Generated from "previous" layer
                             act_positions[y][x] = act_data_offset + act_data_start;
@@ -1517,24 +1504,6 @@ namespace core {
                                 proteus_act_data_pt = (proteus_wgt_data_pt + act_layer_prec) % network_bits;
 
                                 prev_group = width;
-                                channel_counter += PRECISION_GRANULARITY;
-
-                                if (!conv && channel_counter >= channels_per_column) {
-                                    prev_group = 0;
-                                    channel_counter = 0;
-
-                                    if (act_data_pt != 0) {
-                                        batch_act_padding_size += (network_bits - act_data_pt) * PRECISION_GRANULARITY;
-                                        act_data_offset += PRECISION_GRANULARITY;
-                                        act_data_pt = 0;
-                                    }
-
-                                    // Proteus
-                                    if (proteus_act_data_pt != 0) {
-                                        proteus_act_padding += (network_bits - proteus_act_data_pt) * PRECISION_GRANULARITY;
-                                        proteus_act_data_pt = 0;
-                                    }
-                                }
 
                             }
 
@@ -2480,7 +2449,6 @@ namespace core {
         header += "On-chip weights size: " + std::to_string(this->memory.getOnChipWgtSize()) + "\n";
 
         stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
-
 
     }
 

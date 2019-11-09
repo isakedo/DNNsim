@@ -1120,7 +1120,7 @@ namespace core {
                         }
 
                         // Output gradients requests
-                        for (int o = 0; o < OUT_SET_SIZE; ++o) {
+                        for (int o = 0; o < N_LANES; ++o) {
                             auto bank = out_sets_bank_map[set_out][time][o];
                             if (bank >= 0) out_read_requests[bank]++;
                         }

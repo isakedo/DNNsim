@@ -497,6 +497,274 @@ namespace core {
 
     }
 
+    template <typename T>
+    void SCNN<T>::on_chip_cycles(const base::Network<T> &network) {
+
+        std::string filename = "SCNN_Wt" + std::to_string(Wt) + "_Ht" + std::to_string(Ht) + "_I" + std::to_string(I) +
+                "_F" + std::to_string(F) + "_acc_out" + std::to_string(out_acc_size) + "_B" + std::to_string(BANKS) +
+                (BASELINE ? "_baseline" : "") + "_on_chip_cycles";
+
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
+
+        auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
+        auto compute_cycles = stats.register_uint_t("compute_cycles", 0, sys::AverageTotal);
+        auto memory_cycles = stats.register_uint_t("memory_cycles", 0, sys::AverageTotal);
+        auto act_comp_size = stats.register_uint_t("act_comp bits", 0 , sys::AverageTotal);
+        auto act_off_chip = stats.register_uint_t("act_off_chip bytes", 0 , sys::AverageTotal);
+        auto act_off_chip_bytes = stats.register_uint_t("act_off_chip", 0 , sys::AverageTotal);
+        auto wgt_off_chip = stats.register_uint_t("wgt_off_chip bytes", 0 , sys::AverageTotal);
+        auto wgt_off_chip_bytes = stats.register_uint_t("wgt_off_chip", 0 , sys::AverageTotal);
+
+        uint64_t act_next_addr = 0;
+        uint64_t act_base_addr = 0x40000000;
+
+        uint64_t wgt_next_addr = 0;
+        uint64_t wgt_base_addr = 0x00000000;
+
+        auto network_bits = network.getNetwork_bits();
+        auto signed_activations = !network.isUnsignedAct();
+        auto signed_weights = !network.isUnsignedWgt();
+        auto values_block = 64 / network_bits;
+
+        for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
+
+            if (layer_it != 0) signed_activations = false;
+
+            const base::Layer<T> &layer = network.getLayers()[layer_it];
+            bool conv = layer.getType() == "Convolution";
+            bool lstm = layer.getType() == "LSTM";
+            bool fc = layer.getType() == "InnerProduct";
+
+            if (fc || lstm) continue;
+
+            if (!this->QUIET) std::cout << layer.getName() << std::endl;
+
+            base::Array<T> act = layer.getActivations();
+            act.sign_magnitude_representation(layer.getActPrecision());
+            if (fc && act.getDimensions() == 4) act.reshape_to_2D();
+            if (act.getDimensions() == 2) act.reshape_to_4D();
+
+            base::Array<T> wgt = layer.getWeights();
+            wgt.sign_magnitude_representation(layer.getWgtPrecision());
+            if (wgt.getDimensions() == 2) wgt.reshape_to_4D();
+
+            int padding = layer.getPadding();
+            int stride = layer.getStride();
+
+            if (conv) act.zero_pad(padding);
+
+            const std::vector<size_t> &act_shape = act.getShape();
+            const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+            auto N = act_shape[0];
+            auto C = act_shape[1];
+            auto X = act_shape[2];
+            auto Y = act_shape[3];
+            if (this->FAST_MODE) N = 1;
+
+            auto K = wgt_shape[0];
+            auto Ck = wgt_shape[1];
+            auto R = wgt_shape[2];
+            auto S = wgt_shape[3];
+
+            auto W = (X - R) / stride + 1;
+            auto H = (Y - S) / stride + 1;
+
+            auto groups = C / Ck;
+            auto Kg = K / groups;
+
+            auto W_round = (int) (ceil(W / (double) Wt)) * Wt;
+            auto H_round = (int) (ceil(H / (double) Ht)) * Ht;
+            auto tw = W_round / Wt;
+            auto th = H_round / Ht;
+            auto Kc = (int) floor(out_acc_size / (double) (th * tw));
+
+            X = (int) (ceil(X / (double) Wt)) * Wt;
+            Y = (int) (ceil(Y / (double) Ht)) * Ht;
+            tw = (uint32_t) X / Wt;
+            th = (uint32_t) Y / Wt;
+
+            act.grid_zero_pad(X, Y);
+
+            // Off-chip memory layout
+            spat_address_map act_address_map = spat_address_map(N, std::vector<std::vector<uint64_t>>(C,
+                    std::vector<uint64_t>(ceil(X * Y /(double) values_block))));
+
+            // Image third
+            for (int n = 0; n < N; ++n) {
+
+                // Channel second
+                for (int ch = 0; ch < C; ++ch) {
+
+                    // Spatial first
+                    for (int xy = 0; xy < (X * Y); ++xy) {
+                        act_address_map[n][ch][xy / values_block] = act_base_addr + act_next_addr;
+                        act_next_addr += 0x40; // Align to 64 bits
+                    }
+                }
+            }
+
+            spat_address_map wgt_address_map = spat_address_map(K, std::vector<std::vector<uint64_t>>(Ck,
+                    std::vector<uint64_t>(ceil(R * S / (double) values_block))));
+
+            // Filter third
+            for (int k = 0; k < K; ++k) {
+
+                // Channel second
+                for (int ch = 0; ch < C; ++ch) {
+
+                    // Spatial first
+                    for (int xy = 0; xy < (R * S); ++xy) {
+                        wgt_address_map[k][ch][xy / values_block] = wgt_base_addr + wgt_next_addr;
+                        wgt_next_addr += 0x40; // Align to 64 bits
+                    }
+                }
+            }
+
+            auto act_layer_prec = layer.getActPrecision();
+            auto act_mask = (uint16_t) (1u << (act_layer_prec - 1));
+
+            auto wgt_layer_prec = layer.getWgtPrecision();
+            auto wgt_mask = (uint16_t) (1u << (wgt_layer_prec - 1));
+
+            for(int n = 0; n < N; n++) {
+
+                // Pre-allocate queues
+
+
+                for(int kc = 0; kc < K; kc += Kc) {
+
+                    // Two towers alexnet
+                    int ct = 0;
+                    if(kc >= Kg) ct = (int)Ck;
+
+                    for(int ck = 0; ck < Ck; ck++) {
+
+                        uint64_t tile_cycles = 0;
+                        for(int pex = 0; pex < Wt; pex++) {
+                            for(int pey = 0; pey < Ht; pey++) {
+                                int x_begin = pex * tw, y_begin = pey * th, k_begin = kc;
+                                int x_end = std::min(x_begin + (int)tw, (int)X),
+                                    y_end = std::min(y_begin + (int)th, (int)Y),
+                                    k_end = std::min(kc + Kc, (int)K);
+
+                                std::vector<std::vector<act_idxMap>> act_queue = std::vector<std::vector<act_idxMap>>(
+                                        (unsigned)stride, std::vector<act_idxMap>((unsigned)stride,act_idxMap()));
+                                for(int x = x_begin; x < x_end; x++) {
+                                    int sx = x % stride;
+                                    for(int y = y_begin; y < y_end; y++) {
+                                        int sy = y % stride;
+                                        auto act_bits = act.get(n,ct+ck,x,y);
+                                        if(act_bits != 0)
+                                            act_queue[sx][sy].emplace_back(std::make_tuple(x,y));
+                                    }
+                                }
+
+                                std::vector<std::vector<wgt_idxMap>> wgt_queue = std::vector<std::vector<wgt_idxMap>>(
+                                        (unsigned)stride, std::vector<wgt_idxMap>((unsigned)stride,wgt_idxMap()));
+                                for(int r = 0; r < R; r++) {
+                                    int sx = (r + padding) % stride;
+                                    for(int s = 0; s < S; s++) {
+                                        int sy = (s + padding) % stride;
+                                        for(int k = k_begin; k < k_end; k++) {
+                                            auto wgt_bits = wgt.get(k,ck,r,s);
+                                            if(wgt_bits != 0)
+                                                wgt_queue[sx][sy].emplace_back(std::make_tuple(k,r,s));
+                                        }
+                                    }
+                                }
+
+                                uint64_t pe_cycles = 0;
+                                for(int sx = 0; sx < stride; sx++) {
+                                    for(int sy = 0; sy < stride; sy++) {
+
+                                        for(int i = 0; i < act_queue[sx][sy].size(); i+=I) {
+                                            for(int f = 0; f < wgt_queue[sx][sy].size(); f+=F) {
+                                                std::vector<uint8_t> acc(2 * F * I, 0);
+                                                for(int ii = i; ii < std::min(i + (int)I, (int)act_queue[sx][sy].size()); ii++) {
+                                                    for(int ff = f; ff < std::min(f + (int)F, (int)wgt_queue[sx][sy].size()); ff++) {
+                                                        const auto &act_index = act_queue[sx][sy][ii];
+                                                        const auto &wgt_index = wgt_queue[sx][sy][ff];
+
+                                                        auto x = std::get<0>(act_index);
+                                                        auto y = std::get<1>(act_index);
+
+                                                        auto k = std::get<0>(wgt_index);
+                                                        auto r = std::get<1>(wgt_index);
+                                                        auto s = std::get<2>(wgt_index);
+
+                                                        int w = (x - r) / stride;
+                                                        int h = (y - s) / stride;
+
+                                                        if(w >= 0 && w < W && h >= 0 && h < H) {
+                                                            int acc_idx = map_accumulator(k, w, h);
+                                                            acc[acc_idx] += 1;
+                                                        }
+                                                    }
+                                                }
+                                                auto max_acc = *std::max_element(acc.begin(), acc.end());
+                                                auto warp_time = std::max(max_acc, (uint8_t) 1);
+                                                pe_cycles += std::max(warp_time, (uint8_t)1);
+
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (pe_cycles > tile_cycles)
+                                    tile_cycles = pe_cycles;
+
+                            }
+                        }
+
+                        compute_cycles->value[layer_it][n] += tile_cycles;
+
+                    }
+
+                    // resolve halos
+                    // compute the areas of the halo regions around a non edge PE
+                    // that is, how many psums need to get transferred
+
+                    const int DIM = 3;
+                    int x_vec[] = {(int)R - 1 - padding, (int)tw, padding};
+                    int y_vec[] = {(int)S - 1 - padding, (int)th, padding};
+                    int max_psum = 0;
+                    uint32_t batch_halo_transfers = 0;
+
+                    for(int x = 0; x < DIM; x++) {
+                        for (int y = 0; y < DIM; y++) {
+                            int psum = x_vec[x] * y_vec[y];
+                            if(x != 1 || y != 1)  {
+                                batch_halo_transfers += psum;
+                                if(psum > max_psum)
+                                    max_psum = psum;
+                            }
+                        }
+                    }
+                    auto max_psums = max_psum * std::min(Kc, (int)K - kc);
+                    compute_cycles->value[layer_it][n] += max_psums;
+                }
+            }
+
+        }
+
+        //Dump statistics
+        std::string header = "SCNN On-Chip Number of Cycles for " + network.getName() + "\n";
+        header += "Number of PE columns: " + std::to_string(Wt) + "\n";
+        header += "Number of PE rows: " + std::to_string(Ht) + "\n";
+        header += "Column multipliers per PE: " + std::to_string(I) + "\n";
+        header += "Row multipliers per PE: " + std::to_string(F) + "\n";
+        header += "Output accumulator size: " + std::to_string(out_acc_size) + "\n";
+        header += "Number of banks: " + std::to_string(BANKS) + "\n";
+        header += "On-chip activations size: " + std::to_string(this->memory.getOnChipActSize()) + "\n";
+        header += "On-chip weights size: " + std::to_string(this->memory.getOnChipWgtSize()) + "\n";
+
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
+
+    }
+
+
+
     INITIALISE_DATA_TYPES(SCNN);
 
 }

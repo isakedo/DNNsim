@@ -36,6 +36,9 @@ namespace core {
         /** Number of banks */
         const int BANKS;
 
+        /** Simulate baseline only */
+        const bool BASELINE;
+
         /** Calculate in which bank the output activation is mapped
          * @param k         Filter
          * @param x         X position
@@ -131,8 +134,27 @@ namespace core {
          * @param _CHECK        Check the correctness of the simulations
          */
         SCNN(uint32_t _Wt, uint32_t _Ht, uint32_t _I, uint32_t _F, uint32_t _out_acc_size, uint32_t _BANKS,
-            uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) : Simulator<T>(_N_THREADS,_FAST_MODE,_QUIET,
-            _CHECK), Wt(_Wt), Ht(_Ht), I(_I), F(_F), out_acc_size(_out_acc_size), BANKS(_BANKS) {}
+             uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) : Simulator<T>(_N_THREADS,_FAST_MODE,_QUIET,
+              _CHECK), Wt(_Wt), Ht(_Ht), I(_I), F(_F), out_acc_size(_out_acc_size), BANKS(_BANKS), BASELINE(false) {}
+
+        /** Constructor
+         * @param _Wt           Number of PE columns
+         * @param _Ht           Number of PE rows
+         * @param _I            Column multipliers per PE
+         * @param _F            Row multipliers per PE
+         * @param _out_acc_size Output accumulator size
+         * @param _BANKS        Number of banks
+         * @param _BASELINE     Simulate only baseline
+         * @param _MEMORY       Memory model
+         * @param _N_THREADS    Number of parallel threads for multi-threading execution
+         * @param _FAST_MODE    Enable fast mode to simulate only one image
+         * @param _QUIET        Avoid std::out messages
+         * @param _CHECK        Check the correctness of the simulations
+         */
+        SCNN(uint32_t _Wt, uint32_t _Ht, uint32_t _I, uint32_t _F, uint32_t _out_acc_size, uint32_t _BANKS,
+                bool _BASELINE, const Memory &_MEMORY, uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) :
+                Simulator<T>(_MEMORY,_N_THREADS,_FAST_MODE,_QUIET,_CHECK), Wt(_Wt), Ht(_Ht), I(_I), F(_F),
+                out_acc_size(_out_acc_size), BANKS(_BANKS), BASELINE(_BASELINE) {}
 
         /** Run the timing simulator of the architecture
          * @param network   Network we want to simulate
@@ -143,6 +165,11 @@ namespace core {
          * @param network   Network we want to calculate work reduction
          */
         virtual void potentials(const base::Network<T> &network);
+
+        /** Simulate scnn memory cycles for on-chip memory dynamic width storage
+         * @param network   Network we want to check
+         */
+        void on_chip_cycles(const base::Network<T> &network);
 
     };
 

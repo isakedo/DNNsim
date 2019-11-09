@@ -233,14 +233,21 @@ int main(int argc, char *argv[]) {
 		            if (simulate.data_type == "Float32") {
 		                auto network = read<float>(simulate, QUIET);
 		                for(const auto &experiment : simulate.experiments) {
+
+                            // Generate memory
+                            core::Memory memory = core::Memory("ini/DDR2_micron_16M_8b_x8_sg3E.ini", "system.ini",
+                                    16384, experiment.act_memory_size, experiment.wgt_memory_size);
+
 		                    if(experiment.architecture == "None") {
 		                    	core::Simulator<float> DNNsim(N_THREADS, FAST_MODE, QUIET, CHECK);
 		                        if (experiment.task == "Sparsity") DNNsim.sparsity(network);
 		                    } else if (experiment.architecture == "SCNN") {
 		                        core::SCNN<float> DNNsim(experiment.Wt, experiment.Ht, experiment.I, experiment.F,
-		                                experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE, QUIET, CHECK);
+		                                experiment.out_acc_size, experiment.banks, experiment.baseline, memory,
+		                                N_THREADS, FAST_MODE, QUIET, CHECK);
 		                        if (experiment.task == "Cycles") DNNsim.run(network);
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
+		                        else if (experiment.task == "OnChipCycles") DNNsim.on_chip_cycles(network);
 		                    }
 		                }
 		            } else if (simulate.data_type == "Fixed16") {
@@ -346,9 +353,11 @@ int main(int argc, char *argv[]) {
 
 		                    } else if (experiment.architecture == "SCNN") {
 		                        core::SCNN<uint16_t> DNNsim(experiment.Wt, experiment.Ht, experiment.I, experiment.F,
-		                                experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE, QUIET, CHECK);
+		                                experiment.out_acc_size, experiment.banks, experiment.baseline, memory,
+		                                N_THREADS, FAST_MODE, QUIET, CHECK);
 		                        if (experiment.task == "Cycles") DNNsim.run(network);
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
+		                        else if (experiment.task == "OnChipCycles") DNNsim.on_chip_cycles(network);
 
 		                    } else if (experiment.architecture == "SCNNp") {
 		                        core::SCNNp<uint16_t> DNNsim(experiment.Wt, experiment.Ht, experiment.I, experiment.F,
