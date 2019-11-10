@@ -155,41 +155,25 @@ namespace core {
 
             for (int group = 0; group < groups; ++group) {
 
-                int still_candidates = 1;
-                while(still_candidates > 0) {
+                for (auto &pos : NON_OVERLAPPING_POS) {
+                    // Get ineffectual values
+                    int init_lane = group * N_LANES;
+                    int lane = init_lane + pos;
+                    auto value_tuple = schedule[time][lane];
+                    auto value_bits = std::get<0>(value_tuple);
+                    bool ineff_value = value_bits == 0;
 
-                    still_candidates = 0;
-                    for (const auto &non_overlapping_set : NON_OVERLAPPING_POS) {
-                        // Get ineffectual values
-                        int init_lane = group * N_LANES;
-                        std::vector<value_index> ineffectual_values;
-                        for(auto pos : non_overlapping_set) {
-                            int lane = init_lane + pos;
-                            auto value_tuple = schedule[time][lane];
-                            auto value_bits = std::get<0>(value_tuple);
-                            if(value_bits == 0) ineffectual_values.emplace_back(std::make_tuple(time, lane));
-                        }
+                    // Get candidates
+                    if (!ineff_value) continue;
 
-                        // Num of candidates for each ineffectual values
-                        std::vector<uint16_t> num_candidates (N_LANES, 0);
-                        std::vector<std::vector<value_index>> effectual_candidates (N_LANES, std::vector<value_index>());
-                        for(auto inef_idx : ineffectual_values) {
-                            auto lane = std::get<1>(inef_idx);
-                            effectual_candidates[lane % N_LANES] = search(schedule, inef_idx, max_time);
-                        }
+                    auto inef_idx = std::make_tuple(time, lane);
+                    auto effectual_candidates = search(schedule, inef_idx, max_time);
 
-                        for(auto inef_idx : ineffectual_values) {
-                            auto lane = std::get<1>(inef_idx);
-                            if(effectual_candidates[lane % N_LANES].size() > 1) {
-                                //Promote value
-                                auto cand_idx = effectual_candidates[lane % N_LANES].front();
-                                promote(schedule, inef_idx, cand_idx);
-                                still_candidates++;
-                            }
-                        }
+                    if (effectual_candidates.size() > 1) {
+                        auto cand_idx = effectual_candidates.front();
+                        promote(schedule, inef_idx, cand_idx);
                     }
-
-                } // Optimal promotion loop
+                }
 
             } // Group
         } // Time
