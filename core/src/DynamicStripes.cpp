@@ -2061,7 +2061,7 @@ namespace core {
 
         std::string filename = "DynamicStripes_L" + std::to_string(N_LANES) + "_C" + std::to_string(N_COLUMNS) + "_R" +
                 std::to_string(N_ROWS) + "_AS" + std::to_string(this->memory.getOnChipActSize()) + "_WS" +
-                std::to_string(this->memory.getOnChipWgtSize())+ (BASELINE ? "_baseline" : "") + "_on_chip_cycles";
+                std::to_string(this->memory.getOnChipWgtSize()) + (BASELINE ? "_baseline" : "") + "_on_chip_cycles";
         sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
