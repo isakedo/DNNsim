@@ -2059,6 +2059,7 @@ namespace core {
     template <typename T>
     void DynamicStripes<T>::on_chip_cycles(const base::Network<T> &network) {
 
+        this->memory.initialise();
         std::string filename = "DynamicStripes_L" + std::to_string(N_LANES) + "_C" + std::to_string(N_COLUMNS) + "_R" +
                 std::to_string(N_ROWS) + "_AS" + std::to_string(this->memory.getOnChipActSize()) + "_WS" +
                 std::to_string(this->memory.getOnChipWgtSize()) + (BASELINE ? "_baseline" : "") + "_on_chip_cycles";

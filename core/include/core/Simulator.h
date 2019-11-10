@@ -15,7 +15,6 @@
 #endif
 
 typedef std::vector<std::vector<std::vector<std::vector<uint64_t>>>> address_map;
-typedef std::vector<std::vector<std::vector<uint64_t>>> spat_address_map;
 
 namespace core {
 

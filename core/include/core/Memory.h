@@ -32,6 +32,12 @@ namespace core {
         /** Memory cycles stats */
         uint64_t mem_cycle;
 
+        std::string dram_conf;
+
+        std::string system_conf;
+
+        uint64_t size;
+
     public:
 
         /** Requests */
@@ -60,16 +66,13 @@ namespace core {
          */
         void wait_for(uint64_t address);
 
+        void initialise();
+
         Memory() {
-            memory = DRAMSim::getMemorySystemInstance("ini/DDR2_micron_16M_8b_x8_sg3E.ini", "system.ini",
-                    "./DRAMSim2/", "DNNsim", 16384);
 
-            DRAMSim::TransactionCompleteCB *read_cb =
-                    new DRAMSim::Callback<Memory, void, unsigned, uint64_t, uint64_t>(this, &Memory::transaction_done);
-            DRAMSim::TransactionCompleteCB *write_cb =
-                    new DRAMSim::Callback<Memory, void, unsigned, uint64_t, uint64_t>(this, &Memory::transaction_done);
-
-            memory->RegisterCallbacks(read_cb, write_cb, nullptr);
+            dram_conf = "ini/DDR2_micron_16M_8b_x8_sg3E.ini";
+            system_conf = "system.ini";
+            size = 16384;
 
             clock_cycle = 0;
             mem_cycle = 0;
@@ -78,16 +81,12 @@ namespace core {
             on_chip_wgt_size = 1048576/80; //1MiB
         }
 
-        Memory(const std::string &dram_conf, const std::string &system_conf, uint64_t size, uint64_t act_size,
+        Memory(const std::string &_dram_conf, const std::string &_system_conf, uint64_t _size, uint64_t act_size,
                 uint64_t wgt_size) {
-            memory = DRAMSim::getMemorySystemInstance(dram_conf, system_conf, "./DRAMSim2/", "DNNsim", size);
 
-            DRAMSim::TransactionCompleteCB *read_cb =
-                    new DRAMSim::Callback<Memory, void, unsigned, uint64_t, uint64_t>(this, &Memory::transaction_done);
-            DRAMSim::TransactionCompleteCB *write_cb =
-                    new DRAMSim::Callback<Memory, void, unsigned, uint64_t, uint64_t>(this, &Memory::transaction_done);
-
-            memory->RegisterCallbacks(read_cb, write_cb, nullptr);
+            dram_conf = _dram_conf;
+            system_conf = _system_conf;
+            size = _size;
 
             clock_cycle = 0;
             mem_cycle = 0;

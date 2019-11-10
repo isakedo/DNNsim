@@ -36,6 +36,17 @@ namespace core {
         }
     }
 
+    void Memory::initialise() {
+        memory = DRAMSim::getMemorySystemInstance(dram_conf, system_conf, "./DRAMSim2/", "DNNsim", size);
+
+        DRAMSim::TransactionCompleteCB *read_cb =
+                new DRAMSim::Callback<Memory, void, unsigned, uint64_t, uint64_t>(this, &Memory::transaction_done);
+        DRAMSim::TransactionCompleteCB *write_cb =
+                new DRAMSim::Callback<Memory, void, unsigned, uint64_t, uint64_t>(this, &Memory::transaction_done);
+
+        memory->RegisterCallbacks(read_cb, write_cb, nullptr);
+    }
+
     uint64_t Memory::getOnChipActSize() const {
         return on_chip_act_size;
     }
