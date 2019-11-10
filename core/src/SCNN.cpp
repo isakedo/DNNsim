@@ -590,13 +590,16 @@ namespace core {
 
             // Off-chip memory layout
 
-            std::vector<std::tuple<uint64_t, uint64_t>> act_address_map (N);
+            std::vector<std::vector<std::tuple<uint64_t, uint64_t>>> act_address_map (N,
+                    std::vector<std::tuple<uint64_t, uint64_t>>(groups));
 
             // Addresses per image
             for (int n = 0; n < N; ++n) {
-                uint64_t bytes = C * X * Y / values_block * 0x40; // Align to 64 bits
-                act_address_map[n] = std::make_tuple(act_next_addr, act_next_addr + bytes - 0x40);
-                act_next_addr += bytes;
+                for (int g = 0; g < groups; ++g) {
+                    uint64_t bytes = Ck * X * Y / values_block * 0x40; // Align to 64 bits
+                    act_address_map[n][g] = std::make_tuple(act_next_addr, act_next_addr + bytes - 0x40);
+                    act_next_addr += bytes;
+                }
             }
 
             std::vector<std::tuple<uint64_t, uint64_t>> wgt_address_map (K);
@@ -666,7 +669,7 @@ namespace core {
                                     if (max_wgt_bit > max_bit) max_bit = max_wgt_bit;
                                 }
                                 uint64_t width = max_bit + 1u;
-                                wgt_queue_bits[k] += 4; // zero overhad
+                                wgt_queue_bits[k] += 4; // zero overhead
                                 if (BASELINE) {
                                     wgt_queue_bits[k] += F * network_bits;
                                 } else {
@@ -707,7 +710,7 @@ namespace core {
                     if (kc_count == Kc) kc_count = 0;
                 }
 
-                if (k == (Kg - 1)) {
+                if (k == (K - 1)) {
                     kc_filters.emplace_back(kc_set);
                     kc_set.clear();
                 }
@@ -779,10 +782,12 @@ namespace core {
                                     int sy = y % stride;
                                     auto act_bits = act.get(n, c, x, y);
                                     if(act_bits != 0) {
-                                        auto image_address = std::get<0>(act_address_map[n]);
-                                        auto offset = c * X * Y + x * X + y;
+                                        auto g = c / Ck;
+                                        auto ck = c % Ck;
+                                        auto image_address = std::get<0>(act_address_map[n][g]);
+                                        auto offset = ck * X * Y + x * X + y;
                                         auto act_address = image_address + (offset / values_block * 0x40);
-                                        act_queue[c][sx][sy][pex][pey].emplace_back(std::make_tuple(x, y, act_address));
+                                        act_queue[c][sx][sy][pex][pey].emplace_back(std::make_tuple(x, y, act_bits, act_address));
                                         queue_size[c][sx][sy][pex][pey]++;
                                     }
                                 } // Y
@@ -861,8 +866,9 @@ namespace core {
                     }
 
                     // Request activations
-                    auto min_addr = std::get<0>(act_address_map[n]);
-                    auto max_addr = std::get<1>(act_address_map[n]);
+                    auto g = kc / Kg;
+                    auto min_addr = std::get<0>(act_address_map[n][g]);
+                    auto max_addr = std::get<1>(act_address_map[n][g]);
 
                     for (auto address = min_addr; address <= max_addr; address += 0x40) {
                         this->memory.request_address(address, false);
@@ -900,7 +906,7 @@ namespace core {
 
                                                         auto x = std::get<0>(act_index);
                                                         auto y = std::get<1>(act_index);
-                                                        auto act_addr = std::get<2>(act_index);
+                                                        auto act_addr = std::get<3>(act_index);
                                                         this->memory.wait_for(act_addr);
 
                                                         auto k = std::get<0>(wgt_index);
