@@ -2365,7 +2365,7 @@ namespace core {
                             // Request the memory addresses
                             if (first && i < window_requests.size()) {
                                 for (auto address : window_requests[i]) {
-                                    //this->memory.request_address(address, false);
+                                    this->memory.request_address(address, false);
                                     act_off_chip_bytes->value[layer_it][n] += 8;
                                 }
                             }
@@ -2373,7 +2373,7 @@ namespace core {
                             // Request the memory addresses
                             if (i < filter_requests.size()) {
                                 for (auto address : filter_requests[i]) {
-                                    //this->memory.request_address(address, false);
+                                    this->memory.request_address(address, false);
                                     wgt_off_chip_bytes->value[layer_it][n] += 8;
                                 }
                             }
@@ -2381,7 +2381,6 @@ namespace core {
                         }
 
                         first = false;
-                        continue;
 
                         // Convolute windows and filters on the on-chip memory
                         for (int w = 0; w < windows_on_chip.size(); w += N_COLUMNS) {
