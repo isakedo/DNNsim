@@ -169,7 +169,7 @@ namespace core {
                     auto inef_idx = std::make_tuple(time, lane);
                     auto effectual_candidates = search(schedule, inef_idx, max_time);
 
-                    if (effectual_candidates.size() > 1) {
+                    if (!effectual_candidates.empty()) {
                         auto cand_idx = effectual_candidates.front();
                         promote(schedule, inef_idx, cand_idx);
                     }
