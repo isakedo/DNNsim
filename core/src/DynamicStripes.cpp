@@ -2068,10 +2068,12 @@ namespace core {
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
         auto compute_cycles = stats.register_uint_t("compute_cycles", 0, sys::AverageTotal);
         auto memory_cycles = stats.register_uint_t("memory_cycles", 0, sys::AverageTotal);
-        auto act_off_chip = stats.register_uint_t("act_off_chip bytes", 0 , sys::AverageTotal);
-        auto act_off_chip_bytes = stats.register_uint_t("act_off_chip", 0 , sys::AverageTotal);
-        auto wgt_off_chip = stats.register_uint_t("wgt_off_chip bytes", 0 , sys::AverageTotal);
-        auto wgt_off_chip_bytes = stats.register_uint_t("wgt_off_chip", 0 , sys::AverageTotal);
+        auto act_on_chip = stats.register_uint_t("act_on_chip", 0 , sys::AverageTotal);
+        auto act_off_chip = stats.register_uint_t("act_off_chip", 0 , sys::AverageTotal);
+        auto act_off_chip_bytes = stats.register_uint_t("act_off_chip bytes", 0 , sys::AverageTotal);
+        auto wgt_on_chip = stats.register_uint_t("wgt_on_chip", 0 , sys::AverageTotal);
+        auto wgt_off_chip = stats.register_uint_t("wgt_off_chip", 0 , sys::AverageTotal);
+        auto wgt_off_chip_bytes = stats.register_uint_t("wgt_off_chip bytes", 0 , sys::AverageTotal);
 
         uint64_t act_next_addr = 0;
         uint64_t act_base_addr = 0x40000000;
@@ -2200,6 +2202,9 @@ namespace core {
                 std::vector<std::vector<uint64_t>> act_datawidth_size = std::vector<std::vector<uint64_t>>(Ny,
                         std::vector<uint64_t>(Nx, 0));
 
+                std::vector<std::vector<uint64_t>> act_on_chip_accesses = std::vector<std::vector<uint64_t>>(Ny,
+                        std::vector<uint64_t>(Nx, 0));
+
                 uint8_t act_data_pt = 0u;
                 for (int r = 0; r < R; ++r) {
 
@@ -2231,14 +2236,20 @@ namespace core {
                                 }
 
                                 uint8_t width = max_bit + 1u;
-                                if (BASELINE || act_channels < PRECISION_GRANULARITY)
+                                if (BASELINE || act_channels < PRECISION_GRANULARITY) {
                                     channel_size += PRECISION_GRANULARITY * network_bits; // Baseline values
-                                else {
+                                    act_data_pt += network_bits;
+                                } else {
                                     //channel_size += log2(network_bits); // Group overhead
                                     channel_size += width == prev_group ? 1 : 1 + log2(network_bits); // Group overhead
                                     channel_size += PRECISION_GRANULARITY * width; // Values
+                                    act_data_pt += width;
                                 }
-                                act_data_pt = (act_data_pt + width) % network_bits;
+
+                                if (act_data_pt >= network_bits) {
+                                    act_data_pt %= network_bits;
+                                    act_on_chip_accesses[y][x]++;
+                                }
                                 prev_group = width;
 
                             }
@@ -2259,6 +2270,8 @@ namespace core {
 
                 // Calculate activations Dynamic Width sizes per channel
                 std::vector<uint64_t> wgt_datawidth_size = std::vector<uint64_t>(num_filters, 0);
+
+                std::vector<uint64_t> wgt_on_chip_accesses = std::vector<uint64_t>(num_filters, 0);
 
                 uint8_t wgt_data_pt = 0u;
                 for (int m = 0; m < num_filters; ++m) {
@@ -2293,13 +2306,18 @@ namespace core {
                                 uint8_t width = max_bit + 1u;
                                 if (BASELINE) {
                                     filter_size += PRECISION_GRANULARITY * network_bits; // Baseline values
+                                    wgt_data_pt += network_bits;
                                 } else {
                                     //filter_size += log2(network_bits); // Group overhead
                                     filter_size += width == prev_group ? 1 : 1 + log2(network_bits); // Group overhead
                                     filter_size += PRECISION_GRANULARITY * width; // Values
+                                    wgt_data_pt += width;
                                 }
 
-                                wgt_data_pt = (wgt_data_pt + width) % network_bits;
+                                if (wgt_data_pt >= network_bits) {
+                                    wgt_data_pt %= network_bits;
+                                    wgt_on_chip_accesses[m]++;
+                                }
                                 prev_group = width;
 
                             }
@@ -2330,7 +2348,6 @@ namespace core {
                 // Select windows that fit on-chip
                 while (!window_list.empty()) {
 
-                    act_off_chip->value[layer_it][n]++;
                     this->memory.requests.clear();
 
                     std::vector<int> windows_on_chip;
@@ -2348,7 +2365,6 @@ namespace core {
                     // Select filters that fit on-chip
                     while (!filter_list.empty()) {
 
-                        wgt_off_chip->value[layer_it][n]++;
                         std::vector<int> filters_on_chip;
                         std::vector<std::list<uint64_t>> filter_requests;
 
@@ -2367,6 +2383,7 @@ namespace core {
                                 for (auto address : window_requests[i]) {
                                     this->memory.request_address(address, false);
                                     act_off_chip_bytes->value[layer_it][n] += 8;
+                                    act_off_chip->value[layer_it][n]++;
                                 }
                             }
 
@@ -2375,6 +2392,7 @@ namespace core {
                                 for (auto address : filter_requests[i]) {
                                     this->memory.request_address(address, false);
                                     wgt_off_chip_bytes->value[layer_it][n] += 8;
+                                    wgt_off_chip->value[layer_it][n]++;
                                 }
                             }
 
@@ -2387,6 +2405,12 @@ namespace core {
 
                             for (int m = 0; m < filters_on_chip.size(); m += N_ROWS) {
 
+                                // Count on-chip weight accesses
+                                for (int filter = m; filter < std::min((uint64_t)m + N_ROWS,
+                                        filters_on_chip.size()); ++filter) {
+                                    wgt_on_chip->value[layer_it][n] += wgt_on_chip_accesses[filter];
+                                }
+
                                 // Convolute windows
                                 for (int y = 0; y < Ky; ++y) {
                                     for (int x = 0; x < Kx; ++x) {
@@ -2395,13 +2419,21 @@ namespace core {
 
                                             for (int window = w; window < std::min((uint64_t)w + N_COLUMNS,
                                                     windows_on_chip.size()); ++window) {
+
+                                                auto x_window = windows_on_chip[window] % out_x;
+                                                auto y_window = windows_on_chip[window] / out_y;
+
+                                                // Count on-chip activations accesses
+                                                if (k == 0) {
+                                                    act_on_chip->value[layer_it][n] += act_on_chip_accesses
+                                                            [y_window * stride + y][x_window * stride + x];
+                                                }
+
                                                 for (int filter = m; filter < std::min((uint64_t)m + N_ROWS,
                                                         filters_on_chip.size()); ++filter) {
                                                     for (int channel = k; channel < std::min((uint64_t)k + N_LANES,
                                                             wgt_channels); ++channel) {
 
-                                                        auto x_window = windows_on_chip[window] % out_x;
-                                                        auto y_window = windows_on_chip[window] / out_y;
                                                         auto act_address = act_address_map[n][y_window * stride + y]
                                                                 [x_window * stride + x][channel/values_block];
                                                         auto wgt_address = wgt_address_map[filters_on_chip[filter]][y]
