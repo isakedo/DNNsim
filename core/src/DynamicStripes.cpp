@@ -730,8 +730,8 @@ namespace core {
         auto network_bits = network.getNetwork_bits();
         auto act_width_need = stats.register_double_dist_t("act_width_need",0,network_bits,0.0,sys::Average);
         auto wgt_width_need = stats.register_double_dist_t("wgt_width_need",0,network_bits,0.0,sys::Average);
-        auto act_distr = stats.register_double_dist_t("act_width_need",0,pow(2,network_bits),0.0,sys::Average);
-        auto wgt_distr = stats.register_double_dist_t("wgt_width_need",0,pow(2,network_bits),0.0,sys::Average);
+        auto act_distr = stats.register_double_dist_t("act_width_need",0,pow(2,network_bits),0.0,sys::Total);
+        auto wgt_distr = stats.register_double_dist_t("wgt_width_need",0,pow(2,network_bits),0.0,sys::Total);
         auto signed_activations = !network.isUnsignedAct();
         auto signed_weights = !network.isUnsignedWgt();
 
@@ -2212,7 +2212,6 @@ namespace core {
 
                         for (int x = 0; x < Nx; ++x) {
 
-                            uint8_t prev_group = 0;
                             uint64_t channel_size = 0;
                             act_on_chip_accesses[y][x]++;
 
@@ -2242,7 +2241,7 @@ namespace core {
                                     act_data_pt += network_bits;
                                 } else {
                                     //channel_size += log2(network_bits); // Group overhead
-                                    channel_size += width == prev_group ? 1 : 1 + log2(network_bits); // Group overhead
+                                    channel_size += log2(network_bits); // Group overhead
                                     channel_size += PRECISION_GRANULARITY * width; // Values
                                     act_data_pt += width;
                                 }
@@ -2251,7 +2250,6 @@ namespace core {
                                     act_data_pt %= network_bits;
                                     act_on_chip_accesses[y][x]++;
                                 }
-                                prev_group = width;
 
                             }
 
@@ -2277,7 +2275,6 @@ namespace core {
                 uint8_t wgt_data_pt = 0u;
                 for (int m = 0; m < num_filters; ++m) {
 
-                    uint8_t prev_group = 0;
                     uint64_t filter_size = 0;
                     wgt_on_chip_accesses[m]++;
 
@@ -2311,7 +2308,7 @@ namespace core {
                                     wgt_data_pt += network_bits;
                                 } else {
                                     //filter_size += log2(network_bits); // Group overhead
-                                    filter_size += width == prev_group ? 1 : 1 + log2(network_bits); // Group overhead
+                                    filter_size += log2(network_bits); // Group overhead
                                     filter_size += PRECISION_GRANULARITY * width; // Values
                                     wgt_data_pt += width;
                                 }
@@ -2320,7 +2317,6 @@ namespace core {
                                     wgt_data_pt %= network_bits;
                                     wgt_on_chip_accesses[m]++;
                                 }
-                                prev_group = width;
 
                             }
 
