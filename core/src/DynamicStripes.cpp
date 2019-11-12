@@ -2214,6 +2214,7 @@ namespace core {
 
                             uint8_t prev_group = 0;
                             uint64_t channel_size = 0;
+                            act_on_chip_accesses[y][x]++;
 
                             for (int k = 0; k < act_channels; k += PRECISION_GRANULARITY) {
 
@@ -2278,6 +2279,7 @@ namespace core {
 
                     uint8_t prev_group = 0;
                     uint64_t filter_size = 0;
+                    wgt_on_chip_accesses[m]++;
 
                     for (int y = 0; y < Ky; ++y) {
 
