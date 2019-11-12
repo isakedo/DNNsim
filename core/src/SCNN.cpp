@@ -643,16 +643,12 @@ namespace core {
                 } // Channels
             } // Filters
 
-            std::vector<std::vector<uint64_t>> wgt_on_chip_accesses (K, std::vector<uint64_t>(Ck, 0));
-
             std::vector<uint64_t> wgt_queue_bits (K, 0);
 
             for (int k = 0; k < K; ++k) {
                 for (int ck = 0; ck < Ck; ck++) {
 
                     uint8_t prev_group = 0;
-                    uint8_t wgt_data_pt = 0u;
-                    wgt_on_chip_accesses[k][ck]++;
 
                     for (int sx = 0; sx < stride; ++sx) {
                         for (int sy = 0; sy < stride; ++sy) {
@@ -682,27 +678,17 @@ namespace core {
                                 wgt_queue_bits[k] += 4; // zero overhead
                                 if (BASELINE) {
                                     wgt_queue_bits[k] += F * network_bits;
-                                    wgt_data_pt += network_bits;
                                 } else {
                                     wgt_queue_bits[k] += width == prev_group ? 1 : 1 + log2(network_bits); // width overhead
                                     wgt_queue_bits[k] += F * width;
-                                    wgt_data_pt += width;
                                 }
 
-                                if (wgt_data_pt >= network_bits) {
-                                    wgt_data_pt %= network_bits;
-                                    wgt_on_chip_accesses[k][ck]++;
-                                }
                                 prev_group = width;
 
                             }
 
                         } // Stride Y
                     } // Stride X
-
-                    //if (wgt_data_pt != 0) {
-                    //    wgt_queue_bits[k] += (network_bits - wgt_data_pt) * F;
-                    //}
 
                 } // Channels
             } //Filters
@@ -762,7 +748,7 @@ namespace core {
                                     auto filter_address = std::get<0>(wgt_address_map[k]);
                                     auto offset = ck * R * S + r * S + s;
                                     auto wgt_address = filter_address + (offset / values_block * 0x40);
-                                    wgt_queue[kc][ck][sx][sy].emplace_back(std::make_tuple(k, r, s, wgt_address));
+                                    wgt_queue[kc][ck][sx][sy].emplace_back(std::make_tuple(k, r, s, wgt_bits, wgt_address));
                                 }
                             } // Filters
                         } // Y
@@ -770,6 +756,80 @@ namespace core {
 
                 } // Channels
             } // Filter sets
+
+            std::vector<std::vector<uint64_t>> wgt_on_chip_accesses (kc_filters.size(), std::vector<uint64_t>(Ck, 0));
+
+            uint64_t batch_wgt_bits = 0;
+
+            for(int kc = 0; kc < kc_filters.size(); ++kc) {
+
+                int k_begin = kc_filters[kc].front();
+                int k_end = kc_filters[kc].back();
+
+                for (int ck = 0; ck < Ck; ck++) {
+
+                    uint8_t prev_group = 0;
+                    uint8_t wgt_data_pt = 0u;
+                    wgt_on_chip_accesses[kc][ck]++;
+
+                    for (int k = k_begin; k <= k_end; ++k) {
+                        for (int sx = 0; sx < stride; ++sx) {
+                            for (int sy = 0; sy < stride; ++sy) {
+
+                                const auto &wgt_queue_pe = wgt_queue[kc][ck][sx][sy];
+
+                                for (int f = 0; f < wgt_queue_pe.size(); f += F) {
+
+                                    uint8_t max_bit = 0;
+                                    for (int ff = f; ff < std::min(f + (int) F, (int) wgt_queue_pe.size()); ff++) {
+                                        auto wgt_bits = std::get<3>(wgt_queue_pe[ff]);
+
+                                        if (signed_weights) {
+                                            if ((wgt_bits & wgt_mask) != 0) {
+                                                wgt_bits = wgt_bits & ~wgt_mask;
+                                            }
+                                        }
+
+                                        const auto &min_max_wgt_bits = this->minMax(wgt_bits);
+                                        auto max_wgt_bit = std::get<1>(min_max_wgt_bits);
+                                        if (signed_weights) max_wgt_bit += 1;
+
+                                        if (max_wgt_bit > max_bit) max_bit = max_wgt_bit;
+                                    }
+
+                                    uint64_t width = max_bit + 1u;
+                                    wgt_queue_bits[k] += 4; // zero overhead
+                                    if (BASELINE) {
+                                        batch_wgt_bits += F * network_bits;
+                                        wgt_data_pt += network_bits;
+                                    } else {
+                                        batch_wgt_bits += width == prev_group ? 1 : 1 + log2(network_bits); // width overhead
+                                        batch_wgt_bits += F * width;
+                                        wgt_data_pt += width;
+                                    }
+
+                                    if (wgt_data_pt >= network_bits) {
+                                        wgt_data_pt %= network_bits;
+                                        wgt_on_chip_accesses[kc][ck]++;
+                                    }
+                                    prev_group = width;
+
+                                }
+
+                            } // Stride Y
+                        } // Stride X
+                    } // Filter
+
+                    if (wgt_data_pt != 0) {
+                        batch_wgt_bits += (network_bits - wgt_data_pt) * F;
+                    }
+
+                } // channels
+            } // Filter set
+
+            if (!BASELINE) {
+                batch_wgt_bits += kc_filters.size() * Ck * 16; // Pointers overhead
+            }
 
             for(int n = 0; n < N; n++) {
 
@@ -820,18 +880,18 @@ namespace core {
 
                 } // Channels
 
-                std::vector<std::vector<std::vector<uint64_t>>> act_on_chip_accesses (Wt,
-                        std::vector<std::vector<uint64_t>>(Ht, std::vector<uint64_t>(C, 0)));
+                std::vector<std::vector<uint64_t>> act_on_chip_accesses (Wt, std::vector<uint64_t>(Ht, 0));
 
                 uint64_t batch_act_bits = 0;
 
                 for(int pex = 0; pex < Wt; pex++) {
                     for(int pey = 0; pey < Ht; pey++) {
-                        for (int c = 0; c < C; c++) {
 
-                            uint8_t prev_group = 0;
-                            uint8_t act_data_pt = 0u;
-                            act_on_chip_accesses[pex][pey][c]++;
+                        uint8_t prev_group = 0;
+                        uint8_t act_data_pt = 0u;
+                        act_on_chip_accesses[pex][pey]++;
+
+                        for (int c = 0; c < C; c++) {
 
                             for (int sx = 0; sx < stride; ++sx) {
                                 for (int sy = 0; sy < stride; ++sy) {
@@ -870,7 +930,7 @@ namespace core {
 
                                         if (act_data_pt >= network_bits) {
                                             act_data_pt %= network_bits;
-                                            act_on_chip_accesses[pex][pey][c]++;
+                                            act_on_chip_accesses[pex][pey]++;
                                         }
                                         prev_group = width;
 
@@ -878,22 +938,23 @@ namespace core {
 
                                 } // Stride Y
                             } // Stride X
-
-                            //if (act_data_pt != 0) {
-                            //    batch_act_bits += (network_bits - act_data_pt) * I;
-                            //}
-
                         } // Channels
+
+                        if (act_data_pt != 0) {
+                            batch_act_bits += (network_bits - act_data_pt) * I;
+                        }
+
                     } // PE Y
                 } // PE X
 
                 act_comp_size->value[layer_it][n] = batch_act_bits;
-                wgt_comp_size->value[layer_it][n] = sys::get_total(wgt_queue_bits);
+                wgt_comp_size->value[layer_it][n] = batch_wgt_bits;
 
                 // Compute
                 this->memory.requests.clear();
-                for(const auto &k_filters : kc_filters) {
+                for(int kc_it = 0; kc_it < kc_filters.size(); ++kc_it) {
 
+                    const auto &k_filters = kc_filters[kc_it];
                     int kc = *k_filters.begin();
 
                     // Request filters
@@ -921,18 +982,18 @@ namespace core {
 
                     filters_on_chip->value[layer_it][n]++;
 
+                    // On-chip accesses
+                    for(int pex = 0; pex < Wt; pex++) {
+                        for (int pey = 0; pey < Ht; pey++) {
+                            act_on_chip->value[layer_it][n] += act_on_chip_accesses[pex][pey];
+                        }
+                    }
+
                     // Two towers alexnet
                     int ct = 0;
                     if(kc >= Kg) ct = (int)Ck;
 
                     for(int ck = 0; ck < Ck; ck++) {
-
-                        // On-chip accesses
-                        for(int pex = 0; pex < Wt; pex++) {
-                            for (int pey = 0; pey < Ht; pey++) {
-                                act_on_chip->value[layer_it][n] += act_on_chip_accesses[pex][pey][ct + ck];
-                            }
-                        }
 
                         std::vector<uint64_t> pe_cycles (Wt * Ht, 0);
                         for (int sx = 0; sx < stride; sx++) {
@@ -943,9 +1004,7 @@ namespace core {
 
                                 // On-chip accesses
                                 for (int i = 0; i < act_queue_size; i += I) {
-                                    for (const auto &k : k_filters) {
-                                        wgt_on_chip->value[layer_it][n] += wgt_on_chip_accesses[k][ck];
-                                    }
+                                    wgt_on_chip->value[layer_it][n] += wgt_on_chip_accesses[kc_it][ck];
                                 }
 
                                 for (int i = 0; i < act_queue_size; i += I) {
@@ -970,7 +1029,7 @@ namespace core {
                                                         auto k = std::get<0>(wgt_index);
                                                         auto r = std::get<1>(wgt_index);
                                                         auto s = std::get<2>(wgt_index);
-                                                        auto wgt_addr = std::get<3>(wgt_index);
+                                                        auto wgt_addr = std::get<4>(wgt_index);
                                                         this->memory.wait_for(wgt_addr);
 
                                                         int w = (x - r) / stride;
