@@ -643,7 +643,7 @@ namespace core {
                                     auto filter_address = std::get<0>(wgt_address_map[k]);
                                     auto offset = ck * R * S + r * S + s;
                                     auto wgt_address = filter_address + (offset / values_block * 0x40);
-                                    wgt_queue[kc][ck][sx][sy].emplace_back(std::make_tuple(k, r, s, wgt_bits, wgt_address));
+                                    wgt_queue[kc / Kc][ck][sx][sy].emplace_back(std::make_tuple(k, r, s, wgt_bits, wgt_address));
                                 }
                             } // Filters
                         } // Y
@@ -670,7 +670,7 @@ namespace core {
                         for (int sx = 0; sx < stride; ++sx) {
                             for (int sy = 0; sy < stride; ++sy) {
 
-                                const auto &wgt_queue_pe = wgt_queue[kc][ck][sx][sy];
+                                const auto &wgt_queue_pe = wgt_queue[kc /Kc][ck][sx][sy];
 
                                 for (int f = 0; f < wgt_queue_pe.size(); f += F) {
 
