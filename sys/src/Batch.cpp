@@ -245,12 +245,12 @@ namespace sys {
                     experiment.I = experiment_proto.i() < 1 ? 4 : experiment_proto.i();
                     experiment.F = experiment_proto.f() < 1 ? 4 : experiment_proto.f();
                     experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
-                            1024 : experiment_proto.out_acc_size();
+                            6144 : experiment_proto.out_acc_size();
                     experiment.banks = experiment_proto.banks() < 1 ? 32 : experiment_proto.banks();
                     experiment.baseline = experiment_proto.baseline();
-                    experiment.act_memory_size = experiment_proto.act_memory_size() < 1 ? 1048576 :
+                    experiment.act_memory_size = experiment_proto.act_memory_size() < 1 ? 629145 :
                             experiment_proto.act_memory_size();
-                    experiment.wgt_memory_size = experiment_proto.wgt_memory_size() < 1 ? 1048576 :
+                    experiment.wgt_memory_size = experiment_proto.wgt_memory_size() < 1 ? 32768 :
                             experiment_proto.wgt_memory_size();
                     if(experiment.banks > 32)
                         throw std::runtime_error("Banks for SCNN in network " + simulate.network +

@@ -37,7 +37,7 @@ namespace core {
     }
 
     void Memory::initialise() {
-        memory = DRAMSim::getMemorySystemInstance(dram_conf, system_conf, "./DRAMSim2/", "DNNsim", size);
+        memory = DRAMSim::getMemorySystemInstance(dram_conf, system_conf, "./DRAMSim2/", "DNNsim_" + network, size);
 
         DRAMSim::TransactionCompleteCB *read_cb =
                 new DRAMSim::Callback<Memory, void, unsigned, uint64_t, uint64_t>(this, &Memory::transaction_done);

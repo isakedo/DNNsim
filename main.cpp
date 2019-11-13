@@ -198,8 +198,8 @@ int main(int argc, char *argv[]) {
 					for(const auto &experiment : simulate.experiments) {
 
 					    // Generate memory
-					    core::Memory memory = core::Memory("ini/DDR2_micron_16M_8b_x8_sg3E.ini", "system.ini", 16384,
-					            experiment.act_memory_size, experiment.wgt_memory_size);
+					    core::Memory memory = core::Memory("ini/DDR3_micron_32M_8B_x4_sg125.ini", "system.ini", 16384,
+					            experiment.act_memory_size, experiment.wgt_memory_size, "crap");
 
                         if(experiment.architecture == "None") {
                             core::Simulator<float> DNNsim(N_THREADS, FAST_MODE, QUIET, CHECK);
@@ -235,8 +235,8 @@ int main(int argc, char *argv[]) {
 		                for(const auto &experiment : simulate.experiments) {
 
                             // Generate memory
-                            core::Memory memory = core::Memory("ini/DDR2_micron_16M_8b_x8_sg3E.ini", "system.ini",
-                                    16384, experiment.act_memory_size, experiment.wgt_memory_size);
+                            core::Memory memory = core::Memory("ini/DDR3_micron_32M_8B_x4_sg125.ini", "system.ini",
+                                    16384, experiment.act_memory_size, experiment.wgt_memory_size, network.getName());
 
 		                    if(experiment.architecture == "None") {
 		                    	core::Simulator<float> DNNsim(N_THREADS, FAST_MODE, QUIET, CHECK);
@@ -265,8 +265,8 @@ int main(int argc, char *argv[]) {
 						for(const auto &experiment : simulate.experiments) {
 
                             // Generate memory
-                            core::Memory memory = core::Memory("ini/DDR2_micron_16M_8b_x8_sg3E.ini", "system.ini",
-                                    16384, experiment.act_memory_size, experiment.wgt_memory_size);
+                            core::Memory memory = core::Memory("ini/DDR3_micron_32M_8B_x4_sg125.ini", "system.ini",
+                                    16384, experiment.act_memory_size, experiment.wgt_memory_size, network.getName());
 
                             if(!QUIET) std::cout << "Starting simulation " << experiment.task << " for architecture "
                                     << experiment.architecture << std::endl;

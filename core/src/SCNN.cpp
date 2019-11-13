@@ -521,9 +521,6 @@ namespace core {
         auto wgt_off_chip = stats.register_uint_t("wgt_off_chip", 0 , sys::AverageTotal);
         auto wgt_off_chip_bytes = stats.register_uint_t("wgt_off_chip bytes", 0 , sys::AverageTotal);
 
-        uint64_t act_next_addr = 0;
-        uint64_t act_base_addr = 0x40000000;
-
         uint64_t wgt_next_addr = 0;
         uint64_t wgt_base_addr = 0x00000000;
 
@@ -582,7 +579,7 @@ namespace core {
             auto H_round = (int) (ceil(H / (double) Ht)) * Ht;
             auto tw = W_round / Wt;
             auto th = H_round / Ht;
-            auto Kc = (int) floor(out_acc_size / (double) (th * tw));
+            auto Kc = (int) floor(out_acc_size / (double) (th * tw * network_bits / 8));
             Kc = std::min(Kc, (int)Kg);
 
             X = (int) (ceil(X / (double) Wt)) * Wt;
@@ -593,25 +590,12 @@ namespace core {
             act.grid_zero_pad(X, Y);
 
             // Off-chip memory layout
-
-            std::vector<std::vector<std::tuple<uint64_t, uint64_t>>> act_address_map (N,
-                    std::vector<std::tuple<uint64_t, uint64_t>>(groups));
-
-            // Addresses per image
-            for (int n = 0; n < N; ++n) {
-                for (int g = 0; g < groups; ++g) {
-                    uint64_t bytes = Ck * X * Y / values_block * 0x40; // Align to 64 bits
-                    act_address_map[n][g] = std::make_tuple(act_next_addr, act_next_addr + bytes - 0x40);
-                    act_next_addr += bytes;
-                }
-            }
-
             std::vector<std::tuple<uint64_t, uint64_t>> wgt_address_map (K);
 
             // Addresses per filter
             for (int k = 0; k < K; ++k) {
                 uint64_t bytes = Ck * R * S / values_block * 0x40; // Align to 64 bits
-                wgt_address_map[k] = std::make_tuple(wgt_next_addr, wgt_next_addr + bytes - 0x40);
+                wgt_address_map[k] = std::make_tuple(wgt_next_addr, wgt_next_addr + bytes);
                 wgt_next_addr += bytes;
             }
 
@@ -753,12 +737,7 @@ namespace core {
                                     int sy = y % stride;
                                     auto act_bits = act.get(n, c, x, y);
                                     if(act_bits != 0) {
-                                        auto g = c / Ck;
-                                        auto ck = c % Ck;
-                                        auto image_address = std::get<0>(act_address_map[n][g]);
-                                        auto offset = ck * X * Y + x * X + y;
-                                        auto act_address = image_address + (offset / values_block * 0x40);
-                                        act_queue[c][sx][sy][pex][pey].emplace_back(std::make_tuple(x, y, act_bits, act_address));
+                                        act_queue[c][sx][sy][pex][pey].emplace_back(std::make_tuple(x, y, act_bits));
                                         queue_size[c][sx][sy][pex][pey]++;
                                     }
                                 } // Y
@@ -769,17 +748,19 @@ namespace core {
 
                 } // Channels
 
-                std::vector<std::vector<uint64_t>> act_on_chip_accesses (Wt, std::vector<uint64_t>(Ht, 0));
+                std::vector<std::vector<std::vector<uint64_t>>> act_on_chip_accesses (C,
+                        std::vector<std::vector<uint64_t>>(Wt, std::vector<uint64_t>(Ht, 0)));
 
                 uint64_t batch_act_bits = 0;
 
-                for(int pex = 0; pex < Wt; pex++) {
-                    for(int pey = 0; pey < Ht; pey++) {
+                for (int c = 0; c < C; c++) {
 
-                        uint8_t act_data_pt = 0u;
-                        act_on_chip_accesses[pex][pey]++;
+                    uint8_t act_data_pt = 0u;
 
-                        for (int c = 0; c < C; c++) {
+                    for(int pex = 0; pex < Wt; pex++) {
+                        for(int pey = 0; pey < Ht; pey++) {
+
+                            act_on_chip_accesses[c][pex][pey]++;
 
                             for (int sx = 0; sx < stride; ++sx) {
                                 for (int sy = 0; sy < stride; ++sy) {
@@ -818,21 +799,27 @@ namespace core {
 
                                         if (act_data_pt >= network_bits) {
                                             act_data_pt %= network_bits;
-                                            act_on_chip_accesses[pex][pey]++;
+                                            act_on_chip_accesses[c][pex][pey]++;
                                         }
 
                                     }
 
                                 } // Stride Y
                             } // Stride X
-                        } // Channels
 
-                        if (act_data_pt != 0) {
-                            batch_act_bits += (network_bits - act_data_pt) * I;
-                        }
+                        } // PE Y
+                    } // PE X
 
-                    } // PE Y
-                } // PE X
+                    if (act_data_pt != 0) {
+                        batch_act_bits += (network_bits - act_data_pt) * I;
+                    }
+
+                 } // Channels
+
+
+                if(!BASELINE) {
+                    batch_act_bits += C * 16;
+                }
 
                 act_comp_size->value[layer_it][n] = batch_act_bits;
                 wgt_comp_size->value[layer_it][n] = batch_wgt_bits;
@@ -856,25 +843,7 @@ namespace core {
                         }
                     }
 
-                    // Request activations
-                    auto g = kc / Kg;
-                    auto min_addr = std::get<0>(act_address_map[n][g]);
-                    auto max_addr = std::get<1>(act_address_map[n][g]);
-
-                    for (auto address = min_addr; address <= max_addr; address += 0x40) {
-                        this->memory.request_address(address, false);
-                        act_off_chip_bytes->value[layer_it][n] += 8;
-                        act_off_chip->value[layer_it][n]++;
-                    }
-
                     filters_on_chip->value[layer_it][n]++;
-
-                    // On-chip accesses
-                    for(int pex = 0; pex < Wt; pex++) {
-                        for (int pey = 0; pey < Ht; pey++) {
-                            act_on_chip->value[layer_it][n] += act_on_chip_accesses[pex][pey];
-                        }
-                    }
 
                     // Two towers alexnet
                     int ct = 0;
@@ -894,6 +863,13 @@ namespace core {
                                     wgt_on_chip->value[layer_it][n] += wgt_on_chip_accesses[kc / Kc][ck];
                                 }
 
+                                // On-chip accesses
+                                for(int pex = 0; pex < Wt; pex++) {
+                                    for (int pey = 0; pey < Ht; pey++) {
+                                        act_on_chip->value[layer_it][n] += act_on_chip_accesses[ct + ck][pex][pey];
+                                    }
+                                }
+
                                 for (int i = 0; i < act_queue_size; i += I) {
                                     for (int f = 0; f < wgt_queue_pe.size(); f += F) {
 
@@ -910,8 +886,6 @@ namespace core {
 
                                                         auto x = std::get<0>(act_index);
                                                         auto y = std::get<1>(act_index);
-                                                        auto act_addr = std::get<3>(act_index);
-                                                        this->memory.wait_for(act_addr);
 
                                                         auto k = std::get<0>(wgt_index);
                                                         auto r = std::get<1>(wgt_index);

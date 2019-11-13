@@ -38,6 +38,8 @@ namespace core {
 
         uint64_t size;
 
+        std::string network;
+
     public:
 
         /** Requests */
@@ -79,10 +81,12 @@ namespace core {
 
             on_chip_act_size = 1048576/80; //1MiB
             on_chip_wgt_size = 1048576/80; //1MiB
+
+            network = "crap";
         }
 
         Memory(const std::string &_dram_conf, const std::string &_system_conf, uint64_t _size, uint64_t act_size,
-                uint64_t wgt_size) {
+                uint64_t wgt_size, const std::string &_network) {
 
             dram_conf = _dram_conf;
             system_conf = _system_conf;
@@ -93,6 +97,8 @@ namespace core {
 
             on_chip_act_size = act_size;
             on_chip_wgt_size = wgt_size;
+
+            network = _network;
         }
 
         /**
