@@ -520,6 +520,8 @@ namespace core {
         auto wgt_on_chip = stats.register_uint_t("wgt_on_chip", 0 , sys::AverageTotal);
         auto wgt_off_chip = stats.register_uint_t("wgt_off_chip", 0 , sys::AverageTotal);
         auto wgt_off_chip_bytes = stats.register_uint_t("wgt_off_chip bytes", 0 , sys::AverageTotal);
+        auto acc_updates = stats.register_uint_t("acc_updates bytes", 0 , sys::AverageTotal);
+        auto crossbar_usage = stats.register_double_t("crossbar_usage bytes", 0 , sys::Average);
 
         uint64_t wgt_next_addr = 0;
         uint64_t wgt_base_addr = 0x00000000;
