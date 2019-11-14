@@ -520,8 +520,8 @@ namespace core {
         auto wgt_on_chip = stats.register_uint_t("wgt_on_chip", 0 , sys::AverageTotal);
         auto wgt_off_chip = stats.register_uint_t("wgt_off_chip", 0 , sys::AverageTotal);
         auto wgt_off_chip_bytes = stats.register_uint_t("wgt_off_chip bytes", 0 , sys::AverageTotal);
-        auto acc_updates = stats.register_uint_t("acc_updates bytes", 0 , sys::AverageTotal);
-        auto crossbar_usage = stats.register_double_t("crossbar_usage bytes", 0 , sys::Average);
+        auto acc_updates = stats.register_uint_t("acc_updates", 0 , sys::AverageTotal);
+        auto crossbar_usage = stats.register_double_t("crossbar_usage", 0 , sys::Average);
 
         uint64_t wgt_next_addr = 0;
         uint64_t wgt_base_addr = 0x00000000;
@@ -629,7 +629,8 @@ namespace core {
                                     auto filter_address = std::get<0>(wgt_address_map[k]);
                                     auto offset = ck * R * S + r * S + s;
                                     auto wgt_address = filter_address + (offset / values_block * 0x40);
-                                    wgt_queue[kc / Kc][ck][sx][sy].emplace_back(std::make_tuple(k, r, s, wgt_bits, wgt_address));
+                                    wgt_queue[kc / Kc][ck][sx][sy].emplace_back(std::make_tuple(k, r, s, wgt_bits,
+                                            wgt_address, network_bits));
                                 }
                             } // Filters
                         } // Y
@@ -656,7 +657,7 @@ namespace core {
                         for (int sx = 0; sx < stride; ++sx) {
                             for (int sy = 0; sy < stride; ++sy) {
 
-                                const auto &wgt_queue_pe = wgt_queue[kc /Kc][ck][sx][sy];
+                                auto &wgt_queue_pe = wgt_queue[kc /Kc][ck][sx][sy];
 
                                 for (int f = 0; f < wgt_queue_pe.size(); f += F) {
 
@@ -686,6 +687,10 @@ namespace core {
                                         batch_wgt_bits += log2(network_bits); // width overhead
                                         batch_wgt_bits += F * width;
                                         wgt_data_pt += width;
+
+                                        for (int ff = f; ff < std::min(f + (int) F, (int) wgt_queue_pe.size()); ff++) {
+                                            std::get<5>(wgt_queue_pe[ff]) = (int)width;
+                                        }
                                     }
 
                                     if (wgt_data_pt >= network_bits) {
@@ -739,7 +744,8 @@ namespace core {
                                     int sy = y % stride;
                                     auto act_bits = act.get(n, c, x, y);
                                     if(act_bits != 0) {
-                                        act_queue[c][sx][sy][pex][pey].emplace_back(std::make_tuple(x, y, act_bits));
+                                        act_queue[c][sx][sy][pex][pey].emplace_back(std::make_tuple(x, y, act_bits,
+                                                network_bits));
                                         queue_size[c][sx][sy][pex][pey]++;
                                     }
                                 } // Y
@@ -767,7 +773,7 @@ namespace core {
                             for (int sx = 0; sx < stride; ++sx) {
                                 for (int sy = 0; sy < stride; ++sy) {
 
-                                    const auto &act_queue_pe = act_queue[c][sx][sy][pex][pey];
+                                    auto &act_queue_pe = act_queue[c][sx][sy][pex][pey];
 
                                     for (int i = 0; i < act_queue_pe.size(); i += I) {
 
@@ -797,6 +803,10 @@ namespace core {
                                             batch_act_bits += log2(network_bits); // width overhead
                                             batch_act_bits += I * width;
                                             act_data_pt += width;
+
+                                            for(int ii = i; ii < std::min(i + (int)I, (int)act_queue_pe.size()); ii++) {
+                                                std::get<3>(act_queue_pe[ii]) = (int)width;
+                                            }
                                         }
 
                                         if (act_data_pt >= network_bits) {
@@ -827,6 +837,8 @@ namespace core {
                 wgt_comp_size->value[layer_it][n] = batch_wgt_bits;
 
                 // Compute
+                uint64_t baseline_crossbar = 0;
+                uint64_t compressed_crossbar = 0;
                 this->memory.requests.clear();
                 for(int kc = 0; kc < K; kc += Kc) {
 
@@ -888,11 +900,13 @@ namespace core {
 
                                                         auto x = std::get<0>(act_index);
                                                         auto y = std::get<1>(act_index);
+                                                        auto act_w = std::get<3>(act_index);
 
                                                         auto k = std::get<0>(wgt_index);
                                                         auto r = std::get<1>(wgt_index);
                                                         auto s = std::get<2>(wgt_index);
                                                         auto wgt_addr = std::get<4>(wgt_index);
+                                                        auto wgt_w = std::get<5>(wgt_index);
                                                         this->memory.wait_for(wgt_addr);
 
                                                         int w = (x - r) / stride;
@@ -902,11 +916,17 @@ namespace core {
                                                             int acc_idx = map_accumulator(k, w, h);
                                                             acc[acc_idx] += 1;
                                                         }
+
+                                                        baseline_crossbar += network_bits + network_bits;
+                                                        compressed_crossbar += act_w + wgt_w;
+
                                                     } // Inner prod Wgt
                                                 } // Inner prod Act
                                                 auto max_acc = *std::max_element(acc.begin(), acc.end());
                                                 auto warp_time = std::max(max_acc, (uint8_t) 1);
                                                 pe_cycles[pey * Wt + pex] += std::max(warp_time, (uint8_t)1);
+                                                acc_updates->value[layer_it][n] +=
+                                                        accumulate(acc.begin(), acc.end(), 0.0);
 
                                             } // PE Y
                                         } // PE X
@@ -962,6 +982,7 @@ namespace core {
                 cycles->value[layer_it][n] = batch_cycles;
                 compute_cycles->value[layer_it][n] = batch_compute_cycles;
                 memory_cycles->value[layer_it][n] = this->memory.getMemCycle();
+                crossbar_usage->value[layer_it][n] = compressed_crossbar / (double)baseline_crossbar * 100.;
 
             } // Batch
         }
@@ -980,8 +1001,6 @@ namespace core {
         stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
 
     }
-
-
 
     INITIALISE_DATA_TYPES(SCNN);
 
