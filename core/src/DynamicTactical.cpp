@@ -969,7 +969,7 @@ namespace core {
         stats.bank_writes = 0;
 
         // Generate output gradients buffer
-        auto spatial_pad = (uint64_t)ceil(Ox * Ox / (double)N_LANES) * N_LANES;
+        auto spatial_pad = (uint64_t)ceil(Ox * Oy / (double)N_LANES) * N_LANES;
 
         auto num_out_grad_sets = (uint64_t)ceil(out_channels / (double)OUT_SET_SIZE);
         auto time_per_out_grad_channel = (uint64_t)ceil(spatial_pad / (double)N_LANES);
@@ -1251,8 +1251,8 @@ namespace core {
             int batch;
 
             auto max_threads = omp_get_max_threads();
-            omp_set_num_threads(std::min(max_threads, this->N_THREADS));
-            #pragma omp parallel for private(batch)
+            //omp_set_num_threads(std::min(max_threads, this->N_THREADS));
+            //#pragma omp parallel for private(batch)
             for (batch = 0; batch < num_batches; ++batch) {
 
                 // Forward pass
