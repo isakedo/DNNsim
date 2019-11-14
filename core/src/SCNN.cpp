@@ -617,6 +617,7 @@ namespace core {
                 int k_begin = kc;
                 int k_end = std::min(kc + Kc, (int)K);
 
+                uint64_t zero_count = 0;
                 for(int ck = 0; ck < Ck; ck++) {
 
                     for(int r = 0; r < R; r++) {
@@ -625,12 +626,15 @@ namespace core {
                             int sy = (s + padding) % stride;
                             for(int k = k_begin; k < k_end; k++) {
                                 auto wgt_bits = wgt.get(k, ck, r, s);
-                                if(wgt_bits != 0) {
+                                if (wgt_bits == 0 && zero_count < network_bits) {
+                                    zero_count++;
+                                } else {
                                     auto filter_address = std::get<0>(wgt_address_map[k]);
                                     auto offset = ck * R * S + r * S + s;
                                     auto wgt_address = filter_address + (offset / values_block * 0x40);
                                     wgt_queue[kc / Kc][ck][sx][sy].emplace_back(std::make_tuple(k, r, s, wgt_bits,
                                             wgt_address, network_bits));
+                                    zero_count = 0;
                                 }
                             } // Filters
                         } // Y
@@ -679,7 +683,7 @@ namespace core {
                                     }
 
                                     uint64_t width = max_bit + 1u;
-                                    batch_wgt_bits += 4; // zero overhead
+                                    batch_wgt_bits += log2(network_bits); // zero overhead
                                     if (BASELINE) {
                                         batch_wgt_bits += F * network_bits;
                                         wgt_data_pt += network_bits;
@@ -732,6 +736,7 @@ namespace core {
 
                 for (int c = 0; c < C; c++) {
 
+                    uint64_t zero_count = 0;
                     for(int pex = 0; pex < Wt; pex++) {
                         for(int pey = 0; pey < Ht; pey++) {
                             int x_begin = pex * tw, y_begin = pey * th;
@@ -743,10 +748,13 @@ namespace core {
                                 for(int y = y_begin; y < y_end; y++) {
                                     int sy = y % stride;
                                     auto act_bits = act.get(n, c, x, y);
-                                    if(act_bits != 0) {
+                                    if (act_bits == 0 && zero_count < network_bits) {
+                                        zero_count++;
+                                    } else {
                                         act_queue[c][sx][sy][pex][pey].emplace_back(std::make_tuple(x, y, act_bits,
                                                 network_bits));
                                         queue_size[c][sx][sy][pex][pey]++;
+                                        zero_count = 0;
                                     }
                                 } // Y
                             } // X
@@ -795,7 +803,7 @@ namespace core {
                                         }
 
                                         uint64_t width = max_bit + 1u;
-                                        batch_act_bits += 4; // zero overhead
+                                        batch_act_bits += log2(network_bits); // zero overhead
                                         if (BASELINE) {
                                             batch_act_bits += I * network_bits;
                                             act_data_pt += network_bits;
