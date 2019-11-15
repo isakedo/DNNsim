@@ -592,16 +592,6 @@ namespace core {
 
             act.grid_zero_pad(X, Y);
 
-            // Off-chip memory layout
-            std::vector<std::tuple<uint64_t, uint64_t>> wgt_address_map (K);
-
-            // Addresses per filter
-            for (int k = 0; k < K; ++k) {
-                uint64_t bytes = Ck * R * S / values_block * 0x40; // Align to 64 bits
-                wgt_address_map[k] = std::make_tuple(wgt_next_addr, wgt_next_addr + bytes);
-                wgt_next_addr += bytes;
-            }
-
             auto act_layer_prec = layer.getActPrecision();
             auto act_mask = (uint16_t) (1u << (act_layer_prec - 1));
 
@@ -614,10 +604,10 @@ namespace core {
                     std::vector<std::vector<std::vector<uint16_t>>>(stride,
                     std::vector<std::vector<uint16_t>>(stride, std::vector<uint16_t>()))));
 
-            uint64_t zero_count = 0;
             for (int ck = 0; ck < Ck; ck++) {
-                for(int k = 0; k < K; ++k) {
 
+                uint64_t zero_count = 0;
+                for(int k = 0; k < K; ++k) {
                     for (int r = 0; r < R; r++) {
                         int sx = (r + padding) % stride;
                         for (int s = 0; s < S; s++) {
@@ -681,6 +671,16 @@ namespace core {
                 } // Channels
             } //Filters
 
+            // Off-chip memory layout
+            std::vector<std::tuple<uint64_t, uint64_t>> wgt_address_map (K);
+
+            // Addresses per filter
+            for (int k = 0; k < K; ++k) {
+                uint64_t bytes = ceil(wgt_queue_bits[k] / 64) * 0x40; // Align to 64 bits
+                wgt_address_map[k] = std::make_tuple(wgt_next_addr, wgt_next_addr + bytes);
+                wgt_next_addr += bytes;
+            }
+
             tmp_wgt_queue.clear();
             std::vector<std::vector<int>> kc_filters;
 
@@ -728,6 +728,9 @@ namespace core {
                 for(int ck = 0; ck < Ck; ck++) {
 
                     for(int k = k_begin; k <= k_end; k++) {
+
+                        auto max_addr = std::get<1>(wgt_address_map[k]);
+
                         for(int r = 0; r < R; r++) {
                             int sx = (r + padding) % stride;
                             for(int s = 0; s < S; s++) {
@@ -736,11 +739,8 @@ namespace core {
                                 if (wgt_bits == 0 && zero_count < network_bits) {
                                     zero_count++;
                                 } else {
-                                    auto filter_address = std::get<0>(wgt_address_map[k]);
-                                    auto offset = ck * R * S + r * S + s;
-                                    auto wgt_address = filter_address + (offset / values_block * 0x40);
                                     wgt_queue[kc][ck][sx][sy].emplace_back(std::make_tuple(k, r, s, wgt_bits,
-                                            wgt_address, network_bits));
+                                            max_addr, network_bits));
                                     zero_count = 0;
                                 }
                             } // Y
