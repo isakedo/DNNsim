@@ -7,7 +7,7 @@
 
 typedef std::vector<std::tuple<int,int,int>> wgt_idxMap;
 
-typedef std::vector<std::tuple<int,int,int,uint16_t,uint64_t,int>> wgt_idxAddrMap;
+typedef std::vector<std::tuple<int,int,int,uint16_t,int>> wgt_idxAddrMap;
 typedef std::vector<std::vector<std::vector<std::vector<wgt_idxAddrMap>>>> wgt_addr_queue;
 
 typedef std::vector<std::tuple<int,int,uint16_t,int>> act_idxAddrMap;

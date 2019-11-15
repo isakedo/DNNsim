@@ -13,9 +13,9 @@ namespace core {
     }
 
     void Memory::request_address(uint64_t address, bool isWrite) {
+        requests[address] = false;
         if (memory->willAcceptTransaction()) {
             memory->addTransaction(isWrite, address);
-            requests[address] = false;
         } else {
             queue.push(std::make_tuple(address, isWrite));
         }

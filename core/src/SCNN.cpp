@@ -598,139 +598,21 @@ namespace core {
             auto wgt_layer_prec = layer.getWgtPrecision();
             auto wgt_mask = (uint16_t) (1u << (wgt_layer_prec - 1));
 
-            // Calculate filters on-chip
-            std::vector<std::vector<std::vector<std::vector<std::vector<uint16_t>>>>> tmp_wgt_queue (K,
-                    std::vector<std::vector<std::vector<std::vector<uint16_t>>>>(Ck,
-                    std::vector<std::vector<std::vector<uint16_t>>>(stride,
-                    std::vector<std::vector<uint16_t>>(stride, std::vector<uint16_t>()))));
-
-            for (int ck = 0; ck < Ck; ck++) {
-
-                uint64_t zero_count = 0;
-                for(int k = 0; k < K; ++k) {
-                    for (int r = 0; r < R; r++) {
-                        int sx = (r + padding) % stride;
-                        for (int s = 0; s < S; s++) {
-                            int sy = (s + padding) % stride;
-                            auto wgt_bits = wgt.get(k, ck, r, s);
-                            if (wgt_bits == 0 && zero_count < network_bits) {
-                                zero_count++;
-                            } else {
-                                tmp_wgt_queue[k][ck][sx][sy].push_back(wgt_bits);
-                                zero_count = 0;
-                            }
-                        } // Y
-                    } // X
-
-                } // Filters
-            } // Channels
-
-            std::vector<uint64_t> wgt_queue_bits (K, 0);
-
-            for (int k = 0; k < K; ++k) {
-                for (int ck = 0; ck < Ck; ck++) {
-
-                    for (int sx = 0; sx < stride; ++sx) {
-                        for (int sy = 0; sy < stride; ++sy) {
-
-                            const auto &wgt_queue_pe = tmp_wgt_queue[k][ck][sx][sy];
-
-                            for (int f = 0; f < wgt_queue_pe.size(); f += F) {
-
-                                uint8_t max_bit = 0;
-                                for (int ff = f; ff < std::min(f + (int) F, (int) wgt_queue_pe.size()); ff++) {
-                                    auto wgt_bits = wgt_queue_pe[ff];
-
-                                    if (signed_weights) {
-                                        if ((wgt_bits & wgt_mask) != 0) {
-                                            wgt_bits = wgt_bits & ~wgt_mask;
-                                        }
-                                    }
-
-                                    const auto &min_max_wgt_bits = this->minMax(wgt_bits);
-                                    auto max_wgt_bit = std::get<1>(min_max_wgt_bits);
-                                    if (signed_weights) max_wgt_bit += 1;
-
-                                    if (max_wgt_bit > max_bit) max_bit = max_wgt_bit;
-                                }
-
-                                uint64_t width = max_bit + 1u;
-                                wgt_queue_bits[k] += log2(network_bits); // zero overhead
-                                if (BASELINE) {
-                                    wgt_queue_bits[k] += F * network_bits;
-                                } else {
-                                    wgt_queue_bits[k] += log2(network_bits); // width overhead
-                                    wgt_queue_bits[k] += F * width;
-                                }
-
-                            }
-
-                        } // Stride Y
-                    } // Stride X
-
-                } // Channels
-            } //Filters
-
-            // Off-chip memory layout
-            std::vector<std::tuple<uint64_t, uint64_t>> wgt_address_map (K);
-
-            // Addresses per filter
-            for (int k = 0; k < K; ++k) {
-                uint64_t bytes = ceil(wgt_queue_bits[k] / 64) * 0x40; // Align to 64 bits
-                wgt_address_map[k] = std::make_tuple(wgt_next_addr, wgt_next_addr + bytes);
-                wgt_next_addr += bytes;
-            }
-
-            tmp_wgt_queue.clear();
-            std::vector<std::vector<int>> kc_filters;
-
-            int kc_count = 0;
-            uint64_t wgt_size = 0;
-            std::vector<int> kc_set;
-            for (int k = 0; k < wgt_queue_bits.size(); ++k) {
-
-                auto filter_size = ceil(wgt_queue_bits[k] / 8.);
-                if (kc_count < Kc && (wgt_size + filter_size) < this->memory.getOnChipWgtSize()) {
-                    kc_set.push_back(k);
-                    wgt_size += filter_size;
-                } else {
-                    assert(wgt_size != 0);
-                    auto tmp = kc_set;
-                    kc_set.clear();
-                    wgt_size = 0;
-
-                    kc_filters.emplace_back(tmp);
-                    kc_set.push_back(k);
-                    wgt_size += filter_size;
-
-                    if (kc_count == Kc) kc_count = 0;
-                }
-
-                if (k == (K - 1)) {
-                    kc_filters.emplace_back(kc_set);
-                    kc_set.clear();
-                }
-
-                kc_count++;
-            }
-
             // Pre-allocate wgt queues
-            wgt_addr_queue wgt_queue (kc_filters.size(), std::vector<std::vector<std::vector<wgt_idxAddrMap>>>(Ck,
+            uint64_t Kc_sets = ceil(K/(double)Kc);
+            wgt_addr_queue wgt_queue (Kc_sets, std::vector<std::vector<std::vector<wgt_idxAddrMap>>>(Ck,
                     std::vector<std::vector<wgt_idxAddrMap>>(stride, std::vector<wgt_idxAddrMap>(stride,
                     wgt_idxAddrMap()))));
 
-            for(int kc = 0; kc < kc_filters.size(); ++kc) {
+            for(int kc = 0; kc < K; kc += Kc) {
 
-                int k_begin = kc_filters[kc].front();
-                int k_end = kc_filters[kc].back();
+                int k_begin = kc;
+                int k_end = std::min(kc + Kc, (int)K);
 
                 uint64_t zero_count = 0;
                 for(int ck = 0; ck < Ck; ck++) {
 
-                    for(int k = k_begin; k <= k_end; k++) {
-
-                        auto max_addr = std::get<1>(wgt_address_map[k]);
-
+                    for(int k = k_begin; k < k_end; k++) {
                         for(int r = 0; r < R; r++) {
                             int sx = (r + padding) % stride;
                             for(int s = 0; s < S; s++) {
@@ -739,8 +621,8 @@ namespace core {
                                 if (wgt_bits == 0 && zero_count < network_bits) {
                                     zero_count++;
                                 } else {
-                                    wgt_queue[kc][ck][sx][sy].emplace_back(std::make_tuple(k, r, s, wgt_bits,
-                                            max_addr, network_bits));
+                                    wgt_queue[kc / Kc][ck][sx][sy].emplace_back(std::make_tuple(k, r, s, wgt_bits,
+                                            network_bits));
                                     zero_count = 0;
                                 }
                             } // Y
@@ -750,16 +632,23 @@ namespace core {
                 } // Channels
             } // Filter sets
 
-            std::vector<std::vector<uint64_t>> wgt_on_chip_accesses (kc_filters.size(), std::vector<uint64_t>(Ck, 0));
+            std::vector<std::vector<std::tuple<uint64_t, uint64_t>>> wgt_addresses (Kc_sets,
+                    std::vector<std::tuple<uint64_t, uint64_t>>(Ck, std::tuple<uint64_t, uint64_t>()));
+
+            std::vector<std::vector<uint64_t>> wgt_on_chip_accesses (Kc_sets, std::vector<uint64_t>(Ck, 0));
 
             uint64_t batch_wgt_bits = 0;
 
-            for(int kc = 0; kc < kc_filters.size(); ++kc) {
+            std::vector<std::vector<bool>> wgt_fit_on_chip (Kc_sets, std::vector<bool>(Ck, false));
+
+            for(int kc = 0; kc < Kc_sets; ++kc) {
 
                 for (int ck = 0; ck < Ck; ck++) {
 
                     uint8_t wgt_data_pt = 0u;
                     wgt_on_chip_accesses[kc][ck]++;
+                    uint64_t batch_wgt_bits_ch = 0;
+
                     for (int sx = 0; sx < stride; ++sx) {
                         for (int sy = 0; sy < stride; ++sy) {
 
@@ -785,17 +674,17 @@ namespace core {
                                 }
 
                                 uint64_t width = max_bit + 1u;
-                                batch_wgt_bits += log2(network_bits); // zero overhead
+                                batch_wgt_bits_ch += log2(network_bits); // zero overhead
                                 if (BASELINE) {
-                                    batch_wgt_bits += F * network_bits;
+                                    batch_wgt_bits_ch += F * network_bits;
                                     wgt_data_pt += network_bits;
                                 } else {
-                                    batch_wgt_bits += log2(network_bits); // width overhead
-                                    batch_wgt_bits += F * width;
+                                    batch_wgt_bits_ch += log2(network_bits); // width overhead
+                                    batch_wgt_bits_ch += F * width;
                                     wgt_data_pt += width;
 
                                     for (int ff = f; ff < std::min(f + (int) F, (int) wgt_queue_pe.size()); ff++) {
-                                        std::get<5>(wgt_queue_pe[ff]) = (int)width;
+                                        std::get<4>(wgt_queue_pe[ff]) = (int)width;
                                     }
                                 }
 
@@ -810,13 +699,18 @@ namespace core {
                     } // Stride X
 
                     if (wgt_data_pt != 0) {
-                        batch_wgt_bits += (network_bits - wgt_data_pt) * F;
+                        batch_wgt_bits_ch += (network_bits - wgt_data_pt) * F;
                     }
+
+                    wgt_fit_on_chip[kc][ck] = batch_wgt_bits_ch < this->memory.getOnChipWgtSize();
+                    batch_wgt_bits += batch_wgt_bits_ch;
+
+                    uint64_t bytes = ceil(batch_wgt_bits_ch / 64) * 0x40; // Align to 64 bits
+                    wgt_addresses[kc][ck] = std::make_tuple(wgt_next_addr, wgt_next_addr + bytes);
+                    wgt_next_addr += bytes;
 
                 } // channels
             } // Filter set
-
-            batch_wgt_bits += Ck * 16;
 
             for(int n = 0; n < N; n++) {
 
@@ -952,22 +846,7 @@ namespace core {
                 uint64_t baseline_crossbar = 0;
                 uint64_t compressed_crossbar = 0;
                 this->memory.requests.clear();
-                for(int kc_it = 0; kc_it < kc_filters.size(); ++kc_it) {
-
-                    const auto &k_filters = kc_filters[kc_it];
-                    int kc = *k_filters.begin();
-
-                    // Request filters
-                    for (const auto &k : k_filters) {
-                        auto min_addr = std::get<0>(wgt_address_map[k]);
-                        auto max_addr = std::get<1>(wgt_address_map[k]);
-
-                        for (auto address = min_addr; address <= max_addr; address += 0x40) {
-                            this->memory.request_address(address, false);
-                            wgt_off_chip_bytes->value[layer_it][n] += 8;
-                            wgt_off_chip->value[layer_it][n]++;
-                        }
-                    }
+                for(int kc = 0; kc < K; kc += Kc) {
 
                     filters_on_chip->value[layer_it][n]++;
 
@@ -977,16 +856,28 @@ namespace core {
 
                     for(int ck = 0; ck < Ck; ck++) {
 
+                        auto wait_addr = std::get<1>(wgt_addresses[kc / Kc][ck]);
+                        if (wgt_fit_on_chip[kc / Kc][ck]) {
+                            auto min_addr = std::get<0>(wgt_addresses[kc / Kc][ck]);
+                            auto max_addr = std::get<1>(wgt_addresses[kc / Kc][ck]);
+
+                            for (auto address = min_addr; address <= max_addr; address += 0x40) {
+                                this->memory.request_address(address, false);
+                                wgt_off_chip_bytes->value[layer_it][n] += 8;
+                                wgt_off_chip->value[layer_it][n]++;
+                            }
+                        }
+
                         std::vector<uint64_t> pe_cycles (Wt * Ht, 0);
                         for (int sx = 0; sx < stride; sx++) {
                             for (int sy = 0; sy < stride; sy++) {
 
-                                const auto &wgt_queue_pe = wgt_queue[kc_it][ck][sx][sy];
+                                const auto &wgt_queue_pe = wgt_queue[kc / Kc][ck][sx][sy];
                                 auto act_queue_size = sys::get_max(queue_size[ct + ck][sx][sy]);
 
                                 // On-chip accesses
                                 for (int i = 0; i < act_queue_size; i += I) {
-                                    wgt_on_chip->value[layer_it][n] += wgt_on_chip_accesses[kc_it][ck];
+                                    wgt_on_chip->value[layer_it][n] += wgt_on_chip_accesses[kc / Kc][ck];
                                 }
 
                                 // On-chip accesses
@@ -997,6 +888,18 @@ namespace core {
                                 }
 
                                 for (int i = 0; i < act_queue_size; i += I) {
+
+                                    if (!wgt_fit_on_chip[kc / Kc][ck]) {
+                                        auto min_addr = std::get<0>(wgt_addresses[kc / Kc][ck]);
+                                        auto max_addr = std::get<1>(wgt_addresses[kc / Kc][ck]);
+
+                                        for (auto address = min_addr; address <= max_addr; address += 0x40) {
+                                            this->memory.request_address(address, false);
+                                            wgt_off_chip_bytes->value[layer_it][n] += 8;
+                                            wgt_off_chip->value[layer_it][n]++;
+                                        }
+                                    }
+
                                     for (int f = 0; f < wgt_queue_pe.size(); f += F) {
 
                                         for(int pex = 0; pex < Wt; pex++) {
@@ -1017,9 +920,8 @@ namespace core {
                                                         auto k = std::get<0>(wgt_index);
                                                         auto r = std::get<1>(wgt_index);
                                                         auto s = std::get<2>(wgt_index);
-                                                        auto wgt_addr = std::get<4>(wgt_index);
-                                                        auto wgt_w = std::get<5>(wgt_index);
-                                                        this->memory.wait_for(wgt_addr);
+                                                        auto wgt_w = std::get<4>(wgt_index);
+                                                        this->memory.wait_for(wait_addr);
 
                                                         int w = (x - r) / stride;
                                                         int h = (y - s) / stride;
@@ -1029,8 +931,11 @@ namespace core {
                                                             acc[acc_idx] += 1;
                                                         }
 
-                                                        baseline_crossbar += network_bits + network_bits;
-                                                        compressed_crossbar += act_w + wgt_w;
+                                                        auto baseline_width = network_bits + network_bits/2;
+                                                        auto compressed_width = act_w + wgt_w;
+                                                        baseline_crossbar += baseline_width;
+                                                        compressed_crossbar += baseline_width < compressed_width ?
+                                                                baseline_width : compressed_width;
 
                                                     } // Inner prod Wgt
                                                 } // Inner prod Act
