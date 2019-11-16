@@ -462,6 +462,7 @@ namespace core {
             }
         }
 
+        int skip = 0;
         std::vector<int> x_windows, y_windows;
         int x_counter = 0, y_counter = 0;
         while(this->iterateWindows(Ox, Oy, x_windows, y_windows, x_counter, y_counter, IN_SET_SIZE)) {
@@ -531,7 +532,6 @@ namespace core {
                 uint64_t filter_pes = set == num_filter_sets - 1? num_filters % WGT_SET_SIZE : WGT_SET_SIZE;
                 if (filter_pes == 0) filter_pes = WGT_SET_SIZE;
 
-                int skip = 0;
                 for (int time = 0; time < time_per_window; ++time) {
 
                     stats.bank_reads += x_windows.size();
@@ -763,6 +763,7 @@ namespace core {
             pad_x = asym_pad ? 0 : pad_x;
             pad_y = asym_pad ? 0 : pad_y;
 
+            int skip = 0;
             std::vector<int> x_windows, y_windows;
             int x_counter = 0, y_counter = 0;
             while(this->iterateWindows(Ox, Oy, x_windows, y_windows, x_counter, y_counter, IN_SET_SIZE)) {
@@ -832,7 +833,6 @@ namespace core {
                     uint64_t filter_pes = set == num_filter_sets - 1? num_filters % WGT_SET_SIZE : WGT_SET_SIZE;
                     if (filter_pes == 0) filter_pes = WGT_SET_SIZE;
 
-                    int skip = 0;
                     for (int time = 0; time < time_per_window; ++time) {
 
                         stats.bank_reads += x_windows.size();
@@ -1019,6 +1019,7 @@ namespace core {
             }
         }
 
+        int skip = 0;
         auto num_act_ch_sets = (uint64_t)ceil(act_channels / (double)ACT_SET_SIZE);
         for (int window = 0; window < (Kx * Ky); ++window) {
             auto x_window = window % Kx;
@@ -1085,7 +1086,6 @@ namespace core {
                     uint64_t out_grad_pes = set == num_out_grad_sets - 1? out_channels % OUT_SET_SIZE : OUT_SET_SIZE;
                     if (out_grad_pes == 0) out_grad_pes = OUT_SET_SIZE;
 
-                    int skip = 0;
                     for (int time = 0; time < time_per_act_channel; ++time) {
 
                         counter += N_ROWS;
