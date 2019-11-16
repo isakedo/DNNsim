@@ -1271,6 +1271,10 @@ namespace core {
                     base::Array<T> act = layer.getActivations();
                     if(fc && act.getDimensions() == 4) act.reshape_to_2D();
                     if(fc) act.reshape_to_4D();
+
+                    if (batch >= act.getShape()[0])
+                        continue;
+
                     act.get_batch(batch);
 
                     base::Array<T> wgt = layer.getWeights();
@@ -1365,6 +1369,10 @@ namespace core {
                     base::Array<T> act = layer.getActivations();
                     if (fc && act.getDimensions() == 4) act.reshape_to_2D();
                     if (fc) act.reshape_to_4D();
+
+                    if (batch >= act.getShape()[0])
+                        continue;
+
                     act.get_batch(batch);
 
                     base::Array<T> wgt = layer.getWeights();

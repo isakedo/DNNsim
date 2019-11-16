@@ -142,7 +142,15 @@ namespace base {
          * Get number of batches in the layer traces
          * @return Number of layers
          */
-        uint64_t getBatches() const { return this->layers.front().getActivations().getShape()[0]; }
+        uint64_t getBatches() const {
+            uint64_t max_batches = 0;
+            for (const auto &layer : this->layers) {
+                uint64_t batches = layer.getActivations().getShape()[0];
+                if (batches > max_batches)
+                    max_batches = batches;
+            }
+            return max_batches;
+        }
 
         /**
          * Get number of layers in the network
