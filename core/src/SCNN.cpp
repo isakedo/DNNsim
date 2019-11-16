@@ -523,6 +523,7 @@ namespace core {
         auto out_write_prev_layer = stats.register_uint_t("out_write_prev_layer", 0 , sys::AverageTotal);
         auto acc_updates = stats.register_uint_t("acc_updates", 0 , sys::AverageTotal);
         auto crossbar_usage = stats.register_double_t("crossbar_usage", 0 , sys::Average);
+        auto max_wgt_memory = stats.register_uint_t("max_wgt_memory", 0 , sys::Max);
 
         uint64_t wgt_next_addr = 0;
         uint64_t wgt_base_addr = 0x00000000;
@@ -638,6 +639,7 @@ namespace core {
             std::vector<std::vector<uint64_t>> wgt_on_chip_accesses (Kc_sets, std::vector<uint64_t>(Ck, 0));
 
             uint64_t batch_wgt_bits = 0;
+            uint64_t max_wgt_bits = 0;
 
             std::vector<std::vector<bool>> wgt_fit_on_chip (Kc_sets, std::vector<bool>(Ck, false));
 
@@ -655,6 +657,11 @@ namespace core {
                             auto &wgt_queue_pe = wgt_queue[kc][ck][sx][sy];
 
                             for (int f = 0; f < wgt_queue_pe.size(); f += F) {
+
+                                if (wgt_data_pt >= network_bits) {
+                                    wgt_data_pt %= network_bits;
+                                    wgt_on_chip_accesses[kc][ck]++;
+                                }
 
                                 uint8_t max_bit = 0;
                                 for (int ff = f; ff < std::min(f + (int) F, (int) wgt_queue_pe.size()); ff++) {
@@ -688,17 +695,17 @@ namespace core {
                                     }
                                 }
 
-                                if (wgt_data_pt >= network_bits) {
-                                    wgt_data_pt %= network_bits;
-                                    wgt_on_chip_accesses[kc][ck]++;
-                                }
-
                             }
 
                         } // Stride Y
                     } // Stride X
 
                     if (wgt_data_pt != 0) {
+
+                        if (wgt_data_pt >= network_bits) {
+                            wgt_data_pt %= network_bits;
+                        }
+
                         batch_wgt_bits_ch += (network_bits - wgt_data_pt) * F;
                     }
 
@@ -708,6 +715,9 @@ namespace core {
                     uint64_t bytes = ceil(batch_wgt_bits_ch / 64) * 0x40; // Align to 64 bits
                     wgt_addresses[kc][ck] = std::make_tuple(wgt_next_addr, wgt_next_addr + bytes);
                     wgt_next_addr += bytes;
+
+                    if (batch_wgt_bits_ch > max_wgt_bits)
+                        max_wgt_bits = batch_wgt_bits_ch;
 
                 } // channels
             } // Filter set
@@ -784,6 +794,12 @@ namespace core {
 
                                     for (int i = 0; i < act_queue_pe.size(); i += I) {
 
+                                        if (act_data_pt >= network_bits) {
+                                            act_data_pt %= network_bits;
+                                            act_on_chip_accesses[c][pex][pey]++;
+                                            batch_out_write++;
+                                        }
+
                                         uint8_t max_bit = 0;
                                         for(int ii = i; ii < std::min(i + (int)I, (int)act_queue_pe.size()); ii++) {
                                             auto act_bits = std::get<2>(act_queue_pe[ii]);
@@ -816,12 +832,6 @@ namespace core {
                                             }
                                         }
 
-                                        if (act_data_pt >= network_bits) {
-                                            act_data_pt %= network_bits;
-                                            act_on_chip_accesses[c][pex][pey]++;
-                                            batch_out_write++;
-                                        }
-
                                     }
 
                                 } // Stride Y
@@ -831,6 +841,11 @@ namespace core {
                     } // PE X
 
                     if (act_data_pt != 0) {
+
+                        if (act_data_pt >= network_bits) {
+                            act_data_pt %= network_bits;
+                        }
+
                         batch_act_bits += (network_bits - act_data_pt) * I;
                     }
 
@@ -841,6 +856,7 @@ namespace core {
                 act_comp_size->value[layer_it][n] = batch_act_bits;
                 wgt_comp_size->value[layer_it][n] = batch_wgt_bits;
                 out_write_prev_layer->value[layer_it][n] = batch_out_write;
+                max_wgt_memory->value[layer_it][n] = ceil(max_wgt_bits /8.);
 
                 // Compute
                 uint64_t baseline_crossbar = 0;
