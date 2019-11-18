@@ -198,7 +198,7 @@ int main(int argc, char *argv[]) {
 					for(const auto &experiment : simulate.experiments) {
 
 					    // Generate memory
-					    core::Memory memory = core::Memory("ini/DDR3_micron_32M_8B_x4_sg125.ini", "system.ini", 16384,
+					    core::Memory memory = core::Memory("ini/DDR4_3200.ini", "system.ini", 8192,
 					            experiment.act_memory_size, experiment.wgt_memory_size, "crap");
 
                         if(experiment.architecture == "None") {
@@ -235,8 +235,8 @@ int main(int argc, char *argv[]) {
 		                for(const auto &experiment : simulate.experiments) {
 
                             // Generate memory
-                            core::Memory memory = core::Memory("ini/DDR3_micron_32M_8B_x4_sg125.ini", "system.ini",
-                                    16384, experiment.act_memory_size, experiment.wgt_memory_size, network.getName());
+                            core::Memory memory = core::Memory("ini/DDR4_3200.ini", "system.ini",
+                                    8192, experiment.act_memory_size, experiment.wgt_memory_size, network.getName());
 
 		                    if(experiment.architecture == "None") {
 		                    	core::Simulator<float> DNNsim(N_THREADS, FAST_MODE, QUIET, CHECK);
@@ -265,8 +265,8 @@ int main(int argc, char *argv[]) {
 						for(const auto &experiment : simulate.experiments) {
 
                             // Generate memory
-                            core::Memory memory = core::Memory("ini/DDR3_micron_32M_8B_x4_sg125.ini", "system.ini",
-                                    16384, experiment.act_memory_size, experiment.wgt_memory_size, network.getName());
+                            core::Memory memory = core::Memory("ini/DDR4_3200.ini", "system.ini",
+                                    8192, experiment.act_memory_size, experiment.wgt_memory_size, network.getName());
 
                             if(!QUIET) std::cout << "Starting simulation " << experiment.task << " for architecture "
                                     << experiment.architecture << std::endl;

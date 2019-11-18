@@ -892,11 +892,6 @@ namespace core {
                                 auto act_queue_size = sys::get_max(queue_size[ct + ck][sx][sy]);
 
                                 // On-chip accesses
-                                for (int i = 0; i < act_queue_size; i += I) {
-                                    wgt_on_chip->value[layer_it][n] += wgt_on_chip_accesses[kc / Kc][ck];
-                                }
-
-                                // On-chip accesses
                                 for(int pex = 0; pex < Wt; pex++) {
                                     for (int pey = 0; pey < Ht; pey++) {
                                         act_on_chip->value[layer_it][n] += act_on_chip_accesses[ct + ck][pex][pey];
@@ -914,6 +909,11 @@ namespace core {
                                             wgt_off_chip_bytes->value[layer_it][n] += 8;
                                             wgt_off_chip->value[layer_it][n]++;
                                         }
+                                    }
+
+                                    // On-chip accesses
+                                    for (int i = 0; i < act_queue_size; i += I) {
+                                        wgt_on_chip->value[layer_it][n] += wgt_on_chip_accesses[kc / Kc][ck];
                                     }
 
                                     for (int f = 0; f < wgt_queue_pe.size(); f += F) {

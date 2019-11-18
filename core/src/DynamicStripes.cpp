@@ -718,7 +718,7 @@ namespace core {
         auto act_bits_profiled = stats.register_uint_t("act_bits_profiled", 0, sys::AverageTotal);
         auto act_bits_datawidth = stats.register_uint_t("act_bits_datawidth", 0, sys::AverageTotal);
         auto act_bits_scnn = stats.register_uint_t("act_bits_scnn", 0, sys::AverageTotal);
-        auto act_bits_bdi = stats.register_uint_t("act_bits_bdi", 0, sys::AverageTotal);
+        auto act_bits_fpc = stats.register_uint_t("act_bits_fpc", 0, sys::AverageTotal);
         auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
         auto wgt_avg_width = stats.register_double_t("wgt_avg_width", 0, sys::Average);
         auto wgt_width_reduction = stats.register_double_t("wgt_width_reduction", 0, sys::Average);
@@ -726,7 +726,7 @@ namespace core {
         auto wgt_bits_profiled = stats.register_uint_t("wgt_bits_profiled", 0, sys::AverageTotal);
         auto wgt_bits_datawidth = stats.register_uint_t("wgt_bits_datawidth", 0, sys::AverageTotal);
         auto wgt_bits_scnn = stats.register_uint_t("wgt_bits_scnn", 0, sys::AverageTotal);
-        auto wgt_bits_bdi = stats.register_uint_t("wgt_bits_bdi", 0, sys::AverageTotal);
+        auto wgt_bits_fpc = stats.register_uint_t("wgt_bits_fpc", 0, sys::AverageTotal);
         auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
         auto network_bits = network.getNetwork_bits();
@@ -739,7 +739,7 @@ namespace core {
 
         for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
-            if (layer_it != 0) signed_activations = false;
+            //if (layer_it != 0) signed_activations = false;
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
@@ -836,8 +836,8 @@ namespace core {
                                         int pos = 128 - act_bits;
                                         act_distr->value[pos][layer_it][n]++;
                                     } else {
-                                        int pos = act_bits + 127;
-                                        act_distr->value[pos][layer_it][n]++;
+                                        //int pos = act_bits + 127;
+                                        //act_distr->value[pos][layer_it][n]++;
                                     }
                                 } else {
                                     act_distr->value[act_bits][layer_it][n]++;
@@ -1103,26 +1103,19 @@ namespace core {
             for(int n = 0; n < batch_size; n++)
                 wgt_bits_scnn->value[layer_it][n] = batch_wgt_bits_scnn;
 
-            // BDI
+            // FPC
+            auto value_per_block = 4;
             for(int n = 0; n < batch_size; n++) {
 
-                uint64_t batch_act_bits_bdi = 0;
+                uint64_t batch_act_bits_fpc = 0;
                 for(int r = 0; r < R; r++) {
-                    for (int k = 0; k < act_channels; k += N_LANES) {
-                        for (int j = 0; j < Ny; j++) {
-                            for (int i = 0; i < Nx; i++) {
+                    for (int j = 0; j < Ny; j++) {
+                        for (int i = 0; i < Nx; i++) {
+                            for (int k = 0; k < act_channels; k += value_per_block) {
 
-
-                                uint64_t delta_0 = 0, delta_1 = 0;
-
-                                if(lstm)
-                                    delta_1 = act.get(r, n, k);
-                                else
-                                    delta_1 = act.get(n, k, i, j);
-
-                                bool all_zero = true;
-                                uint64_t max_width = 0;
-                                for(int channel = k; channel < (k + (int)N_LANES); channel++) {
+                                int count = 0;
+                                int bits = 0;
+                                for(int channel = k; channel < (k + (int)value_per_block); channel++) {
 
                                     if (channel >= act_channels) {
                                         continue;
@@ -1134,48 +1127,24 @@ namespace core {
                                     else
                                         act_bits = act.get(n, channel, i, j);
 
-                                    if (act_bits != 0) all_zero = false;
-
-                                    bool neg = false;
-                                    if((act_bits & act_mask) != 0) {
-                                        act_bits = act_bits & ~act_mask;
-                                        neg = true;
+                                    if ((count == 0 || count ==1) && act_bits != 0) {
+                                        bits = 32;
+                                        break;
+                                    } else if (count == 2 && act_bits != 0) {
+                                        bits = 16;
+                                        break;
+                                    } else if (count == 3 && act_bits != 0) {
+                                        auto is_4bit = act_bits & 0xF0u;
+                                        if (is_4bit == 0) bits = 4;
+                                        else bits = 8;
+                                    } else if (count == 3) {
+                                        bits = 3;
                                     }
 
-                                    auto value_0 = act_bits - delta_0;
-                                    auto value_1 = delta_1 - act_bits;
-
-                                    const auto &min_max_val_0_bits = this->minMax(value_0);
-                                    const auto &min_max_val_1_bits = this->minMax(value_1);
-
-                                    auto max_val_0_bit = std::get<1>(min_max_val_0_bits);
-                                    auto max_val_1_bit = std::get<1>(min_max_val_1_bits);
-
-                                    if(neg) max_val_0_bit += 1;
-                                    if(neg) max_val_1_bit += 1;
-
-                                    auto max_val_bit = std::min(max_val_0_bit, max_val_1_bit);
-
-                                    if (max_val_bit <= 2 && max_width < 2) {
-                                        max_width = 2;
-                                    } else if (max_val_bit <= 4 && max_width < 4) {
-                                        max_width = 4;
-                                    } else {
-                                        max_width = 8;
-                                    }
-
+                                    count ++;
                                 }
 
-                                if (all_zero) {
-                                    batch_act_bits_bdi += 8 + 4;
-                                } else {
-
-                                    uint64_t compressed_size = max_width * N_LANES + network_bits + 4;
-                                    uint64_t baseline_size = network_bits * N_LANES + 4;
-
-                                    if (compressed_size < baseline_size) batch_act_bits_bdi += compressed_size;
-                                    else batch_act_bits_bdi += baseline_size;
-                                }
+                                batch_act_bits_fpc += bits + 3;
 
 
                             }
@@ -1183,22 +1152,19 @@ namespace core {
                     }
                 }
 
-                act_bits_bdi->value[layer_it][n] = batch_act_bits_bdi;
+                act_bits_fpc->value[layer_it][n] = batch_act_bits_fpc;
 
             }
 
-            uint64_t batch_wgt_bits_bdi = 0;
+            uint64_t batch_wgt_bits_fpc = 0;
             for(int m = 0; m < num_filters; m++) {
-                for (int k = 0; k < wgt_channels; k += N_LANES) {
+                for (int k = 0; k < wgt_channels; k += value_per_block) {
                     for (int j = 0; j < Ky; j++) {
                         for (int i = 0; i < Kx; i++) {
 
-
-                            uint64_t delta_0 = 0, delta_1 = wgt.get(m, k, i, j);;
-
-                            bool all_zero = true;
-                            uint64_t max_width = 0;
-                            for(int channel = k; channel < (k + (int)N_LANES); channel++) {
+                            int count = 0;
+                            int bits = 0;
+                            for(int channel = k; channel < (k + (int)value_per_block); channel++) {
 
                                 if (channel >= wgt_channels) {
                                     continue;
@@ -1206,49 +1172,24 @@ namespace core {
 
                                 uint16_t wgt_bits = wgt.get(m, channel, i, j);
 
-
-                                if (wgt_bits != 0) all_zero = false;
-
-                                bool neg = false;
-                                if((wgt_bits & act_mask) != 0) {
-                                    wgt_bits = wgt_bits & ~wgt_mask;
-                                    neg = true;
+                                if ((count == 0 || count == 1) && wgt_bits != 0) {
+                                    bits = 32;
+                                    break;
+                                } else if (count == 2 && wgt_bits != 0) {
+                                    bits = 16;
+                                    break;
+                                } else if (count == 3 && wgt_bits != 0) {
+                                    auto is_4bit = wgt_bits & 0xF0u;
+                                    if (is_4bit == 0) bits = 4;
+                                    else bits = 8;
+                                } else if (count == 3) {
+                                    bits = 3;
                                 }
-
-                                auto value_0 = wgt_bits - delta_0;
-                                auto value_1 = delta_1 - wgt_bits;
-
-                                const auto &min_max_val_0_bits = this->minMax(value_0);
-                                const auto &min_max_val_1_bits = this->minMax(value_1);
-
-                                auto max_val_0_bit = std::get<1>(min_max_val_0_bits);
-                                auto max_val_1_bit = std::get<1>(min_max_val_1_bits);
-
-                                if(neg) max_val_0_bit += 1;
-                                if(neg) max_val_1_bit += 1;
-
-                                auto max_val_bit = std::min(max_val_0_bit, max_val_1_bit);
-
-                                if (max_val_bit <= 2 && max_width < 2) {
-                                    max_width = 2;
-                                } else if (max_val_bit <= 4 && max_width < 4) {
-                                    max_width = 4;
-                                } else {
-                                    max_width = 8;
-                                }
+                                count++;
 
                             }
 
-                            if (all_zero) {
-                                batch_wgt_bits_bdi += 8 + 4;
-                            } else {
-
-                                uint64_t compressed_size = max_width * N_LANES + network_bits + 4;
-                                uint64_t baseline_size = network_bits * N_LANES + 4;
-
-                                if (compressed_size < baseline_size) batch_wgt_bits_bdi += compressed_size;
-                                else batch_wgt_bits_bdi += baseline_size;
-                            }
+                            batch_wgt_bits_fpc += bits + 3;
 
                         }
                     }
@@ -1256,9 +1197,8 @@ namespace core {
                 }
             }
 
-
             for(int n = 0; n < batch_size; n++)
-                wgt_bits_bdi->value[layer_it][n] = batch_wgt_bits_bdi;
+                wgt_bits_fpc->value[layer_it][n] = batch_wgt_bits_fpc;
 
         }
 
@@ -2098,7 +2038,7 @@ namespace core {
             std::vector<std::list<uint64_t>> &window_requests, const address_map &act_address_map,
             const std::vector<std::vector<uint64_t>> &act_datawidth_size, uint64_t on_chip_size, uint64_t n,
             uint64_t Kx, uint64_t Ky, uint64_t Nx, uint64_t Ny, uint64_t act_channels, uint64_t out_x, uint64_t out_y,
-            uint64_t stride, uint64_t N_COLUMNS, uint64_t values_block) {
+            uint64_t stride, uint64_t N_COLUMNS, uint64_t values_block, uint64_t &max_act) {
 
         std::vector<std::vector<bool>> requested_address = std::vector<std::vector<bool>>(Ny,
                 std::vector<bool>(Nx, false));
@@ -2145,6 +2085,9 @@ namespace core {
 
             }
 
+            if (window_set_size > max_act)
+                max_act = window_set_size;
+
             // If window set doesn't fit, return to list and exit
             if ((act_size + window_set_size) > on_chip_size) {
                 window_list.insert(window_list.begin(), tmp_windows_on_chip.begin(), tmp_windows_on_chip.end());
@@ -2164,7 +2107,7 @@ namespace core {
     void read_filter_sets(std::list<int> &filter_list, std::vector<int> &filters_on_chip,
             std::vector<std::list<uint64_t>> &filter_requests, const address_map &wgt_address_map,
             const std::vector<uint64_t> &wgt_datawidth_size, uint64_t on_chip_size, uint64_t Kx,
-            uint64_t Ky, uint64_t wgt_channels, uint64_t N_ROWS, uint64_t values_block) {
+            uint64_t Ky, uint64_t wgt_channels, uint64_t N_ROWS, uint64_t values_block, uint64_t &max_wgt) {
 
         uint64_t wgt_size = 0;
         while (true) {
@@ -2198,6 +2141,9 @@ namespace core {
                 }
 
             }
+
+            if (filter_set_size > max_wgt)
+                max_wgt = filter_set_size;
 
             // If filter set doesn't fit, return to list and exit
             if ((wgt_size + filter_set_size) > on_chip_size) {
@@ -2234,6 +2180,8 @@ namespace core {
         auto wgt_off_chip = stats.register_uint_t("wgt_off_chip", 0 , sys::AverageTotal);
         auto wgt_off_chip_bytes = stats.register_uint_t("wgt_off_chip bytes", 0 , sys::AverageTotal);
         auto prev_out_on_chip = stats.register_uint_t("prev_out_on_chip", 0 , sys::AverageTotal);
+        auto act_max_set_bytes = stats.register_uint_t("act_max_set_bytes", 0 , sys::Max);
+        auto wgt_max_set_bytes = stats.register_uint_t("wgt_max_set_bytes", 0 , sys::Max);
 
         uint64_t act_next_addr = 0;
         uint64_t act_base_addr = 0x40000000;
@@ -2535,7 +2483,7 @@ namespace core {
 
                     read_window_sets(window_list, windows_on_chip, window_requests, act_address_map, act_datawidth_size,
                             this->memory.getOnChipActSize(), n, Kx, Ky, Nx, Ny, act_channels, out_x, out_y, stride,
-                            N_COLUMNS, values_block_act);
+                            N_COLUMNS, values_block_act, act_max_set_bytes->value[layer_it][n]);
 
                     // List all filters
                     bool first = true;
@@ -2550,7 +2498,7 @@ namespace core {
 
                         read_filter_sets(filter_list, filters_on_chip, filter_requests, wgt_address_map,
                                 wgt_datawidth_size, this->memory.getOnChipWgtSize(), Kx, Ky, wgt_channels, N_ROWS,
-                                values_block_wgt);
+                                values_block_wgt, wgt_max_set_bytes->value[layer_it][n]);
 
                         auto num_window_sets = ceil(windows_on_chip.size() / (double)N_COLUMNS);
                         auto num_filter_sets = ceil(filters_on_chip.size() / (double)N_ROWS);
