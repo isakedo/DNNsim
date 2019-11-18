@@ -524,9 +524,14 @@ namespace core {
         auto acc_updates = stats.register_uint_t("acc_updates", 0 , sys::AverageTotal);
         auto crossbar_usage = stats.register_double_t("crossbar_usage", 0 , sys::Average);
         auto max_wgt_memory = stats.register_uint_t("max_wgt_memory", 0 , sys::Max);
+        auto max_act_memory = stats.register_uint_t("max_act_memory", 0 , sys::Max);
+        auto act_fit = stats.register_uint_t("act_fit", 0 , sys::Average);
 
         uint64_t wgt_next_addr = 0;
         uint64_t wgt_base_addr = 0x00000000;
+
+        uint64_t act_next_addr = 0;
+        uint64_t act_base_addr = 0x40000000;
 
         auto network_bits = network.getNetwork_bits();
         auto signed_activations = !network.isUnsignedAct();
@@ -709,10 +714,10 @@ namespace core {
                         batch_wgt_bits_ch += (network_bits - wgt_data_pt) * F;
                     }
 
-                    wgt_fit_on_chip[kc][ck] = batch_wgt_bits_ch < this->memory.getOnChipWgtSize();
+                    wgt_fit_on_chip[kc][ck] = ceil(batch_wgt_bits_ch / 8.) < this->memory.getOnChipWgtSize();
                     batch_wgt_bits += batch_wgt_bits_ch;
 
-                    uint64_t bytes = ceil(batch_wgt_bits_ch / 64) * 0x40; // Align to 64 bits
+                    uint64_t bytes = ceil(batch_wgt_bits_ch / 64.) * 0x40; // Align to 64 bits
                     wgt_addresses[kc][ck] = std::make_tuple(wgt_next_addr, wgt_next_addr + bytes);
                     wgt_next_addr += bytes;
 
@@ -775,11 +780,17 @@ namespace core {
                 std::vector<std::vector<std::vector<uint64_t>>> act_on_chip_accesses (C,
                         std::vector<std::vector<uint64_t>>(Wt, std::vector<uint64_t>(Ht, 0)));
 
+                std::vector<std::tuple<uint64_t, uint64_t>> act_addresses (C, std::tuple<uint64_t, uint64_t>());
+                std::vector<uint64_t> max_act_addr (C, 0);
+
+
                 uint64_t batch_act_bits = 0;
+                uint64_t max_act_bits = 0;
 
                 for (int c = 0; c < C; c++) {
 
                     uint8_t act_data_pt = 0u;
+                    uint64_t batch_act_bits_ch = 0;
 
                     for(int pex = 0; pex < Wt; pex++) {
                         for(int pey = 0; pey < Ht; pey++) {
@@ -818,13 +829,13 @@ namespace core {
                                         }
 
                                         uint64_t width = max_bit + 1u;
-                                        batch_act_bits += log2(network_bits); // zero overhead
+                                        batch_act_bits_ch += log2(network_bits); // zero overhead
                                         if (BASELINE) {
-                                            batch_act_bits += I * network_bits;
+                                            batch_act_bits_ch += I * network_bits;
                                             act_data_pt += network_bits;
                                         } else {
-                                            batch_act_bits += log2(network_bits); // width overhead
-                                            batch_act_bits += I * width;
+                                            batch_act_bits_ch += log2(network_bits); // width overhead
+                                            batch_act_bits_ch += I * width;
                                             act_data_pt += width;
 
                                             for(int ii = i; ii < std::min(i + (int)I, (int)act_queue_pe.size()); ii++) {
@@ -849,14 +860,41 @@ namespace core {
                         batch_act_bits += (network_bits - act_data_pt) * I;
                     }
 
+                    batch_act_bits += batch_act_bits_ch;
+
+                    uint64_t bytes = ceil(batch_act_bits_ch / 64.) * 0x40; // Align to 64 bits
+                    act_addresses[c] = std::make_tuple(act_base_addr + act_next_addr, act_base_addr + act_next_addr + bytes);
+                    max_act_addr[c] = act_base_addr + act_next_addr + bytes;
+                    act_next_addr += bytes;
+
+                    if (batch_act_bits_ch > max_act_bits)
+                        max_act_bits = batch_act_bits_ch;
+
                 } // Channels
 
                 batch_act_bits += C * 16;
 
+                auto act_fit_on_chip = ceil(batch_act_bits / 8.) < this->memory.getOnChipActSize();
+
                 act_comp_size->value[layer_it][n] = batch_act_bits;
                 wgt_comp_size->value[layer_it][n] = batch_wgt_bits;
                 out_write_prev_layer->value[layer_it][n] = batch_out_write;
-                max_wgt_memory->value[layer_it][n] = ceil(max_wgt_bits /8.);
+                max_act_memory->value[layer_it][n] = ceil(max_act_bits / 8.);
+                max_wgt_memory->value[layer_it][n] = ceil(max_wgt_bits / 8.);
+                act_fit->value[layer_it][n] = act_fit_on_chip;
+
+                if (act_fit_on_chip) {
+                    for (const auto &ch_tuple : act_addresses) {
+                        auto min_addr = std::get<0>(ch_tuple);
+                        auto max_addr = std::get<1>(ch_tuple);
+
+                        for (auto address = min_addr; address <= max_addr; address += 0x40) {
+                            this->memory.request_address(address, false);
+                            act_off_chip_bytes->value[layer_it][n] += 8;
+                            act_off_chip->value[layer_it][n]++;
+                        }
+                    }
+                }
 
                 // Compute
                 uint64_t baseline_crossbar = 0;
@@ -871,6 +909,17 @@ namespace core {
                     if(kc >= Kg) ct = (int)Ck;
 
                     for(int ck = 0; ck < Ck; ck++) {
+
+                        if (!act_fit_on_chip) {
+                            auto min_addr = std::get<0>(act_addresses[ct + ck]);
+                            auto max_addr = std::get<1>(act_addresses[ct + ck]);
+
+                            for (auto address = min_addr; address <= max_addr; address += 0x40) {
+                                this->memory.request_address(address, false);
+                                act_off_chip_bytes->value[layer_it][n] += 8;
+                                act_off_chip->value[layer_it][n]++;
+                            }
+                        }
 
                         auto wait_addr = std::get<1>(wgt_addresses[kc / Kc][ck]);
                         if (wgt_fit_on_chip[kc / Kc][ck]) {
@@ -932,6 +981,7 @@ namespace core {
                                                         auto x = std::get<0>(act_index);
                                                         auto y = std::get<1>(act_index);
                                                         auto act_w = std::get<3>(act_index);
+                                                        this->memory.wait_for(max_act_addr[ct + ck]);
 
                                                         auto k = std::get<0>(wgt_index);
                                                         auto r = std::get<1>(wgt_index);

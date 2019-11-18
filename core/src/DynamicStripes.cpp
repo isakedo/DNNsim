@@ -719,6 +719,8 @@ namespace core {
         auto act_bits_datawidth = stats.register_uint_t("act_bits_datawidth", 0, sys::AverageTotal);
         auto act_bits_scnn = stats.register_uint_t("act_bits_scnn", 0, sys::AverageTotal);
         auto act_bits_fpc = stats.register_uint_t("act_bits_fpc", 0, sys::AverageTotal);
+        auto act_bits_bdi = stats.register_uint_t("act_bits_bdi", 0, sys::AverageTotal);
+        auto act_bits_bdi_opt = stats.register_uint_t("act_bits_bdi_opt", 0, sys::AverageTotal);
         auto act_prec = stats.register_uint_t("activations_precision", 0, sys::Average);
         auto wgt_avg_width = stats.register_double_t("wgt_avg_width", 0, sys::Average);
         auto wgt_width_reduction = stats.register_double_t("wgt_width_reduction", 0, sys::Average);
@@ -727,6 +729,8 @@ namespace core {
         auto wgt_bits_datawidth = stats.register_uint_t("wgt_bits_datawidth", 0, sys::AverageTotal);
         auto wgt_bits_scnn = stats.register_uint_t("wgt_bits_scnn", 0, sys::AverageTotal);
         auto wgt_bits_fpc = stats.register_uint_t("wgt_bits_fpc", 0, sys::AverageTotal);
+        auto wgt_bits_bdi = stats.register_uint_t("wgt_bits_bdi", 0, sys::AverageTotal);
+        auto wgt_bits_bdi_opt = stats.register_uint_t("act_bits_bdi_opt", 0, sys::AverageTotal);
         auto wgt_prec = stats.register_uint_t("weights_precision", 0, sys::Average);
 
         auto network_bits = network.getNetwork_bits();
@@ -833,8 +837,8 @@ namespace core {
                                 if (signed_activations) {
                                     if ((act_bits & act_mask) != 0) {
                                         act_bits = act_bits & ~act_mask;
-                                        int pos = 128 - act_bits;
-                                        act_distr->value[pos][layer_it][n]++;
+                                        //int pos = 128 - act_bits;
+                                        //act_distr->value[pos][layer_it][n]++;
                                     } else {
                                         //int pos = act_bits + 127;
                                         //act_distr->value[pos][layer_it][n]++;
@@ -1156,7 +1160,7 @@ namespace core {
 
             }
 
-            uint64_t batch_wgt_bits_fpc = 0;
+            uint64_t batch_wgt_bits_fpc = 32 / network_bits;
             for(int m = 0; m < num_filters; m++) {
                 for (int k = 0; k < wgt_channels; k += value_per_block) {
                     for (int j = 0; j < Ky; j++) {
@@ -1199,6 +1203,245 @@ namespace core {
 
             for(int n = 0; n < batch_size; n++)
                 wgt_bits_fpc->value[layer_it][n] = batch_wgt_bits_fpc;
+
+            // BDI
+            auto value_per_block_bdi = 64 * 8 / network_bits;
+            for(int n = 0; n < batch_size; n++) {
+
+                uint64_t batch_act_bits_bdi = 0;
+                for(int r = 0; r < R; r++) {
+                    for (int j = 0; j < Ny; j++) {
+                        for (int i = 0; i < Nx; i++) {
+                            for (int k = 0; k < act_channels; k += value_per_block_bdi) {
+
+
+                                bool all_zero = true;
+                                for(int channel = k; channel < (k + (int)value_per_block_bdi); channel++) {
+
+                                    if (channel >= act_channels) {
+                                        continue;
+                                    }
+
+                                    uint16_t act_bits;
+                                    if(lstm)
+                                        act_bits = act.get(r, n, channel);
+                                    else
+                                        act_bits = act.get(n, channel, i, j);
+
+                                    if (act_bits != 0) all_zero = false;
+
+                                }
+
+                                if (all_zero) {
+                                    batch_act_bits_bdi += value_per_block_bdi + 4;
+                                } else {
+                                    batch_act_bits_bdi += value_per_block_bdi * network_bits + 4;
+                                }
+
+                            }
+                        }
+                    }
+                }
+
+                act_bits_bdi->value[layer_it][n] = batch_act_bits_bdi;
+
+            }
+
+            uint64_t batch_wgt_bits_bdi = 0;
+            for(int m = 0; m < num_filters; m++) {
+                for (int k = 0; k < wgt_channels; k += value_per_block_bdi) {
+                    for (int j = 0; j < Ky; j++) {
+                        for (int i = 0; i < Kx; i++) {
+
+                            bool all_zero = true;
+                            for(int channel = k; channel < (k + (int)value_per_block_bdi); channel++) {
+
+                                if (channel >= wgt_channels) {
+                                    continue;
+                                }
+
+                                uint16_t wgt_bits = wgt.get(m, channel, i, j);
+
+                                if (wgt_bits != 0) all_zero = false;
+
+                            }
+
+                            if (all_zero) {
+                                batch_wgt_bits_bdi += value_per_block_bdi + 4;
+                            } else {
+                                batch_wgt_bits_bdi += value_per_block_bdi * network_bits + 4;
+                            }
+                        }
+                    }
+
+                }
+            }
+
+            for(int n = 0; n < batch_size; n++)
+                wgt_bits_bdi->value[layer_it][n] = batch_wgt_bits_bdi;
+
+
+            // BDI OPT
+            for(int n = 0; n < batch_size; n++) {
+
+                uint64_t batch_act_bits_bdi_opt = 0;
+                for(int r = 0; r < R; r++) {
+                    for (int k = 0; k < act_channels; k += PRECISION_GRANULARITY) {
+                        for (int j = 0; j < Ny; j++) {
+                            for (int i = 0; i < Nx; i++) {
+
+
+                                uint64_t delta_0 = 0, delta_1 = 0;
+
+                                for(int channel = k; channel < (k + (int)PRECISION_GRANULARITY); channel++) {
+
+                                    if (channel >= act_channels) {
+                                        continue;
+                                    }
+
+                                    uint16_t act_bits;
+                                    if (lstm)
+                                        act_bits = act.get(r, n, channel);
+                                    else
+                                        act_bits = act.get(n, channel, i, j);
+
+                                    if (act_bits > delta_1)
+                                        delta_1 = act_bits;
+                                }
+
+                                bool all_zero = true;
+                                uint64_t max_width = 0;
+                                for(int channel = k; channel < (k + (int)PRECISION_GRANULARITY); channel++) {
+
+                                    if (channel >= act_channels) {
+                                        continue;
+                                    }
+
+                                    uint16_t act_bits;
+                                    if(lstm)
+                                        act_bits = act.get(r, n, channel);
+                                    else
+                                        act_bits = act.get(n, channel, i, j);
+
+                                    if (act_bits != 0) all_zero = false;
+
+                                    auto value_0 = act_bits - delta_0;
+                                    auto value_1 = delta_1 - act_bits;
+
+                                    const auto &min_max_val_0_bits = this->minMax(value_0);
+                                    const auto &min_max_val_1_bits = this->minMax(value_1);
+
+                                    auto max_val_0_bit = std::get<1>(min_max_val_0_bits);
+                                    auto max_val_1_bit = std::get<1>(min_max_val_1_bits);
+
+                                    auto max_val_bit = std::min(max_val_0_bit, max_val_1_bit);
+
+                                    if (max_val_bit <= 2 && max_width < 2) {
+                                        max_width = 2;
+                                    } else if (max_val_bit >= 2 && max_val_bit <= 4 && max_width < 4) {
+                                        max_width = 4;
+                                    } else if (max_val_bit >= 4) {
+                                        max_width = 8;
+                                    }
+
+                                }
+
+                                if (all_zero) {
+                                    batch_act_bits_bdi_opt += PRECISION_GRANULARITY + 4;
+                                } else {
+
+                                    uint64_t compressed_size = max_width * PRECISION_GRANULARITY + network_bits + 4;
+                                    uint64_t baseline_size = network_bits * PRECISION_GRANULARITY + 4;
+
+                                    if (compressed_size < baseline_size) batch_act_bits_bdi_opt += compressed_size;
+                                    else batch_act_bits_bdi_opt += baseline_size;
+                                }
+
+
+                            }
+                        }
+                    }
+                }
+
+                act_bits_bdi_opt->value[layer_it][n] = batch_act_bits_bdi_opt;
+
+            }
+
+            uint64_t batch_wgt_bits_bdi_opt = 0;
+            for(int m = 0; m < num_filters; m++) {
+                for (int k = 0; k < wgt_channels; k += PRECISION_GRANULARITY) {
+                    for (int j = 0; j < Ky; j++) {
+                        for (int i = 0; i < Kx; i++) {
+
+
+                            uint64_t delta_0 = 0, delta_1 = 0;
+
+                            for(int channel = k; channel < (k + (int)PRECISION_GRANULARITY); channel++) {
+
+                                if (channel >= wgt_channels) {
+                                    continue;
+                                }
+
+                                uint16_t wgt_bits = wgt.get(m, channel, i, j);
+
+                                if (wgt_bits > delta_1)
+                                    delta_1 = wgt_bits;
+                            }
+
+                            bool all_zero = true;
+                            uint64_t max_width = 0;
+                            for(int channel = k; channel < (k + (int)PRECISION_GRANULARITY); channel++) {
+
+                                if (channel >= wgt_channels) {
+                                    continue;
+                                }
+
+                                uint16_t wgt_bits = wgt.get(m, channel, i, j);
+
+
+                                if (wgt_bits != 0) all_zero = false;
+
+                                auto value_0 = wgt_bits - delta_0;
+                                auto value_1 = delta_1 - wgt_bits;
+
+                                const auto &min_max_val_0_bits = this->minMax(value_0);
+                                const auto &min_max_val_1_bits = this->minMax(value_1);
+
+                                auto max_val_0_bit = std::get<1>(min_max_val_0_bits);
+                                auto max_val_1_bit = std::get<1>(min_max_val_1_bits);
+
+                                auto max_val_bit = std::min(max_val_0_bit, max_val_1_bit);
+
+                                if (max_val_bit <= 2 && max_width < 2) {
+                                    max_width = 2;
+                                } else if (max_val_bit >= 2 && max_val_bit <= 4 && max_width < 4) {
+                                    max_width = 4;
+                                } else if (max_val_bit >= 4) {
+                                    max_width = 8;
+                                }
+
+                            }
+
+                            if (all_zero) {
+                                batch_wgt_bits_bdi_opt += PRECISION_GRANULARITY + 4;
+                            } else {
+
+                                uint64_t compressed_size = max_width * PRECISION_GRANULARITY + network_bits + 4;
+                                uint64_t baseline_size = network_bits * PRECISION_GRANULARITY + 4;
+
+                                if (compressed_size < baseline_size) batch_wgt_bits_bdi_opt += compressed_size;
+                                else batch_wgt_bits_bdi_opt += baseline_size;
+                            }
+
+                        }
+                    }
+
+                }
+            }
+
+
+            for(int n = 0; n < batch_size; n++)
+                wgt_bits_bdi_opt->value[layer_it][n] = batch_wgt_bits_bdi_opt;
 
         }
 
