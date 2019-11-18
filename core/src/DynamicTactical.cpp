@@ -519,8 +519,6 @@ namespace core {
 
             for (int set = 0; set < num_filter_sets; ++set) {
 
-                stats.bank_writes++;
-
                 if (schedule_in) {
                     stats.base_compute_cycles += time_per_window;
                     stats.ideal_compute_cycles += ideal_time_per_window;
@@ -531,6 +529,8 @@ namespace core {
 
                 uint64_t filter_pes = set == num_filter_sets - 1? num_filters % WGT_SET_SIZE : WGT_SET_SIZE;
                 if (filter_pes == 0) filter_pes = WGT_SET_SIZE;
+
+                stats.bank_writes += ceil(x_windows.size() * WGT_SET_SIZE/ 16.);
 
                 for (int time = 0; time < time_per_window; ++time) {
 
@@ -820,8 +820,6 @@ namespace core {
 
                 for (int set = 0; set < num_filter_sets; ++set) {
 
-                    stats.bank_writes++;
-
                     if (schedule_in) {
                         stats.base_compute_cycles += time_per_window;
                         stats.ideal_compute_cycles += ideal_time_per_window;
@@ -832,6 +830,8 @@ namespace core {
 
                     uint64_t filter_pes = set == num_filter_sets - 1? num_filters % WGT_SET_SIZE : WGT_SET_SIZE;
                     if (filter_pes == 0) filter_pes = WGT_SET_SIZE;
+
+                    stats.bank_writes += ceil(x_windows.size() * WGT_SET_SIZE/ 16.);
 
                     for (int time = 0; time < time_per_window; ++time) {
 
@@ -1073,8 +1073,6 @@ namespace core {
 
                 for (int set = 0; set < num_out_grad_sets; ++set) {
 
-                    stats.bank_writes++;
-
                     if (schedule_act) {
                         stats.base_compute_cycles += time_per_act_channel;
                         stats.ideal_compute_cycles += ideal_time_per_act_channel;
@@ -1085,6 +1083,8 @@ namespace core {
 
                     uint64_t out_grad_pes = set == num_out_grad_sets - 1? out_channels % OUT_SET_SIZE : OUT_SET_SIZE;
                     if (out_grad_pes == 0) out_grad_pes = OUT_SET_SIZE;
+
+                    stats.bank_writes += ceil(ACT_SET_SIZE * OUT_SET_SIZE/ 16.);
 
                     for (int time = 0; time < time_per_act_channel; ++time) {
 
