@@ -513,10 +513,20 @@ namespace core {
         auto memory_cycles = stats.register_uint_t("memory_cycles", 0, sys::AverageTotal);
         auto filters_on_chip = stats.register_uint_t("filters_on_chip", 0, sys::Average);
         auto act_comp_size = stats.register_uint_t("act_comp bits", 0 , sys::AverageTotal);
+        auto act_values_size = stats.register_uint_t("act_values_size", 0 , sys::AverageTotal);
+        auto act_zero_overhead = stats.register_uint_t("act_zero_overhead", 0 , sys::AverageTotal);
+        auto act_group_overhead = stats.register_uint_t("act_group_overhead", 0 , sys::AverageTotal);
+        auto act_padding_overhead = stats.register_uint_t("act_padding_overhead", 0 , sys::AverageTotal);
+        auto act_pointer_overhead = stats.register_uint_t("act_pointer_overhead", 0 , sys::AverageTotal);
         auto act_on_chip = stats.register_uint_t("act_on_chip", 0 , sys::AverageTotal);
         auto act_off_chip = stats.register_uint_t("act_off_chip", 0 , sys::AverageTotal);
         auto act_off_chip_bytes = stats.register_uint_t("act_off_chip bytes", 0 , sys::AverageTotal);
         auto wgt_comp_size = stats.register_uint_t("wgt_comp bits", 0 , sys::AverageTotal);
+        auto wgt_values_size = stats.register_uint_t("wgt_values_size", 0 , sys::AverageTotal);
+        auto wgt_zero_overhead = stats.register_uint_t("wgt_zero_overhead", 0 , sys::AverageTotal);
+        auto wgt_group_overhead = stats.register_uint_t("wgt_group_overhead", 0 , sys::AverageTotal);
+        auto wgt_padding_overhead = stats.register_uint_t("wgt_padding_overhead", 0 , sys::AverageTotal);
+        auto wgt_pointer_overhead = stats.register_uint_t("wgt_pointer_overhead", 0 , sys::AverageTotal);
         auto wgt_on_chip = stats.register_uint_t("wgt_on_chip", 0 , sys::AverageTotal);
         auto wgt_off_chip = stats.register_uint_t("wgt_off_chip", 0 , sys::AverageTotal);
         auto wgt_off_chip_bytes = stats.register_uint_t("wgt_off_chip bytes", 0 , sys::AverageTotal);
@@ -686,13 +696,16 @@ namespace core {
                                 }
 
                                 uint64_t width = max_bit + 1u;
-                                batch_wgt_bits_ch += log2(network_bits); // zero overhead
+                                batch_wgt_bits_ch += log2(network_bits) * F; // zero overhead
+                                wgt_zero_overhead->value[layer_it][0] += log2(network_bits) * F;
                                 if (BASELINE) {
                                     batch_wgt_bits_ch += F * network_bits;
                                     wgt_data_pt += network_bits;
                                 } else {
                                     batch_wgt_bits_ch += log2(network_bits); // width overhead
+                                    wgt_group_overhead->value[layer_it][0] += log2(network_bits);
                                     batch_wgt_bits_ch += F * width;
+                                    wgt_values_size->value[layer_it][0] += F * width;
                                     wgt_data_pt += width;
 
                                     for (int ff = f; ff < std::min(f + (int) F, (int) wgt_queue_pe.size()); ff++) {
@@ -712,6 +725,7 @@ namespace core {
                         }
 
                         batch_wgt_bits_ch += (network_bits - wgt_data_pt) * F;
+                        wgt_padding_overhead->value[layer_it][0] += (network_bits - wgt_data_pt) * F;
                     }
 
                     wgt_fit_on_chip[kc][ck] = ceil(batch_wgt_bits_ch / 8.) < this->memory.getOnChipWgtSize();
@@ -726,6 +740,8 @@ namespace core {
 
                 } // channels
             } // Filter set
+
+            wgt_pointer_overhead->value[layer_it][0] += Ck * 16;
 
             for(int n = 0; n < N; n++) {
 
@@ -829,13 +845,16 @@ namespace core {
                                         }
 
                                         uint64_t width = max_bit + 1u;
-                                        batch_act_bits_ch += log2(network_bits); // zero overhead
+                                        batch_act_bits_ch += log2(network_bits) * I; // zero overhead
+                                        act_zero_overhead->value[layer_it][0] += log2(network_bits) * I;
                                         if (BASELINE) {
                                             batch_act_bits_ch += I * network_bits;
                                             act_data_pt += network_bits;
                                         } else {
                                             batch_act_bits_ch += log2(network_bits); // width overhead
+                                            act_group_overhead->value[layer_it][0] += log2(network_bits);
                                             batch_act_bits_ch += I * width;
+                                            act_values_size->value[layer_it][0] += I * width;
                                             act_data_pt += width;
 
                                             for(int ii = i; ii < std::min(i + (int)I, (int)act_queue_pe.size()); ii++) {
@@ -858,6 +877,7 @@ namespace core {
                         }
 
                         batch_act_bits += (network_bits - act_data_pt) * I;
+                        act_padding_overhead->value[layer_it][0] += (network_bits - act_data_pt) * I;
                     }
 
                     batch_act_bits += batch_act_bits_ch;
@@ -873,6 +893,7 @@ namespace core {
                 } // Channels
 
                 batch_act_bits += C * 16;
+                act_pointer_overhead->value[layer_it][0] += C * 16;
 
                 auto act_fit_on_chip = ceil(batch_act_bits / 8.) < this->memory.getOnChipActSize();
 

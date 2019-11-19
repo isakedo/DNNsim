@@ -1282,14 +1282,18 @@ namespace core {
 
 
             // BDI OPT
+            uint8_t act_data_pt = 0u;
             for(int n = 0; n < batch_size; n++) {
 
                 uint64_t batch_act_bits_bdi_opt = 0;
                 for(int r = 0; r < R; r++) {
-                    for (int k = 0; k < act_channels; k += PRECISION_GRANULARITY) {
-                        for (int j = 0; j < Ny; j++) {
-                            for (int i = 0; i < Nx; i++) {
+                    for (int j = 0; j < Ny; j++) {
+                        for (int i = 0; i < Nx; i++) {
+                            for (int k = 0; k < act_channels; k += PRECISION_GRANULARITY) {
 
+                                if (act_data_pt >= network_bits) {
+                                    act_data_pt %= network_bits;
+                                }
 
                                 uint64_t delta_0 = 0, delta_1 = 0;
 
@@ -1348,35 +1352,59 @@ namespace core {
 
                                 if (all_zero) {
                                     batch_act_bits_bdi_opt += PRECISION_GRANULARITY + 4;
+                                    act_data_pt += 1;
                                 } else {
 
                                     uint64_t compressed_size = max_width * PRECISION_GRANULARITY + network_bits + 4;
                                     uint64_t baseline_size = network_bits * PRECISION_GRANULARITY + 4;
 
-                                    if (compressed_size < baseline_size) batch_act_bits_bdi_opt += compressed_size;
+                                    if (compressed_size < baseline_size) {
+                                        batch_act_bits_bdi_opt += compressed_size;
+                                        act_data_pt += max_width;
+                                    }
                                     else batch_act_bits_bdi_opt += baseline_size;
                                 }
 
 
                             }
+
+                            if (act_data_pt >= network_bits) {
+                                act_data_pt %= network_bits;
+                            }
+
+                            // Padding overhead
+                            if (act_data_pt != 0) {
+
+                                if (act_data_pt >= network_bits) {
+                                    act_data_pt %= network_bits;
+                                }
+
+                                batch_act_bits_bdi_opt += (network_bits - act_data_pt) * PRECISION_GRANULARITY;
+                                act_data_pt = 0;
+                            }
                         }
                     }
                 }
 
+                batch_act_bits_bdi_opt += Ny * 32;
                 act_bits_bdi_opt->value[layer_it][n] = batch_act_bits_bdi_opt;
 
             }
 
+            uint8_t wgt_data_pt = 0u;
             uint64_t batch_wgt_bits_bdi_opt = 0;
             for(int m = 0; m < num_filters; m++) {
                 for (int k = 0; k < wgt_channels; k += PRECISION_GRANULARITY) {
                     for (int j = 0; j < Ky; j++) {
                         for (int i = 0; i < Kx; i++) {
 
+                            if (wgt_data_pt >= network_bits) {
+                                wgt_data_pt %= network_bits;
+                            }
 
                             uint64_t delta_0 = 0, delta_1 = 0;
 
-                            for(int channel = k; channel < (k + (int)PRECISION_GRANULARITY); channel++) {
+                            for (int channel = k; channel < (k + (int) PRECISION_GRANULARITY); channel++) {
 
                                 if (channel >= wgt_channels) {
                                     continue;
@@ -1390,7 +1418,7 @@ namespace core {
 
                             bool all_zero = true;
                             uint64_t max_width = 0;
-                            for(int channel = k; channel < (k + (int)PRECISION_GRANULARITY); channel++) {
+                            for (int channel = k; channel < (k + (int) PRECISION_GRANULARITY); channel++) {
 
                                 if (channel >= wgt_channels) {
                                     continue;
@@ -1429,16 +1457,31 @@ namespace core {
                                 uint64_t compressed_size = max_width * PRECISION_GRANULARITY + network_bits + 4;
                                 uint64_t baseline_size = network_bits * PRECISION_GRANULARITY + 4;
 
-                                if (compressed_size < baseline_size) batch_wgt_bits_bdi_opt += compressed_size;
-                                else batch_wgt_bits_bdi_opt += baseline_size;
+                                if (compressed_size < baseline_size) {
+                                    batch_wgt_bits_bdi_opt += compressed_size;
+                                    wgt_data_pt += max_width;
+                                } else batch_wgt_bits_bdi_opt += baseline_size;
                             }
 
                         }
                     }
 
                 }
+
+                // Padding overhead
+                if (wgt_data_pt != 0) {
+
+                    if (wgt_data_pt >= network_bits) {
+                        wgt_data_pt %= network_bits;
+                    }
+
+                    batch_wgt_bits_bdi_opt += (network_bits - wgt_data_pt) * PRECISION_GRANULARITY;
+                    wgt_data_pt = 0;
+                }
+
             }
 
+            batch_wgt_bits_bdi_opt += num_filters * 32;
 
             for(int n = 0; n < batch_size; n++)
                 wgt_bits_bdi_opt->value[layer_it][n] = batch_wgt_bits_bdi_opt;
@@ -2279,7 +2322,8 @@ namespace core {
 
     void read_window_sets(std::list<int> &window_list, std::vector<int> &windows_on_chip,
             std::vector<std::list<uint64_t>> &window_requests, const address_map &act_address_map,
-            const std::vector<std::vector<uint64_t>> &act_datawidth_size, uint64_t on_chip_size, uint64_t n,
+            const std::vector<std::vector<uint64_t>> &act_datawidth_size,
+            const std::vector<std::vector<uint64_t>> &act_baseline_size, uint64_t on_chip_size, uint64_t n,
             uint64_t Kx, uint64_t Ky, uint64_t Nx, uint64_t Ny, uint64_t act_channels, uint64_t out_x, uint64_t out_y,
             uint64_t stride, uint64_t N_COLUMNS, uint64_t values_block, uint64_t &max_act) {
 
@@ -2303,7 +2347,8 @@ namespace core {
 
             // Calculate window set size
             uint64_t window_set_size = 0;
-            std::list<uint64_t> tmp_window_requests;
+            uint64_t window_set_bas_size = 0;
+            std::vector<uint64_t> tmp_window_requests;
             for (auto window_read : tmp_windows_on_chip) {
 
                 auto x_window = window_read % out_x;
@@ -2322,6 +2367,7 @@ namespace core {
                         }
 
                         window_set_size += act_datawidth_size[y_pos][x_pos];
+                        window_set_bas_size += act_baseline_size[y_pos][x_pos];
                         requested_address[y_pos][x_pos] = true;
                     }
                 }
@@ -2338,7 +2384,15 @@ namespace core {
             }
 
             windows_on_chip.insert(windows_on_chip.end(), tmp_windows_on_chip.begin(), tmp_windows_on_chip.end());
-            window_requests.emplace_back(tmp_window_requests);
+
+            uint64_t rel_addresses = ceil(window_set_size / (double)window_set_bas_size * tmp_window_requests.size());
+
+            std::list<uint64_t> tmp_tmp_window_requests;
+            for (int addr = 0; addr < std::min(rel_addresses, tmp_window_requests.size()); ++addr) {
+                tmp_tmp_window_requests.push_back(tmp_window_requests[addr]);
+            }
+
+            window_requests.emplace_back(tmp_tmp_window_requests);
             act_size += window_set_size;
 
         }
@@ -2349,8 +2403,9 @@ namespace core {
 
     void read_filter_sets(std::list<int> &filter_list, std::vector<int> &filters_on_chip,
             std::vector<std::list<uint64_t>> &filter_requests, const address_map &wgt_address_map,
-            const std::vector<uint64_t> &wgt_datawidth_size, uint64_t on_chip_size, uint64_t Kx,
-            uint64_t Ky, uint64_t wgt_channels, uint64_t N_ROWS, uint64_t values_block, uint64_t &max_wgt) {
+            const std::vector<uint64_t> &wgt_datawidth_size, const std::vector<uint64_t> &wgt_baseline_size,
+            uint64_t on_chip_size, uint64_t Kx, uint64_t Ky, uint64_t wgt_channels, uint64_t N_ROWS,
+            uint64_t values_block, uint64_t &max_wgt) {
 
         uint64_t wgt_size = 0;
         while (true) {
@@ -2369,10 +2424,12 @@ namespace core {
 
             // Calculate filter set size
             uint64_t filter_set_size = 0;
-            std::list<uint64_t> tmp_filter_requests;
+            uint64_t filter_set_bas_size = 0;
+            std::vector<uint64_t> tmp_filter_requests;
             for (auto filter_read : tmp_filters_on_chip) {
 
                 filter_set_size += wgt_datawidth_size[filter_read];
+                filter_set_bas_size += wgt_baseline_size[filter_read];
 
                 for (int y = 0; y < Ky; ++y) {
                     for (int x = 0; x < Kx; ++x) {
@@ -2395,12 +2452,24 @@ namespace core {
             }
 
             filters_on_chip.insert(filters_on_chip.end(), tmp_filters_on_chip.begin(), tmp_filters_on_chip.end());
-            filter_requests.emplace_back(tmp_filter_requests);
+
+            uint64_t rel_addresses = ceil(filter_set_size / (double)filter_set_bas_size * tmp_filter_requests.size());
+
+            std::list<uint64_t> tmp_tmp_filter_requests;
+            for (int addr = 0; addr < std::min(rel_addresses, tmp_filter_requests.size()); ++addr) {
+                tmp_tmp_filter_requests.push_back(tmp_filter_requests[addr]);
+            }
+
+            filter_requests.emplace_back(tmp_tmp_filter_requests);
+
             wgt_size += filter_set_size;
 
         }
 
-        assert(wgt_size);
+        if (wgt_size == 0) {
+            read_filter_sets(filter_list, filters_on_chip, filter_requests, wgt_address_map, wgt_datawidth_size,
+                    wgt_baseline_size, on_chip_size, Kx, Ky, wgt_channels, N_ROWS/2, values_block, max_wgt);
+        }
 
     }
 
@@ -2558,6 +2627,8 @@ namespace core {
                 // Calculate activations Dynamic Width sizes per channel
                 std::vector<std::vector<uint64_t>> act_datawidth_size = std::vector<std::vector<uint64_t>>(Ny,
                         std::vector<uint64_t>(Nx, 0));
+                std::vector<std::vector<uint64_t>> act_baseline_size = std::vector<std::vector<uint64_t>>(Ny,
+                        std::vector<uint64_t>(Nx, 0));
 
                 std::vector<std::vector<uint64_t>> act_on_chip_accesses = std::vector<std::vector<uint64_t>>(Ny,
                         std::vector<uint64_t>(Nx, 0));
@@ -2571,6 +2642,7 @@ namespace core {
                         for (int x = 0; x < Nx; ++x) {
 
                             uint64_t channel_size = 0;
+                            uint64_t base_channel_size = 0;
                             act_on_chip_accesses[y][x]++;
                             batch_out_on_chip++;
 
@@ -2604,13 +2676,21 @@ namespace core {
                                 if (BASELINE || act_channels < PRECISION_GRANULARITY) {
                                     channel_size += PRECISION_GRANULARITY * network_bits_act; // Baseline values
                                     act_data_pt += network_bits_act;
+
+                                    base_channel_size += PRECISION_GRANULARITY * network_bits_act;
                                 } else {
                                     //channel_size += log2(network_bits); // Group overhead
                                     channel_size += log2(network_bits_act); // Group overhead
                                     channel_size += PRECISION_GRANULARITY * width; // Values
                                     act_data_pt += width;
+
+                                    base_channel_size += PRECISION_GRANULARITY * network_bits_act;
                                 }
 
+                            }
+
+                            if (act_data_pt >= network_bits_act) {
+                                act_data_pt %= network_bits_act;
                             }
 
                             // Padding overhead
@@ -2625,6 +2705,7 @@ namespace core {
                             }
 
                             act_datawidth_size[y][x] = ceil(channel_size / 8.);
+                            act_baseline_size[y][x] = ceil(base_channel_size / 8.);
 
                         }
 
@@ -2636,6 +2717,7 @@ namespace core {
                 prev_out_on_chip->value[layer_it][n] = batch_out_on_chip;
 
                 // Calculate activations Dynamic Width sizes per channel
+                std::vector<uint64_t> wgt_baseline_size = std::vector<uint64_t>(num_filters, 0);
                 std::vector<uint64_t> wgt_datawidth_size = std::vector<uint64_t>(num_filters, 0);
 
                 std::vector<uint64_t> wgt_on_chip_accesses = std::vector<uint64_t>(num_filters, 0);
@@ -2644,6 +2726,7 @@ namespace core {
                 for (int m = 0; m < num_filters; ++m) {
 
                     uint64_t filter_size = 0;
+                    uint64_t base_filter_size = 0;
                     wgt_on_chip_accesses[m]++;
 
                     for (int y = 0; y < Ky; ++y) {
@@ -2679,17 +2762,25 @@ namespace core {
                                 if (BASELINE) {
                                     filter_size += PRECISION_GRANULARITY * network_bits_wgt; // Baseline values
                                     wgt_data_pt += network_bits_wgt;
+
+                                    base_filter_size += PRECISION_GRANULARITY * network_bits_wgt;
                                 } else {
                                     //filter_size += log2(network_bits); // Group overhead
                                     filter_size += log2(network_bits_wgt); // Group overhead
                                     filter_size += PRECISION_GRANULARITY * width; // Values
                                     wgt_data_pt += width;
+
+                                    base_filter_size += PRECISION_GRANULARITY * network_bits_wgt;
                                 }
 
                             }
 
                         }
 
+                    }
+
+                    if (wgt_data_pt >= network_bits_wgt) {
+                        wgt_data_pt %= network_bits_wgt;
                     }
 
                     // Padding overhead
@@ -2704,6 +2795,7 @@ namespace core {
                     }
 
                     wgt_datawidth_size[m] = ceil(filter_size / 8.);
+                    wgt_baseline_size[m] = ceil(base_filter_size / 8.);
 
                 }
 
@@ -2725,13 +2817,15 @@ namespace core {
                     std::vector<std::list<uint64_t>> window_requests;
 
                     read_window_sets(window_list, windows_on_chip, window_requests, act_address_map, act_datawidth_size,
-                            this->memory.getOnChipActSize(), n, Kx, Ky, Nx, Ny, act_channels, out_x, out_y, stride,
-                            N_COLUMNS, values_block_act, act_max_set_bytes->value[layer_it][n]);
+                            act_baseline_size, this->memory.getOnChipActSize(), n, Kx, Ky, Nx, Ny, act_channels, out_x,
+                            out_y, stride, N_COLUMNS, values_block_act, act_max_set_bytes->value[layer_it][n]);
 
                     // List all filters
                     bool first = true;
                     std::list<int> filter_list(num_filters);
                     std::iota(std::begin(filter_list), std::end(filter_list), 0);
+
+                    uint64_t max_act_address = 0;
 
                     // Select filters that fit on-chip
                     while (!filter_list.empty()) {
@@ -2740,30 +2834,37 @@ namespace core {
                         std::vector<std::list<uint64_t>> filter_requests;
 
                         read_filter_sets(filter_list, filters_on_chip, filter_requests, wgt_address_map,
-                                wgt_datawidth_size, this->memory.getOnChipWgtSize(), Kx, Ky, wgt_channels, N_ROWS,
-                                values_block_wgt, wgt_max_set_bytes->value[layer_it][n]);
+                                wgt_datawidth_size, wgt_baseline_size, this->memory.getOnChipWgtSize(), Kx, Ky,
+                                wgt_channels, N_ROWS, values_block_wgt, wgt_max_set_bytes->value[layer_it][n]);
 
                         auto num_window_sets = ceil(windows_on_chip.size() / (double)N_COLUMNS);
                         auto num_filter_sets = ceil(filters_on_chip.size() / (double)N_ROWS);
                         auto max_sets = (int)std::max(num_window_sets, num_filter_sets);
 
+                        uint64_t max_wgt_address = 0;
                         for (int i = 0; i < max_sets; ++i) {
 
                             // Request the memory addresses
                             if (first && i < window_requests.size()) {
                                 for (auto address : window_requests[i]) {
-                                    //this->memory.request_address(address, false);
+                                    this->memory.request_address(address, false);
                                     act_off_chip_bytes->value[layer_it][n] += 8;
                                     act_off_chip->value[layer_it][n]++;
+
+                                    if (address > max_act_address)
+                                        max_act_address = address;
                                 }
                             }
 
                             // Request the memory addresses
                             if (i < filter_requests.size()) {
                                 for (auto address : filter_requests[i]) {
-                                    //this->memory.request_address(address, false);
+                                    this->memory.request_address(address, false);
                                     wgt_off_chip_bytes->value[layer_it][n] += 8;
                                     wgt_off_chip->value[layer_it][n]++;
+
+                                    if (address > max_wgt_address)
+                                        max_wgt_address = address;
                                 }
                             }
 
@@ -2805,21 +2906,19 @@ namespace core {
                                                     for (int channel = k; channel < std::min((uint64_t)k + N_LANES,
                                                             wgt_channels); ++channel) {
 
-                                                        auto act_address = act_address_map[n][y_window * stride + y]
-                                                                [x_window * stride + x][channel/values_block_act];
-                                                        auto wgt_address = wgt_address_map[filters_on_chip[filter]][y]
-                                                                [x][channel/values_block_wgt];
+                                                        auto act_address = max_act_address;
+                                                        auto wgt_address = max_wgt_address;
 
-                                                        //this->memory.wait_for(act_address);
-                                                        //this->memory.wait_for(wgt_address);
+                                                        this->memory.wait_for(act_address);
+                                                        this->memory.wait_for(wgt_address);
 
                                                     }
                                                 }
                                             }
 
-                                            //if (this->memory.getClockCycle() > batch_cycles)
-                                            //    batch_cycles = this->memory.getClockCycle();
-                                            //else this->memory.wait_until(batch_cycles);
+                                            if (this->memory.getClockCycle() > batch_cycles)
+                                                batch_cycles = this->memory.getClockCycle();
+                                            else this->memory.wait_until(batch_cycles);
 
                                             batch_compute_cycles += 1;
                                             batch_cycles += 1;
