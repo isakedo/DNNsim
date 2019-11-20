@@ -503,8 +503,8 @@ namespace core {
         this->memory.initialise();
         std::string filename = "SCNN_Wt" + std::to_string(Wt) + "_Ht" + std::to_string(Ht) + "_I" + std::to_string(I) +
                 "_F" + std::to_string(F)  + "_AS" + std::to_string(this->memory.getOnChipActSize()) + "_WS" +
-                std::to_string(this->memory.getOnChipWgtSize()) + "_B" + std::to_string(BANKS) +
-                (BASELINE ? "_baseline" : "") + "_on_chip_cycles";
+                std::to_string(this->memory.getOnChipWgtSize()) + "_acc_out" + std::to_string(out_acc_size) + "_B"
+                + std::to_string(BANKS) + (BASELINE ? "_baseline" : "") + "_on_chip_cycles";
 
         sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 

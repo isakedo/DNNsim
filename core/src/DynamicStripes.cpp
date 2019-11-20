@@ -2385,7 +2385,7 @@ namespace core {
 
             windows_on_chip.insert(windows_on_chip.end(), tmp_windows_on_chip.begin(), tmp_windows_on_chip.end());
 
-            uint64_t rel_addresses = ceil(window_set_size / (double)window_set_bas_size * tmp_window_requests.size());
+            uint64_t rel_addresses = tmp_window_requests.size(); //ceil(window_set_size / (double)window_set_bas_size * tmp_window_requests.size());
 
             std::list<uint64_t> tmp_tmp_window_requests;
             for (int addr = 0; addr < std::min(rel_addresses, tmp_window_requests.size()); ++addr) {
@@ -2453,7 +2453,7 @@ namespace core {
 
             filters_on_chip.insert(filters_on_chip.end(), tmp_filters_on_chip.begin(), tmp_filters_on_chip.end());
 
-            uint64_t rel_addresses = ceil(filter_set_size / (double)filter_set_bas_size * tmp_filter_requests.size());
+            uint64_t rel_addresses = tmp_filter_requests.size(); //ceil(filter_set_size / (double)filter_set_bas_size * tmp_filter_requests.size());
 
             std::list<uint64_t> tmp_tmp_filter_requests;
             for (int addr = 0; addr < std::min(rel_addresses, tmp_filter_requests.size()); ++addr) {
