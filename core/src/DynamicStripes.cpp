@@ -1501,6 +1501,345 @@ namespace core {
 
     }
 
+    template <typename T>
+    void DynamicStripes<T>::layer_fusion(const base::Network<T> &network) {
+
+        // Initialize statistics
+        std::string filename = "DynamicStripes_layer_fusion";
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
+
+        auto max_act_bits_baseline = stats.register_uint_t("act_bits_baseline", 0, sys::Max);
+        auto max_act_bits_datawidth = stats.register_uint_t("act_bits_datawidth", 0, sys::Max);
+
+        auto network_bits = network.getNetwork_bits();
+        auto signed_activations0 = !network.isUnsignedAct();
+        auto signed_activations1 = !network.isUnsignedAct();
+        auto signed_activations2 = !network.isUnsignedAct();
+
+        for(auto layer_it = 0; layer_it < network.getNumLayers(); layer_it += 2) {
+
+            int layer_it_1 = layer_it + 1;
+            int layer_it_2 = layer_it + 2;
+
+            if (layer_it_1 >= network.getNumLayers() || layer_it_2 >= network.getNumLayers()) continue;
+
+            if (layer_it != 0) signed_activations0 = false;
+            if (layer_it_1 != 0) signed_activations1 = false;
+            if (layer_it_2 != 0) signed_activations2 = false;
+
+            const base::Layer<T> &layer0 = network.getLayers()[layer_it];
+            bool conv0 = layer0.getType() == "Convolution";
+            bool lstm0 = layer0.getType() == "LSTM";
+            bool fc0 = layer0.getType() == "InnerProduct";
+
+            if (!conv0) continue;
+
+            base::Array<T> act0 = layer0.getActivations();
+            act0.sign_magnitude_representation(layer0.getActPrecision());
+            if(act0.getDimensions() == 2) act0.reshape_to_4D();
+
+            base::Array<T> wgt0 = layer0.getWeights();
+            wgt0.sign_magnitude_representation(layer0.getWgtPrecision());
+            if(wgt0.getDimensions() == 2) wgt0.reshape_to_4D();
+
+            int padding0 = layer0.getPadding();
+            int stride0 = layer0.getStride();
+
+            act0.zero_pad(padding0);
+
+            if(act0.getShape()[1] == 3 && stride0 > 1) {
+                act0.reshape_first_layer_act((uint16_t)stride0);
+                wgt0.reshape_first_layer_wgt((uint16_t)stride0);
+                stride0 = 1;
+            }
+
+            const std::vector<size_t> &act_shape0 = act0.getShape();
+            const std::vector<size_t> &wgt_shape0 = wgt0.getShape();
+
+            auto batch_size0 = act_shape0[0];
+            auto act_channels0 = act_shape0[1];
+            auto Nx0 = act_shape0[2];
+            auto Ny0 = act_shape0[3];
+            if(this->FAST_MODE) batch_size0 = 1;
+
+            auto num_filters0 = wgt_shape0[0];
+            auto wgt_channels0 = wgt_shape0[1];
+            auto Kx0 = wgt_shape0[2];
+            auto Ky0 = wgt_shape0[3];
+
+            long out_x0 = (Nx0 - Kx0)/stride0 + 1;
+            long out_y0 = (Ny0 - Ky0)/stride0 + 1;
+
+            auto act_layer_prec0 = layer0.getActPrecision();
+            auto act_mask0 = (uint16_t)(1u << (act_layer_prec0 - 1));
+
+            auto wgt_layer_prec0 = layer0.getWgtPrecision();
+            auto wgt_mask0 = (uint16_t)(1u << (wgt_layer_prec0 - 1));
+
+            const base::Layer<T> &layer1 = network.getLayers()[layer_it_1];
+            bool conv1 = layer1.getType() == "Convolution";
+            bool lstm1 = layer1.getType() == "LSTM";
+            bool fc1 = layer1.getType() == "InnerProduct";
+
+            if (!conv1) continue;
+
+            base::Array<T> act1 = layer1.getActivations();
+            act1.sign_magnitude_representation(layer1.getActPrecision());
+            if(act1.getDimensions() == 2) act1.reshape_to_4D();
+
+            base::Array<T> wgt1 = layer1.getWeights();
+            wgt1.sign_magnitude_representation(layer1.getWgtPrecision());
+            if(wgt1.getDimensions() == 2) wgt1.reshape_to_4D();
+
+            int padding1 = layer1.getPadding();
+            int stride1 = layer1.getStride();
+
+            act1.zero_pad(padding1);
+
+            const std::vector<size_t> &act_shape1 = act1.getShape();
+            const std::vector<size_t> &wgt_shape1 = wgt1.getShape();
+
+            auto batch_size1 = act_shape1[0];
+            auto act_channels1 = act_shape1[1];
+            auto Nx1 = act_shape1[2];
+            auto Ny1 = act_shape1[3];
+            if(this->FAST_MODE) batch_size1 = 1;
+
+            auto num_filters1 = wgt_shape1[0];
+            auto wgt_channels1 = wgt_shape1[1];
+            auto Kx1 = wgt_shape1[2];
+            auto Ky1 = wgt_shape1[3];
+
+            long out_x1 = (Nx1 - Kx1)/stride1 + 1;
+            long out_y1 = (Ny1 - Ky1)/stride1 + 1;
+
+            auto act_layer_prec1 = layer1.getActPrecision();
+            auto act_mask1 = (uint16_t)(1u << (act_layer_prec1 - 1));
+
+            auto wgt_layer_prec1 = layer1.getWgtPrecision();
+            auto wgt_mask1 = (uint16_t)(1u << (wgt_layer_prec1 - 1));
+
+            const base::Layer<T> &layer2 = network.getLayers()[layer_it_2];
+            bool conv2 = layer2.getType() == "Convolution";
+            bool lstm2 = layer2.getType() == "LSTM";
+            bool fc2 = layer2.getType() == "InnerProduct";
+
+            if (!conv2) continue;
+
+            base::Array<T> act2 = layer2.getActivations();
+            act2.sign_magnitude_representation(layer2.getActPrecision());
+            if(act2.getDimensions() == 2) act2.reshape_to_4D();
+
+            base::Array<T> wgt2 = layer2.getWeights();
+            wgt2.sign_magnitude_representation(layer2.getWgtPrecision());
+            if(wgt2.getDimensions() == 2) wgt2.reshape_to_4D();
+
+            int padding2 = layer2.getPadding();
+            int stride2 = layer2.getStride();
+
+            const std::vector<size_t> &act_shape2 = act2.getShape();
+            const std::vector<size_t> &wgt_shape2 = wgt2.getShape();
+
+            auto batch_size2 = act_shape2[0];
+            auto act_channels2 = act_shape2[1];
+            auto Nx2 = act_shape2[2];
+            auto Ny2 = act_shape2[3];
+            if(this->FAST_MODE) batch_size2 = 1;
+
+            auto num_filters2 = wgt_shape2[0];
+            auto wgt_channels2 = wgt_shape2[1];
+            auto Kx2 = wgt_shape2[2];
+            auto Ky2 = wgt_shape2[3];
+
+            long out_x2 = (Nx2 - Kx2)/stride2 + 1;
+            long out_y2 = (Ny2 - Ky2)/stride2 + 1;
+
+            auto act_layer_prec2 = layer2.getActPrecision();
+            auto act_mask2 = (uint16_t)(1u << (act_layer_prec2 - 1));
+
+            auto wgt_layer_prec2 = layer2.getWgtPrecision();
+            auto wgt_mask2 = (uint16_t)(1u << (wgt_layer_prec2 - 1));
+
+
+            auto pool_1 = out_x0 / (Nx1 - 2 * padding1);
+            auto pool_2 = out_x1 / Nx2;
+
+            for (int n = 0; n < batch_size0; ++n) {
+
+                uint64_t max_baseline = 0;
+                uint64_t max_datawidth = 0;
+                for (int oy = 0; oy < out_y2; ++oy) {
+                    for (int ox = 0; ox < out_x2; ++ox) {
+
+                        // Sizes
+
+                        std::set<std::tuple<int, int, int, int>> accesses; // Layer-Channel-X-Y
+
+                        uint64_t max_x1 = 0, max_y1 = 0, max_x0 = 0, max_y0 = 0;
+
+                        for (int y2 = 0; y2 < Ky2; ++y2) {
+                            for (int x2 = 0; x2 < Kx2; ++x2) {
+
+                                auto x2_pos = ox * stride2 + x2;
+                                auto y2_pos = oy * stride2 + y2;
+
+                                // Compress channels
+                                for (int ch2 = 0; ch2 < act_channels2; ++ch2) {
+                                    auto tuple = std::make_tuple(2, x2_pos, y2_pos, ch2);
+                                    accesses.emplace(tuple);
+                                }
+
+                                for (int y1 = 0; y1 < (Ky1 + (pool_2 - 1) * stride1); ++y1) {
+                                    for (int x1 = 0; x1 < (Kx1 + (pool_2 - 1) * stride1); ++x1) {
+
+                                        auto x1_pos = x2_pos * pool_2 * stride1 + x1;
+                                        auto y1_pos = y2_pos * pool_2 * stride1 + y1;
+
+                                        // Compress values
+                                        for (int ch1 = 0; ch1 < act_channels1; ++ch1) {
+                                            auto tuple = std::make_tuple(1, x1_pos, y1_pos, ch1);
+                                            if (x1_pos > max_x1) max_x1 = x1_pos;
+                                            if (y1_pos > max_y1) max_y1 = y1_pos;
+
+                                            accesses.emplace(tuple);
+                                        }
+
+                                        for (int y0 = 0; y0 < (Ky0 + (pool_1 - 1) * stride0); ++y0) {
+                                            for (int x0 = 0; x0 < (Kx0 + (pool_1 - 1) * stride0); ++x0) {
+
+                                                auto x0_pos = x1_pos * pool_1 * stride0 + x0;
+                                                auto y0_pos = y1_pos * pool_1 * stride0 + y0;
+
+                                                // Compress values
+                                                for (int ch0 = 0; ch0 < act_channels0; ++ch0) {
+                                                    auto tuple = std::make_tuple(0, x0_pos, y0_pos, ch0);
+
+                                                    if (x0_pos > max_x0) max_x0 = x0_pos;
+                                                    if (y0_pos > max_y0) max_y0 = y0_pos;
+
+                                                    accesses.emplace(tuple);
+                                                }
+                                            }
+                                        }
+
+                                    }
+                                }
+
+                            }
+                        }
+
+
+                        // Calculate sizes
+                        uint64_t baseline_size = 0;
+                        uint64_t datawidth_size = 0;
+
+                        uint64_t old_layer = 0;
+                        uint64_t old_x = 0;
+                        uint64_t old_y = 0;
+
+                        int it = 0;
+                        int max_bit = 0;
+                        uint64_t act_data_pt = 0;
+                        for (const auto &tuple : accesses) {
+
+                            auto layer = std::get<0>(tuple);
+                            auto x = std::get<1>(tuple);
+                            auto y = std::get<2>(tuple);
+                            auto ch = std::get<3>(tuple);
+
+                            uint16_t act_bits = 0;
+                            bool signed_activations;
+                            uint16_t act_mask;
+                            if (layer == 0) {
+                                if (x >= Nx0 || y >= Ny0) continue;
+                                act_bits = act0.get(n, ch, x, y);
+                                signed_activations = signed_activations0;
+                                act_mask = act_mask0;
+                            } else if (layer == 1) {
+                                if (x >= Nx1 || y >= Ny1) continue;
+                                act_bits = act1.get(n, ch, x, y);
+                                signed_activations = signed_activations1;
+                                act_mask = act_mask1;
+                            } else if (layer == 2) {
+                                act_bits = act2.get(n, ch, x, y);
+                                signed_activations = signed_activations2;
+                                act_mask = act_mask2;
+                            } else {
+                                throw std::runtime_error("It should get in here");
+                            }
+
+                            if (signed_activations) {
+                                if ((act_bits & act_mask) != 0) {
+                                    act_bits = act_bits & ~act_mask;
+                                }
+                            }
+
+                            const auto &min_max_act_bits = this->minMax(act_bits);
+                            auto max_act_bit = std::get<1>(min_max_act_bits);
+                            if (signed_activations) max_act_bit += 1;
+
+                            if (it >= PRECISION_GRANULARITY || layer != old_layer || x != old_x || y != old_y) {
+
+                                uint8_t width = max_bit + 1u;
+
+                                baseline_size += PRECISION_GRANULARITY * network_bits;
+                                datawidth_size += PRECISION_GRANULARITY * width;
+                                datawidth_size += log2(network_bits);
+
+                                act_data_pt = (act_data_pt + width) % network_bits;
+
+                                if (act_data_pt != 0 && (layer != old_layer || x != old_x || y != old_y)) {
+                                    datawidth_size += (network_bits - act_data_pt) * PRECISION_GRANULARITY;
+                                    act_data_pt = 0;
+                                }
+
+                                it = 0;
+                                max_bit = 0;
+                            }
+
+
+                            if (max_act_bit > max_bit) max_bit = max_act_bit;
+
+                            old_layer = layer;
+                            old_x = x;
+                            old_y = y;
+                            it++;
+                        }
+
+                        if (max_bit != 0) {
+                            uint8_t width = max_bit + 1u;
+
+                            baseline_size += PRECISION_GRANULARITY * network_bits;
+                            datawidth_size += PRECISION_GRANULARITY * width;
+                            datawidth_size += log2(network_bits);
+
+                            act_data_pt = (act_data_pt + width) % network_bits;
+
+                            if (it != 0) {
+                                datawidth_size += (network_bits - act_data_pt) * PRECISION_GRANULARITY;
+                                act_data_pt = 0;
+                            }
+                        }
+
+                        if (baseline_size > max_baseline) max_baseline = baseline_size;
+                        if (datawidth_size > max_datawidth) max_datawidth = datawidth_size;
+
+                    }
+                }
+
+                max_act_bits_baseline->value[layer_it][n] = max_baseline;
+                max_act_bits_datawidth->value[layer_it][n] = max_datawidth;
+
+            }
+        }
+
+        //Dump statistics
+        std::string header = "DynamicStripes Layer Fusion for " + network.getName() + "\n";
+
+        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
+
+    }
+
     /* ON CHIP */
 
     uint16_t get_value(std::map<uint64_t, uint16_t> &memory_map, uint64_t block_offset, uint64_t mem_pointer,

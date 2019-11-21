@@ -191,6 +191,11 @@ namespace core {
          */
         void average_width(const base::Network<T> &network);
 
+        /** Calculate the compression for layer fusion
+         * @param network   Network we want to check
+         */
+        void layer_fusion(const base::Network<T> &network);
+
         /** Simulate on-chip memory dynamic width storage
          * @param network   Network we want to check
          */

@@ -299,7 +299,8 @@ namespace sys {
 
                 value = experiment_proto.task();
                 if(experiment_proto.architecture() != "None" && value  != "Cycles" && value != "Potentials" &&
-                        value != "Schedule" && value != "AvgWidth" && value != "OnChip" && value != "OnChipCycles")
+                        value != "Schedule" && value != "AvgWidth" && value != "OnChip" && value != "OnChipCycles" &&
+                        value != "LayerFusion")
                     throw std::runtime_error("Task for network " + simulate.network +
                                              " in Fixed16 must be <Cycles|Potentials|Schedule|AvgWidth|OnChip>.");
 

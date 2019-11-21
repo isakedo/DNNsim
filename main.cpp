@@ -301,6 +301,7 @@ int main(int argc, char *argv[]) {
 		                        if(experiment.task == "Cycles") DNNsim.run(network);
 		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
 		                        else if (experiment.task == "AvgWidth") DNNsim.average_width(network);
+		                        else if (experiment.task == "LayerFusion") DNNsim.layer_fusion(network);
 		                        else if (experiment.task == "OnChip") DNNsim.on_chip(network);
 		                        else if (experiment.task == "OnChipCycles") DNNsim.on_chip_cycles(network);
 
