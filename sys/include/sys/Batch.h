@@ -90,32 +90,11 @@ namespace sys {
                 /** Serial bits per PE */
                 uint32_t pe_serial_bits = 0;
 
-                /** Matrix width: BitFusion */
-                uint32_t M = 0;
-
-                /** Matrix height: BitFusion */
-                uint32_t N = 0;
-
-                /** Maximum precision: BitFusion */
-                uint32_t pmax = 0;
-
-                /** Minimum precision: BitFusion */
-                uint32_t pmin = 0;
-
                 /** Difft simulation */
                 bool diffy = false;
 
                 /** Dynamic width precision: Loom */
                 bool dynamic_weights = false;
-
-                /** Simulate baseline */
-                bool baseline;
-
-                /** On-chip activations size */
-                uint64_t act_memory_size = 0;
-
-                /** On-chip weights size */
-                uint64_t wgt_memory_size = 0;
 
             };
 
@@ -151,15 +130,6 @@ namespace sys {
 
             /** Only backward traces */
             bool only_backward = false;
-
-            /** Number of decoder states of Seq2Seq traces */
-            uint32_t decoder_states = 0;
-
-            /** Activations does not have sign */
-            bool unsigned_activations = false;
-
-            /** Weights does not have sign */
-            bool unsigned_weights = false;
 
             /** Array of experiments */
             std::vector<Experiment> experiments;

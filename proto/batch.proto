@@ -44,19 +44,10 @@ message Batch {
             uint32 banks = 22;
             uint32 pe_serial_bits = 23;
 
-            // BitFusion
-            uint32 M = 24;
-            uint32 N = 25;
-            uint32 PMAX = 26;
-            uint32 PMIN = 27;
-
             // On top architectures
-            bool diffy = 28;
+            bool diffy = 24;
 
-            bool dynamic_weights = 29;
-            bool baseline = 30;
-            uint32 act_memory_size = 31;
-            uint32 wgt_memory_size = 32;
+            bool dynamic_weights = 25;
         }
 
         uint32 batch = 1;
@@ -70,9 +61,6 @@ message Batch {
 		bool training = 9;
 		bool only_forward = 10;
 		bool only_backward = 11;
-        uint32 decoder_states = 12;
-        bool unsigned_activations = 13;
-        bool unsigned_weights = 14;
         repeated Experiment experiment = 15;
     }
 

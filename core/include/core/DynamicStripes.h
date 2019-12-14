@@ -41,9 +41,6 @@ namespace core {
         /** Diffy simulation */
         const bool DIFFY;
 
-        /** Simulate baseline only */
-        const bool BASELINE;
-
         /** Compute number of one bit multiplications
          * @param layer_prec    Layer precision
          * @param network_bits  Max bits network
@@ -114,41 +111,6 @@ namespace core {
                 std::vector<uint32_t> &cycles_per_group, std::vector<uint32_t> &end_previous_pallet,
                 uint64_t &stall_cycles);
 
-        /** Compute average width for activations for laconic tile
-         * @param batch         Current number of batch
-         * @param recursion     Current recursion for LSTM
-         * @param list_act_x    X position for the set of input windows
-         * @param list_act_y    Y position for the set of input windows
-         * @param kernel_x      X position in the kernel window
-         * @param kernel_y      Y position in the kernel window
-         * @param init_channel  Starting index for the channel
-         * @param stride        Stride of the current layer
-         * @param padded_act    Set of padded input activations
-         * @param start_group   Starting channel of the group
-         * @param max_channel   Maximum number of channels
-         * @param act_mask      Position of the activations sign bit
-         * @param lstm          True if it is LSTM layer
-         * @return              Average width per group
-         */
-        std::vector<double> computeAvgWidthDynamicStripesActTile(int batch, int recursion,
-                const std::vector<int> &list_act_x, const std::vector<int> &list_act_y, int kernel_x, int kernel_y,
-                int init_channel, int stride, const base::Array<T> &padded_act, int max_channel, uint16_t act_mask,
-                bool lstm);
-
-        /** Compute average width for weights for laconic tile
-         * @param kernel_x      X position in the kernel window
-         * @param kernel_y      Y position in the kernel window
-         * @param init_channel  Starting index for the channel
-         * @param init_filter   Starting index for the filter
-         * @param wgt           Set of weights
-         * @param max_channel   Maximum number of channels
-         * @param max_filter    Maximum number of filters
-         * @param wgt_mask      Position of the weights sign bit
-         * @return              Average width per group
-         */
-        std::vector<double> computeAvgWidthDynamicStripesWgtTile(int kernel_x, int kernel_y, int init_channel,
-                int init_filter, const base::Array<T> &wgt, int max_channel, int max_filter, uint16_t wgt_mask);
-
     public:
 
         /** Constructor
@@ -161,8 +123,6 @@ namespace core {
          * @param _BITS_PE                  Number of bits per PE
          * @param _LEADING_BIT              Calculate only the leading bit for dynamic precisions
          * @param _DIFFY                    Enable Diffy
-         * @param _BASELINE                 Simulate only baseline
-         * @param _MEMORY                   Memory model
          * @param _N_THREADS                Number of parallel threads for multi-threading execution
          * @param _FAST_MODE                Enable fast mode to simulate only one image
          * @param _QUIET                    Avoid std::out messages
@@ -170,11 +130,10 @@ namespace core {
          */
         DynamicStripes(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES,
                 uint32_t _PRECISION_GRANULARITY, uint32_t _COLUMN_REGISTERS, uint32_t _BITS_PE, bool _LEADING_BIT,
-                bool _DIFFY, bool _BASELINE, const Memory &_MEMORY, uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET,
-                bool _CHECK) : Simulator<T>(_MEMORY,_N_THREADS,_FAST_MODE,_QUIET,_CHECK), N_LANES(_N_LANES),
-                N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), N_TILES(_N_TILES),PRECISION_GRANULARITY(_PRECISION_GRANULARITY),
-                COLUMN_REGISTERS(_COLUMN_REGISTERS), BITS_PE(_BITS_PE), LEADING_BIT(_LEADING_BIT), DIFFY(_DIFFY),
-                BASELINE(_BASELINE) {}
+                bool _DIFFY, uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) : Simulator<T>(_N_THREADS,
+                _FAST_MODE,_QUIET,_CHECK), N_LANES(_N_LANES),N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), N_TILES(_N_TILES),
+                PRECISION_GRANULARITY(_PRECISION_GRANULARITY), COLUMN_REGISTERS(_COLUMN_REGISTERS), BITS_PE(_BITS_PE),
+                LEADING_BIT(_LEADING_BIT), DIFFY(_DIFFY) {}
 
         /** Run the timing simulator of the architecture
          * @param network   Network we want to simulate
@@ -185,26 +144,6 @@ namespace core {
          * @param network   Network we want to calculate work reduction
          */
         void potentials(const base::Network<T> &network);
-
-        /** Calculate the average width in the network transformed to sign-magnitude
-         * @param network   Network we want to check
-         */
-        void average_width(const base::Network<T> &network);
-
-        /** Calculate the compression for layer fusion
-         * @param network   Network we want to check
-         */
-        void layer_fusion(const base::Network<T> &network);
-
-        /** Simulate on-chip memory dynamic width storage
-         * @param network   Network we want to check
-         */
-        void on_chip(const base::Network<T> &network);
-
-        /** Simulate memory cycles for on-chip memory dynamic width storage
-         * @param network   Network we want to check
-         */
-        void on_chip_cycles(const base::Network<T> &network);
 
     };
 

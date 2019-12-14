@@ -19,16 +19,12 @@ add_library(
         include/core/BitPragmatic.h
         include/core/Stripes.h
         include/core/DynamicStripes.h
-        include/core/DynamicStripesFP.h
         include/core/Loom.h
         include/core/BitTactical.h
         include/core/BitTacticalP.h
         include/core/BitTacticalE.h
         include/core/DynamicTactical.h
         include/core/SCNN.h
-        include/core/SCNNp.h
-        include/core/SCNNe.h
-        include/core/BitFusion.h
         src/Memory.cpp
         src/Simulator.cpp
         src/Laconic.cpp
@@ -39,12 +35,8 @@ add_library(
         src/BitTacticalE.cpp
         src/DynamicTactical.cpp
         src/DynamicStripes.cpp
-        src/DynamicStripesFP.cpp
         src/Loom.cpp
         src/SCNN.cpp
-        src/SCNNp.cpp
-        src/SCNNe.cpp
-        src/BitFusion.cpp
 )
 
 add_dependencies(

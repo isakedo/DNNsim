@@ -18,13 +18,10 @@ namespace sys {
         simulate.network = simulate_proto.network();
         simulate.batch = simulate_proto.batch();
         simulate.epochs = simulate_proto.epochs() < 1 ? 1 : simulate_proto.epochs();
-        simulate.tensorflow_8b = simulate_proto.tensorflow_8b();
-        simulate.network_bits = simulate_proto.network_bits() < 1 ? 16 : simulate_proto.network_bits();
+        simulate.network_bits = 16;
 		simulate.training = simulate_proto.training();
         simulate.only_forward = simulate_proto.only_forward();
         simulate.only_backward = simulate_proto.only_backward();
-        simulate.decoder_states = simulate_proto.decoder_states();
-        if(simulate.tensorflow_8b) simulate.network_bits = 8;
 
         value = simulate_proto.model();
         if(value != "Trace")
@@ -52,10 +49,6 @@ namespace sys {
                                                  " architecture None must be <Sparsity|ExpBitSparsity|MantBitSparsity|"
                                                  "ExpDistr|MantDistr>.");
 
-                } else if(experiment_proto.architecture() == "DynamicStripesFP") {
-                    experiment.leading_bit = experiment_proto.leading_bit();
-                    experiment.minor_bit = experiment_proto.minor_bit();
-
                 } else if(experiment_proto.architecture() == "DynamicTactical") {
                     experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
@@ -73,17 +66,12 @@ namespace sys {
                                                  " must be <L|T>.");
 
                 } else throw std::runtime_error("Training architecture for network " + simulate.network +
-                                                " in BFloat16 must be <DynamicStripesFP>.");
+                                                " in BFloat16 must be <DynamicTactical>.");
 
                 value = experiment_proto.task();
-                if(experiment_proto.architecture() != "None" && value != "Cycles" && value != "Potentials" &&
-                        value != "AvgWidth")
+                if(experiment_proto.architecture() != "None" && value != "Cycles" && value != "Potentials")
                     throw std::runtime_error("Training task for network " + simulate.network +
-                                             " in BFloat16 must be <Cycles|Potentials|AvgWidth>.");
-
-                if(experiment_proto.architecture() != "DynamicStripesFP" && experiment_proto.task() == "AvgWidth")
-                    throw std::runtime_error("Training task \"AvgWidth\" for network " + simulate.network +
-                                             " in BFloat16 is only allowed for DynamicStripesFP.");
+                                             " in BFloat16 must be <Cycles|Potentials>.");
 
                 experiment.architecture = experiment_proto.architecture();
                 experiment.task = experiment_proto.task();
@@ -105,8 +93,6 @@ namespace sys {
         simulate.intel_inq = simulate_proto.intel_inq();
         simulate.network_bits = simulate_proto.network_bits() < 1 ? 16 : simulate_proto.network_bits();
 		simulate.training = simulate_proto.training();
-		simulate.unsigned_activations = simulate_proto.unsigned_activations();
-        simulate.unsigned_weights = simulate_proto.unsigned_weights();
         if(simulate.tensorflow_8b) simulate.network_bits = 8;
 
         value = simulate_proto.model();
@@ -161,11 +147,6 @@ namespace sys {
                     experiment.bits_pe = experiment_proto.bits_pe() < 1 ? 16 : experiment_proto.bits_pe();
                     experiment.leading_bit = experiment_proto.leading_bit();
                     experiment.diffy = experiment_proto.diffy();
-                    experiment.baseline = experiment_proto.baseline();
-                    experiment.act_memory_size = experiment_proto.act_memory_size() < 1 ? 1048576 :
-                            experiment_proto.act_memory_size();
-                    experiment.wgt_memory_size = experiment_proto.wgt_memory_size() < 1 ? 1048576 :
-                            experiment_proto.wgt_memory_size();
 
                 } else if(experiment_proto.architecture() == "Loom") {
                     experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
@@ -247,76 +228,25 @@ namespace sys {
                     experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
                             6144 : experiment_proto.out_acc_size();
                     experiment.banks = experiment_proto.banks() < 1 ? 32 : experiment_proto.banks();
-                    experiment.baseline = experiment_proto.baseline();
-                    experiment.act_memory_size = experiment_proto.act_memory_size() < 1 ? 629145 :
-                            experiment_proto.act_memory_size();
-                    experiment.wgt_memory_size = experiment_proto.wgt_memory_size() < 1 ? 1 :
-                            experiment_proto.wgt_memory_size();
+
                     if(experiment.banks > 32)
                         throw std::runtime_error("Banks for SCNN in network " + simulate.network +
                                                  " must be from 1 to 32");
-
-                } else if (experiment_proto.architecture() == "SCNNp") {
-                    experiment.Wt = experiment_proto.wt() < 1 ? 32 : experiment_proto.wt();
-                    experiment.Ht = experiment_proto.ht() < 1 ? 32 : experiment_proto.ht();
-                    experiment.I = experiment_proto.i() < 1 ? 4 : experiment_proto.i();
-                    experiment.F = experiment_proto.f() < 1 ? 4 : experiment_proto.f();
-                    experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
-                            1024 : experiment_proto.out_acc_size();
-                    experiment.banks = experiment_proto.banks() < 1 ? 32 : experiment_proto.banks();
-                    experiment.pe_serial_bits = experiment_proto.pe_serial_bits() < 1 ? 1 :
-                            experiment_proto.pe_serial_bits();
-                    if(experiment.banks > 32)
-                        throw std::runtime_error("Banks for SCNN in network " + simulate.network +
-                                                 " must be from 1 to 32");
-
-                } else if (experiment_proto.architecture() == "SCNNe") {
-                    experiment.Wt = experiment_proto.wt() < 1 ? 32 : experiment_proto.wt();
-                    experiment.Ht = experiment_proto.ht() < 1 ? 32 : experiment_proto.ht();
-                    experiment.I = experiment_proto.i() < 1 ? 4 : experiment_proto.i();
-                    experiment.F = experiment_proto.f() < 1 ? 4 : experiment_proto.f();
-                    experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
-                            1024 : experiment_proto.out_acc_size();
-                    experiment.banks = experiment_proto.banks() < 1 ? 32 : experiment_proto.banks();
-                    experiment.pe_serial_bits = experiment_proto.pe_serial_bits() < 1 ? 1 :
-                            experiment_proto.pe_serial_bits();
-                    if(experiment.banks > 32)
-                        throw std::runtime_error("Banks for SCNN in network " + simulate.network +
-                                                 " must be from 1 to 32");
-
-                } else if(experiment_proto.architecture() == "BitFusion") {
-                    experiment.M = experiment_proto.m() < 1 ? 32 : experiment_proto.m();
-                    experiment.N = experiment_proto.n() < 1 ? 16 : experiment_proto.n();
-                    experiment.pmax = experiment_proto.pmax() < 1 ? 8 : experiment_proto.pmax();
-                    experiment.pmin = experiment_proto.pmin() < 1 ? 2 : experiment_proto.pmin();
-                    if(experiment.pmin > experiment.pmax)
-                        throw std::runtime_error("pmin parameter for BitFusion in network " + simulate.network +
-                                                 " must be bigger or equal to pmax.");
 
                 } else throw std::runtime_error("Architecture for network " + simulate.network +
                                                 " in Fixed16 must be <BitPragmatic|Stripes|DynamicStripes|Laconic|"
-                                                "BitTacticalP|BitTacticalE|SCNN|SCNNp|SCNNe|BitFusion>.");
+                                                "BitTacticalP|BitTacticalE|SCNN>.");
 
                 value = experiment_proto.task();
                 if(experiment_proto.architecture() != "None" && value  != "Cycles" && value != "Potentials" &&
-                        value != "Schedule" && value != "AvgWidth" && value != "OnChip" && value != "OnChipCycles" &&
-                        value != "LayerFusion")
+                        value != "Schedule")
                     throw std::runtime_error("Task for network " + simulate.network +
-                                             " in Fixed16 must be <Cycles|Potentials|Schedule|AvgWidth|OnChip>.");
+                                             " in Fixed16 must be <Cycles|Potentials|Schedule>.");
 
                 if(experiment_proto.architecture() != "BitTacticalE" && experiment_proto.architecture()
                         != "BitTacticalP" && experiment_proto.task() == "Schedule")
                     throw std::runtime_error("Task \"Schedule\" for network " + simulate.network +
                                              " in Fixed16 is only allowed for BitTactialP and BitTacticalE.");
-
-                if(experiment_proto.architecture() != "DynamicStripes" && (experiment_proto.task() == "AvgWidth" ||
-                        experiment_proto.task() == "OnChip"))
-                    throw std::runtime_error("Tasks <AvgWidth|OnChip|OnChipCycles> for network " + simulate.network +
-                                             " in Fixed16 is only allowed for DynamicStripes.");
-                if(experiment_proto.task() == "OnChipCycles" && experiment_proto.architecture() != "DynamicStripes" &&
-                        experiment_proto.architecture() != "SCNN")
-                    throw std::runtime_error("Tasks <OnChipCycles> for network " + simulate.network +
-                                             " in Fixed16 is only allowed for DynamicStripes|SCNN.");
 
                 experiment.architecture = experiment_proto.architecture();
                 experiment.task = experiment_proto.task();

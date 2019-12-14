@@ -36,12 +36,6 @@ namespace base {
         /** Intel INQ quantization */
         bool intel_inq;
 
-        /** Activations does not have sign */
-        bool unsigned_activations = false;
-
-        /** Weights does not have sign */
-        bool unsigned_weights = false;
-
     public:
 
         /** Default constructor */
@@ -54,14 +48,11 @@ namespace base {
          * @param _backward         Active backward traces
          * @param _tensorflow_8b    Active tensorflow 8b quantization
          * @param _intel_inq        Active intel INQ
-         * @param _unsigned_act     Unsigned activations
-         * @param _unsigned_wgt     Unsigned weights
          */
         explicit Network(const std::string &_name, uint32_t _network_bits = 16, bool _forward = false,
                 bool _backward = false, bool _tensorflow_8b = false, bool _intel_inq = false, bool _unsigned_act = false,
                 bool _unsigned_wgt = false) : network_bits(_network_bits), forward(_forward), backward(_backward),
-                tensorflow_8b(_tensorflow_8b), intel_inq(_intel_inq), unsigned_activations(_unsigned_act),
-                unsigned_weights(_unsigned_wgt) {
+                tensorflow_8b(_tensorflow_8b), intel_inq(_intel_inq) {
             name = _name;
         }
 
@@ -73,14 +64,11 @@ namespace base {
          * @param _backward         Active backward traces
          * @param _tensorflow_8b    Active tensorflow 8b
          * @param _intel_inq        Active intel INQ
-         * @param _unsigned_act     Unsigned activations
-         * @param _unsigned_wgt     Unsigned weights
          */
         Network(const std::string &_name, const std::vector<Layer<T>> &_layers, uint32_t _network_bits = 16,
                 bool _forward = false, bool _backward = false, bool _tensorflow_8b = false, bool _intel_inq = false,
                 bool _unsigned_act = false, bool _unsigned_wgt = false) : network_bits(_network_bits),
-                forward(_forward), backward(_backward), tensorflow_8b(_tensorflow_8b), intel_inq(_intel_inq),
-                unsigned_activations(_unsigned_act), unsigned_weights(_unsigned_wgt) {
+                forward(_forward), backward(_backward), tensorflow_8b(_tensorflow_8b), intel_inq(_intel_inq) {
             name = _name; layers = _layers;
         }
 
@@ -125,18 +113,6 @@ namespace base {
          * @return True if Intel INQ quantization
          */
         bool isIntelINQ() const { return intel_inq; }
-
-        /**
-         * Return if the activations are unsigned
-         * @return True if activations are unsigned
-         */
-        bool isUnsignedAct() const { return unsigned_activations; }
-
-        /**
-         * Return if the weights are unsigned
-         * @return True if weights are unsigned
-         */
-        bool isUnsignedWgt() const { return unsigned_weights; }
 
         /**
          * Get number of batches in the layer traces
@@ -204,24 +180,11 @@ namespace base {
          */
         void setIntelINQ(bool _intel_inq) { Network::intel_inq = _intel_inq; }
 
-        /**
-         * Set the if unsigned activations
-         * @param unsignedActivations True if unsigned activations
-         */
-        void setUnsignedActivations(bool unsignedActivations) { Network::unsigned_activations = unsignedActivations; }
-
-        /**
-         * Set the if unsigned weights
-         * @param unsignedWeights True if unsigned weights
-         */
-        void setUnsignedWeights(bool unsignedWeights) { Network::unsigned_weights = unsignedWeights; }
-
         /** Return a network in fixed point given a floating point network
          * @return   Network in fixed point
          */
         Network<uint16_t> fixed_point() {
-            auto fixed_network = Network<uint16_t>(name,network_bits,forward,backward,tensorflow_8b,intel_inq,
-                    unsigned_activations,unsigned_weights);
+            auto fixed_network = Network<uint16_t>(name, network_bits, forward, backward, tensorflow_8b, intel_inq);
 
             for(auto &layer : layers) {
                 auto fixed_layer = Layer<uint16_t>(layer.getType(),layer.getName(),layer.getInput(),layer.getNn(),
@@ -245,30 +208,6 @@ namespace base {
             }
 
             return fixed_network;
-        }
-
-        /** Duplicate the decoder layers to store all decode steps
-         * @param decoder_states Number of decoder states in the traces
-         */
-        void duplicate_decoder_layers(int decoder_states) {
-
-            std::vector<Layer<T>> tmp_layers;
-            std::vector<Layer<T>> tmp_decoders;
-
-            for(const auto layer : this->layers) {
-                if(layer.getType() == "Decoder") tmp_decoders.push_back(layer);
-                else tmp_layers.push_back(layer);
-            }
-
-            for(int decoder_state = 0; decoder_state < decoder_states; decoder_state++) {
-                for(const auto layer : tmp_decoders) {
-                    tmp_layers.push_back(layer);
-                    tmp_layers.back().setName(tmp_layers.back().getName() + "_" + std::to_string(decoder_state));
-                }
-            }
-
-            this->layers = tmp_layers;
-
         }
 
     };

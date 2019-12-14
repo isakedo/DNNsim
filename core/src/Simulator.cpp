@@ -7,13 +7,12 @@ namespace core {
 
     template <typename T>
     base::Network<T> Simulator<T>::read_training(const std::string &network_name, uint32_t batch, uint32_t epoch,
-            uint32_t decoder_states, uint32_t traces_mode) {
+            uint32_t traces_mode) {
 
         // Read the network
         base::Network<T> network;
         interface::NetReader<T> reader = interface::NetReader<T>(network_name, batch, epoch, QUIET);
         network = reader.read_network_trace_params();
-        if(decoder_states > 0) network.duplicate_decoder_layers(decoder_states);
 
         bool forward = (traces_mode & 0x1u) != 0;
         bool backward = (traces_mode & 0x2u) != 0;
@@ -436,7 +435,7 @@ namespace core {
 	    for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
             base::Network<T> network;
-            network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode);
+            network = read_training(simulate.network, simulate.batch, epoch, traces_mode);
 
             if(!QUIET) std::cout << "Starting simulation training sparsity for epoch " << epoch << std::endl;
 
@@ -566,7 +565,7 @@ namespace core {
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
             base::Network<T> network;
-            network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode);
+            network = read_training(simulate.network, simulate.batch, epoch, traces_mode);
 
             if(!QUIET) std::cout << "Starting simulation training bit sparsity for epoch " << epoch << std::endl;
 
@@ -700,7 +699,7 @@ namespace core {
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
             base::Network<T> network;
-            network = read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, traces_mode);
+            network = read_training(simulate.network, simulate.batch, epoch, traces_mode);
 
             if(!QUIET) std::cout << "Starting simulation training distribution for epoch " << epoch << std::endl;
 

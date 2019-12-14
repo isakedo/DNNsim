@@ -1242,7 +1242,7 @@ namespace core {
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
             base::Network<T> network;
-            network = this->read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, 5);
+            network = this->read_training(simulate.network, simulate.batch, epoch, 5);
 
             if(!this->QUIET) std::cout << "Starting Dynamic Tactical cycles simulation for epoch "
                                        << epoch << std::endl;
@@ -1715,7 +1715,7 @@ namespace core {
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
             base::Network<T> network;
-            network = this->read_training(simulate.network, simulate.batch, epoch, simulate.decoder_states, 5);
+            network = this->read_training(simulate.network, simulate.batch, epoch, 5);
 
             if(!this->QUIET) std::cout << "Starting Dynamic Tactical potentials simulation for epoch "
                                        << epoch << std::endl;
