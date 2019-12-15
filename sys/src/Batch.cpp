@@ -40,16 +40,7 @@ namespace sys {
             for(const auto &experiment_proto : simulate_proto.experiment()) {
 
                 Batch::Simulate::Experiment experiment;
-                if(experiment_proto.architecture() == "None") {
-
-                    value = experiment_proto.task();
-                    if(value != "Sparsity" && value != "ExpBitSparsity" && value != "MantBitSparsity" &&
-                            value != "ExpDistr" && value != "MantDistr")
-                        throw std::runtime_error("Training task for network " + simulate.network + " in BFloat16 for"
-                                                 " architecture None must be <Sparsity|ExpBitSparsity|MantBitSparsity|"
-                                                 "ExpDistr|MantDistr>.");
-
-                } else if(experiment_proto.architecture() == "DynamicTactical") {
+                if(experiment_proto.architecture() == "TensorDash") {
                     experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
@@ -66,10 +57,10 @@ namespace sys {
                                                  " must be <L|T>.");
 
                 } else throw std::runtime_error("Training architecture for network " + simulate.network +
-                                                " in BFloat16 must be <DynamicTactical>.");
+                                                " in BFloat16 must be <TensorDash>.");
 
                 value = experiment_proto.task();
-                if(experiment_proto.architecture() != "None" && value != "Cycles" && value != "Potentials")
+                if(value != "Cycles" && value != "Potentials")
                     throw std::runtime_error("Training task for network " + simulate.network +
                                              " in BFloat16 must be <Cycles|Potentials>.");
 
@@ -113,14 +104,7 @@ namespace sys {
             for(const auto &experiment_proto : simulate_proto.experiment()) {
 
                 Batch::Simulate::Experiment experiment;
-                if(experiment_proto.architecture() == "None") {
-
-                    value = experiment_proto.task();
-                    if(value != "Sparsity" && value != "BitSparsity" && value != "Information")
-                        throw std::runtime_error("Task for network " + simulate.network + " in Fixed16 for architecture"
-                                                 " None must be <Sparsity|BitSparsity|Information>.");
-
-                } else if(experiment_proto.architecture() == "BitPragmatic") {
+                if(experiment_proto.architecture() == "BitPragmatic") {
                     experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
@@ -136,7 +120,7 @@ namespace sys {
                     experiment.n_tiles = experiment_proto.n_tiles() < 1 ? 16 : experiment_proto.n_tiles();
                     experiment.bits_pe = experiment_proto.bits_pe() < 1 ? 16 : experiment_proto.bits_pe();
 
-                } else if(experiment_proto.architecture() == "DynamicStripes") {
+                } else if(experiment_proto.architecture() == "ShapeShifter") {
                     experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
                     experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
                     experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
@@ -197,7 +181,7 @@ namespace sys {
                                                  " must be lookahead of 2, and lookaside of 5.");
                     if(experiment.precision_granularity % 16 != 0 ||
                             (((experiment.n_columns * 16) % experiment.precision_granularity) != 0))
-                        throw std::runtime_error("DynamicStripes precision granularity for network " + simulate.network
+                        throw std::runtime_error("ShapeShifter precision granularity for network " + simulate.network
                                                + " must be multiple of 16 and divisible by the columns.");
 
                 } else if (experiment_proto.architecture() == "BitTacticalE") {
@@ -234,12 +218,11 @@ namespace sys {
                                                  " must be from 1 to 32");
 
                 } else throw std::runtime_error("Architecture for network " + simulate.network +
-                                                " in Fixed16 must be <BitPragmatic|Stripes|DynamicStripes|Laconic|"
+                                                " in Fixed16 must be <BitPragmatic|Stripes|ShapeShifter|Laconic|"
                                                 "BitTacticalP|BitTacticalE|SCNN>.");
 
                 value = experiment_proto.task();
-                if(experiment_proto.architecture() != "None" && value  != "Cycles" && value != "Potentials" &&
-                        value != "Schedule")
+                if(value  != "Cycles" && value != "Potentials" && value != "Schedule")
                     throw std::runtime_error("Task for network " + simulate.network +
                                              " in Fixed16 must be <Cycles|Potentials|Schedule>.");
 
@@ -257,14 +240,7 @@ namespace sys {
             for(const auto &experiment_proto : simulate_proto.experiment()) {
 
                 Batch::Simulate::Experiment experiment;
-                if(experiment_proto.architecture() == "None") {
-
-                    value = experiment_proto.task();
-                    if(experiment_proto.task() != "Sparsity" )
-                        throw std::runtime_error("Task for network " + simulate.network + " in Float32 for architecture"
-                                                 " None must be <Sparsity>.");
-
-                } else if (experiment_proto.architecture() == "SCNN") {
+                if (experiment_proto.architecture() == "SCNN") {
                     experiment.Wt = experiment_proto.wt() < 1 ? 8 : experiment_proto.wt();
                     experiment.Ht = experiment_proto.ht() < 1 ? 8 : experiment_proto.ht();
                     experiment.I = experiment_proto.i() < 1 ? 4 : experiment_proto.i();
@@ -277,10 +253,10 @@ namespace sys {
                                                  " must be from 1 to 32");
 
                 } else throw std::runtime_error("Architecture for network " + simulate.network +
-                                                " in Float32 must be <None|SCNN>.");
+                                                " in Float32 must be <SCNN>.");
 
                 value = experiment_proto.task();
-                if(experiment_proto.architecture() != "None" && value  != "Cycles" && value != "Potentials")
+                if(value  != "Cycles" && value != "Potentials")
                     throw std::runtime_error("Task for network " + simulate.network +
                                              " in Float32 must be <Cycles|Potentials>.");
 

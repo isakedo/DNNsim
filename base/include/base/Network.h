@@ -50,9 +50,9 @@ namespace base {
          * @param _intel_inq        Active intel INQ
          */
         explicit Network(const std::string &_name, uint32_t _network_bits = 16, bool _forward = false,
-                bool _backward = false, bool _tensorflow_8b = false, bool _intel_inq = false, bool _unsigned_act = false,
-                bool _unsigned_wgt = false) : network_bits(_network_bits), forward(_forward), backward(_backward),
-                tensorflow_8b(_tensorflow_8b), intel_inq(_intel_inq) {
+                bool _backward = false, bool _tensorflow_8b = false, bool _intel_inq = false) :
+                network_bits(_network_bits), forward(_forward), backward(_backward), tensorflow_8b(_tensorflow_8b),
+                intel_inq(_intel_inq) {
             name = _name;
         }
 
@@ -66,9 +66,9 @@ namespace base {
          * @param _intel_inq        Active intel INQ
          */
         Network(const std::string &_name, const std::vector<Layer<T>> &_layers, uint32_t _network_bits = 16,
-                bool _forward = false, bool _backward = false, bool _tensorflow_8b = false, bool _intel_inq = false,
-                bool _unsigned_act = false, bool _unsigned_wgt = false) : network_bits(_network_bits),
-                forward(_forward), backward(_backward), tensorflow_8b(_tensorflow_8b), intel_inq(_intel_inq) {
+                bool _forward = false, bool _backward = false, bool _tensorflow_8b = false, bool _intel_inq = false) :
+                network_bits(_network_bits), forward(_forward), backward(_backward), tensorflow_8b(_tensorflow_8b),
+                intel_inq(_intel_inq) {
             name = _name; layers = _layers;
         }
 

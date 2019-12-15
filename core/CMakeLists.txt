@@ -14,17 +14,20 @@ add_custom_target(
 # Create library
 add_library(
         ${PROJECT_NAME}
+        include/core/Utils.h
+        include/core/Architecture.h
         include/core/Memory.h
         include/core/Laconic.h
         include/core/BitPragmatic.h
         include/core/Stripes.h
-        include/core/DynamicStripes.h
+        include/core/ShapeShifter.h
         include/core/Loom.h
         include/core/BitTactical.h
         include/core/BitTacticalP.h
         include/core/BitTacticalE.h
-        include/core/DynamicTactical.h
+        include/core/TensorDash.h
         include/core/SCNN.h
+        src/Utils.cpp
         src/Memory.cpp
         src/Simulator.cpp
         src/Laconic.cpp
@@ -33,8 +36,8 @@ add_library(
         src/BitTactical.cpp
         src/BitTacticalP.cpp
         src/BitTacticalE.cpp
-        src/DynamicTactical.cpp
-        src/DynamicStripes.cpp
+        src/TensorDash.cpp
+        src/ShapeShifter.cpp
         src/Loom.cpp
         src/SCNN.cpp
 )

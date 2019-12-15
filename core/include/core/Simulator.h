@@ -9,6 +9,7 @@
 #include <base/Network.h>
 #include <interface/NetReader.h>
 #include <core/Memory.h>
+#include "Architecture.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -140,41 +141,11 @@ namespace core {
             memory = _MEMORY;
         }
 
-
-       /** Returns network information
-        * @param network   Network we want to check
-        */
-        void information(const base::Network<T> &network);
-
-        /** Calculate the sparsity in the network
-         * @param network   Network we want to check
+        /** Calculate potentials for the given network
+         * @param network   Network we want to calculate work reduction
+         * @param arch      Pointer to the architecture to simulate
          */
-        void sparsity(const base::Network<T> &network);
-
-        /** Calculate the bit-sparsity in the network. Assumes two-complement
-         * @param network   Network we want to check
-         */
-        void bit_sparsity(const base::Network<T> &network);
-
-        /** Calculate the training sparsity in the network
-         * @param simulate  Simulate configuration
-		 * @param epochs    Number of epochs
-         */
-        void training_sparsity(const sys::Batch::Simulate &simulate, int epochs);
-
-        /** Calculate the training bit sparsity in the network
-         * @param simulate  Simulate configuration
-         * @param epochs    Number of epochs
-         * @param mantissa  Mantissa bit sparsity instead of exponent
-         */
-        void training_bit_sparsity(const sys::Batch::Simulate &simulate, int epochs, bool mantissa);
-
-        /** Calculate the training exponent distribution in the network
-         * @param simulate  Simulate configuration
-         * @param epochs    Number of epochs
-         * @param mantissa  Mantissa distribution instead of exponent
-         */
-        void training_distribution(const sys::Batch::Simulate &simulate, int epochs, bool mantissa);
+        void potentials(const base::Network<T> &network, const std::shared_ptr<Architecture<T>> &arch);
 
     };
 

@@ -1,17 +1,17 @@
 
-#include <core/DynamicStripes.h>
+#include <core/ShapeShifter.h>
 
 namespace core {
 
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    uint16_t DynamicStripes<T>::computeDynamicStripesBitsPE(uint8_t layer_prec, const int network_bits) {
+    uint16_t ShapeShifter<T>::computeDynamicStripesBitsPE(uint8_t layer_prec, const int network_bits) {
         return layer_prec * (uint8_t)network_bits;
     }
 
     template <typename T>
-    uint8_t DynamicStripes<T>::computeDynamicStripesColumn(int batch, int recursion, int act_x, int act_y, int kernel_x,
+    uint8_t ShapeShifter<T>::computeDynamicStripesColumn(int batch, int recursion, int act_x, int act_y, int kernel_x,
             int kernel_y, int init_channel, int stride, const base::Array<T> &padded_act, uint16_t act_mask,
             int max_channel, bool lstm) {
 
@@ -51,7 +51,7 @@ namespace core {
     }
 
     template <typename T>
-    void DynamicStripes<T>::computeDynamicStripesTile(int batch, const std::vector<int> &list_act_x,
+    void ShapeShifter<T>::computeDynamicStripesTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_channel, int stride,
             const base::Array<T> &padded_act, uint16_t act_mask, int max_channel,
             std::vector<uint32_t> &cycles_per_group, std::vector<uint32_t> &end_previous_pallet,
@@ -152,7 +152,7 @@ namespace core {
     }
 
     template <typename T>
-    void DynamicStripes<T>::computeDynamicStripes2DTile(int batch, const std::vector<int> &list_act_x,
+    void ShapeShifter<T>::computeDynamicStripes2DTile(int batch, const std::vector<int> &list_act_x,
             const std::vector<int> &list_act_y, int kernel_x, int kernel_y, int init_filter, int stride,
             const base::Array<T> &padded_act, const base::Array<T> &wgt, uint16_t act_mask, int max_filter,
             std::vector<uint32_t> &cycles_per_group, std::vector<uint32_t> &end_previous_pallet,
@@ -245,7 +245,7 @@ namespace core {
     /* CYCLES */
 
     template <typename T>
-    void DynamicStripes<T>::run(const base::Network<T> &network) {
+    void ShapeShifter<T>::run(const base::Network<T> &network) {
 
         // Initialize statistics
         std::string arch = "DynamicStripes";
@@ -491,7 +491,7 @@ namespace core {
     /* POTENTIALS */
 
     template <typename T>
-    void DynamicStripes<T>::potentials(const base::Network<T> &network) {
+    void ShapeShifter<T>::potentials(const base::Network<T> &network) {
 
         // Initialize statistics
         std::string filename = "DynamicStripes_potentials";
@@ -578,6 +578,6 @@ namespace core {
         stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
     }
 
-    template class DynamicStripes<uint16_t>;
+    template class ShapeShifter<uint16_t>;
 
 }

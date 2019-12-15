@@ -19,7 +19,7 @@ namespace core {
      * @tparam T 16 bits bfloat
      */
     template <typename T>
-    class DynamicTactical : public Simulator<T> {
+    class TensorDash : public Simulator<T> {
 
     private:
 
@@ -133,7 +133,7 @@ namespace core {
          * @param _QUIET            Avoid std::out messages
          * @param _CHECK            Check the correctness of the simulations
          */
-        DynamicTactical(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES,
+        TensorDash(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES,
                 uint32_t _LOOKAHEAD_H, uint32_t _LOOKASIDE_D, const char _SEARCH_SHAPE, int _BANKS, uint8_t _N_THREADS,
                 bool _FAST_MODE, bool _QUIET, bool _CHECK) : Simulator<T>(_N_THREADS,_FAST_MODE,_QUIET,_CHECK),
                 N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), N_TILES(_N_TILES), LOOKAHEAD_H(_LOOKAHEAD_H),

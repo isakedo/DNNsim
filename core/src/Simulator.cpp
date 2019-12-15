@@ -195,40 +195,21 @@ namespace core {
         return sign_mag;
     }
 
-    /* DATA CALCULATIONS */
+    /* POTENTIALS */
 
     template <typename T>
-    void Simulator<T>::information(const base::Network<T> &network) {
+    void Simulator<T>::potentials(const base::Network<T> &network, const std::shared_ptr<Architecture<T>> &arch) {
 
         // Initialize statistics
-        std::string filename = "information";
-        sys::Stats stats = sys::Stats(network.getNumLayers(), 1, filename);
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(),
+                arch->filename_pot());
 
-        auto type = stats.register_string_t("Type", sys::No_Measure);
-
-        auto batch = stats.register_uint_t("Batch", 0, sys::Average);
-        auto act_channels = stats.register_uint_t("Act Channels", 0, sys::Average);
-        auto Nx = stats.register_uint_t("Act Width", 0, sys::Average);
-        auto Ny = stats.register_uint_t("Act Height", 0, sys::Average);
-        auto R = stats.register_uint_t("Times", 0, sys::Average);
-
-        auto filters = stats.register_uint_t("Num Filters", 0, sys::Average);
-        auto wgt_channels = stats.register_uint_t("Wgt Channels", 0, sys::Average);
-        auto Kx = stats.register_uint_t("Wgt Width", 0, sys::Average);
-        auto Ky = stats.register_uint_t("Wgt Height", 0, sys::Average);
-
-        auto out_x = stats.register_uint_t("Output Width", 0, sys::Average);
-        auto out_y = stats.register_uint_t("Output Height", 0, sys::Average);
-
-        auto padding = stats.register_uint_t("Padding", 0, sys::Average);
-        auto stride = stats.register_uint_t("Stride", 0, sys::Average);
-        auto act_precision = stats.register_uint_t("Act Precision", 0, sys::Average);
-        auto wgt_precision = stats.register_uint_t("Wgt Precision", 0, sys::Average);
-
-        auto act_size = stats.register_double_t("Act Size (MB)", 0, sys::AverageTotal);
-        auto act_row_size = stats.register_double_t("Act Row Size (MB)", 0, sys::AverageTotal);
-        auto wgt_size = stats.register_double_t("Wgt Size (MB)", 0, sys::AverageTotal);
-        auto wgt_set_size = stats.register_double_t("Wgt Working Set Size (MB)", 0, sys::AverageTotal);
+        auto work_reduction = stats.register_double_t("work_reduction", 0, sys::Average);
+        auto speedup = stats.register_double_t("speedup", 0, sys::Average);
+        auto par_mult = stats.register_double_t("parallel_multiplication", 0, sys::AverageTotal);
+        auto bit_multiplications = stats.register_uint_t("bit_multiplications", 0, sys::AverageTotal);
+        auto act_precision = stats.register_uint_t("activations_precision", 0, sys::Average);
+        auto wgt_precision = stats.register_uint_t("weights_precision", 0, sys::Average);
 
         for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
@@ -238,533 +219,117 @@ namespace core {
             bool fc = layer.getType() == "InnerProduct";
 
             base::Array<T> act = layer.getActivations();
+            arch->dataConversion(act, layer.getActPrecision());
             if(fc && act.getDimensions() == 4) act.reshape_to_2D();
-            if(fc) act.reshape_to_4D();
 
             base::Array<T> wgt = layer.getWeights();
-            if(wgt.getDimensions() == 2) wgt.reshape_to_4D();
+            arch->dataConversion(wgt, layer.getWgtPrecision());
+            if(conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
+
+            int padding = layer.getPadding();
+            int stride = layer.getStride();
+
+            if (conv) act.zero_pad(padding);
 
             const std::vector<size_t> &act_shape = act.getShape();
             const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-            type->value[layer_it][0] = layer.getType();
-
-            if(lstm) {
-                R->value[layer_it][0] = act_shape[0];
-                batch->value[layer_it][0] = act_shape[1];
-                act_channels->value[layer_it][0] = act_shape[2];
-                Nx->value[layer_it][0] = 1;
-                Ny->value[layer_it][0] = 1;
+            uint64_t batch_size, act_channels, Nx, Ny, R;
+            if (lstm) {
+                R = act_shape[0];
+                batch_size = act_shape[1];
+                act_channels = act_shape[2];
+                Nx = 1;
+                Ny = 1;
             } else {
-                R->value[layer_it][0] = 1;
-                batch->value[layer_it][0] = act_shape[0];
-                act_channels->value[layer_it][0] = act_shape[1];
-                Nx->value[layer_it][0] = act_shape[2];
-                Ny->value[layer_it][0] = act_shape[3];
+                R = 1;
+                batch_size = act_shape[0];
+                act_channels = act_shape[1];
+                Nx = act_shape[2];
+                Ny = act_shape[3];
             }
 
-            filters->value[layer_it][0] = wgt_shape[0];
-            wgt_channels->value[layer_it][0] = wgt_shape[1];
-            Kx->value[layer_it][0] = wgt_shape[2];
-            Ky->value[layer_it][0] = wgt_shape[3];
+            auto num_filters = wgt_shape[0];
+            auto wgt_channels = wgt_shape[1];
+            auto Kx = wgt_shape[2];
+            auto Ky = wgt_shape[3];
 
-            padding->value[layer_it][0] = layer.getPadding();
-            stride->value[layer_it][0] = layer.getStride();
-            act_precision->value[layer_it][0] = layer.getActPrecision();
-            wgt_precision->value[layer_it][0] = layer.getWgtPrecision();
+            long out_x = (Nx - Kx)/stride + 1;
+            long out_y = (Ny - Ky)/stride + 1;
 
-            out_x->value[layer_it][0] = (Nx->value[layer_it][0] - Kx->value[layer_it][0] +
-                    2 * padding->value[layer_it][0]) / stride->value[layer_it][0] + 1;
-            out_y->value[layer_it][0] = (Ny->value[layer_it][0] - Ky->value[layer_it][0] +
-                    2 * padding->value[layer_it][0])/stride->value[layer_it][0] + 1;
+            auto groups = act_channels / wgt_channels;
+            auto it_per_group = num_filters / groups;
 
-            act_size->value[layer_it][0] = act_channels->value[layer_it][0] * Nx->value[layer_it][0] *
-                    Ny->value[layer_it][0] * R->value[layer_it][0] * network.getNetwork_bits() / 8000000.;
-            act_row_size->value[layer_it][0] = act_channels->value[layer_it][0] * Nx->value[layer_it][0] *
-                    Ky->value[layer_it][0] * network.getNetwork_bits() / 8000000.;
-            wgt_size->value[layer_it][0] = filters->value[layer_it][0] * wgt_channels->value[layer_it][0] *
-                    Kx->value[layer_it][0] * Ky->value[layer_it][0] * network.getNetwork_bits() / 8000000.;
-            wgt_set_size->value[layer_it][0] = 16 * wgt_channels->value[layer_it][0] * Kx->value[layer_it][0] *
-                    Ky->value[layer_it][0] * network.getNetwork_bits() / 8000000.;
-        }
+            auto network_bits = network.getNetwork_bits();
+            auto act_prec = layer.getActPrecision();
+            auto wgt_prec = layer.getWgtPrecision();
 
-        //Dump statistics
-        std::string header = "Information for " + network.getName() + "\n";
-        stats.dump_csv(network.getName(), network.getLayersName(), header, QUIET);
+            // Operations
+            uint64_t parallel_mult = conv ? num_filters * out_x * out_y * Kx * Ky * wgt_channels :
+                                     num_filters * wgt_channels * R;
 
+            for(int n = 0; n < batch_size; n++) {
+                double MAX_BITS = network_bits * network_bits;
+                uint64_t bit_counter = 0;
 
-    }
+                if (conv) {
 
-    template <typename T>
-    void Simulator<T>::sparsity(const base::Network<T> &network) {
+                    for(int m = 0; m < num_filters; m++) {
 
-        // Initialize statistics
-        std::string filename = "value_sparsity";
-        sys::Stats stats = sys::Stats(network.getNumLayers(), 1, filename);
+                        // Two towers alexnet
+                        int start_group = 0;
+                        if(m >= it_per_group)
+                            start_group = (int)wgt_channels;
 
-        auto act_sparsity = stats.register_double_t("act_sparsity", 0, sys::Special);
-        auto zero_act = stats.register_uint_t("zero_act", 0, sys::AverageTotal);
-        auto total_act = stats.register_uint_t("total_act", 0, sys::AverageTotal);
-        auto wgt_sparsity = stats.register_double_t("wgt_sparsity", 0, sys::Special);
-        auto zero_wgt = stats.register_uint_t("zero_wgt", 0, sys::AverageTotal);
-        auto total_wgt = stats.register_uint_t("total_wgt", 0, sys::AverageTotal);
+                        // Fix for MobileNet
+                        if(wgt_channels == 1 && act_channels != 1)
+                            start_group = m;
 
-        for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
-
-            const base::Layer<T> &layer = network.getLayers()[layer_it];
-
-            uint64_t batch_zero_act = 0;
-            const auto &act = layer.getActivations();
-            for(uint64_t i = 0; i < act.getMax_index(); i++) {
-                const auto data = act.get(i);
-                if(data == 0) batch_zero_act++;
-            }
-
-            uint64_t batch_zero_wgt = 0;
-            const auto &wgt = layer.getWeights();
-            for(uint64_t i = 0; i < wgt.getMax_index(); i++) {
-                const auto data = wgt.get(i);
-                if(data == 0) batch_zero_wgt++;
-            }
-
-            act_sparsity->value[layer_it][0] = batch_zero_act / (double)act.getMax_index() * 100.;
-            zero_act->value[layer_it][0] = batch_zero_act;
-            total_act->value[layer_it][0] = act.getMax_index();
-            wgt_sparsity->value[layer_it][0] = batch_zero_wgt / (double)wgt.getMax_index() * 100.;
-            zero_wgt->value[layer_it][0] = batch_zero_wgt;
-            total_wgt->value[layer_it][0] = wgt.getMax_index();
-
-        }
-
-        act_sparsity->special_value = sys::get_total(zero_act->value) / (double)sys::get_total(total_act->value) * 100.;
-        wgt_sparsity->special_value = sys::get_total(zero_wgt->value) / (double)sys::get_total(total_wgt->value) * 100.;
-
-        //Dump statistics
-        std::string header = "Value sparsity for " + network.getName() + "\n";
-        stats.dump_csv(network.getName(), network.getLayersName(), header, QUIET);
-
-    }
-
-    template <typename uint16_t>
-    void Simulator<uint16_t>::bit_sparsity(const base::Network<uint16_t> &network) {
-
-        // Initialize statistics
-        std::string filename = "bit_sparsity";
-        sys::Stats stats = sys::Stats(network.getNumLayers(), 1, filename);
-
-        auto act_sparsity = stats.register_double_t("act_bit_sparsity", 0, sys::Special);
-        auto zero_act = stats.register_uint_t("zero_act_bits", 0, sys::AverageTotal);
-        auto total_act = stats.register_uint_t("total_act_bits", 0, sys::AverageTotal);
-        auto wgt_sparsity = stats.register_double_t("wgt_bit_sparsity", 0, sys::Special);
-        auto zero_wgt = stats.register_uint_t("zero_wgt_bits", 0, sys::AverageTotal);
-        auto total_wgt = stats.register_uint_t("total_wgt_bits", 0, sys::AverageTotal);
-
-        for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
-
-            const base::Layer<uint16_t> &layer = network.getLayers()[layer_it];
-
-            uint64_t zero_act_bits = 0;
-            const auto &act = layer.getActivations();
-            for(uint64_t i = 0; i < act.getMax_index(); i++) {
-                const auto bits = act.get(i);
-                uint8_t ones = effectualBits(bits);
-                zero_act_bits += (16 - ones);
-            }
-
-            uint64_t zero_wgt_bits = 0;
-            const auto &wgt = layer.getWeights();
-            for(uint64_t i = 0; i < wgt.getMax_index(); i++) {
-                const auto bits = wgt.get(i);
-                uint8_t ones = effectualBits(bits);
-                zero_wgt_bits += (16 - ones);
-            }
-
-            act_sparsity->value[layer_it][0] = zero_act_bits / (double)(act.getMax_index() * 16.) * 100.;
-            zero_act->value[layer_it][0] = zero_act_bits;
-            total_act->value[layer_it][0] = act.getMax_index() * 16.;
-            wgt_sparsity->value[layer_it][0] = zero_wgt_bits / (double)(wgt.getMax_index() * 16.) * 100.;
-            zero_wgt->value[layer_it][0] = zero_wgt_bits;
-            total_wgt->value[layer_it][0] = wgt.getMax_index() * 16.;
-
-        }
-
-        act_sparsity->special_value = sys::get_total(zero_act->value) / (double)sys::get_total(total_act->value) * 100.;
-        wgt_sparsity->special_value = sys::get_total(zero_wgt->value) / (double)sys::get_total(total_wgt->value) * 100.;
-
-        //Dump statistics
-        std::string header = "Bit sparsity for " + network.getName() + "\n";
-        stats.dump_csv(network.getName(), network.getLayersName(), header, this->QUIET);
-
-    }
-
-    template <typename T>
-	void Simulator<T>::training_sparsity(const sys::Batch::Simulate &simulate, int epochs) {
-
-        base::Network<T> network_model;
-        interface::NetReader<T> reader = interface::NetReader<T>(simulate.network, 0, 0, QUIET);
-        network_model = reader.read_network_trace_params();
-
-        // Initialize statistics
-        std::string filename = "training_value_sparsity";
-        sys::Stats stats = sys::Stats(network_model.getNumLayers(), epochs, filename);
-
-        // Forward stats
-        auto fw_act_sparsity = stats.register_double_t("fw_act_sparsity", 0, sys::Special);
-        auto fw_zero_act = stats.register_uint_t("fw_zero_act", 0, sys::AverageTotal);
-        auto fw_total_act = stats.register_uint_t("fw_total_act", 0, sys::AverageTotal);
-        auto fw_wgt_sparsity = stats.register_double_t("fw_wgt_sparsity", 0, sys::Special);
-        auto fw_zero_wgt = stats.register_uint_t("fw_zero_wgt", 0, sys::AverageTotal);
-        auto fw_total_wgt = stats.register_uint_t("fw_total_wgt", 0, sys::AverageTotal);
-
-        // Backward stats
-        auto bw_in_grad_sparsity = stats.register_double_t("bw_in_grad_sparsity", 0, sys::Special);
-        auto bw_zero_in_grad = stats.register_uint_t("bw_zero_in_grad", 0, sys::AverageTotal);
-        auto bw_total_in_grad = stats.register_uint_t("bw_total_in_grad", 0, sys::AverageTotal);
-        auto bw_wgt_grad_sparsity = stats.register_double_t("bw_wgt_grad_sparsity", 0, sys::Special);
-        auto bw_zero_wgt_grad = stats.register_uint_t("bw_zero_wgt_grad", 0, sys::AverageTotal);
-        auto bw_total_wgt_grad = stats.register_uint_t("bw_total_wgt_grad", 0, sys::AverageTotal);
-        auto bw_out_grad_sparsity = stats.register_double_t("bw_out_grad_sparsity", 0, sys::Special);
-        auto bw_zero_out_grad = stats.register_uint_t("bw_zero_out_grad", 0, sys::AverageTotal);
-        auto bw_total_out_grad = stats.register_uint_t("bw_total_out_grad", 0, sys::AverageTotal);
-
-        uint32_t traces_mode = 0;
-        if(simulate.only_forward) traces_mode = 1;
-        else if(simulate.only_backward) traces_mode = 2;
-        else traces_mode = 3;
-
-	    for (uint32_t epoch = 0; epoch < epochs; epoch++) {
-
-            base::Network<T> network;
-            network = read_training(simulate.network, simulate.batch, epoch, traces_mode);
-
-            if(!QUIET) std::cout << "Starting simulation training sparsity for epoch " << epoch << std::endl;
-
-            for (int layer_it = 0; layer_it < network.getNumLayers(); layer_it++) {
-
-                const base::Layer<T> &layer = network.getLayers()[layer_it];
-
-                // Forward
-                if (network.getForward()) {
-                    uint64_t zero_act = 0;
-                    const auto &act = layer.getActivations();
-                    for (uint64_t i = 0; i < act.getMax_index(); i++) {
-                        const auto data = act.get(i);
-                        if (data == 0) zero_act++;
-                    }
-
-                    uint64_t zero_wgt = 0;
-                    const auto &wgt = layer.getWeights();
-                    for (uint64_t i = 0; i < wgt.getMax_index(); i++) {
-                        const auto data = wgt.get(i);
-                        if (data == 0) zero_wgt++;
-                    }
-
-                    fw_act_sparsity->value[layer_it][epoch] = zero_act / (double) act.getMax_index() * 100.;
-                    fw_zero_act->value[layer_it][epoch] = zero_act;
-                    fw_total_act->value[layer_it][epoch] = act.getMax_index();
-                    fw_wgt_sparsity->value[layer_it][epoch] = zero_wgt / (double) wgt.getMax_index() * 100.;
-                    fw_zero_wgt->value[layer_it][epoch] = zero_wgt;
-                    fw_total_wgt->value[layer_it][epoch] = wgt.getMax_index();
-                }
-
-                //Backward
-                if (network.getBackward()) {
-                    uint64_t zero_act_grad = 0;
-                    const auto &act_grad = layer.getInputGradients();
-                    if (layer_it != 0) {
-                        for (uint64_t i = 0; i < act_grad.getMax_index(); i++) {
-                            const auto data = act_grad.get(i);
-                            if (data == 0) zero_act_grad++;
+                        for(int x = 0; x < out_x; x++) {
+                            for(int y = 0; y < out_y; y++) {
+                                for (int i = 0; i < Kx; i++) {
+                                    for (int j = 0; j < Ky; j++) {
+                                        for (int k = 0; k < wgt_channels; k++) {
+                                            T act_bits = act.get(n, start_group + k, stride * x + i, stride * y + j);
+                                            T wgt_bits = wgt.get(m, k, i, j);
+                                            bit_counter += arch->computeBits(act_bits, wgt_bits, act_prec, wgt_prec,
+                                                    network_bits);
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
 
-                    uint64_t zero_wgt_grad = 0;
-                    const auto &wgt_grad = layer.getWeightGradients();
-                    for (uint64_t i = 0; i < wgt_grad.getMax_index(); i++) {
-                        const auto data = wgt_grad.get(i);
-                        if (data == 0) zero_wgt_grad++;
-                    }
+                } else {
 
-                    uint64_t zero_out_act_grad = 0;
-                    const auto &out_act_grad = layer.getOutputGradients();
-                    for (uint64_t i = 0; i < out_act_grad.getMax_index(); i++) {
-                        const auto data = out_act_grad.get(i);
-                        if (data == 0) zero_out_act_grad++;
-                    }
-
-                    if (layer_it != 0) {
-                        bw_in_grad_sparsity->value[layer_it][epoch] =
-                                zero_act_grad / (double) act_grad.getMax_index() * 100.;
-                        bw_zero_in_grad->value[layer_it][epoch] = zero_act_grad;
-                        bw_total_in_grad->value[layer_it][epoch] = act_grad.getMax_index();
-                    }
-                    bw_wgt_grad_sparsity->value[layer_it][epoch] =
-                            zero_wgt_grad / (double) wgt_grad.getMax_index() * 100.;
-                    bw_zero_wgt_grad->value[layer_it][epoch] = zero_wgt_grad;
-                    bw_total_wgt_grad->value[layer_it][epoch] = wgt_grad.getMax_index();
-                    bw_out_grad_sparsity->value[layer_it][epoch] = zero_out_act_grad /
-                            (double) out_act_grad.getMax_index() * 100.;
-                    bw_zero_out_grad->value[layer_it][epoch] = zero_out_act_grad;
-                    bw_total_out_grad->value[layer_it][epoch] = out_act_grad.getMax_index();
-                }
-
-            }
-
-        }
-
-        fw_act_sparsity->special_value = sys::get_total(fw_zero_act->value) / (double)sys::get_total(fw_total_act->value) * 100.;
-        fw_wgt_sparsity->special_value = sys::get_total(fw_zero_wgt->value) / (double)sys::get_total(fw_total_wgt->value) * 100.;
-        bw_in_grad_sparsity->special_value = sys::get_total(bw_zero_in_grad->value) / (double)sys::get_total(bw_total_in_grad->value) * 100.;
-        bw_wgt_grad_sparsity->special_value = sys::get_total(bw_zero_wgt_grad->value) / (double)sys::get_total(bw_total_wgt_grad->value) * 100.;
-        bw_out_grad_sparsity->special_value = sys::get_total(bw_zero_out_grad->value) / (double)sys::get_total(bw_total_out_grad->value) * 100.;
-
-        //Dump statistics
-        std::string header = "Value sparsity for " + network_model.getName() + "\n";
-        stats.dump_csv(network_model.getName(), network_model.getLayersName(), header, this->QUIET);
-
-	}
-
-    template <typename T>
-    void Simulator<T>::training_bit_sparsity(const sys::Batch::Simulate &simulate, int epochs, bool mantissa) {
-
-        base::Network<T> network_model;
-        interface::NetReader<T> reader = interface::NetReader<T>(simulate.network, 0, 0, QUIET);
-        network_model = reader.read_network_trace_params();
-
-        // Initialize statistics
-        std::string task_name = mantissa ? "mantissa_bit_sparsity" : "exponent_bit_sparsity";
-        std::string filename = "training_" + task_name;
-        sys::Stats stats = sys::Stats(network_model.getNumLayers(), epochs, filename);
-
-        // Forward stats
-        auto fw_act_sparsity = stats.register_double_t("fw_act_bit_sparsity", 0, sys::Special);
-        auto fw_zero_act = stats.register_uint_t("fw_zero_act_bits", 0, sys::AverageTotal);
-        auto fw_total_act = stats.register_uint_t("fw_total_act_bits", 0, sys::AverageTotal);
-        auto fw_wgt_sparsity = stats.register_double_t("fw_wgt_bit_sparsity", 0, sys::Special);
-        auto fw_zero_wgt = stats.register_uint_t("fw_zero_wgt_bits", 0, sys::AverageTotal);
-        auto fw_total_wgt = stats.register_uint_t("fw_total_wgt_bits", 0, sys::AverageTotal);
-
-        // Backward stats
-        auto bw_in_grad_sparsity = stats.register_double_t("bw_in_grad_bit_sparsity", 0, sys::Special);
-        auto bw_zero_in_grad = stats.register_uint_t("bw_zero_in_grad_bits", 0, sys::AverageTotal);
-        auto bw_total_in_grad = stats.register_uint_t("bw_total_in_grad_bits", 0, sys::AverageTotal);
-        auto bw_wgt_grad_sparsity = stats.register_double_t("bw_wgt_grad_bit_sparsity", 0, sys::Special);
-        auto bw_zero_wgt_grad = stats.register_uint_t("bw_zero_wgt_grad_bits", 0, sys::AverageTotal);
-        auto bw_total_wgt_grad = stats.register_uint_t("bw_total_wgt_grad_bits", 0, sys::AverageTotal);
-        auto bw_out_grad_sparsity = stats.register_double_t("bw_out_grad_bit_sparsity", 0, sys::Special);
-        auto bw_zero_out_grad = stats.register_uint_t("bw_zero_out_grad_bits", 0, sys::AverageTotal);
-        auto bw_total_out_grad = stats.register_uint_t("bw_total_out_grad_bits", 0, sys::AverageTotal);
-
-        uint32_t traces_mode = 0;
-        if(simulate.only_forward) traces_mode = 1;
-        else if(simulate.only_backward) traces_mode = 2;
-        else traces_mode = 3;
-
-        const auto MAX_ONES = mantissa ? 7. : 8.;
-
-        for (uint32_t epoch = 0; epoch < epochs; epoch++) {
-
-            base::Network<T> network;
-            network = read_training(simulate.network, simulate.batch, epoch, traces_mode);
-
-            if(!QUIET) std::cout << "Starting simulation training bit sparsity for epoch " << epoch << std::endl;
-
-            for (int layer_it = 0; layer_it < network.getNumLayers(); layer_it++) {
-
-                const base::Layer<T> &layer = network.getLayers()[layer_it];
-
-                // Forward
-                if (network.getForward()) {
-                    uint64_t zero_act_bits = 0;
-                    const auto &act = layer.getActivations();
-                    for(uint64_t i = 0; i < act.getMax_index(); i++) {
-                        const auto data_float = act.get(i);
-                        auto data_bfloat = this->split_bfloat16(data_float);
-                        auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                        auto ones = effectualBits(bin_value);
-                        zero_act_bits += (MAX_ONES - ones);
-                    }
-
-                    uint64_t zero_wgt_bits = 0;
-                    const auto &wgt = layer.getWeights();
-                    for(uint64_t i = 0; i < wgt.getMax_index(); i++) {
-                        const auto data_float = wgt.get(i);
-                        auto data_bfloat = this->split_bfloat16(data_float);
-                        auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                        auto ones = effectualBits(bin_value);
-                        zero_wgt_bits += (MAX_ONES - ones);
-                    }
-
-                    fw_act_sparsity->value[layer_it][epoch] = zero_act_bits / (double)(act.getMax_index() * MAX_ONES) * 100.;
-                    fw_zero_act->value[layer_it][epoch] = zero_act_bits;
-                    fw_total_act->value[layer_it][epoch] = act.getMax_index() * MAX_ONES;
-                    fw_wgt_sparsity->value[layer_it][epoch] = zero_wgt_bits / (double)(wgt.getMax_index()  * MAX_ONES) * 100.;
-                    fw_zero_wgt->value[layer_it][epoch] = zero_wgt_bits;
-                    fw_total_wgt->value[layer_it][epoch] = wgt.getMax_index() * MAX_ONES;
-                }
-
-                //Backward
-                if (network.getBackward()) {
-                    uint64_t zero_act_grad_bits = 0;
-                    const auto &act_grad = layer.getInputGradients();
-                    if(layer_it != 0) {
-                        for (uint64_t i = 0; i < act_grad.getMax_index(); i++) {
-                            const auto data_float = act_grad.get(i);
-                            auto data_bfloat = this->split_bfloat16(data_float);
-                            auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                            auto ones = effectualBits(bin_value);
-                            zero_act_grad_bits += (MAX_ONES - ones);
+                    for (int r = 0; r < R; r++) {
+                        for (int m = 0; m < num_filters; m++) {
+                            for (int k = 0; k < wgt_channels; k++) {
+                                T act_bits = lstm ? act.get(r, n, k) : act.get(n, k);
+                                T wgt_bits = wgt.get(m, k);
+                                bit_counter += arch->computeBits(act_bits, wgt_bits, act_prec, wgt_prec, network_bits);
+                            }
                         }
                     }
 
-                    uint64_t zero_wgt_grad_bits = 0;
-                    const auto &wgt_grad = layer.getWeightGradients();
-                    for(uint64_t i = 0; i < wgt_grad.getMax_index(); i++) {
-                        const auto data_float = wgt_grad.get(i);
-                        auto data_bfloat = this->split_bfloat16(data_float);
-                        auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                        auto ones = effectualBits(bin_value);
-                        zero_wgt_grad_bits += (MAX_ONES - ones);
-                    }
-
-                    uint64_t zero_out_act_grad_bits = 0;
-                    const auto &out_act_grad = layer.getOutputGradients();
-                    for (uint64_t i = 0; i < out_act_grad.getMax_index(); i++) {
-                        const auto data_float = out_act_grad.get(i);
-                        auto data_bfloat = this->split_bfloat16(data_float);
-                        auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                        auto ones = effectualBits(bin_value);
-                        zero_out_act_grad_bits += (MAX_ONES - ones);
-                    }
-
-                    if (layer_it != 0) {
-                        bw_in_grad_sparsity->value[layer_it][epoch] =
-                                zero_act_grad_bits / (double)(act_grad.getMax_index() * MAX_ONES) * 100.;
-                        bw_zero_in_grad->value[layer_it][epoch] = zero_act_grad_bits;
-                        bw_total_in_grad->value[layer_it][epoch] = act_grad.getMax_index() * MAX_ONES;
-                    }
-                    bw_wgt_grad_sparsity->value[layer_it][epoch] =
-                            zero_wgt_grad_bits / (double)(wgt_grad.getMax_index() * MAX_ONES) * 100.;
-                    bw_zero_wgt_grad->value[layer_it][epoch] = zero_wgt_grad_bits;
-                    bw_total_wgt_grad->value[layer_it][epoch] = wgt_grad.getMax_index() * MAX_ONES;
-                    bw_out_grad_sparsity->value[layer_it][epoch] = zero_out_act_grad_bits /
-                            (double)(out_act_grad.getMax_index()  * MAX_ONES) * 100.;
-                    bw_zero_out_grad->value[layer_it][epoch] = zero_out_act_grad_bits;
-                    bw_total_out_grad->value[layer_it][epoch] = out_act_grad.getMax_index() * MAX_ONES;
                 }
 
-            }
-
-        }
-
-        fw_act_sparsity->special_value = sys::get_total(fw_zero_act->value) / (double)sys::get_total(fw_total_act->value) * 100.;
-        fw_wgt_sparsity->special_value = sys::get_total(fw_zero_wgt->value) / (double)sys::get_total(fw_total_wgt->value) * 100.;
-        bw_in_grad_sparsity->special_value = sys::get_total(bw_zero_in_grad->value) / (double)sys::get_total(bw_total_in_grad->value) * 100.;
-        bw_wgt_grad_sparsity->special_value = sys::get_total(bw_zero_wgt_grad->value) / (double)sys::get_total(bw_total_wgt_grad->value) * 100.;
-        bw_out_grad_sparsity->special_value = sys::get_total(bw_zero_out_grad->value) / (double)sys::get_total(bw_total_out_grad->value) * 100.;
-
-        //Dump statistics
-        std::string header = mantissa ? "Mantissa" : "Exponent";
-        header += " Bit sparsity for " + network_model.getName() + "\n";
-        stats.dump_csv(network_model.getName(), network_model.getLayersName(), header, this->QUIET);
-
-    }
-
-
-    template <typename T>
-    void Simulator<T>::training_distribution(const sys::Batch::Simulate &simulate, int epochs, bool mantissa) {
-
-        base::Network<T> network_model;
-        interface::NetReader<T> reader = interface::NetReader<T>(simulate.network, 0, 0, QUIET);
-        network_model = reader.read_network_trace_params();
-
-        // Initialize statistics
-        std::string task_name = mantissa ? "mantissa_distribution" : "exponent_distribution";
-        std::string filename = "training_" + task_name;
-        sys::Stats stats = sys::Stats(network_model.getNumLayers(), epochs, filename);
-
-        int min_range = mantissa ? 0 : -127;
-        int max_range = mantissa ? 127 : 128;
-        auto fw_act_values = stats.register_uint_dist_t("Forward Activations Distribution", min_range, max_range, 0, sys::AverageTotal);
-        auto fw_wgt_values = stats.register_uint_dist_t("Forward Weights Distribution", min_range, max_range, 0, sys::AverageTotal);
-        auto bw_in_grad_values = stats.register_uint_dist_t("Backward Input Gradients Distribution", min_range, max_range, 0, sys::AverageTotal);
-        auto bw_wgt_grad_values = stats.register_uint_dist_t("Backward Weight Gradients Distribution", min_range, max_range, 0, sys::AverageTotal);
-        auto bw_out_grad_values = stats.register_uint_dist_t("Backward Output Gradients Distribution", min_range, max_range, 0, sys::AverageTotal);
-
-        uint32_t traces_mode = 0;
-        if(simulate.only_forward) traces_mode = 1;
-        else if(simulate.only_backward) traces_mode = 2;
-        else traces_mode = 3;
-
-        for (uint32_t epoch = 0; epoch < epochs; epoch++) {
-
-            base::Network<T> network;
-            network = read_training(simulate.network, simulate.batch, epoch, traces_mode);
-
-            if(!QUIET) std::cout << "Starting simulation training distribution for epoch " << epoch << std::endl;
-
-            for (int layer_it = 0; layer_it < network.getNumLayers(); layer_it++) {
-
-                const base::Layer<T> &layer = network.getLayers()[layer_it];
-
-                // Forward
-                if (network.getForward()) {
-                    const auto &act = layer.getActivations();
-                    for(uint64_t i = 0; i < act.getMax_index(); i++) {
-                        const auto data_float = act.get(i);
-                        auto data_bfloat = this->split_bfloat16(data_float);
-                        auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                        fw_act_values->value[bin_value][layer_it][epoch]++;
-                    }
-
-                    const auto &wgt = layer.getWeights();
-                    for(uint64_t i = 0; i < wgt.getMax_index(); i++) {
-                        const auto data_float = wgt.get(i);
-                        auto data_bfloat = this->split_bfloat16(data_float);
-                        auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                        fw_wgt_values->value[bin_value][layer_it][epoch]++;
-                    }
-                }
-
-                //Backward
-                if (network.getBackward()) {
-                    const auto &act_grad = layer.getInputGradients();
-                    if(layer_it != 0) {
-                        for (uint64_t i = 0; i < act_grad.getMax_index(); i++) {
-                            const auto data_float = act_grad.get(i);
-                            auto data_bfloat = this->split_bfloat16(data_float);
-                            auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                            bw_in_grad_values->value[bin_value][layer_it][epoch]++;
-                        }
-                    }
-
-                    const auto &wgt_grad = layer.getWeightGradients();
-                    for(uint64_t i = 0; i < wgt_grad.getMax_index(); i++) {
-                        const auto data_float = wgt_grad.get(i);
-                        auto data_bfloat = this->split_bfloat16(data_float);
-                        auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                        bw_wgt_grad_values->value[bin_value][layer_it][epoch]++;
-                    }
-
-                    const auto &out_act_grad = layer.getOutputGradients();
-                    for (uint64_t i = 0; i < out_act_grad.getMax_index(); i++) {
-                        const auto data_float = out_act_grad.get(i);
-                        auto data_bfloat = this->split_bfloat16(data_float);
-                        auto bin_value = mantissa ? std::get<2>(data_bfloat) : std::get<1>(data_bfloat);
-                        bw_out_grad_values->value[bin_value][layer_it][epoch]++;
-                    }
-                }
-
+                bit_multiplications->value[layer_it][n] = bit_counter;
+                work_reduction->value[layer_it][n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
+                speedup->value[layer_it][n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
+                par_mult->value[layer_it][n] = parallel_mult;
+                act_precision->value[layer_it][n] = layer.getActPrecision();
+                wgt_precision->value[layer_it][n] = layer.getWgtPrecision();
             }
 
         }
 
         //Dump statistics
-        std::string header = mantissa ? "Mantissa" : "Exponent";
-        header += " Distribution for " + network_model.getName() + "\n";
-        stats.dump_csv(network_model.getName(), network_model.getLayersName(), header, this->QUIET);
+        stats.dump_csv(network.getName(), network.getLayersName(), arch->header_pot(network.getName()), this->QUIET);
 
     }
+
 
     INITIALISE_DATA_TYPES(Simulator);
 

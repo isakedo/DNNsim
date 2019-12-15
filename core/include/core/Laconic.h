@@ -1,7 +1,7 @@
 #ifndef DNNSIM_LACONIC_H
 #define DNNSIM_LACONIC_H
 
-#include "Simulator.h"
+#include "Architecture.h"
 
 #define ZERO_COUNT // Count zeroes as 1 cycle
 #define BOOTH_ENCODING // Activate booth-like encoding
@@ -13,7 +13,7 @@ namespace core {
      * @tparam T 16 bits fixed point
      */
     template <typename T>
-    class Laconic : public Simulator<T> {
+    class Laconic : public Architecture<T> {
 
     private:
 
@@ -28,6 +28,13 @@ namespace core {
 
         /** Number of tiles */
         const uint32_t N_TILES;
+
+        /**
+         * Convert the data representation to the one need it.
+         * @param data          Array of values
+         * @param data_prec     Activation layer precision
+         */
+        void dataConversion(base::Array<T> &data, uint8_t data_prec);
 
         /** Compute number of one bit multiplications given a weights and an activation
          * @param act       Activation
@@ -88,24 +95,36 @@ namespace core {
          * @param _N_COLUMNS    Number of columns
          * @param _N_ROWS       Number of rows
          * @param _N_TILES      Number of tiles
-         * @param _N_THREADS    Number of parallel threads for multi-threading execution
-         * @param _FAST_MODE    Enable fast mode to simulate only one image
-         * @param _QUIET        Avoid std::out messages
-         * @param _CHECK        Check the correctness of the simulations
          */
-        Laconic(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES, uint8_t _N_THREADS,
-                bool _FAST_MODE, bool _QUIET, bool _CHECK) : Simulator<T>(_N_THREADS,_FAST_MODE,_QUIET,_CHECK),
-                N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), N_TILES(_N_TILES) {}
+        Laconic(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES) : N_LANES(_N_LANES),
+                N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), N_TILES(_N_TILES) {}
 
         /** Run the timing simulator of the architecture
          * @param network   Network we want to simulate
          */
         void run(const base::Network<T> &network);
 
-        /** Calculate potentials for the given network
-         * @param network   Network we want to calculate work reduction
+        /** Compute number of one bit multiplications given a weights and an activation
+         * @param act           Activation
+         * @param wgt           Weight
+         * @param act_prec      Activation layer precision
+         * @param wgt_prec      Weight layer precision
+         * @param network_bits  Maximum number of bits in the network
+         * @return              Number of one bit multiplications
          */
-        void potentials(const base::Network<T> &network);
+        uint8_t computeBits(T act, T wgt, uint8_t act_prec, uint8_t wgt_prec, uint8_t network_bits);
+
+        /**
+         * Return stats filename for the architecture in the potentials function
+         * @return Filename
+         */
+        std::string filename_pot();
+
+        /**
+         * Return stats header for the architecture in the potentials function
+         * @return Header
+         */
+        std::string header_pot(const std::string &name);
 
     };
 

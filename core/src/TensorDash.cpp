@@ -1,12 +1,12 @@
 
-#include <core/DynamicTactical.h>
+#include <core/TensorDash.h>
 
 namespace core {
 
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    uint16_t DynamicTactical<T>::computeDynamicTacticalBitsPE(T first, T second, bool first_value) {
+    uint16_t TensorDash<T>::computeDynamicTacticalBitsPE(T first, T second, bool first_value) {
 
         #ifdef ZERO_COUNT
         if(first_value && first == 0) return 0;
@@ -30,7 +30,7 @@ namespace core {
     }
 
     template <typename T>
-    void DynamicTactical<T>::promote(schedule_buffer &schedule, value_index ineffectual, value_index candidate) {
+    void TensorDash<T>::promote(schedule_buffer &schedule, value_index ineffectual, value_index candidate) {
 
         // Ineffectual
         auto inef_time = std::get<0>(ineffectual);
@@ -47,7 +47,7 @@ namespace core {
     }
 
     template <typename T>
-    std::vector<value_index> DynamicTactical<T>::search(const schedule_buffer &schedule, value_index value_idx,
+    std::vector<value_index> TensorDash<T>::search(const schedule_buffer &schedule, value_index value_idx,
             int max_time) {
 
         auto time = std::get<0>(value_idx);
@@ -76,7 +76,7 @@ namespace core {
     }
 
     template <typename T>
-    void DynamicTactical<T>::original_schedule(schedule_buffer &schedule) {
+    void TensorDash<T>::original_schedule(schedule_buffer &schedule) {
 
         auto max_time = schedule.size();
         auto groups = schedule.front().size() / N_LANES;
@@ -138,7 +138,7 @@ namespace core {
     }
 
     template <typename T>
-    void DynamicTactical<T>::non_overlapping_schedule(schedule_buffer &schedule) {
+    void TensorDash<T>::non_overlapping_schedule(schedule_buffer &schedule) {
 
         auto max_time = schedule.size();
         auto groups = schedule.front().size() / N_LANES;
@@ -181,7 +181,7 @@ namespace core {
     }
 
     template <typename T>
-    void DynamicTactical<T>::tactical_schedule(schedule_buffer &schedule) {
+    void TensorDash<T>::tactical_schedule(schedule_buffer &schedule) {
         //original_schedule(schedule);
         non_overlapping_schedule(schedule);
     }
@@ -350,7 +350,7 @@ namespace core {
     }
 
     template <typename T>
-    void DynamicTactical<T>::channel_first_convolution(const base::Array<T> &input, const base::Array<T> &wgt,
+    void TensorDash<T>::channel_first_convolution(const base::Array<T> &input, const base::Array<T> &wgt,
             const bank_map &input_bank_map, uint64_t Ox, uint64_t Oy, int stride, conv_stats &stats,
             output_tensor &output) {
 
@@ -606,7 +606,7 @@ namespace core {
     }
 
     template <typename T>
-    void DynamicTactical<T>::channel_first_dilated_convolution(const base::Array<T> &input, const base::Array<T> &wgt,
+    void TensorDash<T>::channel_first_dilated_convolution(const base::Array<T> &input, const base::Array<T> &wgt,
             const bank_map &input_bank_map, int stride, bool asym_pad, conv_stats &stats, output_tensor &output) {
 
         const std::vector<size_t> &in_shape = input.getShape();
@@ -911,7 +911,7 @@ namespace core {
     }
 
     template <typename T>
-    void DynamicTactical<T>::spatial_convolution(const base::Array<T> &act, const base::Array<T> &out_grad,
+    void TensorDash<T>::spatial_convolution(const base::Array<T> &act, const base::Array<T> &out_grad,
             const bank_map &act_bank_map, const bank_map &out_bank_map, uint64_t Kx, uint64_t Ky, int stride,
             int pad_x, int pad_y, conv_stats &stats, output_tensor &output) {
 
@@ -1186,7 +1186,7 @@ namespace core {
     /* CYCLES */
 
     template <typename T>
-    void DynamicTactical<T>::run(const sys::Batch::Simulate &simulate, int epochs) {
+    void TensorDash<T>::run(const sys::Batch::Simulate &simulate, int epochs) {
 
         base::Network<T> network_model;
         interface::NetReader<T> reader = interface::NetReader<T>(simulate.network, 0, 0, this->QUIET);
@@ -1668,7 +1668,7 @@ namespace core {
     /* CYCLES */
 
     template <typename T>
-    void DynamicTactical<T>::potentials(const sys::Batch::Simulate &simulate, int epochs) {
+    void TensorDash<T>::potentials(const sys::Batch::Simulate &simulate, int epochs) {
 
         base::Network<T> network_model;
         interface::NetReader<T> reader = interface::NetReader<T>(simulate.network, 0, 0, this->QUIET);
@@ -1984,6 +1984,6 @@ namespace core {
 
     }
 
-    template class DynamicTactical<float>;
+    template class TensorDash<float>;
 
 }

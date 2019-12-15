@@ -1,16 +1,16 @@
-#ifndef DNNSIM_DYNAMICSTRIPES_H
-#define DNNSIM_DYNAMICSTRIPES_H
+#ifndef DNNSIM_SHAPESHIFTER_H
+#define DNNSIM_SHAPESHIFTER_H
 
 #include "Simulator.h"
 
 namespace core {
 
     /**
-     * DynamicStripes simulator
+     * ShapeShifter simulator
      * @tparam T 16 bits fixed point
      */
     template <typename T>
-    class DynamicStripes : public Simulator<T> {
+    class ShapeShifter : public Simulator<T> {
 
     private:
 
@@ -128,7 +128,7 @@ namespace core {
          * @param _QUIET                    Avoid std::out messages
          * @param _CHECK                    Check the correctness of the simulations
          */
-        DynamicStripes(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES,
+        ShapeShifter(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES,
                 uint32_t _PRECISION_GRANULARITY, uint32_t _COLUMN_REGISTERS, uint32_t _BITS_PE, bool _LEADING_BIT,
                 bool _DIFFY, uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) : Simulator<T>(_N_THREADS,
                 _FAST_MODE,_QUIET,_CHECK), N_LANES(_N_LANES),N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), N_TILES(_N_TILES),
@@ -149,4 +149,4 @@ namespace core {
 
 }
 
-#endif //DNNSIM_DYNAMICSTRIPES_H
+#endif //DNNSIM_SHAPESHIFTER_H
