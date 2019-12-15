@@ -1,7 +1,7 @@
 #ifndef DNNSIM_LOOM_H
 #define DNNSIM_LOOM_H
 
-#include "Simulator.h"
+#include "Architecture.h"
 
 namespace core {
 
@@ -10,21 +10,9 @@ namespace core {
      * @tparam T 16 bits fixed point
      */
     template <typename T>
-    class Loom : public Simulator<T> {
+    class Loom : public Architecture<T> {
 
     private:
-
-        /** Number of concurrent multiplications per PE */
-        const uint32_t N_LANES;
-
-        /** Number of columns */
-        const uint32_t N_COLUMNS;
-
-        /** Number of rows */
-        const uint32_t N_ROWS;
-
-        /** Number of tiles */
-        const uint32_t N_TILES;
 
         /** Number of activations per group */
         const uint32_t PRECISION_GRANULARITY;
@@ -32,99 +20,52 @@ namespace core {
         /** Number of bits in series that the PE process */
         const uint32_t PE_SERIAL_BITS;
 
-        /** Calculate only the leading bit for dynamic precisions */
-        const bool LEADING_BIT;
+        /** Calculate also the minor bit for dynamic precisions */
+        const bool MINOR_BIT;
 
         /** Calculate dynamic precision for weights rather than profiled */
         const bool DYNAMIC_WEIGHTS;
 
-        /** Compute number of one bit multiplications given a weights and an activation
-         * @param act_prec  Activation layer precision
-         * @param wgt_prec  Weight layer precision
-         * @return          Number of one bit multiplications
+        /**
+         * Convert the data representation to the one need it.
+         * @param data          Array of values
+         * @param data_prec     Activation layer precision
          */
-        uint8_t computeLoomBitsPE(uint8_t act_prec, uint8_t wgt_prec);
-
-        /** Compute cycles for one column of laconic
-         * @param batch         Current number of batch
-         * @param recursion     Current recursion for LSTM
-         * @param act_x         X position for the input window
-         * @param act_y         Y position for the input window
-         * @param kernel_x      X position in the kernel window
-         * @param kernel_y      Y position in the kernel window
-         * @param init_channel  Starting index for the channel
-         * @param init_filter   Starting index for the filter
-         * @param stride        Stride of the current layer
-         * @param padded_act    Set of padded input activations
-         * @param wgt           Set of weights
-         * @param max_channel   Maximum number of channels
-         * @param max_filter    Maximum number of filters
-         * @param wgt_prec      Profiled weight precision
-         * @param lstm          True if it is LSTM layer
-         * @return              Number of cycles
-         */
-        uint8_t computeLoomColumn(int batch, int recursion, int act_x, int act_y, int kernel_x, int kernel_y,
-                int init_channel, int init_filter, int stride, const base::Array<T> &padded_act,
-                const base::Array<T> &wgt, int start_group, int max_channel, int max_filter, uint16_t act_mask,
-                uint16_t wgt_mask, int wgt_prec, bool lstm);
-
-        /** Compute cycles for laconic tile
-         * @param batch             Current number of batch
-         * @param list_act_x        X position for the set of input windows
-         * @param list_act_y        Y position for the set of input windows
-         * @param kernel_x          X position in the kernel window
-         * @param kernel_y          Y position in the kernel window
-         * @param init_channel      Starting index for the channel
-         * @param init_filter       Starting index for the filter
-         * @param stride            Stride of the current layer
-         * @param padded_act        Set of padded input activations
-         * @param wgt               Set of weights
-         * @param start_group       Starting channel of the group
-         * @param max_act_channel   Maximum number of activation channels
-         * @param max_wgt_channel   Maximum number of weight channels
-         * @param max_filter        Maximum number of filters
-         * @param wgt_prec          Profiled weight precision
-         * @param stall_cycles      Stall cycles stat (Overwritten)
-         * @return                  Number of cycles
-         */
-        uint8_t computeLoomTile(int batch, const std::vector<int> &list_act_x, const std::vector<int> &list_act_y,
-                int kernel_x, int kernel_y, int init_channel, int init_filter, int stride,
-                const base::Array<T> &padded_act, const base::Array<T> &wgt, int start_group, int max_act_channel,
-                int max_wgt_channel, int max_filter, uint16_t act_mask, uint16_t wgt_mask, int wgt_prec,
-                uint64_t &stall_cycles);
+        void dataConversion(base::Array<T> &data, uint8_t data_prec);
 
     public:
 
         /** Constructor
-         * @param _N_LANES                  Number of concurrent multiplications per PE
-         * @param _N_COLUMNS                Number of columns
-         * @param _N_ROWS                   Number of rows
-         * @param _N_TILES                  Number of tiles
          * @param _PRECISION_GRANULARITY    Granularity for dynamic precisions
          * @param _PE_SERIAL_BITS           Number of bits in series that the PE process
-         * @param _LEADING_BIT              Calculate only the leading bit for dynamic precisions
+         * @param _MINOR_BIT                Calculate also the minor bit for dynamic precisions
          * @param _DYNAMIC_WEIGHTS          Calculate dynamic precision for weights rather than profiled
-         * @param _N_THREADS                Number of parallel threads for multi-threading execution
-         * @param _FAST_MODE                Enable fast mode to simulate only one image
-         * @param _QUIET                    Avoid std::out messages
-         * @param _CHECK                    Check the correctness of the simulations
          */
-        Loom(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES,
-                uint32_t _PRECISION_GRANULARITY, uint32_t _PE_SERIAL_BITS, bool _LEADING_BIT, bool _DYNAMIC_WEIGHTS,
-                uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) : Simulator<T>(_N_THREADS,_FAST_MODE,
-                _QUIET,_CHECK), N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), N_TILES(_N_TILES),
+        Loom(uint32_t _PRECISION_GRANULARITY, uint32_t _PE_SERIAL_BITS, bool _MINOR_BIT, bool _DYNAMIC_WEIGHTS) :
                 PRECISION_GRANULARITY(_PRECISION_GRANULARITY), PE_SERIAL_BITS(_PE_SERIAL_BITS),
-                LEADING_BIT(_LEADING_BIT), DYNAMIC_WEIGHTS(_DYNAMIC_WEIGHTS) {}
+                MINOR_BIT(_MINOR_BIT), DYNAMIC_WEIGHTS(_DYNAMIC_WEIGHTS) {}
 
-        /** Run the timing simulator of the architecture
-         * @param network   Network we want to simulate
+        /** Compute number of one bit multiplications given a weights and an activation
+         * @param act           Activation
+         * @param wgt           Weight
+         * @param act_prec      Activation layer precision
+         * @param wgt_prec      Weight layer precision
+         * @param network_bits  Maximum number of bits in the network
+         * @return              Number of one bit multiplications
          */
-        void run(const base::Network<T> &network);
+        uint8_t computeBits(T act, T wgt, uint8_t act_prec, uint8_t wgt_prec, uint8_t network_bits);
 
-        /** Calculate potentials for the given network
-         * @param network   Network we want to calculate work reduction
+        /**
+         * Return stats filename for the architecture in the potentials function
+         * @return Filename
          */
-        void potentials(const base::Network<T> &network);
+        std::string filename_pot();
+
+        /**
+         * Return stats header for the architecture in the potentials function
+         * @return Header
+         */
+        std::string header_pot(const std::string &name);
 
     };
 

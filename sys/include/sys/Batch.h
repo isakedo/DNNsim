@@ -48,9 +48,6 @@ namespace sys {
                 /** Precision granularity */
                 uint32_t precision_granularity = 0;
 
-                /** Leading bit */
-                bool leading_bit = false;
-
                 /** Minor bit */
                 bool minor_bit = false;
 

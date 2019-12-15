@@ -144,7 +144,7 @@ namespace core {
         auto it_per_group = num_filters / groups;
         int round_wgt_channels = (int)ceil(wgt_channels/(double)N_LANES)*N_LANES;
 
-        auto filters_per_set = std::min(N_ROWS, (uint32_t)ceil(num_filters/(double)N_TILES));
+        auto filters_per_set = std::min(N_ROWS, (uint32_t)ceil(num_filters/(double)1));
         auto num_filter_sets = (uint64_t)ceil(num_filters/(double)filters_per_set);
         auto time_per_filter = (uint64_t)ceil(round_wgt_channels*Kx*Ky/(double)N_LANES);
 

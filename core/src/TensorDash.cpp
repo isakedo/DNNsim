@@ -465,7 +465,7 @@ namespace core {
         int skip = 0;
         std::vector<int> x_windows, y_windows;
         int x_counter = 0, y_counter = 0;
-        while(this->iterateWindows(Ox, Oy, x_windows, y_windows, x_counter, y_counter, IN_SET_SIZE)) {
+        while(iterateWindows(Ox, Oy, x_windows, y_windows, x_counter, y_counter, IN_SET_SIZE)) {
 
             // Generate activation buffer
             auto round_in_channels = (int)ceil(in_channels / (double)N_LANES) * N_LANES;
@@ -766,7 +766,7 @@ namespace core {
             int skip = 0;
             std::vector<int> x_windows, y_windows;
             int x_counter = 0, y_counter = 0;
-            while(this->iterateWindows(Ox, Oy, x_windows, y_windows, x_counter, y_counter, IN_SET_SIZE)) {
+            while(iterateWindows(Ox, Oy, x_windows, y_windows, x_counter, y_counter, IN_SET_SIZE)) {
 
                 // Generate activation buffer
                 auto round_in_channels = (int)ceil(in_channels / (double)N_LANES) * N_LANES;
@@ -1242,7 +1242,7 @@ namespace core {
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
             base::Network<T> network;
-            network = this->read_training(simulate.network, simulate.batch, epoch, 5);
+            network = read_training<T>(simulate.network, simulate.batch, epoch, 5, this->QUIET);
 
             if(!this->QUIET) std::cout << "Starting Dynamic Tactical cycles simulation for epoch "
                                        << epoch << std::endl;
@@ -1715,7 +1715,7 @@ namespace core {
         for (uint32_t epoch = 0; epoch < epochs; epoch++) {
 
             base::Network<T> network;
-            network = this->read_training(simulate.network, simulate.batch, epoch, 5);
+            network = read_training<T>(simulate.network, simulate.batch, epoch, 5, this->QUIET);
 
             if(!this->QUIET) std::cout << "Starting Dynamic Tactical potentials simulation for epoch "
                                        << epoch << std::endl;

@@ -20,20 +20,22 @@ message Batch {
 
             // For Dynamic Stripes
             uint32 precision_granularity = 8;
-            bool leading_bit = 9;
-            bool minor_bit = 10;
+            bool minor_bit = 9;
 
             // For pragmatic
-            uint32 bits_first_stage = 11;
+            uint32 bits_first_stage = 10;
 
             // For stripes
-            uint32 bits_pe = 12;
+            uint32 bits_pe = 11;
 
             // For tactical
-            uint32 lookahead_h = 13;
-            uint32 lookaside_d = 14;
-            string search_shape = 15;
-            bool read_schedule = 16;
+            uint32 lookahead_h = 12;
+            uint32 lookaside_d = 13;
+            string search_shape = 14;
+            bool read_schedule = 15;
+
+            // For loom
+            bool dynamic_weights = 16;
 
             // SCNN
             uint32 Wt = 17;
@@ -46,8 +48,8 @@ message Batch {
 
             // On top architectures
             bool diffy = 24;
+            bool tactical = 25;
 
-            bool dynamic_weights = 25;
         }
 
         uint32 batch = 1;

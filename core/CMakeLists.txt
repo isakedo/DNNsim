@@ -23,8 +23,6 @@ add_library(
         include/core/ShapeShifter.h
         include/core/Loom.h
         include/core/BitTactical.h
-        include/core/BitTacticalP.h
-        include/core/BitTacticalE.h
         include/core/TensorDash.h
         include/core/SCNN.h
         src/Utils.cpp
@@ -34,8 +32,6 @@ add_library(
         src/BitPragmatic.cpp
         src/Stripes.cpp
         src/BitTactical.cpp
-        src/BitTacticalP.cpp
-        src/BitTacticalE.cpp
         src/TensorDash.cpp
         src/ShapeShifter.cpp
         src/Loom.cpp

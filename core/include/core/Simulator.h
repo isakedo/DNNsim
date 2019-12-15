@@ -8,8 +8,9 @@
 #include <base/Layer.h>
 #include <base/Network.h>
 #include <interface/NetReader.h>
-#include <core/Memory.h>
+#include "Memory.h"
 #include "Architecture.h"
+#include "Utils.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -41,6 +42,21 @@ namespace core {
         /** Memory abstraction of the simulator */
         Memory memory;
 
+        /** Number of concurrent multiplications per PE */
+        const uint32_t N_LANES;
+
+        /** Number of columns */
+        const uint32_t N_COLUMNS;
+
+        /** Number of rows */
+        const uint32_t N_ROWS;
+
+        /** Number of tiles */
+        const uint32_t N_TILES;
+
+        /** Bits per PE */
+        const uint32_t BITS_PE;
+
         /** Number of parallel cores */
         const int N_THREADS;
 
@@ -53,71 +69,6 @@ namespace core {
         /** Check the correctness of the simulations */
         const bool CHECK = false;
 
-        /** Read training traces for a given epoch
-         * @param network_name      Name of the network
-         * @param batch             Batch of the traces
-         * @param epoch             Epoch of the traces
-         * @param traces_mode       Fordward/Backward traces
-         */
-        base::Network<T> read_training(const std::string &network_name, uint32_t batch, uint32_t epoch,
-                uint32_t traces_mode);
-
-        /** Iterate set of windows in groups
-         * @param out_x         Output activations X size
-         * @param out_y         Output activations Y size
-         * @param list_x        X position for the set of input windows (Overwritten)
-         * @param list_y        Y position for the set of input windows (Overwritten)
-         * @param x_counter     X input window counter (Overwritten)
-         * @param y_counter     Y input window counter (Overwritten)
-         * @param max_windows   Maximum number of windows (Number of columns in the accelerator)
-         * @return              Return false when all input windows are read
-         */
-        bool iterateWindows(long out_x, long out_y, std::vector<int> &list_x, std::vector<int> &list_y,
-                int &x_counter, int &y_counter, int max_windows = 16);
-
-        /** Split sign, exponent, and mantissa in bfloat16 format from a float
-         * @param number    Floating point 32 number
-         * return           Tuple containing sign, exponent, and mantissa (truncated)
-         */
-        std::tuple<uint8_t,uint8_t,uint8_t> split_bfloat16(float number);
-
-        /** Return floating-point single precision number in bfloat 16
-         * @param number    Floating point 32 number
-         * return           BFloat 16 number
-         */
-        float cast_bfloat16(float number);
-
-        /** Return the optimal encoding for the given value
-         * @param value     Value to encode WITHOUT the sign
-         * @return          Value with the optimal encoding
-         */
-        uint16_t booth_encoding(uint16_t value);
-
-        /** Return the minimum and maximum index position for a given value
-         * @param value     Value to get the indexes
-         * @return          Minimum and maximum indexes
-         */
-        std::tuple<uint8_t,uint8_t> minMax(uint16_t value);
-
-        /** Return the number of effectual bits for a given value
-         * @param value     Value to get the effectual bits
-         * @return          Number of effectual bits
-         */
-        uint8_t effectualBits(uint16_t value);
-
-        /** Return true if all the queues of activation bits are empty
-         * @param offsets   Collection of activations with their explicit one positions in a queue
-         * @return          True if empty
-         */
-        bool check_act_bits(const std::vector<std::queue<uint8_t>> &offsets);
-
-        /** Return value into sign-magnitude representation
-         * @param two_comp  Signed value in two complement
-         * @param mask      Mask with one bit for the bit position
-         * @return          Value in sign-magnitude
-         */
-        uint16_t sign_magnitude(short two_comp, uint16_t mask);
-
     public:
 
         /** Constructor
@@ -126,20 +77,31 @@ namespace core {
          * @param _QUIET        Avoid std::out messages
          * @param _CHECK        Check the correctness of the simulations
          */
-        Simulator(uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) : N_THREADS(_N_THREADS),
-                FAST_MODE(_FAST_MODE), QUIET(_QUIET), CHECK(_CHECK), memory(Memory()) {}
+        Simulator(uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) : N_LANES(0), N_COLUMNS(0), N_ROWS(0),
+                N_TILES(0), BITS_PE(0), N_THREADS(_N_THREADS), FAST_MODE(_FAST_MODE),  QUIET(_QUIET), CHECK(_CHECK),
+                memory(Memory()) {}
 
         /** Constructor
-         * @param _MEMORY      Memory model
-        * @param _N_THREADS    Number of parallel threads for multi-threading execution
-        * @param _FAST_MODE    Enable fast mode to simulate only one image
-        * @param _QUIET        Avoid std::out messages
-        * @param _CHECK        Check the correctness of the simulations
+         * @param _N_LANES      Number of concurrent multiplications per PE
+         * @param _N_COLUMNS    Number of columns
+         * @param _N_ROWS       Number of rows
+         * @param _N_TILES      Number of tiles
+         * @param _BITS_PE      Number of bits per PE
+         * @param _N_THREADS    Number of parallel threads for multi-threading execution
+         * @param _FAST_MODE    Enable fast mode to simulate only one image
+         * @param _QUIET        Avoid std::out messages
+         * @param _CHECK        Check the correctness of the simulations
+         */
+        Simulator(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES, uint32_t _BITS_PE,
+                uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) : N_LANES(_N_LANES),
+                N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), N_TILES(_N_TILES), BITS_PE(_BITS_PE), N_THREADS(_N_THREADS),
+                FAST_MODE(_FAST_MODE),  QUIET(_QUIET), CHECK(_CHECK), memory(Memory()) {}
+
+        /** Simulate architecture for the given network
+        * @param network   Network we want to calculate work reduction
+        * @param arch      Pointer to the architecture to simulate
         */
-        Simulator(const Memory &_MEMORY, uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) :
-                N_THREADS(_N_THREADS), FAST_MODE(_FAST_MODE), QUIET(_QUIET), CHECK(_CHECK) {
-            memory = _MEMORY;
-        }
+        void run(const base::Network<T> &network, const std::shared_ptr<Architecture<T>> &arch);
 
         /** Calculate potentials for the given network
          * @param network   Network we want to calculate work reduction

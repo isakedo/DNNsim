@@ -1,7 +1,9 @@
 #ifndef DNNSIM_BITTACTICAL_H
 #define DNNSIM_BITTACTICAL_H
 
-#include "Simulator.h"
+#include <sys/common.h>
+#include <base/Array.h>
+#include <base/Network.h>
 
 typedef std::vector<std::vector<std::vector<std::tuple<int,int,int,uint16_t>>>> schedule;
 typedef std::vector<std::vector<std::tuple<int,int,int,uint16_t>>> set_schedule;
@@ -17,7 +19,7 @@ namespace core {
      * @tparam T 16 bits fixed point
      */
     template <typename T>
-    class BitTactical : public Simulator<T> {
+    class BitTactical {
 
     private:
 
@@ -56,17 +58,8 @@ namespace core {
         /** Number of concurrent multiplications per PE */
         const uint32_t N_LANES;
 
-        /** Number of columns */
-        const uint32_t N_COLUMNS;
-
         /** Number of rows */
         const uint32_t N_ROWS;
-
-        /** Number of tiles */
-        const uint32_t N_TILES;
-
-        /** Number of registers per SIP */
-        const uint32_t COLUMN_REGISTERS;
 
         /** Lookahead value of H*/
         const uint32_t LOOKAHEAD_H;
@@ -88,37 +81,18 @@ namespace core {
          */
         schedule scheduler(const base::Array<T> &wgt, uint64_t act_channels, bool fc);
 
-        /** Run the timing simulator of the architecture
-         * @param network   Network we want to simulate
-         * @param schedules Dense schedules for the layer we want to simulate
-         */
-        virtual void run(const base::Network<T> &network, const std::vector<schedule> &schedules) = 0;
-
-        /** Calculate work reduction for the given network
-         * @param network   Network we want to calculate work reduction
-         */
-        virtual void potentials(const base::Network<T> &network) = 0;
+    public:
 
         /** Constructor
          * @param _N_LANES          Number of concurrent multiplications per PE
-         * @param _N_COLUMNS        Number of columns
          * @param _N_ROWS           Number of rows
-         * @param _N_TILES          Number of tiles
-         * @param _COLUMN_REGISTERS Number of registers per SIP
          * @param _LOOKAHEAD_H      Value for scheduler lookahead
          * @param _LOOKASIDE_D      Value for scheduler lookaside
          * @param _SEARCH_SHAPE     Type of search
-         * @param _N_THREADS        Number of parallel threads for multi-threading execution
-         * @param _FAST_MODE        Enable fast mode to simulate only one image
-         * @param _QUIET            Avoid std::out messages
-         * @param _CHECK            Check the correctness of the simulations
          */
-        BitTactical(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES,
-                uint32_t _COLUMN_REGISTERS, uint32_t _LOOKAHEAD_H, uint32_t _LOOKASIDE_D, const char _SEARCH_SHAPE,
-                uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) : Simulator<T>(_N_THREADS,_FAST_MODE,
-                _QUIET,_CHECK), N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), N_TILES(_N_TILES),
-                COLUMN_REGISTERS(_COLUMN_REGISTERS), LOOKAHEAD_H(_LOOKAHEAD_H), LOOKASIDE_D(_LOOKASIDE_D),
-                SEARCH_SHAPE(_SEARCH_SHAPE) {
+        BitTactical(uint32_t _N_LANES, uint32_t _N_ROWS, uint32_t _LOOKAHEAD_H, uint32_t _LOOKASIDE_D,
+                const char _SEARCH_SHAPE) : N_LANES(_N_LANES), N_ROWS(_N_ROWS), LOOKAHEAD_H(_LOOKAHEAD_H),
+                LOOKASIDE_D(_LOOKASIDE_D), SEARCH_SHAPE(_SEARCH_SHAPE) {
 
             if (SEARCH_SHAPE == 'L') {
 
@@ -143,8 +117,6 @@ namespace core {
 
             }
         }
-
-    public:
 
         /** Return the weights scheduled for all the layers
          * @param network   Network we want to get the scheduler

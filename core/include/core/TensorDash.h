@@ -1,5 +1,5 @@
-#ifndef DNNSIM_DYNAMICTACTICAL_H
-#define DNNSIM_DYNAMICTACTICAL_H
+#ifndef DNNSIM_TENSORDASH_H
+#define DNNSIM_TENSORDASH_H
 
 #include "Simulator.h"
 
@@ -8,7 +8,6 @@ typedef std::tuple<float, uint16_t, uint16_t> value_mux;
 typedef std::vector<std::vector<value_mux>> schedule_buffer;
 
 typedef std::vector<std::vector<int>> bank_map;
-
 
 typedef std::vector<std::vector<std::vector<std::vector<double>>>> output_tensor;
 
@@ -209,4 +208,4 @@ namespace core {
 
 }
 
-#endif //DNNSIM_BITTACTICAL_H
+#endif //DNNSIM_TENSORDASH_H

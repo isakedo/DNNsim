@@ -42,6 +42,8 @@ namespace core {
 
     }
 
+    template base::Network<float> read_training<float>(const std::string &, uint32_t, uint32_t, uint32_t, bool);
+
     bool iterateWindows(long out_x, long out_y, std::vector<int> &list_x, std::vector<int> &list_y,
             int &x_counter, int &y_counter, int max_windows) {
         list_x.clear();
@@ -122,7 +124,7 @@ namespace core {
         return booth_table[value];
     }
 
-    std::vector<uint8_t> generateEffectualBitsTableTMP(const int MAX_VALUES = 65535) {
+    std::vector<uint8_t> generateEffectualBitsTable(const int MAX_VALUES = 65535) {
         std::vector<uint8_t> effectual_bits_table ((unsigned)MAX_VALUES, 0);
         for(int n = 0; n < MAX_VALUES; n++) {
 
@@ -139,11 +141,11 @@ namespace core {
     }
 
     uint8_t effectualBits(uint16_t value) {
-        const static std::vector<uint8_t> effectual_bits_table = generateEffectualBitsTableTMP();
+        const static std::vector<uint8_t> effectual_bits_table = generateEffectualBitsTable();
         return effectual_bits_table[value];
     }
 
-    std::vector<std::tuple<uint8_t,uint8_t>> generateMinMaxTableTMP(const int MAX_VALUES = 32768) {
+    std::vector<std::tuple<uint8_t,uint8_t>> generateMinMaxTable(const int MAX_VALUES = 32768) {
         std::vector<std::tuple<uint8_t,uint8_t>> min_max_table ((unsigned)MAX_VALUES, std::tuple<uint8_t,uint8_t>());
         min_max_table[0] = std::make_tuple(16,0);
         for(int n = 1; n < MAX_VALUES; n++) {
@@ -167,7 +169,7 @@ namespace core {
     }
 
     std::tuple<uint8_t,uint8_t> minMax(uint16_t value) {
-        const static std::vector<std::tuple<uint8_t,uint8_t>> min_max_table = generateMinMaxTableTMP();
+        const static std::vector<std::tuple<uint8_t,uint8_t>> min_max_table = generateMinMaxTable();
         return min_max_table[value];
     }
 
