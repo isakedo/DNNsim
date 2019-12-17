@@ -15,8 +15,8 @@ typedef std::tuple<int,int> weight_index;
 namespace core {
 
     /**
-     * BitTactical simulator
-     * @tparam T 16 bits fixed point
+     * BitTactical scheduler
+     * @tparam T 16 bits fixed point or 32 bits floating-point
      */
     template <typename T>
     class BitTactical {
@@ -107,21 +107,26 @@ namespace core {
                 for (int h = 1; h <= LOOKAHEAD_H; ++h)
                     SEARCH_MAP.emplace_back(std::make_tuple(h,0));
 
-                for (int d = 1; d <= LOOKAHEAD_H; ++d)
-                    SEARCH_MAP.emplace_back(std::make_tuple(d,-d));
-
-                for (int d = 1; d <= LOOKAHEAD_H; ++d)
-                    SEARCH_MAP.emplace_back(std::make_tuple(d,d));
-
-                SEARCH_MAP.emplace_back(std::make_tuple(1,3));
+                int h = 1;
+                int d = 1;
+                bool sign = false;
+                for (int i = 0; i < LOOKASIDE_D; ++i) {
+                    SEARCH_MAP.emplace_back(std::make_tuple(h,d));
+                    d *= -1;
+                    if (sign) {
+                        d++;
+                        h++;
+                        if (h > LOOKAHEAD_H) h = 1;
+                        sign = false;
+                    } else
+                        sign = true;
+                }
 
             }
-        }
 
-        /** Return the weights scheduled for all the layers
-         * @param network   Network we want to get the scheduler
-         */
-        std::vector<schedule> network_scheduler(const base::Network<T> &network);
+            std::sort(SEARCH_MAP.begin(), SEARCH_MAP.end());
+
+        }
 
     };
 

@@ -6,13 +6,47 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
+    std::string ShapeShifter<T>::name() {
+        return TCT ? "BitTacticalP" : DIFFY ? "ShapeShifterDiffy" : "ShapeShifter";
+    }
+
+    template <typename T>
     void ShapeShifter<T>::dataConversion(base::Array<T> &data, uint8_t data_prec) {
         data.sign_magnitude_representation(data_prec);
     }
 
     /* CYCLES */
 
+    template <typename T>
+    std::string ShapeShifter<T>::filename() {
+        return "_PG" + std::to_string(PRECISION_GRANULARITY) + "_CR" + std::to_string(COLUMN_REGISTERS) +
+               (MINOR_BIT ? "_MB" : "");
+    }
+
+    template <typename T>
+    std::string ShapeShifter<T>::header() {
+        std::string header = "Number of values per group: " + std::to_string(PRECISION_GRANULARITY) + "\n";
+        header += "Number of run-ahead input registers per column: " + std::to_string(COLUMN_REGISTERS) + "\n";
+        header +=  MINOR_BIT ? "Trim bits from the bottom\n" : "";
+        return header;
+    }
+
+    template <typename T>
+    bool ShapeShifter<T>::schedule() {
+        return TCT;
+    }
+
     /* POTENTIALS */
+
+    template <typename T>
+    std::string ShapeShifter<T>::filename_pot() {
+        return MINOR_BIT ? "_minor" : "";
+    }
+
+    template <typename T>
+    std::string ShapeShifter<T>::header_pot() {
+        return MINOR_BIT ? "Trim bits from the bottom\n" : "";
+    }
 
     template <typename T>
     uint16_t ShapeShifter<T>::computeBits(T act, T wgt, uint8_t act_prec, uint8_t wgt_prec, uint8_t network_bits) {
@@ -39,20 +73,6 @@ namespace core {
         else act_width = max_act_bit + 1u;
 
         return act_width * network_bits;
-    }
-
-    template <typename T>
-    std::string ShapeShifter<T>::filename_pot() {
-        std::string arch = TCT ? "BitTacticalP" : "ShapeShifter";
-        return arch + (MINOR_BIT ? "_minor" : "") + "_potentials";
-    }
-
-    template <typename T>
-    std::string ShapeShifter<T>::header_pot(const std::string &name) {
-        std::string arch = TCT ? "Bit-Tactical P" : "ShapeShifter";
-        std::string header = arch + " Potentials/Work Reduction for " + name + "\n";
-        if (MINOR_BIT) header += "Trim bits from the bottom\n";
-        return header;
     }
 
     template class ShapeShifter<uint16_t>;

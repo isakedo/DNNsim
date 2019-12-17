@@ -45,12 +45,6 @@ namespace interface {
          */
         void write_network_protobuf(const base::Network<T> &network);
 
-        /** Store the scheduler in protobuf format
-         * @param network_schedule  Network schedule that want to be stored
-         * @param schedule_type     Identify the type of schedule
-         */
-        void write_schedule_protobuf(const std::vector<inf_schedule> &network_schedule, const std::string &schedule_type);
-
     };
 
 }

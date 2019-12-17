@@ -6,13 +6,47 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
+    std::string Loom<T>::name() {
+        return DYNAMIC_WEIGHTS ? "DynLoom" : "Loom";
+    }
+
+    template <typename T>
     void Loom<T>::dataConversion(base::Array<T> &data, uint8_t data_prec) {
         data.sign_magnitude_representation(data_prec);
     }
 
     /* CYCLES */
 
+    template <typename T>
+    std::string Loom<T>::filename() {
+        return "_PG" + std::to_string(PRECISION_GRANULARITY) + "_PSB" + std::to_string(PE_SERIAL_BITS) +
+               (MINOR_BIT ? "_MB" : "");
+    }
+
+    template <typename T>
+    std::string Loom<T>::header() {
+        std::string header = "Number of values per group: " + std::to_string(PRECISION_GRANULARITY) + "\n";
+        header += "Number of activations processing bits per PE: " + std::to_string(PE_SERIAL_BITS) + "\n";
+        header +=  MINOR_BIT ? "Trim bits from the bottom\n" : "";
+        return header;
+    }
+
+    template <typename T>
+    bool Loom<T>::schedule() {
+        return false;
+    }
+
     /* POTENTIALS */
+
+    template <typename T>
+    std::string Loom<T>::filename_pot() {
+        return MINOR_BIT ? "_minor" : "";
+    }
+
+    template <typename T>
+    std::string Loom<T>::header_pot() {
+        return MINOR_BIT ? "Trim bits from the bottom\n" : "";
+    }
 
     template <typename T>
     uint16_t Loom<T>::computeBits(T act, T wgt, uint8_t act_prec, uint8_t wgt_prec, uint8_t network_bits) {
@@ -58,19 +92,6 @@ namespace core {
 
     }
 
-    template <typename T>
-    std::string Loom<T>::filename_pot() {
-        std::string arch = "Loom";
-        return arch + (MINOR_BIT ? "_minor" : "") + (DYNAMIC_WEIGHTS ? "_dyn_wgt" : "") + "_potentials";
-    }
-
-    template <typename T>
-    std::string Loom<T>::header_pot(const std::string &name) {
-        std::string header = "Loom Potentials/Work Reduction for " + name + "\n";
-        if (MINOR_BIT) header += "Trim bits from the bottom\n";
-        if (DYNAMIC_WEIGHTS) header += "Dynamic width adaptation for weights\n";
-        return header;
-    }
 
     template class Loom<uint16_t>;
 

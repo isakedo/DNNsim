@@ -16,7 +16,6 @@ protobuf_generate_cpp(
         network.proto
         caffe.proto
         batch.proto
-        schedule.proto
 )
 
 # Create library

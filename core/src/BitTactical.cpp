@@ -199,40 +199,6 @@ namespace core {
         return dense_schedule;
     }
 
-    template <typename T>
-    std::vector<schedule> BitTactical<T>::network_scheduler(const base::Network<T> &network) {
-
-        std::vector<schedule> network_schedule;
-        for(const base::Layer<T> &layer : network.getLayers()) {
-            if(layer.getType() == "Convolution") {
-
-                base::Array<T> act = layer.getActivations();
-                base::Array<T> wgt = layer.getWeights();
-                if (wgt.getDimensions() == 2) wgt.reshape_to_4D();
-
-                auto stride = layer.getStride();
-
-                if(wgt.getShape()[1] == 3 && stride > 1) {
-                    act.reshape_first_layer_act((uint16_t) stride);
-                    wgt.reshape_first_layer_wgt((uint16_t) stride);
-                }
-
-                const auto &dense_schedule = scheduler(wgt, act.getShape()[1], false);
-                network_schedule.push_back(dense_schedule);
-
-            } else if(layer.getType() == "InnerProduct") {
-
-                const base::Array<T> &wgt = layer.getWeights();
-                const auto &dense_schedule = scheduler(wgt, layer.getWeights().getShape()[1], true);
-                network_schedule.push_back(dense_schedule);
-
-            }
-        }
-
-        return network_schedule;
-
-    }
-
     template class BitTactical<uint16_t>;
 
 }

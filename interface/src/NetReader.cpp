@@ -229,51 +229,6 @@ namespace interface {
     }
 
     template <typename T>
-    std::vector<inf_schedule> NetReader<T>::read_schedule_protobuf(const std::string &schedule_type) {
-        GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-        protobuf::Schedule network_schedule_proto;
-
-        {
-            // Read the existing network.
-            check_path("net_traces/" + this->name);
-            std::string path = "net_traces/" + this->name + "/schedule_" + schedule_type + ".proto";
-            check_path(path);
-            std::fstream input(path, std::ios::in | std::ios::binary);
-            if (!network_schedule_proto.ParseFromIstream(&input)) {
-                throw std::runtime_error("Failed to read protobuf");
-            }
-        }
-
-        std::vector<inf_schedule> network_schedule;
-
-        for(const auto &schedule_layer_proto : network_schedule_proto.layers()) {
-            inf_schedule dense_schedule;
-
-            for(const auto &schedule_set_proto : schedule_layer_proto.sets()) {
-                inf_set_schedule set_dense_schedule;
-
-                for (const auto &schedule_time_proto : schedule_set_proto.times()) {
-                    inf_time_schedule window_schedule;
-                    for (const auto &schedule_tuple_proto : schedule_time_proto.tuples()) {
-                        inf_schedule_tuple dense_schedule_tuple = std::make_tuple(schedule_tuple_proto.channel(),
-                                schedule_tuple_proto.kernel_x(),schedule_tuple_proto.kernel_y(),
-                                schedule_tuple_proto.wgt_bits());
-                        window_schedule.emplace_back(dense_schedule_tuple);
-                    }
-                    set_dense_schedule.emplace_back(window_schedule);
-                }
-                dense_schedule.emplace_back(set_dense_schedule);
-            }
-            network_schedule.emplace_back(dense_schedule);
-        }
-
-        if(!QUIET) std::cout << "Scheduled loaded from protobuf file" << std::endl;
-
-        return network_schedule;
-    }
-
-    template <typename T>
     void NetReader<T>::read_weights_npy(base::Network<T> &network) {
         check_path("net_traces/" + this->name);
         for(base::Layer<T> &layer : network.updateLayers()) {

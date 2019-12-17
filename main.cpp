@@ -87,30 +87,6 @@ void write(const base::Network<T> &network, bool QUIET) {
 
 }
 
-template <typename T>
-std::vector<schedule> read_schedule(const std::string &network_name, const std::string &arch,
-        const sys::Batch::Simulate::Experiment &experiment, bool QUIET) {
-
-    interface::NetReader<T> reader = interface::NetReader<T>(network_name, 0, 0, QUIET);
-    auto mux_entries = experiment.lookahead_h + experiment.lookaside_d + 1;
-    std::string schedule_type = arch + "_R" + std::to_string(experiment.n_rows) + "_" + experiment.search_shape +
-            std::to_string(mux_entries) + "(" + std::to_string(experiment.lookahead_h) + "-" +
-            std::to_string(experiment.lookaside_d) + ")";
-    return reader.read_schedule_protobuf(schedule_type);
-}
-
-template <typename T>
-void write_schedule(const base::Network<T> &network, core::BitTactical<T> &DNNsim, const std::string &arch,
-        const sys::Batch::Simulate::Experiment &experiment, bool QUIET) {
-    const auto &network_schedule = DNNsim.network_scheduler(network);
-    interface::NetWriter<uint16_t> writer = interface::NetWriter<uint16_t>(network.getName(), QUIET);
-    auto mux_entries = experiment.lookahead_h + experiment.lookaside_d + 1;
-    std::string schedule_type = arch + "_R" + std::to_string(experiment.n_rows) + "_" + experiment.search_shape +
-            std::to_string(mux_entries) + "(" + std::to_string(experiment.lookahead_h) + "-" +
-            std::to_string(experiment.lookaside_d) + ")";
-    writer.write_schedule_protobuf(network_schedule, schedule_type);
-}
-
 void check_options(const cxxopts::Options &options)
 {
     if(options.count("batch") == 0) {
@@ -248,11 +224,6 @@ int main(int argc, char *argv[]) {
 
                             core::BitTactical<uint16_t> DNNsim_scheduler(experiment.n_lanes, experiment.n_rows,
                                     experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape.c_str()[0]);
-
-                            if (experiment.architecture == "BitTactical" && experiment.task == "Schedule") {
-                                write_schedule<uint16_t>(network, DNNsim_scheduler, "BitTactical", experiment, QUIET);
-                                continue;
-                            }
 
                             core::Inference<uint16_t> DNNsim(experiment.n_lanes, experiment.n_columns,
                                     experiment.n_rows, experiment.n_tiles, experiment.bits_pe, N_THREADS, FAST_MODE,

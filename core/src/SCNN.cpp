@@ -3,7 +3,7 @@
 
 namespace core {
 
-    /* AUXILIARY FUNCTIONS */
+    /* CYCLES */
 
     template <typename T>
     int SCNN<T>::map_accumulator(uint32_t k, uint32_t x, uint32_t y) {
@@ -183,8 +183,6 @@ namespace core {
 
     }
 
-    /* CYCLES */
-
     template <typename T>
     void SCNN<T>::run(const base::Network<T> &network) {
 
@@ -354,25 +352,47 @@ namespace core {
 
     }
 
-    /* POTENTIALS */
+    /* AUXILIARY FUNCTIONS */
+
+    template <typename T>
+    std::string SCNN<T>::name() {
+        return "SCNN";
+    }
+
+    /* CYCLES (NOT USED) */
+
+    template <typename T>
+    std::string SCNN<T>::filename() {
+        throw std::runtime_error("SCNN simulation is not implemented by Inference module");
+    }
+
+    template <typename T>
+    std::string SCNN<T>::header() {
+        throw std::runtime_error("SCNN simulation is not implemented by Inference module");
+    }
+
+    template <typename T>
+    bool SCNN<T>::schedule() {
+        throw std::runtime_error("SCNN simulation is not implemented by Inference module");
+    }
 
     /* POTENTIALS */
+
+    template <typename T>
+    std::string SCNN<T>::filename_pot() {
+        return "";
+    }
+
+    template <typename T>
+    std::string SCNN<T>::header_pot() {
+        return "";
+    }
 
     template <typename T>
     uint16_t SCNN<T>::computeBits(T act, T wgt, uint8_t act_prec, uint8_t wgt_prec, uint8_t network_bits) {
         if(wgt == 0) return 0;
         else if(act == 0) return 0;
         else return (uint16_t)(network_bits * network_bits);
-    }
-
-    template <typename T>
-    std::string SCNN<T>::filename_pot() {
-        return "SCNN_potentials";
-    }
-
-    template <typename T>
-    std::string SCNN<T>::header_pot(const std::string &name) {
-        return "SCNN Potentials/Work Reduction for " + name + "\n";
     }
 
     INITIALISE_DATA_TYPES(SCNN);

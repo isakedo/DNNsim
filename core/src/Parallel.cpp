@@ -3,10 +3,41 @@
 
 namespace core {
 
+    /* AUXILIARY FUNCTIONS */
+
+    template <typename T>
+    std::string Parallel<T>::name() {
+        return TCT ? "BitTactical" : "Parallel";
+    }
+
     /* CYCLES */
 
+    template <typename T>
+    std::string Parallel<T>::filename() {
+        return "";
+    }
+
+    template <typename T>
+    std::string Parallel<T>::header() {
+        return "";
+    }
+
+    template <typename T>
+    bool Parallel<T>::schedule() {
+        return TCT;
+    }
 
     /* POTENTIALS */
+
+    template <typename T>
+    std::string Parallel<T>::filename_pot() {
+        return "";
+    }
+
+    template <typename T>
+    std::string Parallel<T>::header_pot() {
+        return "";
+    }
 
     template <typename T>
     uint16_t Parallel<T>::computeBits(T act, T wgt, uint8_t act_prec, uint8_t wgt_prec, uint8_t network_bits) {
@@ -16,22 +47,6 @@ namespace core {
         }
 
         return network_bits * network_bits;
-    }
-
-    template <typename T>
-    std::string Parallel<T>::filename_pot() {
-        std::string arch = TCT ? "BitTactical" : "Parallel";
-        return arch + "_potentials";
-    }
-
-    template <typename T>
-    std::string Parallel<T>::header_pot(const std::string &name) {
-        std::string arch = TCT ? "Bit-Tactical" : "Parallel";
-        std::string header = arch + " Potentials/Work Reduction for " + name + "\n";
-        #ifdef ZERO_COUNT
-        if (TCT) header += "Zero count as one cycle\n";
-        #endif
-        return header;
     }
 
     INITIALISE_DATA_TYPES(Parallel);

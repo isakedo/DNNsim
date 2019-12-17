@@ -26,13 +26,13 @@ namespace sys {
 
         value = simulate_proto.model();
         if(value != "Trace")
-            throw std::runtime_error("Training input type configuration for network " + simulate.network +
+            throw std::runtime_error("Training input type configuration in network " + simulate.network +
                                      " must be <Trace>.");
         else
             simulate.model = simulate_proto.model();
 
         if(simulate_proto.data_type() != "BFloat16")
-            throw std::runtime_error("Training input data type configuration for network " + simulate.network +
+            throw std::runtime_error("Training input data type configuration in network " + simulate.network +
                                      " must be <BFloat16>.");
         else
             simulate.data_type = simulate_proto.data_type();
@@ -53,16 +53,16 @@ namespace sys {
             // Sanity checks
             value = experiment.search_shape;
             if(value != "L" && value != "T")
-                throw std::runtime_error("BitTactical search shape for network " + simulate.network +
+                throw std::runtime_error("BitTactical search shape in network " + simulate.network +
                                          " must be <L|T>.");
 
             if(experiment_proto.architecture() != "TensorDash")
-                throw std::runtime_error("Training architecture for network " + simulate.network +
+                throw std::runtime_error("Training architecture in network " + simulate.network +
                                          " in BFloat16 must be <TensorDash>.");
 
             value = experiment_proto.task();
             if(value != "Cycles" && value != "Potentials")
-                throw std::runtime_error("Training task for network " + simulate.network +
+                throw std::runtime_error("Training task in network " + simulate.network +
                                          " in BFloat16 must be <Cycles|Potentials>.");
 
             experiment.architecture = experiment_proto.architecture();
@@ -88,14 +88,14 @@ namespace sys {
 
         const auto &model = simulate_proto.model();
         if(model  != "Caffe" && model != "Trace" && model != "CParams" && model != "Protobuf")
-            throw std::runtime_error("Model configuration for network " + simulate.network +
+            throw std::runtime_error("Model configuration on network " + simulate.network +
                                      " must be <Caffe|Trace|CParams|Protobuf>.");
         else
             simulate.model = simulate_proto.model();
 
         const auto &dtype = simulate_proto.data_type();
         if(dtype  != "Float32" && dtype != "Fixed16")
-            throw std::runtime_error("Input data type configuration for network " + simulate.network +
+            throw std::runtime_error("Input data type configuration on network " + simulate.network +
                                      " must be <Float32|Fixed16>.");
         else
             simulate.data_type = simulate_proto.data_type();
@@ -121,7 +121,7 @@ namespace sys {
 
             if(experiment.precision_granularity % experiment.n_columns != 0 ||
                     (((experiment.n_columns * 16) % experiment.precision_granularity) != 0))
-                throw std::runtime_error("Precision granularity for network " + simulate.network +
+                throw std::runtime_error("Precision granularity on network " + simulate.network +
                         " must be multiple of 16 and divisible by the columns.");
 
             // Loom
@@ -132,7 +132,7 @@ namespace sys {
             if(experiment_proto.architecture() == "Loom" &&
                     (experiment.precision_granularity % experiment.n_columns != 0 ||
                     (((experiment.n_rows * 16) % experiment.precision_granularity) != 0)))
-                throw std::runtime_error("Precision granularity for network " + simulate.network +
+                throw std::runtime_error("Precision granularity on network " + simulate.network +
                         " must be multiple of 16 and divisible by the rows.");
 
             // BitTactical
@@ -144,10 +144,10 @@ namespace sys {
 
             const auto &search_shape = experiment.search_shape;
             if(search_shape != "L" && search_shape != "T")
-                throw std::runtime_error("BitTactical search shape for network " + simulate.network +
+                throw std::runtime_error("BitTactical search shape on network " + simulate.network +
                                          " must be <L|T>.");
             if(search_shape == "T" && (experiment.lookahead_h != 2 || experiment.lookaside_d != 5))
-                throw std::runtime_error("BitTactical search T-shape for network " + simulate.network +
+                throw std::runtime_error("BitTactical search T-shape on network " + simulate.network +
                                          " must be lookahead of 2, and lookaside of 5.");
 
             // SCNN
@@ -160,7 +160,7 @@ namespace sys {
             experiment.banks = experiment_proto.banks() < 1 ? 32 : experiment_proto.banks();
 
             if(experiment.banks > 32)
-                throw std::runtime_error("Banks for SCNN in network " + simulate.network +
+                throw std::runtime_error("Banks for SCNN on network " + simulate.network +
                                          " must be from 1 to 32");
 
             // On top architectures
@@ -169,30 +169,33 @@ namespace sys {
 
             // Sanity check
             const auto &task = experiment_proto.task();
-            if(task  != "Cycles" && task != "Potentials" && task != "Schedule")
-                throw std::runtime_error("Task for network " + simulate.network +
-                                         " in Fixed16 must be <Cycles|Potentials|Schedule>.");
+            if(task  != "Cycles" && task != "Potentials")
+                throw std::runtime_error("Task on network " + simulate.network +
+                                         " in Fixed16 must be <Cycles|Potentials>.");
+
+            if (task == "Potentials" && experiment.diffy)
+                throw std::runtime_error("Diffy simulation on network " + simulate.network +
+                                         " is only allowed for <Cycles>.");
 
             const auto &arch = experiment_proto.architecture();
             if (dtype == "Fixed16" && arch != "Parallel" && arch != "Stripes" && arch != "ShapeShifter" &&
-                    arch != "Loom" && arch != "BitPragmatic" && arch != "Laconic" && arch != "BitTactical" &&
-                    arch != "SCNN")
-                throw std::runtime_error("Architecture for network " + simulate.network +
-                    " in Fixed16 must be <Parallel|Stripes|ShapeShifter|Loom|BitPragmatic|Laconic|BitTactical|SCNN>.");
+                    arch != "Loom" && arch != "BitPragmatic" && arch != "Laconic" && arch != "SCNN")
+                throw std::runtime_error("Architecture on network " + simulate.network +
+                    " in Fixed16 must be <Parallel|Stripes|ShapeShifter|Loom|BitPragmatic|Laconic|SCNN>.");
             else  if (dtype == "Float32" && arch != "Parallel" && arch != "SCNN")
-                throw std::runtime_error("Architecture for network " + simulate.network +
+                throw std::runtime_error("Architecture on network " + simulate.network +
                                          " in Float32 must be <Parallel|SCNN>.");
-
-            if(arch != "BitTactical" && task == "Schedule")
-                throw std::runtime_error("Task \"Schedule\" for network " + simulate.network +
-                                         " in Fixed16 is only allowed for BitTactial.");
 
             if (arch != "ShapeShifter" && arch != "BitPragmatic" && experiment.diffy)
                 throw std::runtime_error("Diffy simulation is only allowed for backends <ShapeShifter|Pragmatic>");
 
             if (arch != "Parallel" && arch != "ShapeShifter" && arch != "BitPragmatic" && experiment.tactical)
-                throw std::runtime_error("Tactical simulation for network " + simulate.network +
+                throw std::runtime_error("Tactical simulation on network " + simulate.network +
                         " in Fixed16 is only allowed for backends <Parallel|ShapeShifter|BitPragmatic>");
+
+            if (arch != "ShapeShifter" && arch != "BitPragmatic" && experiment.diffy)
+                throw std::runtime_error("Diffy simulation on network " + simulate.network +
+                                         " in Fixed16 is only allowed for backends <ShapeShifter|BitPragmatic>");
 
             experiment.architecture = experiment_proto.architecture();
             experiment.task = experiment_proto.task();

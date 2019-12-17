@@ -8,6 +8,20 @@
 
 namespace core {
 
+    typedef std::tuple<uint16_t, uint16_t> ValueIndex;
+
+    template <typename T>
+    using ValueTuple = std::tuple<T, uint16_t, uint16_t>;
+
+    template <typename S>
+    using BufferRow = std::vector<S>;
+
+    template <typename S>
+    using BufferSet = std::vector<std::vector<S>>;
+
+    template <typename S>
+    using Buffer = std::vector<std::vector<std::vector<S>>>;
+
     typedef union {
         float f;
         struct {
