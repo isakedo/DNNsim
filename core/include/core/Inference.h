@@ -19,23 +19,11 @@
 namespace core {
 
     /**
-     * Base class simulator
+     * Base class simulator for inference
      * @tparam T Data type of the simulation
      */
     template <typename T>
-    class Simulator {
-
-    private:
-
-        typedef union {
-            float f;
-            struct {
-                unsigned int truncated_mantissa : 16;
-                unsigned int mantissa : 7;
-                unsigned int exponent : 8;
-                unsigned int sign : 1;
-            } field;
-        } bfloat16;
+    class Inference {
 
     protected:
 
@@ -72,16 +60,6 @@ namespace core {
     public:
 
         /** Constructor
-         * @param _N_THREADS    Number of parallel threads for multi-threading execution
-         * @param _FAST_MODE    Enable fast mode to simulate only one image
-         * @param _QUIET        Avoid std::out messages
-         * @param _CHECK        Check the correctness of the simulations
-         */
-        Simulator(uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) : N_LANES(0), N_COLUMNS(0), N_ROWS(0),
-                N_TILES(0), BITS_PE(0), N_THREADS(_N_THREADS), FAST_MODE(_FAST_MODE),  QUIET(_QUIET), CHECK(_CHECK),
-                memory(Memory()) {}
-
-        /** Constructor
          * @param _N_LANES      Number of concurrent multiplications per PE
          * @param _N_COLUMNS    Number of columns
          * @param _N_ROWS       Number of rows
@@ -92,7 +70,7 @@ namespace core {
          * @param _QUIET        Avoid std::out messages
          * @param _CHECK        Check the correctness of the simulations
          */
-        Simulator(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES, uint32_t _BITS_PE,
+        Inference(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES, uint32_t _BITS_PE,
                 uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) : N_LANES(_N_LANES),
                 N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), N_TILES(_N_TILES), BITS_PE(_BITS_PE), N_THREADS(_N_THREADS),
                 FAST_MODE(_FAST_MODE),  QUIET(_QUIET), CHECK(_CHECK), memory(Memory()) {}

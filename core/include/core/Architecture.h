@@ -32,7 +32,7 @@ namespace core {
          * @param network_bits  Maximum number of bits in the network
          * @return              Number of one bit multiplications
          */
-        virtual uint8_t computeBits(T act, T wgt, uint8_t act_prec, uint8_t wgt_prec, uint8_t network_bits) = 0;
+        virtual uint16_t computeBits(T act, T wgt, uint8_t act_prec, uint8_t wgt_prec, uint8_t network_bits) = 0;
 
         /**
          * Return stats filename for the architecture in the potentials function

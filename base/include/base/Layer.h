@@ -63,12 +63,6 @@ namespace base {
         /** numpy array containing the activations for the layer */
         Array<T> activations;
 
-        /** numpy array containing the weight gradients for the layer */
-        Array<T> weight_gradients;
-
-        /** numpy array containing the activation gradients for the layer */
-        Array<T> input_gradients;
-
         /** numpy array containing the output activation gradients for the layer */
         Array<T> output_gradients;
 
@@ -212,18 +206,6 @@ namespace base {
         const Array<T> &getActivations() const { return activations; }
 
         /**
-         * Get weights gradients data
-         * @return Weights gradients data
-         */
-        const Array<T> &getWeightGradients() const { return weight_gradients; }
-
-        /**
-         * Get input gradients data
-         * @return Input gradients data
-         */
-        const Array<T> &getInputGradients() const { return input_gradients; }
-
-        /**
          * Get output gradients data
          * @return Output gradients data
          */
@@ -246,18 +228,6 @@ namespace base {
          * @param _activations Activations data
          */
         void setActivations(const Array<T> &_activations) { Layer::activations = _activations; }
-
-        /**
-         * Set weights gradients data
-         * @param _weight_gradients Weights gradients data
-         */
-        void setWeightGradients(const Array<T> &_weight_gradients) { Layer::weight_gradients = _weight_gradients; }
-
-        /**
-         * Set the input gradients
-         * @param _input_gradients Input gradients data
-         */
-        void setInputGradients(const Array<T> &_input_gradients) { Layer::input_gradients = _input_gradients; }
 
         /**
          * Set the output gradients

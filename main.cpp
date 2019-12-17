@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2018-ETERNITY Isak Edo Vivancos, Andreas Moshovos
+Copyright (c) 2018-Present Isak Edo Vivancos, Andreas Moshovos
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -25,6 +25,8 @@ THE SOFTWARE.
 #include <interface/NetWriter.h>
 
 #include <base/Network.h>
+#include <core/Inference.h>
+#include <core/Parallel.h>
 #include <core/Stripes.h>
 #include <core/ShapeShifter.h>
 #include <core/Loom.h>
@@ -189,8 +191,8 @@ int main(int argc, char *argv[]) {
                         if (experiment.architecture == "TensorDash") {
                             core::TensorDash<float> DNNsim(experiment.n_lanes, experiment.n_columns,
                                     experiment.n_rows, experiment.n_tiles, experiment.lookahead_h,
-                                    experiment.lookaside_d, experiment.search_shape, experiment.banks, N_THREADS,
-                                    FAST_MODE, QUIET, CHECK);
+                                    experiment.lookaside_d, experiment.search_shape.c_str()[0], experiment.banks,
+                                    N_THREADS, FAST_MODE, QUIET, CHECK);
                             if (experiment.task == "Cycles") DNNsim.run(simulate, epochs);
                             else if (experiment.task == "Potentials") DNNsim.potentials(simulate, epochs);
                         }
@@ -204,11 +206,26 @@ int main(int argc, char *argv[]) {
 		                auto network = read<float>(simulate, QUIET);
 		                for(const auto &experiment : simulate.experiments) {
 
+                            core::Inference<float> DNNsim(experiment.n_lanes, experiment.n_columns,
+                                    experiment.n_rows, experiment.n_tiles, experiment.bits_pe, N_THREADS, FAST_MODE,
+                                    QUIET, CHECK);
+
 		                    if (experiment.architecture == "SCNN") {
-		                        core::SCNN<float> DNNsim(experiment.Wt, experiment.Ht, experiment.I, experiment.F,
-		                                experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE, QUIET, CHECK);
-		                        if (experiment.task == "Cycles") DNNsim.run(network);
-		                        else if (experiment.task == "Potentials") DNNsim.potentials(network);
+                                std::shared_ptr<core::Architecture<float>> arch =
+                                        std::make_shared<core::SCNN<float>>(experiment.Wt, experiment.Ht, experiment.I,
+                                        experiment.F, experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE,
+                                        QUIET);
+
+		                        if (experiment.task == "Cycles")
+		                            std::static_pointer_cast<core::SCNN<float>>(arch)->run(network);
+		                        else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
+
+		                    } else if (experiment.architecture == "Parallel") {
+                                std::shared_ptr<core::Architecture<float>> arch =
+                                        std::make_shared<core::Parallel<float>>(experiment.tactical);
+
+                                if (experiment.task == "Cycles") DNNsim.run(network, arch);
+                                else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 		                    }
 		                }
 
@@ -229,65 +246,74 @@ int main(int argc, char *argv[]) {
                             if(!QUIET) std::cout << "Starting simulation " << experiment.task << " for architecture "
                                     << experiment.architecture << std::endl;
 
+                            core::BitTactical<uint16_t> DNNsim_scheduler(experiment.n_lanes, experiment.n_rows,
+                                    experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape.c_str()[0]);
+
+                            if (experiment.architecture == "BitTactical" && experiment.task == "Schedule") {
+                                write_schedule<uint16_t>(network, DNNsim_scheduler, "BitTactical", experiment, QUIET);
+                                continue;
+                            }
+
+                            core::Inference<uint16_t> DNNsim(experiment.n_lanes, experiment.n_columns,
+                                    experiment.n_rows, experiment.n_tiles, experiment.bits_pe, N_THREADS, FAST_MODE,
+                                    QUIET, CHECK);
+
                             if (experiment.architecture == "SCNN") {
-                                core::SCNN<uint16_t> DNNsim(experiment.Wt, experiment.Ht, experiment.I, experiment.F,
-                                        experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE, QUIET, CHECK);
-                                if (experiment.task == "Cycles") DNNsim.run(network);
-                                else if (experiment.task == "Potentials") DNNsim.potentials(network);
+                                std::shared_ptr<core::Architecture<uint16_t>> arch =
+                                        std::make_shared<core::SCNN<uint16_t>>(experiment.Wt, experiment.Ht,
+                                        experiment.I, experiment.F, experiment.out_acc_size, experiment.banks,
+                                        N_THREADS, FAST_MODE, QUIET);
 
-                            } else {
+                                if (experiment.task == "Cycles")
+                                    std::static_pointer_cast<core::SCNN<uint16_t>>(arch)->run(network);
+                                else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
-                                core::BitTactical<uint16_t> DNNsim_scheduler(experiment.n_lanes, experiment.n_rows,
-                                        experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape);
+                            } else if (experiment.architecture == "Parallel") {
+                                std::shared_ptr<core::Architecture<uint16_t>> arch =
+                                        std::make_shared<core::Parallel<uint16_t>>(experiment.tactical);
 
-                                if (experiment.architecture == "BitTactical" && experiment.task == "Schedule") {
-                                    write_schedule<uint16_t>(network, DNNsim_scheduler, "BitTactical", experiment, QUIET);
-                                    continue;
-                                }
+                                if (experiment.task == "Cycles") DNNsim.run(network, arch);
+                                else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
-                                core::Simulator<uint16_t> DNNsim(experiment.n_lanes, experiment.n_columns,
-                                        experiment.n_rows, experiment.n_tiles, experiment.bits_pe,
-                                        N_THREADS, FAST_MODE, QUIET, CHECK);
+                            } else if (experiment.architecture == "Stripes") {
+                                std::shared_ptr<core::Architecture<uint16_t>> arch =
+                                        std::make_shared<core::Stripes<uint16_t>>();
 
-                                if(experiment.architecture == "BitPragmatic") {
-                                    std::shared_ptr<core::Architecture<uint16_t>> arch =
-                                            std::make_shared<core::BitPragmatic<uint16_t>>(experiment.bits_first_stage,
-                                                    experiment.column_registers, experiment.diffy);
+                                if(experiment.task == "Cycles") DNNsim.run(network, arch);
+                                else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
-                                    if(experiment.task == "Cycles") DNNsim.run(network, arch);
-                                    else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
+                            } else if (experiment.architecture == "ShapeShifter") {
+                                std::shared_ptr<core::Architecture<uint16_t>> arch =
+                                        std::make_shared<core::ShapeShifter<uint16_t>>(experiment.precision_granularity,
+                                        experiment.column_registers, experiment.minor_bit, experiment.diffy,
+                                        experiment.tactical);
 
-                                } else if(experiment.architecture == "Stripes") {
-                                    std::shared_ptr<core::Architecture<uint16_t>> arch =
-                                            std::make_shared<core::Stripes<uint16_t>>();
+                                if(experiment.task == "Cycles") DNNsim.run(network, arch);
+                                else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
-                                    if(experiment.task == "Cycles") DNNsim.run(network, arch);
-                                    else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
+                            } else if (experiment.architecture == "Loom") {
+                                std::shared_ptr<core::Architecture<uint16_t>> arch =
+                                        std::make_shared<core::Loom<uint16_t>>(experiment.precision_granularity,
+                                        experiment.pe_serial_bits, experiment.minor_bit, experiment.dynamic_weights);
 
-                                } else if(experiment.architecture == "ShapeShifter") {
-                                    std::shared_ptr<core::Architecture<uint16_t>> arch =
-                                            std::make_shared<core::ShapeShifter<uint16_t>>(experiment.precision_granularity,
-                                            experiment.column_registers, experiment.minor_bit, experiment.diffy);
+                                if(experiment.task == "Cycles") DNNsim.run(network, arch);
+                                else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
-                                    if(experiment.task == "Cycles") DNNsim.run(network, arch);
-                                    else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
+                            } else if (experiment.architecture == "BitPragmatic") {
+                                std::shared_ptr<core::Architecture<uint16_t>> arch =
+                                        std::make_shared<core::BitPragmatic<uint16_t>>(experiment.bits_first_stage,
+                                        experiment.column_registers, experiment.booth, experiment.diffy,
+                                        experiment.tactical);
 
-                                } else if(experiment.architecture == "Loom") {
-                                    std::shared_ptr<core::Architecture<uint16_t>> arch =
-                                            std::make_shared<core::Loom<uint16_t>>(experiment.precision_granularity,
-                                            experiment.pe_serial_bits, experiment.minor_bit, experiment.dynamic_weights);
+                                if(experiment.task == "Cycles") DNNsim.run(network, arch);
+                                else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
-                                    if(experiment.task == "Cycles") DNNsim.run(network, arch);
-                                    else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
+                            } else if (experiment.architecture == "Laconic") {
+                                std::shared_ptr<core::Architecture<uint16_t>> arch =
+                                        std::make_shared<core::Laconic<uint16_t>>(experiment.booth);
 
-                                } else if (experiment.architecture == "Laconic") {
-                                    std::shared_ptr<core::Architecture<uint16_t>> arch =
-                                            std::make_shared<core::Laconic<uint16_t>>();
-
-                                    if(experiment.task == "Cycles") DNNsim.potentials(network, arch);
-                                    else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
-
-                                }
+                                if(experiment.task == "Cycles") DNNsim.potentials(network, arch);
+                                else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                             }
 

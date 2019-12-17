@@ -11,8 +11,6 @@ add_library(
         ${PROTO_GENERATED_SOURCES}
         ${PROTO_GENERATED_HEADERS}
         include/interface/Interface.h
-        include/interface/NetReader.h
-        include/interface/NetWriter.h
         src/NetReader.cpp
         src/NetWriter.cpp
 )

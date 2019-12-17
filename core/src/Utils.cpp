@@ -28,8 +28,6 @@ namespace core {
 
         // Backward traces
         if(backward) {
-            reader.read_training_weight_gradients_npy(network);
-            reader.read_training_input_gradients_npy(network);
             reader.read_training_output_activation_gradients_npy(network);
         }
 

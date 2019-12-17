@@ -13,6 +13,7 @@ namespace sys {
     }
 
     Batch::Simulate Batch::read_training_simulation(const protobuf::Batch_Simulate &simulate_proto) {
+
         Batch::Simulate simulate;
         std::string value;
         simulate.network = simulate_proto.network();
@@ -36,47 +37,47 @@ namespace sys {
         else
             simulate.data_type = simulate_proto.data_type();
 
-        if (simulate.data_type == "BFloat16") {
-            for(const auto &experiment_proto : simulate_proto.experiment()) {
+        for(const auto &experiment_proto : simulate_proto.experiment()) {
 
-                Batch::Simulate::Experiment experiment;
-                if(experiment_proto.architecture() == "TensorDash") {
-                    experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
-                    experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
-                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
-                    experiment.n_tiles = experiment_proto.n_tiles() < 1 ? 1 : experiment_proto.n_tiles();
-                    experiment.lookahead_h = experiment_proto.lookahead_h() < 1 ? 2 : experiment_proto.lookahead_h();
-                    experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();
-                    experiment.search_shape = experiment_proto.search_shape().empty() ? 'T' :
-                            experiment_proto.search_shape().c_str()[0];
-                    experiment.banks = experiment_proto.banks() < 1 ? 16 : experiment_proto.banks();
+            Batch::Simulate::Experiment experiment;
+            experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
+            experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
+            experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+            experiment.n_tiles = experiment_proto.n_tiles() < 1 ? 1 : experiment_proto.n_tiles();
+            experiment.lookahead_h = experiment_proto.lookahead_h() < 1 ? 2 : experiment_proto.lookahead_h();
+            experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();
+            experiment.search_shape = experiment_proto.search_shape().empty() ? "T" :
+                    experiment_proto.search_shape();
+            experiment.banks = experiment_proto.banks() < 1 ? 16 : experiment_proto.banks();
 
-                    value = experiment.search_shape;
-                    if(value != "L" && value != "T")
-                        throw std::runtime_error("BitTactical search shape for network " + simulate.network +
-                                                 " must be <L|T>.");
+            // Sanity checks
+            value = experiment.search_shape;
+            if(value != "L" && value != "T")
+                throw std::runtime_error("BitTactical search shape for network " + simulate.network +
+                                         " must be <L|T>.");
 
-                } else throw std::runtime_error("Training architecture for network " + simulate.network +
-                                                " in BFloat16 must be <TensorDash>.");
+            if(experiment_proto.architecture() != "TensorDash")
+                throw std::runtime_error("Training architecture for network " + simulate.network +
+                                         " in BFloat16 must be <TensorDash>.");
 
-                value = experiment_proto.task();
-                if(value != "Cycles" && value != "Potentials")
-                    throw std::runtime_error("Training task for network " + simulate.network +
-                                             " in BFloat16 must be <Cycles|Potentials>.");
+            value = experiment_proto.task();
+            if(value != "Cycles" && value != "Potentials")
+                throw std::runtime_error("Training task for network " + simulate.network +
+                                         " in BFloat16 must be <Cycles|Potentials>.");
 
-                experiment.architecture = experiment_proto.architecture();
-                experiment.task = experiment_proto.task();
-                simulate.experiments.emplace_back(experiment);
+            experiment.architecture = experiment_proto.architecture();
+            experiment.task = experiment_proto.task();
+            simulate.experiments.emplace_back(experiment);
 
-            }
         }
+
 
         return simulate;
     }
 
     Batch::Simulate Batch::read_inference_simulation(const protobuf::Batch_Simulate &simulate_proto) {
+
         Batch::Simulate simulate;
-        std::string value;
         simulate.network = simulate_proto.network();
         simulate.batch = simulate_proto.batch();
         simulate.tensorflow_8b = simulate_proto.tensorflow_8b();
@@ -85,149 +86,117 @@ namespace sys {
 		simulate.training = simulate_proto.training();
         if(simulate.tensorflow_8b) simulate.network_bits = 8;
 
-        value = simulate_proto.model();
-        if(value  != "Caffe" && value != "Trace" && value != "CParams" && value != "Protobuf")
+        const auto &model = simulate_proto.model();
+        if(model  != "Caffe" && model != "Trace" && model != "CParams" && model != "Protobuf")
             throw std::runtime_error("Model configuration for network " + simulate.network +
                                      " must be <Caffe|Trace|CParams|Protobuf>.");
         else
             simulate.model = simulate_proto.model();
 
-        value = simulate_proto.data_type();
-        if(value  != "Float32" && value != "Fixed16")
+        const auto &dtype = simulate_proto.data_type();
+        if(dtype  != "Float32" && dtype != "Fixed16")
             throw std::runtime_error("Input data type configuration for network " + simulate.network +
                                      " must be <Float32|Fixed16>.");
         else
             simulate.data_type = simulate_proto.data_type();
 
-        if (simulate.data_type == "Fixed16") {
-            for(const auto &experiment_proto : simulate_proto.experiment()) {
+        for(const auto &experiment_proto : simulate_proto.experiment()) {
 
-                Batch::Simulate::Experiment experiment;
-                if (experiment_proto.architecture() == "SCNN") {
-                    experiment.Wt = experiment_proto.wt() < 1 ? 8 : experiment_proto.wt();
-                    experiment.Ht = experiment_proto.ht() < 1 ? 8 : experiment_proto.ht();
-                    experiment.I = experiment_proto.i() < 1 ? 4 : experiment_proto.i();
-                    experiment.F = experiment_proto.f() < 1 ? 4 : experiment_proto.f();
-                    experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
-                            6144 : experiment_proto.out_acc_size();
-                    experiment.banks = experiment_proto.banks() < 1 ? 32 : experiment_proto.banks();
+            Batch::Simulate::Experiment experiment;
+            experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
+            experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
+            experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
+            experiment.n_tiles = experiment_proto.n_tiles() < 1 ? 16 : experiment_proto.n_tiles();
+            experiment.column_registers = experiment_proto.column_registers();
+            experiment.bits_pe = experiment_proto.bits_pe() < 1 ? 16 : experiment_proto.bits_pe();
 
-                    if(experiment.banks > 32)
-                        throw std::runtime_error("Banks for SCNN in network " + simulate.network +
-                                                 " must be from 1 to 32");
+            // BitPragmatic-Laconic
+            experiment.booth = experiment_proto.booth_encoding();
+            experiment.bits_first_stage = experiment_proto.bits_first_stage();
 
-                } else {
+            // ShapeShifter-Loom
+            experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 16 :
+                    experiment_proto.precision_granularity();
+            experiment.minor_bit = experiment_proto.minor_bit();
 
-                    experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
-                    experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
-                    experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
-                    experiment.n_tiles = experiment_proto.n_tiles() < 1 ? 16 : experiment_proto.n_tiles();
-                    experiment.bits_pe = experiment_proto.bits_pe() < 1 ? 16 : experiment_proto.bits_pe();
+            if(experiment.precision_granularity % experiment.n_columns != 0 ||
+                    (((experiment.n_columns * 16) % experiment.precision_granularity) != 0))
+                throw std::runtime_error("Precision granularity for network " + simulate.network +
+                        " must be multiple of 16 and divisible by the columns.");
 
-                    // Bit Tactical
-                    experiment.lookahead_h = experiment_proto.lookahead_h() < 1 ? 2 : experiment_proto.lookahead_h();
-                    experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();
-                    experiment.search_shape = experiment_proto.search_shape().empty() ? 'L' :
-                                              experiment_proto.search_shape().c_str()[0];
-                    experiment.read_schedule = experiment_proto.read_schedule();
+            // Loom
+            experiment.dynamic_weights = experiment_proto.dynamic_weights();
+            experiment.pe_serial_bits = experiment_proto.pe_serial_bits() < 1 ? 1 :
+                    experiment_proto.pe_serial_bits();
 
-                    value = experiment.search_shape;
-                    if(value != "L" && value != "T")
-                        throw std::runtime_error("BitTactical search shape for network " + simulate.network +
-                                                 " must be <L|T>.");
-                    if(value == "T" && (experiment.lookahead_h != 2 || experiment.lookaside_d != 5))
-                        throw std::runtime_error("BitTactical search T-shape for network " + simulate.network +
-                                                 " must be lookahead of 2, and lookaside of 5.");
+            if(experiment_proto.architecture() == "Loom" &&
+                    (experiment.precision_granularity % experiment.n_columns != 0 ||
+                    (((experiment.n_rows * 16) % experiment.precision_granularity) != 0)))
+                throw std::runtime_error("Precision granularity for network " + simulate.network +
+                        " must be multiple of 16 and divisible by the rows.");
 
-                    if(experiment_proto.architecture() == "BitPragmatic") {
-                        experiment.column_registers = experiment_proto.column_registers();
-                        experiment.bits_first_stage = experiment_proto.bits_first_stage();
-                        experiment.diffy = experiment_proto.diffy();
+            // BitTactical
+            experiment.lookahead_h = experiment_proto.lookahead_h() < 1 ? 2 : experiment_proto.lookahead_h();
+            experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();
+            experiment.search_shape = experiment_proto.search_shape().empty() ? "T" :
+                    experiment_proto.search_shape();
+            experiment.read_schedule = experiment_proto.read_schedule();
 
-                    } else if(experiment_proto.architecture() == "Stripes") {
+            const auto &search_shape = experiment.search_shape;
+            if(search_shape != "L" && search_shape != "T")
+                throw std::runtime_error("BitTactical search shape for network " + simulate.network +
+                                         " must be <L|T>.");
+            if(search_shape == "T" && (experiment.lookahead_h != 2 || experiment.lookaside_d != 5))
+                throw std::runtime_error("BitTactical search T-shape for network " + simulate.network +
+                                         " must be lookahead of 2, and lookaside of 5.");
 
-                    } else if(experiment_proto.architecture() == "ShapeShifter") {
-                        experiment.column_registers = experiment_proto.column_registers();
-                        experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 256 :
-                                                           experiment_proto.precision_granularity();
-                        experiment.minor_bit = experiment_proto.minor_bit();
-                        experiment.diffy = experiment_proto.diffy();
+            // SCNN
+            experiment.Wt = experiment_proto.wt() < 1 ? 8 : experiment_proto.wt();
+            experiment.Ht = experiment_proto.ht() < 1 ? 8 : experiment_proto.ht();
+            experiment.I = experiment_proto.i() < 1 ? 4 : experiment_proto.i();
+            experiment.F = experiment_proto.f() < 1 ? 4 : experiment_proto.f();
+            experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
+                    6144 : experiment_proto.out_acc_size();
+            experiment.banks = experiment_proto.banks() < 1 ? 32 : experiment_proto.banks();
 
-                        if(experiment.precision_granularity % experiment.n_columns != 0 ||
-                           (((experiment.n_columns * 16) % experiment.precision_granularity) != 0))
-                            throw std::runtime_error("ShapeShifter precision granularity for network " +
-                                    simulate.network + " must be multiple of 16 and divisible by the columns.");
+            if(experiment.banks > 32)
+                throw std::runtime_error("Banks for SCNN in network " + simulate.network +
+                                         " must be from 1 to 32");
 
-                    } else if(experiment_proto.architecture() == "Loom") {
-                        experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 256 :
-                                                           experiment_proto.precision_granularity();
-                        experiment.pe_serial_bits = experiment_proto.pe_serial_bits() < 1 ? 1 :
-                                                    experiment_proto.pe_serial_bits();
-                        experiment.minor_bit = experiment_proto.minor_bit();
-                        experiment.dynamic_weights = experiment_proto.dynamic_weights();
+            // On top architectures
+            experiment.diffy = experiment_proto.diffy();
+            experiment.tactical = experiment_proto.tactical();
 
-                        if(experiment.precision_granularity % experiment.n_columns != 0 ||
-                           (((experiment.n_columns * 16) % experiment.precision_granularity) != 0))
-                            throw std::runtime_error("Loom precision granularity for network " + simulate.network
-                                                     + " must be multiple of 16 and divisible by the columns.");
-                        if(experiment.precision_granularity % experiment.n_columns != 0 ||
-                           (((experiment.n_rows * 16) % experiment.precision_granularity) != 0))
-                            throw std::runtime_error("Loom precision granularity for network " + simulate.network
-                                                     + " must be multiple of 16 and divisible by the rows.");
+            // Sanity check
+            const auto &task = experiment_proto.task();
+            if(task  != "Cycles" && task != "Potentials" && task != "Schedule")
+                throw std::runtime_error("Task for network " + simulate.network +
+                                         " in Fixed16 must be <Cycles|Potentials|Schedule>.");
 
-                    } else if (experiment_proto.architecture() == "Laconic") {
+            const auto &arch = experiment_proto.architecture();
+            if (dtype == "Fixed16" && arch != "Parallel" && arch != "Stripes" && arch != "ShapeShifter" &&
+                    arch != "Loom" && arch != "BitPragmatic" && arch != "Laconic" && arch != "BitTactical" &&
+                    arch != "SCNN")
+                throw std::runtime_error("Architecture for network " + simulate.network +
+                    " in Fixed16 must be <Parallel|Stripes|ShapeShifter|Loom|BitPragmatic|Laconic|BitTactical|SCNN>.");
+            else  if (dtype == "Float32" && arch != "Parallel" && arch != "SCNN")
+                throw std::runtime_error("Architecture for network " + simulate.network +
+                                         " in Float32 must be <Parallel|SCNN>.");
 
-                    } else if (experiment_proto.architecture() == "BitTactical") {
+            if(arch != "BitTactical" && task == "Schedule")
+                throw std::runtime_error("Task \"Schedule\" for network " + simulate.network +
+                                         " in Fixed16 is only allowed for BitTactial.");
 
-                    } else throw std::runtime_error("Architecture for network " + simulate.network +
-                                                    " in Fixed16 must be <BitPragmatic|Stripes|ShapeShifter|Laconic|"
-                                                    "Loom|BitTactical|SCNN>.");
+            if (arch != "ShapeShifter" && arch != "BitPragmatic" && experiment.diffy)
+                throw std::runtime_error("Diffy simulation is only allowed for backends <ShapeShifter|Pragmatic>");
 
-                }
+            if (arch != "Parallel" && arch != "ShapeShifter" && arch != "BitPragmatic" && experiment.tactical)
+                throw std::runtime_error("Tactical simulation for network " + simulate.network +
+                        " in Fixed16 is only allowed for backends <Parallel|ShapeShifter|BitPragmatic>");
 
-                value = experiment_proto.task();
-                if(value  != "Cycles" && value != "Potentials" && value != "Schedule")
-                    throw std::runtime_error("Task for network " + simulate.network +
-                                             " in Fixed16 must be <Cycles|Potentials|Schedule>.");
-
-                if(experiment_proto.architecture() != "BitTactical" && experiment_proto.task() == "Schedule")
-                    throw std::runtime_error("Task \"Schedule\" for network " + simulate.network +
-                                             " in Fixed16 is only allowed for BitTactial.");
-
-                experiment.architecture = experiment_proto.architecture();
-                experiment.task = experiment_proto.task();
-                simulate.experiments.emplace_back(experiment);
-
-            }
-        } else if (simulate.data_type == "Float32") {
-            for(const auto &experiment_proto : simulate_proto.experiment()) {
-
-                Batch::Simulate::Experiment experiment;
-                if (experiment_proto.architecture() == "SCNN") {
-                    experiment.Wt = experiment_proto.wt() < 1 ? 8 : experiment_proto.wt();
-                    experiment.Ht = experiment_proto.ht() < 1 ? 8 : experiment_proto.ht();
-                    experiment.I = experiment_proto.i() < 1 ? 4 : experiment_proto.i();
-                    experiment.F = experiment_proto.f() < 1 ? 4 : experiment_proto.f();
-                    experiment.out_acc_size = experiment_proto.out_acc_size() < 1 ?
-                            1024 : experiment_proto.out_acc_size();
-                    experiment.banks = experiment_proto.banks() < 1 ? 32 : experiment_proto.banks();
-                    if(experiment.banks > 32)
-                        throw std::runtime_error("Banks for SCNN in network " + simulate.network +
-                                                 " must be from 1 to 32");
-
-                } else throw std::runtime_error("Architecture for network " + simulate.network +
-                                                " in Float32 must be <SCNN>.");
-
-                value = experiment_proto.task();
-                if(value  != "Cycles" && value != "Potentials")
-                    throw std::runtime_error("Task for network " + simulate.network +
-                                             " in Float32 must be <Cycles|Potentials>.");
-
-                experiment.architecture = experiment_proto.architecture();
-                experiment.task = experiment_proto.task();
-                simulate.experiments.emplace_back(experiment);
-
-            }
+            experiment.architecture = experiment_proto.architecture();
+            experiment.task = experiment_proto.task();
+            simulate.experiments.emplace_back(experiment);
         }
 
         return simulate;

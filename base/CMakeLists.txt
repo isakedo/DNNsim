@@ -8,8 +8,6 @@ project(
 # Create library
 add_library(
         ${PROJECT_NAME}
-        include/base/cnpy.h
-        include/base/Array.h
         include/base/Layer.h
         include/base/Network.h
         src/cnpy.cpp

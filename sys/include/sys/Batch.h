@@ -45,6 +45,9 @@ namespace sys {
                 /** Column registers */
                 uint32_t column_registers = 0;
 
+                /** Booth-like encoding */
+                bool booth = false;
+
                 /** Precision granularity */
                 uint32_t precision_granularity = 0;
 
@@ -61,7 +64,7 @@ namespace sys {
                 uint32_t lookaside_d = 0;
 
                 /** Search shape: Tactical */
-                char search_shape = 'X';
+                std::string search_shape = "X";
 
                 /** Read schedule from protobuf: Tactical */
                 bool read_schedule = false;
@@ -87,8 +90,11 @@ namespace sys {
                 /** Serial bits per PE */
                 uint32_t pe_serial_bits = 0;
 
-                /** Difft simulation */
+                /** Diffy simulation */
                 bool diffy = false;
+
+                /** BitTactical simulation */
+                bool tactical = false;
 
                 /** Dynamic width precision: Loom */
                 bool dynamic_weights = false;

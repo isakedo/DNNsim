@@ -1,37 +1,42 @@
 
-#include <core/Simulator.h>
+#include <core/Inference.h>
 
 namespace core {
 
     /* CYCLES */
 
     template <typename T>
-    void Simulator<T>::run(const base::Network<T> &network, const std::shared_ptr<Architecture<T>> &arch) {
+    void Inference<T>::run(const base::Network<T> &network, const std::shared_ptr<Architecture<T>> &arch) {
 
     }
 
     /* POTENTIALS */
 
     template <typename T>
-    void Simulator<T>::potentials(const base::Network<T> &network, const std::shared_ptr<Architecture<T>> &arch) {
+    void Inference<T>::potentials(const base::Network<T> &network, const std::shared_ptr<Architecture<T>> &arch) {
 
         // Initialize statistics
         sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(),
                 arch->filename_pot());
 
-        auto work_reduction = stats.register_double_t("work_reduction", 0, sys::Average);
-        auto speedup = stats.register_double_t("speedup", 0, sys::Average);
-        auto par_mult = stats.register_double_t("parallel_multiplication", 0, sys::AverageTotal);
-        auto bit_multiplications = stats.register_uint_t("bit_multiplications", 0, sys::AverageTotal);
+        auto work_reduction = stats.register_double_t("work_reduction", 0, sys::Special);
+        auto speedup = stats.register_double_t("speedup", 0, sys::Special);
+        auto bit_mult = stats.register_uint_t("bit_multiplications", 0, sys::AverageTotal);
+        auto max_bit_mult = stats.register_uint_t("max_bit_multiplications", 0, sys::AverageTotal);
+        auto max_par_mult = stats.register_double_t("max_parallel_multiplication", 0, sys::AverageTotal);
         auto act_precision = stats.register_uint_t("activations_precision", 0, sys::Average);
         auto wgt_precision = stats.register_uint_t("weights_precision", 0, sys::Average);
 
+        auto network_bits = network.getNetwork_bits();
+        double MAX_BITS = network_bits * network_bits;
         for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
             bool lstm = layer.getType() == "LSTM";
             bool fc = layer.getType() == "InnerProduct";
+
+            if (!QUIET) std::cout << "Simulating layer: " << layer.getName() << std::endl;
 
             base::Array<T> act = layer.getActivations();
             arch->dataConversion(act, layer.getActPrecision());
@@ -63,6 +68,7 @@ namespace core {
                 Nx = act_shape[2];
                 Ny = act_shape[3];
             }
+            if (FAST_MODE) batch_size = 1;
 
             auto num_filters = wgt_shape[0];
             auto wgt_channels = wgt_shape[1];
@@ -75,16 +81,17 @@ namespace core {
             auto groups = act_channels / wgt_channels;
             auto it_per_group = num_filters / groups;
 
-            auto network_bits = network.getNetwork_bits();
             auto act_prec = layer.getActPrecision();
             auto wgt_prec = layer.getWgtPrecision();
 
             // Operations
-            uint64_t parallel_mult = conv ? num_filters * out_x * out_y * Kx * Ky * wgt_channels :
-                                     num_filters * wgt_channels * R;
+            uint64_t max_par_counter = conv ? num_filters * out_x * out_y * Kx * Ky * wgt_channels :
+                    num_filters * wgt_channels * R;
+            uint64_t max_bit_counter = max_par_counter * MAX_BITS;
 
             for(int n = 0; n < batch_size; n++) {
-                double MAX_BITS = network_bits * network_bits;
+
+                // Stats
                 uint64_t bit_counter = 0;
 
                 if (conv) {
@@ -108,7 +115,7 @@ namespace core {
                                             T act_bits = act.get(n, start_group + k, stride * x + i, stride * y + j);
                                             T wgt_bits = wgt.get(m, k, i, j);
                                             bit_counter += arch->computeBits(act_bits, wgt_bits, act_prec, wgt_prec,
-                                                    network_bits);
+                                                    network_bits);;
                                         }
                                     }
                                 }
@@ -130,22 +137,34 @@ namespace core {
 
                 }
 
-                bit_multiplications->value[layer_it][n] = bit_counter;
-                work_reduction->value[layer_it][n] = 100 - ((double)bit_counter / (double)parallel_mult / MAX_BITS * 100);
-                speedup->value[layer_it][n] = (double)parallel_mult * MAX_BITS / (double)bit_counter;
-                par_mult->value[layer_it][n] = parallel_mult;
+                bit_mult->value[layer_it][n] = bit_counter;
+                max_bit_mult->value[layer_it][n] = max_bit_counter;
+                max_par_mult->value[layer_it][n] = max_par_counter;
+
+                work_reduction->value[layer_it][n] = 100 - (bit_counter / (double)max_bit_counter * 100.);
+                speedup->value[layer_it][n] = max_bit_counter / (double)bit_counter;
+
                 act_precision->value[layer_it][n] = layer.getActPrecision();
                 wgt_precision->value[layer_it][n] = layer.getWgtPrecision();
             }
 
+            work_reduction->special_value_vector.push_back(100 - (sys::get_total(bit_mult->value[layer_it]) /
+                    (double)sys::get_total(max_bit_mult->value[layer_it]) * 100.));
+            speedup->special_value_vector.push_back(sys::get_total(max_bit_mult->value[layer_it]) /
+                    (double)(sys::get_total(bit_mult->value[layer_it])));
+
         }
 
+        work_reduction->special_value = 100 - (sys::get_total(bit_mult->value) /
+                (double)sys::get_total(max_bit_mult->value) * 100.);
+        speedup->special_value = sys::get_total(max_bit_mult->value) / (double)(sys::get_total(bit_mult->value));
+
         //Dump statistics
-        stats.dump_csv(network.getName(), network.getLayersName(), arch->header_pot(network.getName()), this->QUIET);
+        stats.dump_csv(network.getName(), network.getLayersName(), arch->header_pot(network.getName()), QUIET);
 
     }
 
 
-    INITIALISE_DATA_TYPES(Simulator);
+    INITIALISE_DATA_TYPES(Inference);
 
 }

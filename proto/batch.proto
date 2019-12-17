@@ -17,38 +17,37 @@ message Batch {
             uint32 n_rows = 5;
             uint32 n_tiles = 6;
             uint32 column_registers = 7;
+            uint32 bits_pe = 8;
 
-            // For Dynamic Stripes
-            uint32 precision_granularity = 8;
-            bool minor_bit = 9;
-
-            // For pragmatic
+            // For Pragmatic-Laconic
+            bool booth_encoding = 9;
             uint32 bits_first_stage = 10;
 
-            // For stripes
-            uint32 bits_pe = 11;
+            // For ShapeShifter-Loom
+            uint32 precision_granularity = 11;
+            bool minor_bit = 12;
 
-            // For tactical
-            uint32 lookahead_h = 12;
-            uint32 lookaside_d = 13;
-            string search_shape = 14;
-            bool read_schedule = 15;
+            // For Loom
+            bool dynamic_weights = 13;
+            uint32 pe_serial_bits = 14;
 
-            // For loom
-            bool dynamic_weights = 16;
+            // For Tactical
+            uint32 lookahead_h = 15;
+            uint32 lookaside_d = 16;
+            string search_shape = 17;
+            bool read_schedule = 18;
 
             // SCNN
-            uint32 Wt = 17;
-            uint32 Ht = 18;
-            uint32 I = 19;
-            uint32 F = 20;
-            uint32 out_acc_size = 21;
-            uint32 banks = 22;
-            uint32 pe_serial_bits = 23;
+            uint32 Wt = 19;
+            uint32 Ht = 20;
+            uint32 I = 21;
+            uint32 F = 22;
+            uint32 out_acc_size = 23;
+            uint32 banks = 24;
 
             // On top architectures
-            bool diffy = 24;
-            bool tactical = 25;
+            bool diffy = 25;
+            bool tactical = 26;
 
         }
 

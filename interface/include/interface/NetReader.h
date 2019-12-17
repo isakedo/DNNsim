@@ -100,16 +100,6 @@ namespace interface {
          */
         void read_training_activations_npy(base::Network<T> &network);
 
-        /** Read the weight gradients from training traces into given network
-         * @param network       Network with the layers already initialized
-         */
-        void read_training_weight_gradients_npy(base::Network<T> &network);
-
-        /** Read the activation gradients from training traces into given network
-         * @param network       Network with the layers already initialized
-         */
-        void read_training_input_gradients_npy(base::Network<T> &network);
-
         /** Read the output activation gradients from training traces into given network
          * @param network       Network with the layers already initialized
          */

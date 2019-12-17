@@ -335,38 +335,6 @@ namespace interface {
     }
 
     template <typename T>
-    void NetReader<T>::read_training_weight_gradients_npy(base::Network<T> &network) {
-        check_path("net_traces/" + this->name);
-		check_path("net_traces/" + this->name + "/outGrad");
-        for(base::Layer<T> &layer : network.updateLayers()) {
-            std::string file = "/outGrad/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
-                    std::to_string(batch) + "-wGrad.npy" ;
-            base::Array<T> weight_gradients; weight_gradients.set_values("net_traces/" + this->name + file);
-            layer.setWeightGradients(weight_gradients);
-        }
-
-        if(!QUIET) std::cout << "Backward weight gradient traces loaded from numpy arrays" << std::endl;
-
-    }
-
-    template <typename T>
-    void NetReader<T>::read_training_input_gradients_npy(base::Network<T> &network) {
-        check_path("net_traces/" + this->name);
-		check_path("net_traces/" + this->name + "/outGrad");
-		bool first_layer= true;
-        for(base::Layer<T> &layer : network.updateLayers()) {
-            if(first_layer) {first_layer = false; continue;}
-            std::string file = "/outGrad/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
-                    std::to_string(batch) + "-inGrad.npy" ;
-            base::Array<T> input_gradients; input_gradients.set_values("net_traces/" + this->name + file);
-            layer.setInputGradients(input_gradients);
-        }
-
-        if(!QUIET) std::cout << "Backward input gradient traces loaded from numpy arrays" << std::endl;
-
-    }
-
-    template <typename T>
     void NetReader<T>::read_training_output_activation_gradients_npy(base::Network<T> &network) {
         check_path("net_traces/" + this->name);
 		check_path("net_traces/" + this->name + "/outGrad");

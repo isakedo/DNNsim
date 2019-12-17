@@ -3,9 +3,6 @@
 
 #include "Architecture.h"
 
-#define ZERO_COUNT // Count zeroes as 1 cycle
-#define BOOTH_ENCODING // Activate booth-like encoding
-
 namespace core {
 
     /**
@@ -17,6 +14,9 @@ namespace core {
 
     private:
 
+        /** Activate booth-like encoding */
+        const bool BOOTH_ENCODING;
+
         /**
          * Convert the data representation to the one need it.
          * @param data          Array of values
@@ -26,6 +26,11 @@ namespace core {
 
     public:
 
+        /** Constructor
+         * @param _BOOTH_ENCODING       Activate booth-like encoding
+         */
+        explicit Laconic(bool _BOOTH_ENCODING) : BOOTH_ENCODING(_BOOTH_ENCODING) {}
+
         /** Compute number of one bit multiplications given a weights and an activation
          * @param act           Activation
          * @param wgt           Weight
@@ -34,7 +39,7 @@ namespace core {
          * @param network_bits  Maximum number of bits in the network
          * @return              Number of one bit multiplications
          */
-        uint8_t computeBits(T act, T wgt, uint8_t act_prec, uint8_t wgt_prec, uint8_t network_bits);
+        uint16_t computeBits(T act, T wgt, uint8_t act_prec, uint8_t wgt_prec, uint8_t network_bits);
 
         /**
          * Return stats filename for the architecture in the potentials function

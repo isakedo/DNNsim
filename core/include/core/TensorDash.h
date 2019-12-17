@@ -1,14 +1,19 @@
 #ifndef DNNSIM_TENSORDASH_H
 #define DNNSIM_TENSORDASH_H
 
-#include "Simulator.h"
+#include "Utils.h"
+#include <sys/Batch.h>
+#include <sys/Stats.h>
+
+#ifdef OPENMP
+#include <omp.h>
+#endif
 
 typedef std::tuple<uint16_t, uint16_t> value_index;
 typedef std::tuple<float, uint16_t, uint16_t> value_mux;
 typedef std::vector<std::vector<value_mux>> schedule_buffer;
 
 typedef std::vector<std::vector<int>> bank_map;
-
 typedef std::vector<std::vector<std::vector<std::vector<double>>>> output_tensor;
 
 namespace core {
@@ -18,7 +23,7 @@ namespace core {
      * @tparam T 16 bits bfloat
      */
     template <typename T>
-    class TensorDash : public Simulator<T> {
+    class TensorDash {
 
     private:
 
@@ -50,6 +55,18 @@ namespace core {
 
         /** Search space for the scheduler */
         std::vector<std::tuple<int8_t, int8_t>> SEARCH_MAP;
+
+        /** Number of parallel cores */
+        const int N_THREADS;
+
+        /** Enable fast mode: only one image */
+        const bool FAST_MODE = false;
+
+        /** Avoid std::out messages */
+        const bool QUIET = false;
+
+        /** Check the correctness of the simulations */
+        const bool CHECK = false;
 
         struct conv_stats {
             uint64_t cycles = 0;
@@ -134,9 +151,9 @@ namespace core {
          */
         TensorDash(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES,
                 uint32_t _LOOKAHEAD_H, uint32_t _LOOKASIDE_D, const char _SEARCH_SHAPE, int _BANKS, uint8_t _N_THREADS,
-                bool _FAST_MODE, bool _QUIET, bool _CHECK) : Simulator<T>(_N_THREADS,_FAST_MODE,_QUIET,_CHECK),
-                N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), N_TILES(_N_TILES), LOOKAHEAD_H(_LOOKAHEAD_H),
-                LOOKASIDE_D(_LOOKASIDE_D), SEARCH_SHAPE(_SEARCH_SHAPE), BANKS(_BANKS) {
+                bool _FAST_MODE, bool _QUIET, bool _CHECK) : N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS),
+                N_TILES(_N_TILES), LOOKAHEAD_H(_LOOKAHEAD_H), LOOKASIDE_D(_LOOKASIDE_D), SEARCH_SHAPE(_SEARCH_SHAPE),
+                BANKS(_BANKS), N_THREADS(_N_THREADS), FAST_MODE(_FAST_MODE), QUIET(_QUIET), CHECK(_CHECK) {
 
             if (SEARCH_SHAPE == 'L') {
 

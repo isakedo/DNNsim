@@ -7,16 +7,9 @@ namespace core {
 
     template <typename T>
     uint16_t TensorDash<T>::computeDynamicTacticalBitsPE(T first, T second, bool first_value) {
-
-        #ifdef ZERO_COUNT
         if(first_value && first == 0) return 0;
         else if(!first_value && second == 0) return 0;
-        #else
-        if(first_value && first == 0) return 0;
-        else if(!first_value && second == 0) return 0;
-        #endif
         else return 256;
-
     }
 
     /* SCHEDULER */
@@ -1676,7 +1669,7 @@ namespace core {
 
         // Initialize statistics
         std::string arch = "DynamicTactical";
-        std::string filename = arch + "_cycles";
+        std::string filename = arch + "_potentials";
         sys::Stats stats = sys::Stats(epochs, network_model.getNumLayers(), filename);
         stats.setTraining(true);
 

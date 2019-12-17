@@ -1,30 +1,20 @@
-#ifndef DNNSIM_SHAPESHIFTER_H
-#define DNNSIM_SHAPESHIFTER_H
+#ifndef DNNSIM_PARALLEL_H
+#define DNNSIM_PARALLEL_H
 
 #include "Architecture.h"
+
+#define ZERO_COUNT // Count zeroes as 1 cycle
 
 namespace core {
 
     /**
-     * ShapeShifter simulator
-     * @tparam T 16 bits fixed point
+     * Parallel simulator
+     * @tparam T 16 bits fixed point or 32b float-point
      */
     template <typename T>
-    class ShapeShifter : public Architecture<T> {
+    class Parallel : public Architecture<T> {
 
     private:
-
-        /** Number of activations per group */
-        const uint32_t PRECISION_GRANULARITY;
-
-        /** Number of registers per SIP */
-        const uint32_t COLUMN_REGISTERS;
-
-        /** Calculate also the minor bit for dynamic precisions */
-        const bool MINOR_BIT;
-
-        /** Diffy simulation */
-        const bool DIFFY;
 
         /** BitTactical simulation */
         const bool TCT;
@@ -34,20 +24,14 @@ namespace core {
          * @param data          Array of values
          * @param data_prec     Activation layer precision
          */
-        void dataConversion(base::Array<T> &data, uint8_t data_prec);
+        void dataConversion(base::Array<T> &data, uint8_t data_prec) {}
 
     public:
 
         /** Constructor
-         * @param _PRECISION_GRANULARITY    Granularity for dynamic precisions
-         * @param _COLUMN_REGISTERS         Number of registers per SIP
-         * @param _MINOR_BIT                Calculate also the minor bit for dynamic precisions
-         * @param _DIFFY                    Enable Diffy
-         * @param _TCT                      Enable BitTactical simulation
+         * @param _TCT                  Enable BitTactical simulation
          */
-        ShapeShifter(uint32_t _PRECISION_GRANULARITY, uint32_t _COLUMN_REGISTERS, bool _MINOR_BIT, bool _DIFFY,
-                bool _TCT) : PRECISION_GRANULARITY(_PRECISION_GRANULARITY), COLUMN_REGISTERS(_COLUMN_REGISTERS),
-                MINOR_BIT(_MINOR_BIT), DIFFY(_DIFFY), TCT(_TCT) {}
+        explicit Parallel(bool _TCT) : TCT(_TCT) {}
 
         /** Compute number of one bit multiplications given a weights and an activation
          * @param act           Activation
@@ -75,4 +59,4 @@ namespace core {
 
 }
 
-#endif //DNNSIM_SHAPESHIFTER_H
+#endif //DNNSIM_PARALLEL_H
