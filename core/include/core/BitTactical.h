@@ -1,16 +1,7 @@
 #ifndef DNNSIM_BITTACTICAL_H
 #define DNNSIM_BITTACTICAL_H
 
-#include <sys/common.h>
-#include <base/Array.h>
-#include <base/Network.h>
-
-typedef std::vector<std::vector<std::vector<std::tuple<int,int,int,uint16_t>>>> schedule;
-typedef std::vector<std::vector<std::tuple<int,int,int,uint16_t>>> set_schedule;
-typedef std::vector<std::tuple<int,int,int,uint16_t>> time_schedule;
-typedef std::tuple<int,int,int,uint16_t> schedule_tuple;
-typedef std::list<std::tuple<int,int>> weights_set;
-typedef std::tuple<int,int> weight_index;
+#include "Utils.h"
 
 namespace core {
 
@@ -22,38 +13,6 @@ namespace core {
     class BitTactical {
 
     private:
-
-        /** Search effectual weights in the defined search space
-         * @param dense_schedule     Filter scheduled so far
-         * @param wgt_index          Index of the ineffectual weight that is going to be substituted
-         * @param max_time          Maximum time than can be scheduled (assuming stationary PSUM FIX)
-         * @return                   Effectual candidates to substitute the ineffectual position
-         */
-        weights_set weight_search(const set_schedule &dense_schedule, weight_index wgt_idx, int max_time);
-
-        /** Schedule the promotions for one filter given a specific time
-         * @param dense_schedule    Schedule for a filter before removing zeroes (Overwritten)
-         * @param time              Specific time to schedule
-         * @param row               Row of X weight lanes to schedule
-         * @param max_time          Maximum time than can be scheduled (assuming stationary PSUM FIX)
-         */
-        void filter_scheduler(set_schedule &dense_schedule, int time, int row, int max_time);
-
-        /** Schedule the weights in the scratchpad removing zero weights
-         * @param sparse_Schedule   Schedule of the weights without removing zeroes
-         * @return                  Return the dense scheduled weights
-         */
-        schedule dense_scheduler(const schedule &sparse_schedule);
-
-        /** Schedule the weights in the scratchpad without removing zero weights
-         * @param wgt           Weights per layer
-         * @param act_channels  Number of activation channels
-         * @param fc            True if InnerProduct
-         * @return              Return the sparse scheduled weights
-         */
-        schedule sparse_scheduler(const base::Array<T> &wgt, uint64_t act_channels, bool fc);
-
-    protected:
 
         /** Number of concurrent multiplications per PE */
         const uint32_t N_LANES;
@@ -72,14 +31,6 @@ namespace core {
 
         /** Search space for the scheduler */
         std::vector<std::tuple<int, int>> SEARCH_MAP;
-
-        /** Schedule the weights in the scratchpad trying to remove zero weights
-         * @param wgt           Weights per layer
-         * @param act_channels  Number of activation channels
-         * @param fc            True if InnerProduct
-         * @return              Return the scheduled weights
-         */
-        schedule scheduler(const base::Array<T> &wgt, uint64_t act_channels, bool fc);
 
     public:
 
@@ -127,6 +78,42 @@ namespace core {
             std::sort(SEARCH_MAP.begin(), SEARCH_MAP.end());
 
         }
+
+        /**
+         * Check the whole rows is zeroes
+         * @param buffer Schedule buffer row
+         * @return True if all row is zero
+         */
+        bool check_zero_line(const BufferRow<ValueTuple<T>> &buffer);
+
+        /**
+         * Promote one effectual candidate to the ineffectual value position
+         * @param buffer Schedule buffer (Overwritten)
+         * @param ineffectual Ineffectual value (zero value)
+         * @param candidate Effectual value to promote (non-zero value)
+         */
+        void promote(BufferSet<ValueTuple<T>> &buffer, ValueIndex ineffectual, ValueIndex candidate);
+
+        /**
+         * Search effectual values in the search space
+         * @param buffer Schedule buffer
+         * @param value_idx Time and lane from which to search
+         * @param max_time Maximum time that can be promoted
+         * @return List of indices for the candidate effectual values
+         */
+        std::vector<ValueIndex> search(const BufferSet<ValueTuple<T>> &buffer, ValueIndex value_idx, int max_time);
+
+        /**
+         * Schedule buffer set using original schedule
+         * @param buffer Buffer set to scheduler (Overwritten)
+         */
+        void original_schedule(BufferSet<ValueTuple<T>> &buffer);
+
+        /**
+         * Schedule buffer
+         * @param buffer Buffer to scheduler (Overwritten)
+         */
+        void schedule(Buffer<ValueTuple<T>> &buffer);
 
     };
 

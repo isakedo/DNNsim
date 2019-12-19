@@ -4,12 +4,15 @@
 #include <sys/common.h>
 #include <sys/Stats.h>
 #include <sys/Batch.h>
+
 #include <base/Array.h>
 #include <base/Layer.h>
 #include <base/Network.h>
 #include <interface/NetReader.h>
-#include "Memory.h"
+
 #include "Architecture.h"
+#include "BitTactical.h"
+#include "Memory.h"
 #include "Utils.h"
 
 #ifdef OPENMP
@@ -25,10 +28,13 @@ namespace core {
     template <typename T>
     class Inference {
 
-    protected:
+    private:
 
         /** Memory abstraction of the simulator */
         Memory memory;
+
+        /** Weight buffer scheduler */
+        BitTactical<T> scheduler;
 
         /** Number of concurrent multiplications per PE */
         const uint32_t N_LANES;
@@ -57,9 +63,22 @@ namespace core {
         /** Check the correctness of the simulations */
         const bool CHECK = false;
 
+        /**
+         * Fill the weight buffer with the weights
+         * @param weight_buffer Empty weight buffer (Overwritten)
+         * @param wgt           Weight array
+         * @param num_filters   Number of filters
+         * @param wgt_channels  Number of weight channels
+         * @param Kx            Kernel width
+         * @param Ky            Kernel height
+         */
+        void fill_weight_buffer(Buffer<ValueTuple<T>> &weight_buffer, const base::Array<T> &wgt, uint64_t num_filters,
+                uint64_t wgt_channels, uint64_t Kx, uint64_t Ky);
+
     public:
 
         /** Constructor
+         * @param _scheduler    Weight buffer scheduler
          * @param _N_LANES      Number of concurrent multiplications per PE
          * @param _N_COLUMNS    Number of columns
          * @param _N_ROWS       Number of rows
@@ -70,10 +89,11 @@ namespace core {
          * @param _QUIET        Avoid std::out messages
          * @param _CHECK        Check the correctness of the simulations
          */
-        Inference(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES, uint32_t _BITS_PE,
-                uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) : N_LANES(_N_LANES),
-                N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), N_TILES(_N_TILES), BITS_PE(_BITS_PE), N_THREADS(_N_THREADS),
-                FAST_MODE(_FAST_MODE),  QUIET(_QUIET), CHECK(_CHECK), memory(Memory()) {}
+        Inference(const BitTactical<T> &_scheduler, uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS,
+                uint32_t _N_TILES, uint32_t _BITS_PE, uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) :
+                scheduler(_scheduler), memory(Memory()), N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS),
+                N_TILES(_N_TILES), BITS_PE(_BITS_PE), N_THREADS(_N_THREADS), FAST_MODE(_FAST_MODE),  QUIET(_QUIET),
+                CHECK(_CHECK) {}
 
         /** Simulate architecture for the given network
         * @param network   Network we want to calculate work reduction

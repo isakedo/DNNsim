@@ -8,6 +8,8 @@
 
 namespace core {
 
+    typedef std::vector<std::vector<std::vector<double>>> OutputTensor;
+
     typedef std::tuple<uint16_t, uint16_t> ValueIndex;
 
     template <typename T>

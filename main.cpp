@@ -182,7 +182,13 @@ int main(int argc, char *argv[]) {
 		                auto network = read<float>(simulate, QUIET);
 		                for(const auto &experiment : simulate.experiments) {
 
-                            core::Inference<float> DNNsim(experiment.n_lanes, experiment.n_columns,
+                            if(!QUIET) std::cout << "Starting simulation " << experiment.task << " for architecture "
+                                                 << experiment.architecture << std::endl;
+
+                            core::BitTactical<float> scheduler(experiment.n_lanes, experiment.n_rows,
+                                    experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape.c_str()[0]);
+
+                            core::Inference<float> DNNsim(scheduler, experiment.n_lanes, experiment.n_columns,
                                     experiment.n_rows, experiment.n_tiles, experiment.bits_pe, N_THREADS, FAST_MODE,
                                     QUIET, CHECK);
 
@@ -222,10 +228,10 @@ int main(int argc, char *argv[]) {
                             if(!QUIET) std::cout << "Starting simulation " << experiment.task << " for architecture "
                                     << experiment.architecture << std::endl;
 
-                            core::BitTactical<uint16_t> DNNsim_scheduler(experiment.n_lanes, experiment.n_rows,
+                            core::BitTactical<uint16_t> scheduler(experiment.n_lanes, experiment.n_rows,
                                     experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape.c_str()[0]);
 
-                            core::Inference<uint16_t> DNNsim(experiment.n_lanes, experiment.n_columns,
+                            core::Inference<uint16_t> DNNsim(scheduler, experiment.n_lanes, experiment.n_columns,
                                     experiment.n_rows, experiment.n_tiles, experiment.bits_pe, N_THREADS, FAST_MODE,
                                     QUIET, CHECK);
 

@@ -3,7 +3,108 @@
 
 namespace core {
 
+    /* AUXILIARY FUNCTIONS */
+
+    template <typename T>
+    void check_result_channel_first(const OutputTensor &sim_output, const base::Array<T> &act,
+            const base::Array<T> &wgt, uint64_t Ox, uint64_t Oy, int stride) {
+
+        const std::vector<size_t> &act_shape = act.getShape();
+        const std::vector<size_t> &wgt_shape = wgt.getShape();
+
+        // Activations
+        auto in_channels = act_shape[1];
+
+        // Weights
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
+
+        OutputTensor output = OutputTensor(num_filters, std::vector<std::vector<double>>(Ox,
+                std::vector<double>(Oy, 0)));
+
+        // Actual convolution
+        for (int m = 0; m < num_filters; ++m) {
+
+            // Fix for MobileNet
+            int start_group = 0;
+            if(wgt_channels == 1 && in_channels != 1)
+                start_group = m;
+
+            // Number of Windows
+            for (int x = 0; x < Ox; ++x) {
+                for (int y = 0; y < Oy; ++y) {
+
+                    double sum = 0;
+
+                    // Window dimension
+                    for (int j = 0; j < Ky; ++j) {
+                        for (int i = 0; i < Kx; ++i) {
+                            for (int k = 0; k < wgt_channels; ++k) {
+                                sum += act.get(0, start_group + k, stride * x + i, stride * y + j) *
+                                       wgt.get(m, k, i, j);
+                            }
+                        }
+                    }
+
+                    output[m][x][y] = sum;
+                }
+            }
+        }
+
+        // Check values
+        for (int ch = 0; ch < num_filters; ++ch) {
+            for (int x = 0; x < Ox; ++x) {
+                for (int y = 0; y < Oy; ++y) {
+                    auto actual_value = output[ch][x][y];
+                    auto sim_value = sim_output[ch][x][y];
+                    auto error = (actual_value - sim_value) / sim_value;
+                    if (abs(error) > 1e-10)
+                        throw std::runtime_error("Simulation wrong value.");
+                }
+            }
+        }
+    }
+
     /* CYCLES */
+
+    template <typename T>
+    void Inference<T>::fill_weight_buffer(Buffer<ValueTuple<T>> &weight_buffer, const base::Array<T> &wgt,
+            uint64_t num_filters, uint64_t wgt_channels, uint64_t Kx, uint64_t Ky) {
+
+        int set_wgt = -1;
+        for(int m = 0; m < num_filters; ++m) {
+
+            if ((m % N_ROWS) == 0)
+                set_wgt++;
+
+            int time = 0;
+            for (int y = 0; y < Ky; ++y) {
+                for (int x = 0; x < Kx; ++x) {
+                    for (int k = 0; k < wgt_channels; k += N_LANES) {
+                        int index = 0;
+                        for(int ch = k; ch < std::min((uint64_t)k + N_LANES, wgt_channels); ++ch) {
+
+                            auto wgt_bits = wgt.get(m, ch, x, y);
+                            int pos = (m % N_ROWS) * N_LANES + index;
+                            weight_buffer[set_wgt][time][pos] = std::make_tuple(wgt_bits, time, index);
+
+                            index++;
+                            if(index == N_LANES) {
+                                time++;
+                                index = 0;
+                            }
+                        } // Channels
+                        if(index != 0)
+                            time++;
+                    } // Channel sets
+                } // Kernel Width
+            } // Kernel Height
+
+        } // Filter sets
+
+    }
 
     template <typename T>
     void Inference<T>::run(const base::Network<T> &network, const std::shared_ptr<Architecture<T>> &arch) {
@@ -84,47 +185,21 @@ namespace core {
             auto round_wgt_channels = (int)ceil(wgt_channels / (double)N_LANES) * N_LANES;
             auto time_per_filter = (uint64_t)ceil(round_wgt_channels * Kx * Ky / (double)N_LANES);
 
-            Buffer<ValueTuple<T>> weight_buffer;
-            weight_buffer = Buffer<ValueTuple<T>>(filter_sets, BufferSet<ValueTuple<T>>(time_per_filter,
+            auto weight_buffer = Buffer<ValueTuple<T>>(filter_sets, BufferSet<ValueTuple<T>>(time_per_filter,
                     BufferRow<ValueTuple<T>>(N_ROWS * N_LANES, std::make_tuple(0, 0, 0))));
 
-            int set_wgt = -1;
-            for(int m = 0; m < num_filters; ++m) {
+            fill_weight_buffer(weight_buffer, wgt, num_filters, wgt_channels, Kx, Ky);
 
-                if ((m % N_ROWS) == 0)
-                    set_wgt++;
-
-                int time = 0;
-                for (int y = 0; y < Ky; ++y) {
-                    for (int x = 0; x < Kx; ++x) {
-                        for (int k = 0; k < wgt_channels; k += N_LANES) {
-                            int index = 0;
-                            for(int ch = k; ch < std::min((uint64_t)k + N_LANES, wgt_channels); ++ch) {
-
-                                auto wgt_bits = wgt.get(m, ch, x, y);
-                                int pos = (m % N_ROWS) * N_LANES + index;
-                                weight_buffer[set_wgt][time][pos] = std::make_tuple(wgt_bits, time, index);
-
-                                index++;
-                                if(index == N_LANES) {
-                                    time++;
-                                    index = 0;
-                                }
-                            }
-                            if(index != 0)
-                                time++;
-                        }
-                    }
-                }
-
-            }
-
+            // BitTactical schedule
             if (arch->schedule()) {
-                // TODO SCHEDULE
+                scheduler.schedule(weight_buffer);
             }
 
             // Iterate over the images
             for (int n = 0; n < batch_size; ++n) {
+
+                OutputTensor sim_output = OutputTensor(num_filters, std::vector<std::vector<double>>(Ox,
+                        std::vector<double>(Oy, 0)));
 
                 if (conv) {
 
@@ -132,9 +207,7 @@ namespace core {
 
                 }
 
-                if (CHECK) {
-
-                }
+                if (CHECK) check_result_channel_first(sim_output, act, wgt, Ox, Oy, stride);
 
                 act_precision->value[layer_it][n] = act_prec;
                 wgt_precision->value[layer_it][n] = wgt_prec;
@@ -142,7 +215,6 @@ namespace core {
             }
 
         }
-
 
         //Dump statistics
         std::string header = arch->name() + " Number of Cycles for " + network.getName() + "\n";
