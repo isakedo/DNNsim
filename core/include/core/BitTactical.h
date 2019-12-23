@@ -80,6 +80,12 @@ namespace core {
         }
 
         /**
+         * Return lookahead value
+         * @return Lookahead
+         */
+        uint32_t getLookaheadH() const;
+
+        /**
          * Check the whole rows is zeroes
          * @param buffer Schedule buffer row
          * @return True if all row is zero

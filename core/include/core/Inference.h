@@ -64,6 +64,20 @@ namespace core {
         const bool CHECK = false;
 
         /**
+         *
+         * @param output
+         * @param window_buffer
+         * @param weight_buffer
+         * @param x_windows
+         * @param y_windows
+         * @param num_filters
+         * @param set
+         */
+        void calculate_output(OutputTensor &output, const BufferRow<ValueTuple<T>> &window_buffer,
+                const BufferRow<ValueTuple<T>> &weight_buffer, const std::vector<int> &x_windows,
+                const std::vector<int> &y_windows, uint64_t num_filters, int set);
+
+        /**
          * Fill the weight buffer with the weights
          * @param weight_buffer Empty weight buffer (Overwritten)
          * @param wgt           Weight array
@@ -74,6 +88,22 @@ namespace core {
          */
         void fill_weight_buffer(Buffer<ValueTuple<T>> &weight_buffer, const base::Array<T> &wgt, uint64_t num_filters,
                 uint64_t wgt_channels, uint64_t Kx, uint64_t Ky);
+
+        /**
+         *
+         * @param window_buffer
+         * @param act
+         * @param x_windows
+         * @param y_windows
+         * @param n
+         * @param act_channels
+         * @param Kx
+         * @param Ky
+         * @param stride
+         */
+        void fill_window_buffer(BufferSet<ValueTuple<T>> &window_buffer, const base::Array<T> &act,
+                const std::vector<int> &x_windows, const std::vector<int> &y_windows, uint64_t n, uint64_t act_channels,
+                uint64_t Kx, uint64_t Ky, int stride);
 
     public:
 

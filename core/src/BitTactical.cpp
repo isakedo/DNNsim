@@ -5,6 +5,11 @@ namespace core {
 
     /* SCHEDULER */
 
+    template<typename T>
+    uint32_t BitTactical<T>::getLookaheadH() const {
+        return LOOKAHEAD_H;
+    }
+
     template <typename T>
     bool BitTactical<T>::check_zero_line(const BufferRow<ValueTuple<T>> &buffer) {
         for(auto tuple : buffer) {
