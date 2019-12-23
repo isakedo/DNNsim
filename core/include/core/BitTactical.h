@@ -90,7 +90,7 @@ namespace core {
          * @param buffer Schedule buffer row
          * @return True if all row is zero
          */
-        bool check_zero_line(const BufferRow<ValueTuple<T>> &buffer);
+        bool check_zero_line(const BufferRow<T> &buffer);
 
         /**
          * Promote one effectual candidate to the ineffectual value position
@@ -98,7 +98,7 @@ namespace core {
          * @param ineffectual Ineffectual value (zero value)
          * @param candidate Effectual value to promote (non-zero value)
          */
-        void promote(BufferSet<ValueTuple<T>> &buffer, ValueIndex ineffectual, ValueIndex candidate);
+        void promote(BufferSet<T> &buffer, ValueIndex ineffectual, ValueIndex candidate);
 
         /**
          * Search effectual values in the search space
@@ -107,19 +107,19 @@ namespace core {
          * @param max_time Maximum time that can be promoted
          * @return List of indices for the candidate effectual values
          */
-        std::vector<ValueIndex> search(const BufferSet<ValueTuple<T>> &buffer, ValueIndex value_idx, int max_time);
+        std::vector<ValueIndex> search(const BufferSet<T> &buffer, ValueIndex value_idx, int max_time);
 
         /**
          * Schedule buffer set using original schedule
          * @param buffer Buffer set to scheduler (Overwritten)
          */
-        void original_schedule(BufferSet<ValueTuple<T>> &buffer);
+        void original_schedule(BufferSet<T> &buffer);
 
         /**
          * Schedule buffer
          * @param buffer Buffer to scheduler (Overwritten)
          */
-        void schedule(Buffer<ValueTuple<T>> &buffer);
+        void schedule(Buffer<T> &buffer);
 
     };
 

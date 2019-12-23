@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include <core/TensorDash.h>
 #include <core/SCNN.h>
 #include <core/BitTactical.h>
+#include <core/WindowFirstOutS.h>
 
 template <typename T>
 base::Network<T> read(const sys::Batch::Simulate &simulate, bool QUIET) {
@@ -188,7 +189,10 @@ int main(int argc, char *argv[]) {
                             core::BitTactical<float> scheduler(experiment.n_lanes, experiment.n_rows,
                                     experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape.c_str()[0]);
 
-                            core::Inference<float> DNNsim(scheduler, experiment.n_lanes, experiment.n_columns,
+                            std::shared_ptr<core::Dataflow<float>> dataflow =
+                                    std::make_shared<core::WindowFirstOutS<float>>(scheduler);
+
+                            core::Inference<float> DNNsim(experiment.n_lanes, experiment.n_columns,
                                     experiment.n_rows, experiment.n_tiles, experiment.bits_pe, N_THREADS, FAST_MODE,
                                     QUIET, CHECK);
 
@@ -206,7 +210,7 @@ int main(int argc, char *argv[]) {
                                 std::shared_ptr<core::Architecture<float>> arch =
                                         std::make_shared<core::Parallel<float>>(experiment.tactical);
 
-                                if (experiment.task == "Cycles") DNNsim.run(network, arch);
+                                if (experiment.task == "Cycles") DNNsim.run(network, arch, dataflow);
                                 else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 		                    }
 		                }
@@ -231,7 +235,10 @@ int main(int argc, char *argv[]) {
                             core::BitTactical<uint16_t> scheduler(experiment.n_lanes, experiment.n_rows,
                                     experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape.c_str()[0]);
 
-                            core::Inference<uint16_t> DNNsim(scheduler, experiment.n_lanes, experiment.n_columns,
+                            std::shared_ptr<core::Dataflow<uint16_t>> dataflow =
+                                    std::make_shared<core::WindowFirstOutS<uint16_t>>(scheduler);
+
+                            core::Inference<uint16_t> DNNsim(experiment.n_lanes, experiment.n_columns,
                                     experiment.n_rows, experiment.n_tiles, experiment.bits_pe, N_THREADS, FAST_MODE,
                                     QUIET, CHECK);
 
@@ -249,14 +256,14 @@ int main(int argc, char *argv[]) {
                                 std::shared_ptr<core::Architecture<uint16_t>> arch =
                                         std::make_shared<core::Parallel<uint16_t>>(experiment.tactical);
 
-                                if (experiment.task == "Cycles") DNNsim.run(network, arch);
+                                if (experiment.task == "Cycles") DNNsim.run(network, arch, dataflow);
                                 else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                             } else if (experiment.architecture == "Stripes") {
                                 std::shared_ptr<core::Architecture<uint16_t>> arch =
                                         std::make_shared<core::Stripes<uint16_t>>();
 
-                                if(experiment.task == "Cycles") DNNsim.run(network, arch);
+                                if(experiment.task == "Cycles") DNNsim.run(network, arch, dataflow);
                                 else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                             } else if (experiment.architecture == "ShapeShifter") {
@@ -265,7 +272,7 @@ int main(int argc, char *argv[]) {
                                         experiment.column_registers, experiment.minor_bit, experiment.diffy,
                                         experiment.tactical);
 
-                                if(experiment.task == "Cycles") DNNsim.run(network, arch);
+                                if(experiment.task == "Cycles") DNNsim.run(network, arch, dataflow);
                                 else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                             } else if (experiment.architecture == "Loom") {
@@ -273,7 +280,7 @@ int main(int argc, char *argv[]) {
                                         std::make_shared<core::Loom<uint16_t>>(experiment.precision_granularity,
                                         experiment.pe_serial_bits, experiment.minor_bit, experiment.dynamic_weights);
 
-                                if(experiment.task == "Cycles") DNNsim.run(network, arch);
+                                if(experiment.task == "Cycles") DNNsim.run(network, arch, dataflow);
                                 else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                             } else if (experiment.architecture == "BitPragmatic") {
@@ -282,14 +289,14 @@ int main(int argc, char *argv[]) {
                                         experiment.column_registers, experiment.booth, experiment.diffy,
                                         experiment.tactical);
 
-                                if(experiment.task == "Cycles") DNNsim.run(network, arch);
+                                if(experiment.task == "Cycles") DNNsim.run(network, arch, dataflow);
                                 else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                             } else if (experiment.architecture == "Laconic") {
                                 std::shared_ptr<core::Architecture<uint16_t>> arch =
                                         std::make_shared<core::Laconic<uint16_t>>(experiment.booth);
 
-                                if(experiment.task == "Cycles") DNNsim.potentials(network, arch);
+                                if(experiment.task == "Cycles") DNNsim.run(network, arch, dataflow);
                                 else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                             }

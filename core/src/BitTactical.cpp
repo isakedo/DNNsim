@@ -11,7 +11,7 @@ namespace core {
     }
 
     template <typename T>
-    bool BitTactical<T>::check_zero_line(const BufferRow<ValueTuple<T>> &buffer) {
+    bool BitTactical<T>::check_zero_line(const BufferRow<T> &buffer) {
         for(auto tuple : buffer) {
             auto value = std::get<0>(tuple);
             if(value != 0) return false;
@@ -20,7 +20,7 @@ namespace core {
     }
 
     template <typename T>
-    void BitTactical<T>::promote(BufferSet<ValueTuple<T>> &buffer, ValueIndex ineffectual, ValueIndex candidate) {
+    void BitTactical<T>::promote(BufferSet<T> &buffer, ValueIndex ineffectual, ValueIndex candidate) {
 
         // Ineffectual
         auto inef_time = std::get<0>(ineffectual);
@@ -37,7 +37,7 @@ namespace core {
     }
 
     template <typename T>
-    std::vector<ValueIndex> BitTactical<T>::search(const BufferSet<ValueTuple<T>> &buffer, ValueIndex value_idx,
+    std::vector<ValueIndex> BitTactical<T>::search(const BufferSet<T> &buffer, ValueIndex value_idx,
             int max_time) {
 
         auto time = std::get<0>(value_idx);
@@ -66,7 +66,7 @@ namespace core {
     }
 
     template <typename T>
-    void BitTactical<T>::original_schedule(BufferSet<ValueTuple<T>> &buffer) {
+    void BitTactical<T>::original_schedule(BufferSet<T> &buffer) {
 
         auto max_time = buffer.size();
         auto groups = buffer.front().size() / N_LANES;
@@ -128,7 +128,7 @@ namespace core {
     }
 
     template <typename T>
-    void BitTactical<T>::schedule(Buffer<ValueTuple<T>> &buffer) {
+    void BitTactical<T>::schedule(Buffer<T> &buffer) {
         for (auto &buffer_set : buffer) {
             original_schedule(buffer_set);
         }

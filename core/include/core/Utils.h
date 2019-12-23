@@ -15,14 +15,14 @@ namespace core {
     template <typename T>
     using ValueTuple = std::tuple<T, uint16_t, uint16_t>;
 
-    template <typename S>
-    using BufferRow = std::vector<S>;
+    template <typename T>
+    using BufferRow = std::vector<ValueTuple<T>>;
 
-    template <typename S>
-    using BufferSet = std::vector<std::vector<S>>;
+    template <typename T>
+    using BufferSet = std::vector<std::vector<ValueTuple<T>>>;
 
-    template <typename S>
-    using Buffer = std::vector<std::vector<std::vector<S>>>;
+    template <typename T>
+    using Buffer = std::vector<std::vector<std::vector<ValueTuple<T>>>>;
 
     typedef union {
         float f;

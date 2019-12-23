@@ -6,11 +6,11 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    void check_result_channel_first(const OutputTensor &sim_output, const base::Array<T> &act,
-            const base::Array<T> &wgt, uint64_t Ox, uint64_t Oy, int stride) {
+    void check_result_channel_first(const OutputTensor &sim_output, const std::shared_ptr<base::Array<T>> &act,
+            const std::shared_ptr<base::Array<T>> &wgt, int batch, uint64_t Ox, uint64_t Oy, int stride) {
 
-        const std::vector<size_t> &act_shape = act.getShape();
-        const std::vector<size_t> &wgt_shape = wgt.getShape();
+        const std::vector<size_t> &act_shape = act->getShape();
+        const std::vector<size_t> &wgt_shape = wgt->getShape();
 
         // Activations
         auto in_channels = act_shape[1];
@@ -42,8 +42,8 @@ namespace core {
                     for (int j = 0; j < Ky; ++j) {
                         for (int i = 0; i < Kx; ++i) {
                             for (int k = 0; k < wgt_channels; ++k) {
-                                sum += act.get(0, start_group + k, stride * x + i, stride * y + j) *
-                                       wgt.get(m, k, i, j);
+                                sum += act->get(batch, start_group + k, stride * x + i, stride * y + j) *
+                                       wgt->get(m, k, i, j);
                             }
                         }
                     }
@@ -68,8 +68,8 @@ namespace core {
     }
 
     template <typename T>
-    void Inference<T>::calculate_output(OutputTensor &output, const BufferRow<ValueTuple<T>> &window_buffer,
-            const BufferRow<ValueTuple<T>> &weight_buffer, const std::vector<int> &x_windows,
+    void Inference<T>::calculate_output(OutputTensor &output, const BufferRow<T> &window_buffer,
+            const BufferRow<T> &weight_buffer, const std::vector<int> &x_windows,
             const std::vector<int> &y_windows, uint64_t num_filters, int set) {
 
         for (int w = 0; w < x_windows.size(); ++w) {
@@ -101,79 +101,8 @@ namespace core {
     /* CYCLES */
 
     template <typename T>
-    void Inference<T>::fill_weight_buffer(Buffer<ValueTuple<T>> &weight_buffer, const base::Array<T> &wgt,
-            uint64_t num_filters, uint64_t wgt_channels, uint64_t Kx, uint64_t Ky) {
-
-        int set_wgt = -1;
-        for(int m = 0; m < num_filters; ++m) {
-
-            if ((m % N_ROWS) == 0)
-                set_wgt++;
-
-            int time = 0;
-            for (int y = 0; y < Ky; ++y) {
-                for (int x = 0; x < Kx; ++x) {
-                    for (int k = 0; k < wgt_channels; k += N_LANES) {
-                        int index = 0;
-                        for(int ch = k; ch < std::min((uint64_t)k + N_LANES, wgt_channels); ++ch) {
-
-                            auto wgt_bits = wgt.get(m, ch, x, y);
-                            int pos = (m % N_ROWS) * N_LANES + index;
-                            weight_buffer[set_wgt][time][pos] = std::make_tuple(wgt_bits, time, index);
-
-                            index++;
-                            if(index == N_LANES) {
-                                time++;
-                                index = 0;
-                            }
-                        } // Channels
-                        if(index != 0)
-                            time++;
-                    } // Channel sets
-                } // Kernel Width
-            } // Kernel Height
-
-        } // Filter sets
-
-    }
-
-    template <typename T>
-    void Inference<T>::fill_window_buffer(BufferSet<ValueTuple<T>> &window_buffer, const base::Array<T> &act,
-            const std::vector<int> &x_windows, const std::vector<int> &y_windows, uint64_t n, uint64_t act_channels,
-            uint64_t Kx, uint64_t Ky, int stride) {
-
-        for (int w = 0; w < x_windows.size(); ++w) {
-            auto x_window = x_windows[w] * stride;
-            auto y_window = y_windows[w] * stride;
-
-            int time = 0;
-            for (int y = 0; y < Ky; ++y) {
-                for (int x = 0; x < Kx; ++x) {
-                    for (int k = 0; k < act_channels; k += N_LANES) {
-                        int index = 0;
-                        for (int ch = k; ch < std::min((uint64_t)k + N_LANES, act_channels); ++ch) {
-                            auto act_bits = act.get(n, ch, x_window + x, y_window + y);
-                            int pos = w * N_LANES + index;
-                            window_buffer[time][pos] = std::make_tuple(act_bits, time, index);
-                            index++;
-                            if(index == N_LANES) {
-                                time++;
-                                index = 0;
-                            }
-                        }
-                        if (index != 0) {
-                            time++;
-                        }
-                    }
-                }
-            }
-
-        }
-
-    }
-
-    template <typename T>
-    void Inference<T>::run(const base::Network<T> &network, const std::shared_ptr<Architecture<T>> &arch) {
+    void Inference<T>::run(const base::Network<T> &network, const std::shared_ptr<Architecture<T>> &arch,
+            const std::shared_ptr<Dataflow<T>> &dataflow) {
 
         // Initialize statistics
         std::string filename = arch->name() + "_L" + std::to_string(N_LANES) + "_C" + std::to_string(N_COLUMNS) +
@@ -197,21 +126,21 @@ namespace core {
 
             if (!QUIET) std::cout << "Simulating layer: " << layer.getName() << std::endl;
 
-            base::Array<T> act = layer.getActivations();
-            arch->dataConversion(act, layer.getActPrecision());
-            if (fc && act.getDimensions() == 4) act.reshape_to_2D();
+            auto act = std::make_shared<base::Array<T>>(layer.getActivations());
+            arch->dataConversion(*act, layer.getActPrecision());
+            if (fc && act->getDimensions() == 4) act->reshape_to_2D();
 
-            base::Array<T> wgt = layer.getWeights();
-            arch->dataConversion(wgt, layer.getWgtPrecision());
-            if (conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
+            auto wgt = std::make_shared<base::Array<T>>(layer.getWeights());
+            arch->dataConversion(*wgt, layer.getWgtPrecision());
+            if (conv && wgt->getDimensions() == 2) wgt->reshape_to_4D();
 
             int padding = layer.getPadding();
             int stride = layer.getStride();
 
-            if (conv) act.zero_pad(padding);
+            if (conv) act->zero_pad(padding);
 
-            const std::vector<size_t> &act_shape = act.getShape();
-            const std::vector<size_t> &wgt_shape = wgt.getShape();
+            const std::vector<size_t> &act_shape = act->getShape();
+            const std::vector<size_t> &wgt_shape = wgt->getShape();
 
             uint64_t batch_size, act_channels, Nx, Ny, R;
             if (lstm) {
@@ -245,82 +174,32 @@ namespace core {
 
             // TODO BITS PER PE
 
-            // Generate weight buffer
-            auto filter_sets = (uint64_t)ceil(num_filters / (double)N_ROWS);
-
-            auto round_wgt_channels = (int)ceil(wgt_channels / (double)N_LANES) * N_LANES;
-            auto time_per_filter = (uint64_t)ceil(round_wgt_channels * Kx * Ky / (double)N_LANES);
-
-            auto weight_buffer = Buffer<ValueTuple<T>>(filter_sets, BufferSet<ValueTuple<T>>(time_per_filter,
-                    BufferRow<ValueTuple<T>>(N_ROWS * N_LANES, std::make_tuple(0, 0, 0))));
-
-            fill_weight_buffer(weight_buffer, wgt, num_filters, wgt_channels, Kx, Ky);
-
-            // BitTactical schedule
-            if (arch->schedule()) {
-                scheduler.schedule(weight_buffer);
-            }
+            dataflow->initialise_layer(act, wgt, arch->schedule(), N_LANES, N_COLUMNS, N_ROWS, N_TILES);
 
             // Iterate over the images
-            for (int n = 0; n < batch_size; ++n) {
+            for (int batch = 0; batch < batch_size; ++batch) {
 
                 OutputTensor sim_output = OutputTensor(num_filters, std::vector<std::vector<double>>(Ox,
                         std::vector<double>(Oy, 0)));
 
-                int skip = 0;
+                dataflow->initialise_batch(batch);
+
+                int set = 0;
+                BufferRow<T> act_row, wgt_row;
                 std::vector<int> x_windows, y_windows;
-                int x_counter = 0, y_counter = 0;
-                while(iterateWindows(Ox, Oy, x_windows, y_windows, x_counter, y_counter, N_COLUMNS)) {
+                while(dataflow->next_dataflow_step(act_row, wgt_row, x_windows, y_windows, set)) {
 
-                    // Generate activation window buffer
-                    auto round_act_channels = (int)ceil(act_channels / (double)N_LANES) * N_LANES;
-                    auto time_per_window = (uint64_t)ceil(round_act_channels * Kx * Ky / (double)N_LANES);
+                    // TODO Process tile
+                    if (this->CHECK) calculate_output(sim_output, act_row, wgt_row, x_windows,
+                            y_windows, num_filters, set);
+                }
 
-                    auto window_buffer = BufferSet<ValueTuple<T>>(time_per_window,
-                            BufferRow<ValueTuple<T>>(x_windows.size() * N_LANES, std::make_tuple(0.0f, 0, 0)));
-
-                    fill_window_buffer(window_buffer, act, x_windows, y_windows, n, act_channels, Kx, Ky, stride);
-
-                    if (arch->schedule()) {
-                        // Schedule window buffer
-                    }
-
-                    for (int set = 0; set < filter_sets; ++set) {
-
-                        // Select window set
-                        const auto &weight_set = weight_buffer[set];
-
-                        for (int time = 0; time < time_per_window; ++time) {
-
-                            if (arch->schedule()) {
-
-                                // Skip lines of zeroes
-                                bool zero_line = scheduler.check_zero_line(window_buffer[time]);
-                                if (skip < scheduler.getLookaheadH() && zero_line) {
-                                    skip++;
-                                    continue;
-                                }
-                                skip = 0;
-
-                            }
-
-                            const auto &act_row = window_buffer[time];
-                            const auto &wgt_row = weight_set[time];
-                            // Process tile
-
-                            if (this->CHECK) calculate_output(sim_output, act_row, wgt_row, x_windows,
-                                y_windows, num_filters, set);
-
-                        } // Time of the buffers
-                    } // Filter sets
-                } // Window sets
-
-                if (CHECK) check_result_channel_first(sim_output, act, wgt, Ox, Oy, stride);
+                if (CHECK) check_result_channel_first(sim_output, act, wgt, batch, Ox, Oy, stride);
 
                 // Dump stats from architecture (Cycles, etc)
 
-                act_precision->value[layer_it][n] = act_prec;
-                wgt_precision->value[layer_it][n] = wgt_prec;
+                act_precision->value[layer_it][batch] = act_prec;
+                wgt_precision->value[layer_it][batch] = wgt_prec;
 
             }
 
@@ -491,7 +370,6 @@ namespace core {
         stats.dump_csv(network.getName(), network.getLayersName(), header + arch->header_pot(), QUIET);
 
     }
-
 
     INITIALISE_DATA_TYPES(Inference);
 

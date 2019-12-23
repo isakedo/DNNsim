@@ -17,6 +17,8 @@ add_library(
         include/core/Architecture.h
         src/Utils.cpp
         src/Memory.cpp
+        src/Dataflow.cpp
+        src/WindowFirstOutS.cpp
         src/Inference.cpp
         src/Parallel.cpp
         src/Stripes.cpp

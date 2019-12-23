@@ -10,6 +10,7 @@
 #include <base/Network.h>
 #include <interface/NetReader.h>
 
+#include "Dataflow.h"
 #include "Architecture.h"
 #include "BitTactical.h"
 #include "Memory.h"
@@ -32,9 +33,6 @@ namespace core {
 
         /** Memory abstraction of the simulator */
         Memory memory;
-
-        /** Weight buffer scheduler */
-        BitTactical<T> scheduler;
 
         /** Number of concurrent multiplications per PE */
         const uint32_t N_LANES;
@@ -73,37 +71,8 @@ namespace core {
          * @param num_filters
          * @param set
          */
-        void calculate_output(OutputTensor &output, const BufferRow<ValueTuple<T>> &window_buffer,
-                const BufferRow<ValueTuple<T>> &weight_buffer, const std::vector<int> &x_windows,
-                const std::vector<int> &y_windows, uint64_t num_filters, int set);
-
-        /**
-         * Fill the weight buffer with the weights
-         * @param weight_buffer Empty weight buffer (Overwritten)
-         * @param wgt           Weight array
-         * @param num_filters   Number of filters
-         * @param wgt_channels  Number of weight channels
-         * @param Kx            Kernel width
-         * @param Ky            Kernel height
-         */
-        void fill_weight_buffer(Buffer<ValueTuple<T>> &weight_buffer, const base::Array<T> &wgt, uint64_t num_filters,
-                uint64_t wgt_channels, uint64_t Kx, uint64_t Ky);
-
-        /**
-         *
-         * @param window_buffer
-         * @param act
-         * @param x_windows
-         * @param y_windows
-         * @param n
-         * @param act_channels
-         * @param Kx
-         * @param Ky
-         * @param stride
-         */
-        void fill_window_buffer(BufferSet<ValueTuple<T>> &window_buffer, const base::Array<T> &act,
-                const std::vector<int> &x_windows, const std::vector<int> &y_windows, uint64_t n, uint64_t act_channels,
-                uint64_t Kx, uint64_t Ky, int stride);
+        void calculate_output(OutputTensor &output, const BufferRow<T> &window_buffer, const BufferRow<T> &weight_buffer,
+                const std::vector<int> &x_windows, const std::vector<int> &y_windows, uint64_t num_filters, int set);
 
     public:
 
@@ -119,17 +88,18 @@ namespace core {
          * @param _QUIET        Avoid std::out messages
          * @param _CHECK        Check the correctness of the simulations
          */
-        Inference(const BitTactical<T> &_scheduler, uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS,
-                uint32_t _N_TILES, uint32_t _BITS_PE, uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) :
-                scheduler(_scheduler), memory(Memory()), N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS),
-                N_TILES(_N_TILES), BITS_PE(_BITS_PE), N_THREADS(_N_THREADS), FAST_MODE(_FAST_MODE),  QUIET(_QUIET),
-                CHECK(_CHECK) {}
+        Inference(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES, uint32_t _BITS_PE,
+                uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET, bool _CHECK) : memory(Memory()), N_LANES(_N_LANES),
+                N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), N_TILES(_N_TILES), BITS_PE(_BITS_PE), N_THREADS(_N_THREADS),
+                FAST_MODE(_FAST_MODE),  QUIET(_QUIET), CHECK(_CHECK) {}
 
         /** Simulate architecture for the given network
         * @param network   Network we want to calculate work reduction
         * @param arch      Pointer to the architecture to simulate
+        * @param dataflow  Pointer to the dataflow
         */
-        void run(const base::Network<T> &network, const std::shared_ptr<Architecture<T>> &arch);
+        void run(const base::Network<T> &network, const std::shared_ptr<Architecture<T>> &arch,
+                 const std::shared_ptr<Dataflow<T>> &dataflow);
 
         /** Calculate potentials for the given network
          * @param network   Network we want to calculate work reduction
