@@ -12,12 +12,14 @@ namespace core {
 
     template <typename T>
     void WindowFirstOutS<T>::initialise_layer(const std::shared_ptr<base::Array<T>> &_act,
-            const std::shared_ptr<base::Array<T>> &_wgt, bool _schedule, uint32_t _N_LANES, uint32_t _N_COLUMNS,
-            uint32_t _N_ROWS, uint32_t _N_TILES) {
+            const std::shared_ptr<base::Array<T>> &_wgt, bool _schedule, bool _lstm, int _recurrence, int _out_x,
+            int _out_y, int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES) {
 
-        Dataflow<T>::initialise_layer(_act, _wgt, _schedule, _N_LANES, _N_COLUMNS, _N_ROWS, _N_TILES);
+        Dataflow<T>::initialise_layer(_act, _wgt, _schedule, _lstm, _recurrence, _out_x, _out_y, _stride, _N_LANES,
+                _N_COLUMNS, _N_ROWS, _N_TILES);
 
-        // Generate weight buffer
+        window_sets = (uint64_t)ceil(this->out_x * this->out_y / (double)this->N_COLUMNS);
+
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
 
         auto num_filters = wgt_shape[0];
@@ -25,15 +27,16 @@ namespace core {
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
 
-        auto filter_sets = (uint64_t)ceil(num_filters / (double)this->N_ROWS);
+        // Generate weight buffer
+        filter_sets = (uint64_t)ceil(num_filters / (double)this->N_ROWS);
 
         auto round_wgt_channels = (int)ceil(wgt_channels / (double)this->N_LANES) * this->N_LANES;
-        auto time_per_filter = (uint64_t)ceil(round_wgt_channels * Kx * Ky / (double)this->N_LANES);
+        max_buffer_time = (uint64_t)ceil(round_wgt_channels * Kx * Ky / (double)this->N_LANES);
 
-        weight_buffer = Buffer<T>(filter_sets, BufferSet<T>(time_per_filter, BufferRow<T>(this->N_ROWS * this->N_LANES,
+        weight_buffer = Buffer<T>(filter_sets, BufferSet<T>(max_buffer_time, BufferRow<T>(this->N_ROWS * this->N_LANES,
                 std::make_tuple(0, 0, 0))));
 
-        this->fill_weight_buffer(weight_buffer, num_filters, wgt_channels, Kx, Ky);
+        this->fill_weight_buffer(weight_buffer);
 
         // BitTactical schedule
         if (_schedule) {
@@ -45,63 +48,109 @@ namespace core {
     template <typename T>
     void WindowFirstOutS<T>::initialise_batch(int _batch) {
         Dataflow<T>::initialise_batch(_batch);
-        x_windows = std::vector<int>();
-        y_windows = std::vector<int>();
-        x_counter = 0;
-        y_counter = 0;
+        windows = std::vector<WindowCoord>();
+        window_set = 0;
+        filter_set = 0;
         skip = 0;
+        window_buffer_filled = false;
+        filter_buffer_filled = false;
     }
 
     template <typename T>
-    bool WindowFirstOutS<T>::next_dataflow_step(BufferRow<T> &act_row, BufferRow<T> &wgt_row,
-            std::vector<int> &_x_windows, std::vector<int> &_y_windows, int &_set) {
+    bool WindowFirstOutS<T>::next_dataflow_step(std::vector<TileData<T>> &tiles_data) {
 
-        /*while(iterateWindows(Ox, Oy, x_windows, y_windows, x_counter, y_counter, this->N_COLUMNS)) {
+        while(window_set < window_sets) {
 
-            // Generate activation window buffer
-            auto round_act_channels = (int)ceil(act_channels / (double)this->N_LANES) * this->N_LANES;
-            auto time_per_window = (uint64_t)ceil(round_act_channels * Kx * Ky / (double)this->N_LANES);
+            // Fill window buffer
+            if (!window_buffer_filled) {
 
-            auto window_buffer = BufferSet<ValueTuple<T>>(time_per_window,
-                    BufferRow<ValueTuple<T>>(x_windows.size() * this->N_LANES, std::make_tuple(0.0f, 0, 0)));
+                auto window_idx = window_set * this->N_COLUMNS;
+                for (int c = 0; c < this->N_COLUMNS; ++c) {
+                    auto x_window = (window_idx + c) % this->out_x;
+                    auto y_window = (window_idx + c) % this->out_y;
+                    windows.emplace_back(std::make_tuple(x_window, y_window));
+                }
 
-            fill_window_buffer(window_buffer, this->act, x_windows, y_windows, this->batch, act_channels, Kx, Ky,
-                    stride);
+                window_buffer = BufferSet<T>(max_buffer_time, BufferRow<T>(windows.size() * this->N_LANES,
+                        std::make_tuple(0.0f, 0, 0)));
 
-            if (this->schedule) {
-                // Schedule window buffer
+                this->fill_window_buffer(window_buffer, windows);
+
             }
 
-            for (int set = 0; set < filter_sets; ++set) {
+            while (filter_set < filter_sets) {
 
-                // Select window set
-                const auto &weight_set = weight_buffer[set];
+                // Filter set
+                if (!filter_buffer_filled) {
 
-                for (int time = 0; time < time_per_window; ++time) {
+                    auto num_filters = this->wgt->getShape()[0];
+                    filters = std::vector<std::vector<int>>(this->N_TILES, std::vector<int>(this->N_ROWS, -1));
 
-                    if (arch->schedule()) {
+                    for (int t = 0; t < this->N_TILES; ++t) {
+
+                        auto filter_idx = (filter_set + t) * this->N_ROWS;
+                        for (int r = 0; r < this->N_ROWS; ++r) {
+                            auto filter = filter_idx + r;
+                            if (filter > num_filters)
+                                continue;
+                            filters[t][r] = filter;
+                        }
+                    }
+                }
+
+                while (time < max_buffer_time) {
+
+                    if (this->schedule) {
 
                         // Skip lines of zeroes
-                        bool zero_line = scheduler.check_zero_line(window_buffer[time]);
-                        if (skip < scheduler.getLookaheadH() && zero_line) {
+                        bool zero_line = this->scheduler.check_zero_line(window_buffer[time]);
+                        if (skip < this->scheduler.getLookaheadH() && zero_line) {
                             skip++;
+                            time++;
                             continue;
                         }
                         skip = 0;
 
                     }
 
-                    const auto &act_row = window_buffer[time];
-                    const auto &wgt_row = weight_set[time];
-                    // Process tile
+                    time++;
 
-                    if (this->CHECK) calculate_output(sim_output, act_row, wgt_row, x_windows,
-                                                      y_windows, num_filters, set);
+                    // Return current row
+                    auto num_filters = this->wgt->getShape()[0];
+                    for (int t = 0; t < this->N_TILES; ++t) {
 
-                } // Time of the buffers
-            } // Filter sets
-        } // Window sets */
-        return false;
+                        auto filter_idx = (filter_set + t) * this->N_ROWS;
+                        if (filter_idx >= num_filters) {
+                            tiles_data[t].valid = false;
+                            continue;
+                        }
+
+                        auto num_act_rows = this->schedule ? this->scheduler.getLookaheadH() : 1;
+                        tiles_data[t].act_row = BufferSet<T>(window_buffer.begin() + time,
+                                window_buffer.begin() + time + num_act_rows);
+                        tiles_data[t].wgt_row = weight_buffer[filter_set][time];
+                        tiles_data[t].windows = windows;
+                        tiles_data[t].filters = filters[t];
+                        tiles_data[t].time = time;
+                        tiles_data[t].valid = true;
+                    }
+                    return false;
+
+                } // Buffer time
+
+                time = 0;
+                filter_buffer_filled = false;
+                filters.clear();
+                filter_set += this->N_TILES;
+            } // Filter set
+
+            filter_set = 0;
+            window_buffer_filled = false;
+            windows.clear();
+            window_set++;
+        } // Window set
+
+        return true;
 
     }
 

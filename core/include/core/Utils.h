@@ -24,6 +24,19 @@ namespace core {
     template <typename T>
     using Buffer = std::vector<std::vector<std::vector<ValueTuple<T>>>>;
 
+    typedef std::tuple<int, int> WindowCoord;
+
+    template <typename T>
+    class TileData {
+    public:
+        BufferSet<T> act_row;
+        BufferRow<T> wgt_row;
+        std::vector<WindowCoord> windows;
+        std::vector<int> filters;
+        int time = 0;
+        bool valid = false;
+    };
+
     typedef union {
         float f;
         struct {

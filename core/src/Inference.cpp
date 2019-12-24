@@ -68,33 +68,40 @@ namespace core {
     }
 
     template <typename T>
-    void Inference<T>::calculate_output(OutputTensor &output, const BufferRow<T> &window_buffer,
-            const BufferRow<T> &weight_buffer, const std::vector<int> &x_windows,
-            const std::vector<int> &y_windows, uint64_t num_filters, int set) {
+    void Inference<T>::calculate_output(OutputTensor &output, const std::vector<TileData<T>> &tiles_data) {
 
-        for (int w = 0; w < x_windows.size(); ++w) {
-            auto window_idx = w * N_LANES;
-            auto x_window = x_windows[w];
-            auto y_window = y_windows[w];
+        for (const auto &tile_data : tiles_data) {
 
-            for (int f = 0; f < N_ROWS; ++f) {
-                auto filter_idx = f * N_LANES;
-                auto filter = set * N_ROWS + f;
+            if (!tile_data.valid)
+                continue;
 
-                if (filter >= num_filters)
-                    continue;
+            for (int w = 0; w < tile_data.windows.size(); ++w) {
+                auto window_idx = w * N_LANES;
+                auto x_window = std::get<0>(tile_data.windows[w]);
+                auto y_window = std::get<1>(tile_data.windows[w]);
 
-                for (int lane = 0; lane < N_LANES; ++lane) {
+                for (int f = 0; f < tile_data.filters.size(); ++f) {
+                    auto filter_idx = f * N_LANES;
+                    auto filter = tile_data.filters[f];
 
-                    auto act_bits = std::get<0>(window_buffer[window_idx + lane]);
-                    auto wgt_bits = std::get<0>(weight_buffer[filter_idx + lane]);
+                    if (filter == -1)
+                        continue;
 
-                    output[filter][x_window][y_window] += act_bits * wgt_bits;
+                    for (int lane = 0; lane < N_LANES; ++lane) {
 
-                } // Multiply 16 weights and 16 window values
+                        auto wgt_bits = std::get<0>(tile_data.wgt_row[filter_idx + lane]);
+                        auto time_h = std::get<1>(tile_data.wgt_row[filter_idx + lane]) % tile_data.time;
+                        auto lane_d = std::get<2>(tile_data.wgt_row[filter_idx + lane]);
 
-            } // Filter
-        } // Window
+                        auto act_bits = std::get<0>(tile_data.act_row[time_h][window_idx + lane_d]);
+
+                        output[filter][x_window][y_window] += act_bits * wgt_bits;
+
+                    } // Multiply 16 weights and 16 window values
+
+                } // Filter
+            } // Window
+        } // Tiles
 
     }
 
@@ -139,6 +146,12 @@ namespace core {
 
             if (conv) act->zero_pad(padding);
 
+            if(act->getShape()[1] == 3 && stride > 1) {
+                act->reshape_first_layer_act(stride);
+                wgt->reshape_first_layer_wgt(stride);
+                stride = 1;
+            }
+
             const std::vector<size_t> &act_shape = act->getShape();
             const std::vector<size_t> &wgt_shape = wgt->getShape();
 
@@ -163,8 +176,8 @@ namespace core {
             auto Kx = wgt_shape[2];
             auto Ky = wgt_shape[3];
 
-            long Ox = (Nx - Kx) / stride + 1;
-            long Oy = (Ny - Ky) / stride + 1;
+            auto Ox = (Nx - Kx) / stride + 1;
+            auto Oy = (Ny - Ky) / stride + 1;
 
             auto groups = act_channels / wgt_channels;
             auto filters_per_group = num_filters / groups;
@@ -174,7 +187,8 @@ namespace core {
 
             // TODO BITS PER PE
 
-            dataflow->initialise_layer(act, wgt, arch->schedule(), N_LANES, N_COLUMNS, N_ROWS, N_TILES);
+            dataflow->initialise_layer(act, wgt, arch->schedule(), lstm, R, Ox, Oy, stride, N_LANES, N_COLUMNS, N_ROWS,
+                    N_TILES);
 
             // Iterate over the images
             for (int batch = 0; batch < batch_size; ++batch) {
@@ -184,14 +198,11 @@ namespace core {
 
                 dataflow->initialise_batch(batch);
 
-                int set = 0;
-                BufferRow<T> act_row, wgt_row;
-                std::vector<int> x_windows, y_windows;
-                while(dataflow->next_dataflow_step(act_row, wgt_row, x_windows, y_windows, set)) {
+                auto tiles_data = std::vector<TileData<T>>(N_TILES, TileData<T>());
+                while(dataflow->next_dataflow_step(tiles_data)) {
 
-                    // TODO Process tile
-                    if (this->CHECK) calculate_output(sim_output, act_row, wgt_row, x_windows,
-                            y_windows, num_filters, set);
+                    // TODO Process tiles
+                    if (this->CHECK) calculate_output(sim_output, tiles_data);
                 }
 
                 if (CHECK) check_result_channel_first(sim_output, act, wgt, batch, Ox, Oy, stride);

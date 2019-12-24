@@ -64,15 +64,9 @@ namespace core {
         /**
          *
          * @param output
-         * @param window_buffer
-         * @param weight_buffer
-         * @param x_windows
-         * @param y_windows
-         * @param num_filters
-         * @param set
+         * @param tiles_data
          */
-        void calculate_output(OutputTensor &output, const BufferRow<T> &window_buffer, const BufferRow<T> &weight_buffer,
-                const std::vector<int> &x_windows, const std::vector<int> &y_windows, uint64_t num_filters, int set);
+        void calculate_output(OutputTensor &output, const std::vector<TileData<T>> &tiles_data);
 
     public:
 

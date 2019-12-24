@@ -25,10 +25,25 @@ namespace core {
         BitTactical<T> scheduler;
 
         /** Schedule weight buffer */
-        bool schedule;
+        bool schedule = false;
+
+        /** Indicate if LSTM layer (different dimensions order) */
+        bool lstm = false;
 
         /** Current batch for the dataflow */
-        int batch;
+        int batch = 0;
+
+        /** Number of recurrences for Recurrent neural network */
+        int recurrence = 0;
+
+        /** Output window X dimensions */
+        int out_x = 0;
+
+        /** Output window Y dimensions */
+        int out_y = 0;
+
+        /** Stride of the layer */
+        int stride = 0;
 
         /** Number of concurrent multiplications per PE */
         uint32_t N_LANES;
@@ -45,30 +60,15 @@ namespace core {
         /**
          * Fill the weight buffer with the weights
          * @param weight_buffer Empty weight buffer (Overwritten)
-         * @param wgt           Weight array
-         * @param num_filters   Number of filters
-         * @param wgt_channels  Number of weight channels
-         * @param Kx            Kernel width
-         * @param Ky            Kernel height
          */
-        void fill_weight_buffer(Buffer<T> &weight_buffer, uint64_t num_filters, uint64_t wgt_channels, uint64_t Kx,
-                uint64_t Ky);
+        void fill_weight_buffer(Buffer<T> &weight_buffer);
 
         /**
          *
          * @param window_buffer
-         * @param act
-         * @param x_windows
-         * @param y_windows
-         * @param n
-         * @param act_channels
-         * @param Kx
-         * @param Ky
-         * @param stride
+         * @param windows
          */
-        void fill_window_buffer(BufferSet<T> &window_buffer, const std::vector<int> &x_windows,
-                const std::vector<int> &y_windows, uint64_t n, uint64_t act_channels, uint64_t Kx, uint64_t Ky,
-                int stride);
+        void fill_window_buffer(BufferSet<T> &window_buffer, const std::vector<WindowCoord> &windows);
 
     public:
 
@@ -76,8 +76,8 @@ namespace core {
          * Constructor
          * @param _scheduler
          */
-        explicit Dataflow(const BitTactical<T> &_scheduler) : scheduler(_scheduler), schedule(false), batch(0),
-                N_LANES(0), N_COLUMNS(0), N_ROWS(0), N_TILES(0) {}
+        explicit Dataflow(const BitTactical<T> &_scheduler) : scheduler(_scheduler), N_LANES(0), N_COLUMNS(0),
+                N_ROWS(0), N_TILES(0) {}
 
         /**
         * Return name for the dataflow
@@ -90,14 +90,20 @@ namespace core {
          * @param _act
          * @param _wgt
          * @param _schedule
+         * @param _lstm
+         * @param _recurrence
+         * @param _out_x
+         * @param _out_y
+         * @param _stride
          * @param _N_LANES
          * @param _N_COLUMNS
          * @param _N_ROWS
          * @param _N_TILES
          */
         virtual void initialise_layer(const std::shared_ptr<base::Array<T>> &_act,
-                const std::shared_ptr<base::Array<T>> &_wgt, bool _schedule, uint32_t _N_LANES, uint32_t _N_COLUMNS,
-                uint32_t _N_ROWS, uint32_t _N_TILES);
+                const std::shared_ptr<base::Array<T>> &_wgt, bool _schedule, bool _lstm, int _recurrence,
+                int _out_x, int _out_y, int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS,
+                uint32_t _N_TILES);
 
         /**
          *
@@ -106,16 +112,11 @@ namespace core {
         virtual void initialise_batch(int _batch);
 
         /**
-         * Return if schedule the weight buffer
-         * @param act_row
-         * @param wgt_row
-         * @param _x_windows
-         * @param _y_windows
-         * @param _set
-         * @return True if weight buffer to schedule, False if not
+         *
+         * @param tile_data
+         * @return
          */
-        virtual bool next_dataflow_step(BufferRow<T> &act_row, BufferRow<T> &wgt_row, std::vector<int> &_x_windows,
-                std::vector<int> &_y_windows, int &_set) = 0;
+        virtual bool next_dataflow_step(std::vector<TileData<T>> &tile_data) = 0;
 
     };
 
