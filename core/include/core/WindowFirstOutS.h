@@ -35,6 +35,9 @@ namespace core {
         /** List of filters per tile */
         std::vector<std::vector<int>> filters;
 
+        /** Recurrence counter */
+        int current_recurrence = 0;
+
         /** Window counter */
         int window_set = 0;
 
@@ -64,6 +67,7 @@ namespace core {
          * @param _act
          * @param _wgt
          * @param _schedule
+         * @param _fc
          * @param _lstm
          * @param _recurrence
          * @param _out_x
@@ -75,8 +79,8 @@ namespace core {
          * @param _N_TILES
          */
         void initialise_layer(const std::shared_ptr<base::Array<T>> &_act, const std::shared_ptr<base::Array<T>> &_wgt,
-                bool _schedule, bool _lstm, int _recurrence, int _out_x, int _out_y, int _stride, uint32_t _N_LANES,
-                uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES) override;
+                bool _schedule, bool _fc, bool _lstm, int _recurrence, int _out_x, int _out_y, int _stride,
+                uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES) override;
 
         /**
          *

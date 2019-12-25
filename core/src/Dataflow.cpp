@@ -63,6 +63,8 @@ namespace core {
             auto x_window = std::get<0>(windows[w]) * stride;
             auto y_window = std::get<1>(windows[w]) * stride;
 
+            // TODO fix fully connected layers
+
             int time = 0;
             for (int y = 0; y < Ky; ++y) {
                 for (int x = 0; x < Kx; ++x) {
@@ -91,11 +93,13 @@ namespace core {
 
     template <typename T>
     void Dataflow<T>::initialise_layer(const std::shared_ptr<base::Array<T>> &_act,
-            const std::shared_ptr<base::Array<T>> &_wgt, bool _schedule, bool _lstm, int _recurrence, int _out_x,
-            int _out_y, int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES) {
+            const std::shared_ptr<base::Array<T>> &_wgt, bool _schedule, bool _fc, bool _lstm, int _recurrence,
+            int _out_x, int _out_y, int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS,
+            uint32_t _N_TILES) {
         act = _act;
         wgt = _wgt;
         schedule = _schedule;
+        fc = _fc;
         lstm = _lstm;
         recurrence = _recurrence;
         out_x = _out_x;
@@ -110,6 +114,7 @@ namespace core {
     template <typename T>
     void Dataflow<T>::initialise_batch(int _batch) {
         batch = _batch;
+        next_column = 0;
     }
 
     INITIALISE_DATA_TYPES(Dataflow);

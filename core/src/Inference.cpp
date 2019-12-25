@@ -90,7 +90,8 @@ namespace core {
                     for (int lane = 0; lane < N_LANES; ++lane) {
 
                         auto wgt_bits = std::get<0>(tile_data.wgt_row[filter_idx + lane]);
-                        auto time_h = std::get<1>(tile_data.wgt_row[filter_idx + lane]) % tile_data.time;
+                        auto time_h = (std::get<1>(tile_data.wgt_row[filter_idx + lane]) - tile_data.time) %
+                                tile_data.num_act_rows;
                         auto lane_d = std::get<2>(tile_data.wgt_row[filter_idx + lane]);
 
                         auto act_bits = std::get<0>(tile_data.act_row[time_h][window_idx + lane_d]);
@@ -124,7 +125,7 @@ namespace core {
         auto wgt_precision = stats.register_uint_t("weights_precision", 0, sys::Average);
 
         auto network_bits = network.getNetwork_bits();
-        for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
+        for(auto layer_it = network.getNumLayers() - 1; layer_it < network.getNumLayers(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
@@ -136,10 +137,11 @@ namespace core {
             auto act = std::make_shared<base::Array<T>>(layer.getActivations());
             arch->dataConversion(*act, layer.getActPrecision());
             if (fc && act->getDimensions() == 4) act->reshape_to_2D();
+            if (fc) act->reshape_to_4D();
 
             auto wgt = std::make_shared<base::Array<T>>(layer.getWeights());
             arch->dataConversion(*wgt, layer.getWgtPrecision());
-            if (conv && wgt->getDimensions() == 2) wgt->reshape_to_4D();
+            if (wgt->getDimensions() == 2) wgt->reshape_to_4D();
 
             int padding = layer.getPadding();
             int stride = layer.getStride();
@@ -187,8 +189,8 @@ namespace core {
 
             // TODO BITS PER PE
 
-            dataflow->initialise_layer(act, wgt, arch->schedule(), lstm, R, Ox, Oy, stride, N_LANES, N_COLUMNS, N_ROWS,
-                    N_TILES);
+            dataflow->initialise_layer(act, wgt, arch->schedule(), fc, lstm, R, Ox, Oy, stride, N_LANES, N_COLUMNS,
+                    N_ROWS, N_TILES);
 
             // Iterate over the images
             for (int batch = 0; batch < batch_size; ++batch) {

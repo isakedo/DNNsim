@@ -34,6 +34,7 @@ namespace core {
         std::vector<WindowCoord> windows;
         std::vector<int> filters;
         int time = 0;
+        int num_act_rows = 0;
         bool valid = false;
     };
 

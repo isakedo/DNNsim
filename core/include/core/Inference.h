@@ -71,7 +71,6 @@ namespace core {
     public:
 
         /** Constructor
-         * @param _scheduler    Weight buffer scheduler
          * @param _N_LANES      Number of concurrent multiplications per PE
          * @param _N_COLUMNS    Number of columns
          * @param _N_ROWS       Number of rows

@@ -27,8 +27,14 @@ namespace core {
         /** Schedule weight buffer */
         bool schedule = false;
 
+        /** Indicate if FC layer (alternate fashion window buffer) */
+        bool fc = false;
+
         /** Indicate if LSTM layer (different dimensions order) */
         bool lstm = false;
+
+        /** Next column for the linear layers (save time for bit-serial designs) */
+        int next_column = 0;
 
         /** Current batch for the dataflow */
         int batch = 0;
@@ -90,6 +96,7 @@ namespace core {
          * @param _act
          * @param _wgt
          * @param _schedule
+         * @param _fc
          * @param _lstm
          * @param _recurrence
          * @param _out_x
@@ -101,7 +108,7 @@ namespace core {
          * @param _N_TILES
          */
         virtual void initialise_layer(const std::shared_ptr<base::Array<T>> &_act,
-                const std::shared_ptr<base::Array<T>> &_wgt, bool _schedule, bool _lstm, int _recurrence,
+                const std::shared_ptr<base::Array<T>> &_wgt, bool _schedule, bool _fc, bool _lstm, int _recurrence,
                 int _out_x, int _out_y, int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS,
                 uint32_t _N_TILES);
 

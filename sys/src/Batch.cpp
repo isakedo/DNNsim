@@ -119,8 +119,9 @@ namespace sys {
                     experiment_proto.precision_granularity();
             experiment.minor_bit = experiment_proto.minor_bit();
 
-            if(experiment.precision_granularity % experiment.n_columns != 0 ||
-                    (((experiment.n_columns * 16) % experiment.precision_granularity) != 0))
+            if((experiment_proto.architecture() == "ShapeShifter" || experiment_proto.architecture() == "Loon") &&
+                    (experiment.precision_granularity % experiment.n_columns != 0 ||
+                    (((experiment.n_columns * 16) % experiment.precision_granularity) != 0)))
                 throw std::runtime_error("Precision granularity on network " + simulate.network +
                         " must be multiple of 16 and divisible by the columns.");
 
