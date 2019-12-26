@@ -94,6 +94,8 @@ namespace core {
                                 tile_data.num_act_rows;
                         auto lane_d = std::get<2>(tile_data.wgt_row[filter_idx + lane]);
 
+                        if (wgt_bits == 0) continue;
+
                         auto act_bits = std::get<0>(tile_data.act_row[time_h][window_idx + lane_d]);
 
                         output[filter][x_window][y_window] += act_bits * wgt_bits;
@@ -125,7 +127,7 @@ namespace core {
         auto wgt_precision = stats.register_uint_t("weights_precision", 0, sys::Average);
 
         auto network_bits = network.getNetwork_bits();
-        for(auto layer_it = network.getNumLayers() - 1; layer_it < network.getNumLayers(); ++layer_it) {
+        for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";

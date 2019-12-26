@@ -63,7 +63,8 @@ namespace core {
                         if (this->schedule) {
 
                             // Skip lines of zeroes
-                            bool zero_line = this->scheduler.check_zero_line(this->window_buffer[this->time]); //TODO fix
+                            bool zero_line =
+                                    this->scheduler.check_zero_line(this->weight_buffer[this->filter_set][this->time]); //TODO fix
                             if (this->skip < this->scheduler.getLookaheadH() && zero_line) {
                                 this->skip++;
                                 this->time++;
@@ -83,9 +84,11 @@ namespace core {
                                 continue;
                             }
 
-                            auto num_act_rows = this->schedule ? this->scheduler.getLookaheadH() : 1;
+                            auto num_act_rows = 1;
+                            if (this->schedule) num_act_rows += this->scheduler.getLookaheadH();
                             tiles_data[t].act_row = BufferSet<T>(this->window_buffer.begin() + this->time,
-                                    this->window_buffer.begin() + this->time + num_act_rows);
+                                    std::min(this->window_buffer.begin() + this->time + num_act_rows,
+                                             this->window_buffer.end()));
                             tiles_data[t].wgt_row = this->weight_buffer[this->filter_set + t][this->time];
                             tiles_data[t].windows = this->windows;
                             tiles_data[t].filters = this->filters[t];
