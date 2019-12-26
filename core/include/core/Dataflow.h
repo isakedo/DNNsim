@@ -33,9 +33,6 @@ namespace core {
         /** Indicate if LSTM layer (different dimensions order) */
         bool lstm = false;
 
-        /** Next column for the linear layers (save time for bit-serial designs) */
-        int next_column = 0;
-
         /** Current batch for the dataflow */
         int batch = 0;
 
@@ -62,19 +59,6 @@ namespace core {
 
         /** Number of tiles */
         uint32_t N_TILES;
-
-        /**
-         * Fill the weight buffer with the weights
-         * @param weight_buffer Empty weight buffer (Overwritten)
-         */
-        void fill_weight_buffer(Buffer<T> &weight_buffer);
-
-        /**
-         *
-         * @param window_buffer
-         * @param windows
-         */
-        void fill_window_buffer(BufferSet<T> &window_buffer, const std::vector<WindowCoord> &windows);
 
     public:
 
@@ -110,13 +94,29 @@ namespace core {
         virtual void initialise_layer(const std::shared_ptr<base::Array<T>> &_act,
                 const std::shared_ptr<base::Array<T>> &_wgt, bool _schedule, bool _fc, bool _lstm, int _recurrence,
                 int _out_x, int _out_y, int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS,
-                uint32_t _N_TILES);
+                uint32_t _N_TILES) {
+            act = _act;
+            wgt = _wgt;
+            schedule = _schedule;
+            fc = _fc;
+            lstm = _lstm;
+            recurrence = _recurrence;
+            out_x = _out_x;
+            out_y = _out_y;
+            stride = _stride;
+            N_LANES = _N_LANES;
+            N_COLUMNS = _N_COLUMNS;
+            N_ROWS = _N_ROWS;
+            N_TILES = _N_TILES;
+        }
 
         /**
          *
          * @param _batch
          */
-        virtual void initialise_batch(int _batch);
+        virtual void initialise_batch(int _batch) {
+            batch = _batch;
+        }
 
         /**
          *

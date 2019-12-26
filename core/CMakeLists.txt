@@ -14,10 +14,11 @@ add_custom_target(
 # Create library
 add_library(
         ${PROJECT_NAME}
+        include/core/Dataflow.h
         include/core/Architecture.h
         src/Utils.cpp
         src/Memory.cpp
-        src/Dataflow.cpp
+        src/OutputStationary.cpp
         src/WindowFirstOutS.cpp
         src/Inference.cpp
         src/Parallel.cpp
