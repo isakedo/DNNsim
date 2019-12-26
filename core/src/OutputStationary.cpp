@@ -146,8 +146,8 @@ namespace core {
         current_recurrence = 0;
         window_set = 0;
         filter_set = 0;
-        time = 0;
-        skip = 0;
+        time = std::vector<int>(this->N_TILES, 0);
+        skip = std::vector<int>(this->N_TILES, 0);
         window_buffer_filled = false;
         filter_buffer_filled = false;
     }

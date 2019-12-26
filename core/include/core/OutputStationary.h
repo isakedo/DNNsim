@@ -45,10 +45,10 @@ namespace core {
         int filter_set = 0;
 
         /** Time counter */
-        int time = 0;
+        std::vector<int> time;
 
         /** Skip variable for bit tactical */
-        int skip = 0;
+        std::vector<int> skip;
 
         /** Indicate if window buffer already filled */
         bool window_buffer_filled = false;

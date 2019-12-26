@@ -58,51 +58,54 @@ namespace core {
                         this->filter_buffer_filled = true;
                     }
 
-                    while (this->time < this->max_buffer_time) {
+                    bool still_work = false;
+                    auto num_filters = this->wgt->getShape()[0];
+                    for (int t = 0; t < this->N_TILES; ++t) {
 
-                        if (this->schedule) {
+                        tiles_data[t].valid = false;
 
-                            // Skip lines of zeroes
-                            bool zero_line =
-                                    this->scheduler.check_zero_line(this->weight_buffer[this->filter_set][this->time]); //TODO fix
-                            if (this->skip < this->scheduler.getLookaheadH() && zero_line) {
-                                this->skip++;
-                                this->time++;
-                                continue;
-                            }
-                            this->skip = 0;
+                        auto filter_idx = (this->filter_set + t) * this->N_ROWS;
+                        if (filter_idx >= num_filters) break;
 
-                        }
+                        while (this->time[t] < this->max_buffer_time) {
 
-                        // Return current row
-                        auto num_filters = this->wgt->getShape()[0];
-                        for (int t = 0; t < this->N_TILES; ++t) {
+                            if (this->schedule) {
 
-                            auto filter_idx = (this->filter_set + t) * this->N_ROWS;
-                            if (filter_idx >= num_filters) {
-                                tiles_data[t].valid = false;
-                                continue;
+                                // Skip lines of zeroes
+                                bool zero_line = this->scheduler.check_zero_line
+                                        (this->weight_buffer[this->filter_set + t][this->time[t]]);
+                                if (this->skip[t] < this->scheduler.getLookaheadH() && zero_line) {
+                                    this->skip[t]++;
+                                    this->time[t]++;
+                                    continue;
+                                }
+                                this->skip[t] = 0;
+
                             }
 
                             auto num_act_rows = 1;
                             if (this->schedule) num_act_rows += this->scheduler.getLookaheadH();
-                            tiles_data[t].act_row = BufferSet<T>(this->window_buffer.begin() + this->time,
-                                    std::min(this->window_buffer.begin() + this->time + num_act_rows,
-                                             this->window_buffer.end()));
-                            tiles_data[t].wgt_row = this->weight_buffer[this->filter_set + t][this->time];
+                            tiles_data[t].act_row = BufferSet<T>(this->window_buffer.begin() + this->time[t],
+                                    std::min(this->window_buffer.begin() + this->time[t] + num_act_rows,
+                                    this->window_buffer.end()));
+                            tiles_data[t].wgt_row = this->weight_buffer[this->filter_set + t][this->time[t]];
                             tiles_data[t].windows = this->windows;
                             tiles_data[t].filters = this->filters[t];
-                            tiles_data[t].time = this->time;
+                            tiles_data[t].time = this->time[t];
                             tiles_data[t].num_act_rows = num_act_rows;
                             tiles_data[t].valid = true;
-                        }
 
-                        this->time++;
-                        return true;
+                            still_work = true;
+                            this->time[t]++;
+                            break;
 
-                    } // Buffer time
+                        } // Buffer time
 
-                    this->time = 0;
+                    } // Tile
+
+                    if (still_work) return true;
+
+                    this->time = std::vector<int>(this->N_TILES, 0);
                     this->filter_buffer_filled = false;
                     this->filters.clear();
                     this->filter_set += this->N_TILES;
