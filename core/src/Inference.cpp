@@ -7,13 +7,14 @@ namespace core {
 
     template <typename T>
     void check_result_channel_first(const OutputTensor &sim_output, const std::shared_ptr<base::Array<T>> &act,
-            const std::shared_ptr<base::Array<T>> &wgt, int batch, uint64_t Ox, uint64_t Oy, int stride) {
+            const std::shared_ptr<base::Array<T>> &wgt, int batch, uint64_t Ox, uint64_t Oy, int stride, bool lstm) {
 
         const std::vector<size_t> &act_shape = act->getShape();
         const std::vector<size_t> &wgt_shape = wgt->getShape();
 
         // Activations
-        auto in_channels = act_shape[1];
+        auto R = lstm ? act_shape[0] : 1;
+        auto act_channels = lstm ? act_shape[2] : act_shape[1];
 
         // Weights
         auto num_filters = wgt_shape[0];
@@ -21,34 +22,45 @@ namespace core {
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
 
+        auto groups = act_channels / wgt_channels;
+        auto filters_per_group = num_filters / groups;
+
         OutputTensor output = OutputTensor(num_filters, std::vector<std::vector<double>>(Ox,
                 std::vector<double>(Oy, 0)));
 
         // Actual convolution
-        for (int m = 0; m < num_filters; ++m) {
+        for (int r = 0; r < R; ++r) {
 
-            // Fix for MobileNet
-            int start_group = 0;
-            if(wgt_channels == 1 && in_channels != 1)
-                start_group = m;
+            for (int m = 0; m < num_filters; ++m) {
 
-            // Number of Windows
-            for (int x = 0; x < Ox; ++x) {
-                for (int y = 0; y < Oy; ++y) {
+                // Two towers alexnet
+                int start_group = 0;
+                if (m >= filters_per_group)
+                    start_group = (int) wgt_channels;
 
-                    double sum = 0;
+                // Fix for MobileNet
+                if (wgt_channels == 1 && act_channels != 1)
+                    start_group = m;
 
-                    // Window dimension
-                    for (int j = 0; j < Ky; ++j) {
-                        for (int i = 0; i < Kx; ++i) {
-                            for (int k = 0; k < wgt_channels; ++k) {
-                                sum += act->get(batch, start_group + k, stride * x + i, stride * y + j) *
-                                       wgt->get(m, k, i, j);
+                // Number of Windows
+                for (int x = 0; x < Ox; ++x) {
+                    for (int y = 0; y < Oy; ++y) {
+
+                        double sum = 0;
+
+                        // Window dimension
+                        for (int j = 0; j < Ky; ++j) {
+                            for (int i = 0; i < Kx; ++i) {
+                                for (int k = 0; k < wgt_channels; ++k) {
+                                    auto act_bits = lstm ? act->get(r, batch, k) :
+                                            act->get(batch, start_group + k, stride * x + i, stride * y + j);
+                                    sum += act_bits * wgt->get(m, k, i, j);
+                                }
                             }
                         }
-                    }
 
-                    output[m][x][y] = sum;
+                        output[m][x][y] += sum;
+                    }
                 }
             }
         }
@@ -209,7 +221,7 @@ namespace core {
                     if (this->CHECK) calculate_output(sim_output, tiles_data);
                 }
 
-                if (CHECK) check_result_channel_first(sim_output, act, wgt, batch, Ox, Oy, stride);
+                if (CHECK) check_result_channel_first(sim_output, act, wgt, batch, Ox, Oy, stride, lstm);
 
                 // Dump stats from architecture (Cycles, etc)
 

@@ -62,11 +62,9 @@ namespace core {
         window_buffer = BufferSet<T>(max_buffer_time, BufferRow<T>(num_windows * this->N_LANES,
                 std::make_tuple(0.0f, 0, 0)));
 
-        const std::vector<size_t> &act_shape = this->act->getShape();
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
 
-        auto act_channels = this->lstm ? act_shape[2] : act_shape[1];
-
+        auto wgt_channels = wgt_shape[1];
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
 
@@ -78,10 +76,11 @@ namespace core {
             int buffer_time = 0;
             for (int y = 0; y < Ky; ++y) {
                 for (int x = 0; x < Kx; ++x) {
-                    for (int k = 0; k < act_channels; k += this->N_LANES) {
+                    for (int k = 0; k < wgt_channels; k += this->N_LANES) {
                         int index = 0;
-                        for (int ch = k; ch < std::min((uint64_t)k + this->N_LANES, act_channels); ++ch) {
-                            auto act_bits = this->act->get(this->batch, ch, x_window + x, y_window + y);
+                        for (int ch = k; ch < std::min((uint64_t)k + this->N_LANES, wgt_channels); ++ch) {
+                            auto act_bits = this->lstm ? this->act->get(current_recurrence, this->batch, ch) :
+                                    this->act->get(this->batch, ch, x_window + x, y_window + y);
                             auto column = (this->fc || this->lstm) ? next_column : w;
                             int pos = column * this->N_LANES + index;
                             window_buffer[buffer_time][pos] = std::make_tuple(act_bits, buffer_time, index);

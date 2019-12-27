@@ -117,6 +117,7 @@ namespace core {
                 this->window_set++;
             } // Window set
 
+            this->window_set = 0;
             this->current_recurrence++;
         } // Recurrence
 
