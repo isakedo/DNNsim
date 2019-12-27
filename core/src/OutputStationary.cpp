@@ -19,9 +19,19 @@ namespace core {
         auto Ky = wgt_shape[3];
 
         int set_wgt = -1;
+        bool next_group = false;
         for(int m = 0; m < num_filters; ++m) {
 
-            if ((m % this->N_ROWS) == 0)
+            // Fix for two towers AlexNet
+            auto buffer_filter_gap = 0;
+            if (m >= this->filters_per_group) {
+                buffer_filter_gap = filters_per_group;
+                if (!next_group)
+                    next_group = true;
+            }
+
+            auto filter_pos = (m - buffer_filter_gap) % this->N_ROWS;
+            if (filter_pos == 0)
                 set_wgt++;
 
             int buffer_time = 0;
@@ -32,7 +42,7 @@ namespace core {
                         for(int ch = k; ch < std::min((uint64_t)k + this->N_LANES, wgt_channels); ++ch) {
 
                             auto wgt_bits = this->wgt->get(m, ch, x, y);
-                            int pos = (m % this->N_ROWS) * this->N_LANES + index;
+                            int pos = filter_pos * this->N_LANES + index;
                             weight_buffer[set_wgt][buffer_time][pos] = std::make_tuple(wgt_bits, buffer_time, index);
 
                             index++;
@@ -138,9 +148,10 @@ namespace core {
         // Two towers AlexNet
         auto groups = act_channels / wgt_channels == 2 ? 2 : 1;
         filters_per_group = (uint64_t)ceil(num_filters / (double)groups);
+        filter_gap = ceil(filters_per_group / (double)this->N_ROWS) * this->N_ROWS - filters_per_group;
 
         // Generate weight buffer
-        filter_sets = (uint64_t)ceil(num_filters / (double)this->N_ROWS);
+        filter_sets = (uint64_t)ceil(filters_per_group / (double)this->N_ROWS) * groups;
 
         auto round_wgt_channels = (int)ceil(wgt_channels / (double)this->N_LANES) * this->N_LANES;
         max_buffer_time = (uint64_t)ceil(round_wgt_channels * Kx * Ky / (double)this->N_LANES);

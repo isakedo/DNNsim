@@ -32,6 +32,9 @@ namespace core {
         /** Filters per group for two towers AlexNet */
         uint64_t filters_per_group = 0;
 
+        /** Empty filters between filter sets for two towers AlexNet */
+        uint64_t filter_gap = 0;
+
         /** Window buffer depth per group for two towers AlexNet */
         uint64_t max_window_buffer_time = 0;
 
