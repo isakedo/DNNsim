@@ -139,7 +139,7 @@ namespace core {
         auto wgt_precision = stats.register_uint_t("weights_precision", 0, sys::Average);
 
         auto network_bits = network.getNetwork_bits();
-        for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
+        for(auto layer_it = 2; layer_it < network.getNumLayers(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
@@ -194,9 +194,6 @@ namespace core {
 
             auto Ox = (Nx - Kx) / stride + 1;
             auto Oy = (Ny - Ky) / stride + 1;
-
-            auto groups = act_channels / wgt_channels;
-            auto filters_per_group = num_filters / groups;
 
             auto act_prec = layer.getActPrecision();
             auto wgt_prec = layer.getWgtPrecision();

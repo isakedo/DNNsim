@@ -67,6 +67,8 @@ namespace core {
                         auto filter_idx = (this->filter_set + t) * this->N_ROWS;
                         if (filter_idx >= num_filters) break;
 
+                        // Fix for two towers AlexNet
+                        auto start_time = filter_idx >= this->filters_per_group ? this->max_buffer_time : 0;
                         while (this->time[t] < this->max_buffer_time) {
 
                             if (this->schedule) {
@@ -85,8 +87,8 @@ namespace core {
 
                             auto num_act_rows = 1;
                             if (this->schedule) num_act_rows += this->scheduler.getLookaheadH();
-                            tiles_data[t].act_row = BufferSet<T>(this->window_buffer.begin() + this->time[t],
-                                    std::min(this->window_buffer.begin() + this->time[t] + num_act_rows,
+                            tiles_data[t].act_row = BufferSet<T>(this->window_buffer.begin() + start_time + this->time[t],
+                                    std::min(this->window_buffer.begin() + start_time + this->time[t] + num_act_rows,
                                     this->window_buffer.end()));
                             tiles_data[t].wgt_row = this->weight_buffer[this->filter_set + t][this->time[t]];
                             tiles_data[t].windows = this->windows;
