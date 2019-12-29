@@ -133,12 +133,21 @@ namespace core {
 
         sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
 
+        // Architecture stats
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
+        auto stall_cycles = stats.register_uint_t("stall cycles", 0, sys::AverageTotal);
+        auto scheduled_pe = stats.register_uint_t("scheduled PEs", 0, sys::AverageTotal);
+        auto idle_pe = stats.register_uint_t("idle PEs", 0, sys::AverageTotal);
 
-        auto act_precision = stats.register_uint_t("activations_precision", 0, sys::Average);
-        auto wgt_precision = stats.register_uint_t("weights_precision", 0, sys::Average);
+        // Dataflow stats
+        auto act_buff_reads = stats.register_uint_t("activation buffer reads", 0, sys::AverageTotal);
+        auto wgt_buff_reads = stats.register_uint_t("weight buffer reads", 0, sys::AverageTotal);
+        auto acc_updates = stats.register_uint_t("accumulator_updates", 0, sys::AverageTotal);
+        auto out_buffer_writes = stats.register_uint_t("output buffer writes", 0, sys::AverageTotal);
 
-        auto network_bits = network.getNetwork_bits();
+        auto act_precision = stats.register_uint_t("activations precision", 0, sys::Average);
+        auto wgt_precision = stats.register_uint_t("weights precision", 0, sys::Average);
+
         for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
@@ -213,18 +222,27 @@ namespace core {
                 OutputTensor sim_output = OutputTensor(num_filters, std::vector<std::vector<double>>(Ox,
                         std::vector<double>(Oy, 0)));
 
+                arch->initialise_stats();
                 dataflow->initialise_batch(batch);
 
                 auto tiles_data = std::vector<TileData<T>>(N_TILES, TileData<T>());
                 while(dataflow->next_dataflow_step(tiles_data)) {
-
-                    // TODO Process tiles
+                    arch->process_tiles(tiles_data);
                     if (this->CHECK) calculate_output(sim_output, tiles_data);
                 }
 
                 if (CHECK) check_result_channel_first(sim_output, act, wgt, batch, Ox, Oy, stride, lstm);
 
-                // Dump stats from architecture (Cycles, etc)
+                // Dump stats
+                cycles->value[layer_it][batch] = arch->cycles;
+                stall_cycles->value[layer_it][batch] = arch->stall_cycles;
+                scheduled_pe->value[layer_it][batch] = arch->scheduled_pe;
+                idle_pe->value[layer_it][batch] = arch->idle_pe;
+
+                act_buff_reads->value[layer_it][batch] = dataflow->act_buff_reads;
+                wgt_buff_reads->value[layer_it][batch] = dataflow->wgt_buff_reads;
+                acc_updates->value[layer_it][batch] = dataflow->acc_updates;
+                out_buffer_writes->value[layer_it][batch] = dataflow->out_buffer_writes;
 
                 act_precision->value[layer_it][batch] = act_prec;
                 wgt_precision->value[layer_it][batch] = wgt_prec;
@@ -274,11 +292,12 @@ namespace core {
 
             base::Array<T> act = layer.getActivations();
             arch->dataConversion(act, layer.getActPrecision());
-            if (act.getDimensions() == 4) act.reshape_to_2D();
+            if (fc && act.getDimensions() == 4) act.reshape_to_2D();
+            if (act.getDimensions() == 2) act.reshape_to_4D();
 
             base::Array<T> wgt = layer.getWeights();
             arch->dataConversion(wgt, layer.getWgtPrecision());
-            if (conv && wgt.getDimensions() == 2) wgt.reshape_to_4D();
+            if (wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
             int padding = layer.getPadding();
             int stride = layer.getStride();

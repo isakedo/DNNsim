@@ -62,6 +62,20 @@ namespace core {
 
     public:
 
+        /* STATISTICS */
+
+        /** Activation buffer reads */
+        uint64_t act_buff_reads = 0;
+
+        /** Weight buffer reads */
+        uint64_t wgt_buff_reads = 0;
+
+        /** Accumulator updates */
+        uint64_t acc_updates = 0;
+
+        /** Output buffer writes */
+        uint64_t out_buffer_writes = 0;
+
         /**
          * Constructor
          * @param _scheduler
@@ -116,6 +130,11 @@ namespace core {
          */
         virtual void initialise_batch(int _batch) {
             batch = _batch;
+
+            act_buff_reads = 0;
+            wgt_buff_reads = 0;
+            acc_updates = 0;
+            out_buffer_writes = 0;
         }
 
         /**

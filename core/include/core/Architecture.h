@@ -15,7 +15,30 @@ namespace core {
 
     public:
 
+        /* STATISTICS */
+
+        /** Number of cycles */
+        uint64_t cycles = 0;
+
+        /** Number of stall cycles */
+        uint64_t stall_cycles = 0;
+
+        /** Scheduled PEs */
+        uint64_t scheduled_pe = 0;
+
+        /** Idle PEs */
+        uint64_t idle_pe = 0;
+
         /* AUXILIARY FUNCTIONS */
+
+        /**
+         * Initialise stats to zero
+         */
+        void initialise_stats() {
+            cycles = 0;
+            stall_cycles = 0;
+            scheduled_pe = 0;
+        }
 
         /**
          * Return name of the class
@@ -49,6 +72,12 @@ namespace core {
          * @return True if weight buffer to schedule, False if not
          */
         virtual bool schedule() = 0;
+
+        /**
+         * Calculate cycles for all the tiles
+         * @param tiles_data Processing information for all the tiles
+         */
+        virtual void process_tiles(const std::vector<TileData<T>> &tiles_data) = 0;
 
         /* POTENTIALS */
 
