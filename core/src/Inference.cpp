@@ -139,7 +139,7 @@ namespace core {
         auto wgt_precision = stats.register_uint_t("weights_precision", 0, sys::Average);
 
         auto network_bits = network.getNetwork_bits();
-        for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
+        for(auto layer_it = 1; layer_it < network.getNumLayers(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";

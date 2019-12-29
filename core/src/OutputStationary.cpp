@@ -8,56 +8,59 @@ namespace core {
     template <typename T>
     void OutputStationary<T>::fill_weight_buffer() {
 
-        weight_buffer = Buffer<T>(filter_sets, BufferSet<T>(max_buffer_time, BufferRow<T>(this->N_ROWS * this->N_LANES,
-                std::make_tuple(0, 0, 0))));
+        weight_buffer = Buffer<T>(filter_sets * this->groups, BufferSet<T>(max_buffer_time,
+                BufferRow<T>(this->N_ROWS * this->N_LANES, std::make_tuple(0, 0, 0))));
 
+        const std::vector<size_t> &act_shape = this->act->getShape();
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
 
-        auto num_filters = wgt_shape[0];
+        auto act_channels = this->lstm ? act_shape[2] : act_shape[1];
+
         auto wgt_channels = wgt_shape[1];
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
 
+        bool depthwise = wgt_channels == 1 && act_channels != 1;
+
         int set_wgt = -1;
-        bool next_group = false;
-        for(int m = 0; m < num_filters; ++m) {
+        for (int g = 0; g < groups; ++g) {
 
-            // Fix for two towers AlexNet
-            auto buffer_filter_gap = 0;
-            if (m >= this->filters_per_group) {
-                buffer_filter_gap = filters_per_group;
-                if (!next_group)
-                    next_group = true;
-            }
+            for (int m = 0; m < this->filters_per_group; ++m) {
 
-            auto filter_pos = (m - buffer_filter_gap) % this->N_ROWS;
-            if (filter_pos == 0)
-                set_wgt++;
+                auto start_group = this->filters_per_group * g;
 
-            int buffer_time = 0;
-            for (int y = 0; y < Ky; ++y) {
-                for (int x = 0; x < Kx; ++x) {
-                    for (int k = 0; k < wgt_channels; k += this->N_LANES) {
-                        int index = 0;
-                        for(int ch = k; ch < std::min((uint64_t)k + this->N_LANES, wgt_channels); ++ch) {
+                auto filter_pos = m % this->N_ROWS;
+                if (filter_pos == 0)
+                    set_wgt++;
 
-                            auto wgt_bits = this->wgt->get(m, ch, x, y);
-                            int pos = filter_pos * this->N_LANES + index;
-                            weight_buffer[set_wgt][buffer_time][pos] = std::make_tuple(wgt_bits, buffer_time, index);
+                int buffer_time = 0;
+                for (int y = 0; y < Ky; ++y) {
+                    for (int x = 0; x < Kx; ++x) {
+                        for (int k = 0; k < wgt_channels; k += this->N_LANES) {
+                            int index = 0;
+                            for (int ch = k; ch < std::min((uint64_t) k + this->N_LANES, wgt_channels); ++ch) {
 
-                            index++;
-                            if(index == this->N_LANES) {
+                                index = depthwise ? filter_pos : index;
+                                auto wgt_bits = this->wgt->get(start_group + m, ch, x, y);
+                                int pos = filter_pos * this->N_LANES + index;
+                                weight_buffer[set_wgt][buffer_time][pos] = std::make_tuple(wgt_bits, buffer_time, index);
+
+                                if (depthwise) continue;
+
+                                index++;
+                                if (index == this->N_LANES) {
+                                    buffer_time++;
+                                    index = 0;
+                                }
+                            } // Channels
+                            if (depthwise || index != 0)
                                 buffer_time++;
-                                index = 0;
-                            }
-                        } // Channels
-                        if(index != 0)
-                            buffer_time++;
-                    } // Channel sets
-                } // Kernel Width
-            } // Kernel Height
+                        } // Channel sets
+                    } // Kernel Width
+                } // Kernel Height
 
-        } // Filter sets
+            } // Filter sets
+        } // Groups
 
     }
 
@@ -71,6 +74,7 @@ namespace core {
         auto num_windows = (this->fc || this->lstm) ? this->N_COLUMNS : windows.size();
         window_buffer = BufferSet<T>(max_window_buffer_time, BufferRow<T>(num_windows * this->N_LANES,
                 std::make_tuple(0.0f, 0, 0)));
+
         const std::vector<size_t> &act_shape = this->act->getShape();
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
 
@@ -80,7 +84,8 @@ namespace core {
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
 
-        auto groups = act_channels / wgt_channels == 2 ? 2 : 1;
+        bool depthwise = wgt_channels == 1 && act_channels != 1;
+        auto channels = depthwise ? filters_per_group : wgt_channels;
 
         int next_column = 0;
         for (int w = 0; w < windows.size(); ++w) {
@@ -90,13 +95,13 @@ namespace core {
             int buffer_time = 0;
             for (int g = 0; g < groups; ++g) {
 
-                auto start_group = g * wgt_channels;
+                auto start_group = g * channels;
 
                 for (int y = 0; y < Ky; ++y) {
                     for (int x = 0; x < Kx; ++x) {
-                        for (int k = 0; k < wgt_channels; k += this->N_LANES) {
+                        for (int k = 0; k < channels; k += this->N_LANES) {
                             int index = 0;
-                            for (int ch = k; ch < std::min((uint64_t) k + this->N_LANES, wgt_channels); ++ch) {
+                            for (int ch = k; ch < std::min((uint64_t) k + this->N_LANES, channels); ++ch) {
                                 auto act_bits = this->lstm ? this->act->get(current_recurrence, this->batch, ch) :
                                         this->act->get(this->batch, start_group + ch, x_window + x, y_window + y);
                                 auto column = (this->fc || this->lstm) ? next_column : w;
@@ -145,16 +150,18 @@ namespace core {
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
 
-        // Two towers AlexNet
-        auto groups = act_channels / wgt_channels == 2 ? 2 : 1;
+        bool depthwise = wgt_channels == 1 && act_channels != 1;
+
+        groups = depthwise ? (uint64_t)ceil(num_filters / (double)this->N_ROWS) :
+                act_channels / wgt_channels == 2 ? 2 : 1;
         filters_per_group = (uint64_t)ceil(num_filters / (double)groups);
-        filter_gap = ceil(filters_per_group / (double)this->N_ROWS) * this->N_ROWS - filters_per_group;
 
         // Generate weight buffer
-        filter_sets = (uint64_t)ceil(filters_per_group / (double)this->N_ROWS) * groups;
+        filter_sets = (uint64_t)ceil(filters_per_group / (double)this->N_ROWS);
 
         auto round_wgt_channels = (int)ceil(wgt_channels / (double)this->N_LANES) * this->N_LANES;
-        max_buffer_time = (uint64_t)ceil(round_wgt_channels * Kx * Ky / (double)this->N_LANES);
+        max_buffer_time = depthwise ? (uint64_t)ceil(Kx * Ky) :
+                (uint64_t)ceil(round_wgt_channels * Kx * Ky / (double)this->N_LANES);
 
         fill_weight_buffer();
 
@@ -163,7 +170,6 @@ namespace core {
             this->scheduler.schedule(weight_buffer);
         }
 
-        // Two towers AlexNet
         max_window_buffer_time = max_buffer_time * groups;
 
     }
