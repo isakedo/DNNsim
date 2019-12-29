@@ -16,6 +16,7 @@ namespace core {
 
         auto act_channels = this->lstm ? act_shape[2] : act_shape[1];
 
+        auto num_filters = wgt_shape[0];
         auto wgt_channels = wgt_shape[1];
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
@@ -28,6 +29,9 @@ namespace core {
             for (int m = 0; m < this->filters_per_group; ++m) {
 
                 auto start_group = this->filters_per_group * g;
+
+                if ((start_group + m) >= num_filters)
+                    continue;
 
                 auto filter_pos = m % this->N_ROWS;
                 if (filter_pos == 0)
@@ -102,11 +106,16 @@ namespace core {
                         for (int k = 0; k < channels; k += this->N_LANES) {
                             int index = 0;
                             for (int ch = k; ch < std::min((uint64_t) k + this->N_LANES, channels); ++ch) {
+
+                                if ((start_group + ch) >= act_channels)
+                                    continue;
+
                                 auto act_bits = this->lstm ? this->act->get(current_recurrence, this->batch, ch) :
                                         this->act->get(this->batch, start_group + ch, x_window + x, y_window + y);
                                 auto column = (this->fc || this->lstm) ? next_column : w;
                                 int pos = column * this->N_LANES + index;
                                 window_buffer[buffer_time][pos] = std::make_tuple(act_bits, buffer_time, index);
+
                                 index++;
                                 if (index == this->N_LANES) {
                                     buffer_time++;
@@ -152,9 +161,17 @@ namespace core {
 
         bool depthwise = wgt_channels == 1 && act_channels != 1;
 
-        groups = depthwise ? (uint64_t)ceil(num_filters / (double)this->N_ROWS) :
-                act_channels / wgt_channels == 2 ? 2 : 1;
-        filters_per_group = (uint64_t)ceil(num_filters / (double)groups);
+        if (depthwise) {
+            auto MIN_DIM = std::min(this->N_LANES, this->N_ROWS);
+            this->N_LANES = MIN_DIM;
+            this->N_ROWS = MIN_DIM;
+
+            groups = (uint64_t)ceil(num_filters / (double)MIN_DIM);
+            filters_per_group = MIN_DIM;
+        } else {
+            groups = act_channels / wgt_channels == 2 ? 2 : 1;
+            filters_per_group = (uint64_t)ceil(num_filters / (double)groups);
+        }
 
         // Generate weight buffer
         filter_sets = (uint64_t)ceil(filters_per_group / (double)this->N_ROWS);

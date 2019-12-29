@@ -35,6 +35,7 @@ namespace core {
         std::vector<int> filters;
         int time = 0;
         int num_act_rows = 0;
+        int lanes = 0;
         bool valid = false;
     };
 

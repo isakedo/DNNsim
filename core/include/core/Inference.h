@@ -61,13 +61,6 @@ namespace core {
         /** Check the correctness of the simulations */
         const bool CHECK = false;
 
-        /**
-         *
-         * @param output
-         * @param tiles_data
-         */
-        void calculate_output(OutputTensor &output, const std::vector<TileData<T>> &tiles_data);
-
     public:
 
         /** Constructor

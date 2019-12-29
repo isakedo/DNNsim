@@ -80,7 +80,7 @@ namespace core {
     }
 
     template <typename T>
-    void Inference<T>::calculate_output(OutputTensor &output, const std::vector<TileData<T>> &tiles_data) {
+    void calculate_output(OutputTensor &output, const std::vector<TileData<T>> &tiles_data) {
 
         for (const auto &tile_data : tiles_data) {
 
@@ -88,18 +88,18 @@ namespace core {
                 continue;
 
             for (int w = 0; w < tile_data.windows.size(); ++w) {
-                auto window_idx = w * N_LANES;
+                auto window_idx = w * tile_data.lanes;
                 auto x_window = std::get<0>(tile_data.windows[w]);
                 auto y_window = std::get<1>(tile_data.windows[w]);
 
                 for (int f = 0; f < tile_data.filters.size(); ++f) {
-                    auto filter_idx = f * N_LANES;
+                    auto filter_idx = f * tile_data.lanes;
                     auto filter = tile_data.filters[f];
 
                     if (filter == -1)
                         continue;
 
-                    for (int lane = 0; lane < N_LANES; ++lane) {
+                    for (int lane = 0; lane < tile_data.lanes; ++lane) {
 
                         auto wgt_bits = std::get<0>(tile_data.wgt_row[filter_idx + lane]);
                         auto time_h = (std::get<1>(tile_data.wgt_row[filter_idx + lane]) - tile_data.time) %
@@ -139,7 +139,7 @@ namespace core {
         auto wgt_precision = stats.register_uint_t("weights_precision", 0, sys::Average);
 
         auto network_bits = network.getNetwork_bits();
-        for(auto layer_it = 1; layer_it < network.getNumLayers(); ++layer_it) {
+        for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
@@ -151,7 +151,7 @@ namespace core {
             auto act = std::make_shared<base::Array<T>>(layer.getActivations());
             arch->dataConversion(*act, layer.getActPrecision());
             if (fc && act->getDimensions() == 4) act->reshape_to_2D();
-            if (fc) act->reshape_to_4D();
+            if (act->getDimensions() == 2) act->reshape_to_4D();
 
             auto wgt = std::make_shared<base::Array<T>>(layer.getWeights());
             arch->dataConversion(*wgt, layer.getWgtPrecision());
@@ -198,10 +198,14 @@ namespace core {
             auto act_prec = layer.getActPrecision();
             auto wgt_prec = layer.getWgtPrecision();
 
-            // TODO BITS PER PE
+            auto columns_per_act = (uint32_t)ceil(act_prec / (double)BITS_PE);
+            auto rows_per_wgt = (uint32_t)ceil(wgt_prec / (double)BITS_PE);
 
-            dataflow->initialise_layer(act, wgt, arch->schedule(), fc, lstm, R, Ox, Oy, stride, N_LANES, N_COLUMNS,
-                    N_ROWS, N_TILES);
+            auto COLUMNS = N_COLUMNS / columns_per_act;
+            auto ROWS = N_ROWS / rows_per_wgt;
+
+            dataflow->initialise_layer(act, wgt, arch->schedule(), fc, lstm, R, Ox, Oy, stride, N_LANES, COLUMNS, ROWS,
+                    N_TILES);
 
             // Iterate over the images
             for (int batch = 0; batch < batch_size; ++batch) {

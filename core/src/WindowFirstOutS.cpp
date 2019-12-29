@@ -51,10 +51,10 @@ namespace core {
                                 auto filter_idx = this->filters_per_group * this->group +
                                         (this->filter_set + t) * this->N_ROWS;
 
-                                // Fix for two towers AlexNet
+                                auto num_filters = this->wgt->getShape()[0];
                                 for (int r = 0; r < this->N_ROWS; ++r) {
                                     auto filter = filter_idx + r;
-                                    if (filter >= (this->filters_per_group * (this->group + 1)))
+                                    if (filter >= (this->filters_per_group * (this->group + 1)) || filter >= num_filters)
                                         continue;
                                     this->filters[t][r] = filter;
                                 }
@@ -99,6 +99,7 @@ namespace core {
                                 tiles_data[t].filters = this->filters[t];
                                 tiles_data[t].time = this->time[t];
                                 tiles_data[t].num_act_rows = num_act_rows;
+                                tiles_data[t].lanes = this->N_LANES;
                                 tiles_data[t].valid = true;
 
                                 still_work = true;
