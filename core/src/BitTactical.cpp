@@ -128,7 +128,8 @@ namespace core {
     }
 
     template <typename T>
-    void BitTactical<T>::schedule(Buffer<T> &buffer) {
+    void BitTactical<T>::schedule(Buffer<T> &buffer, uint32_t _N_LANES) {
+        N_LANES = _N_LANES;
         for (auto &buffer_set : buffer) {
             original_schedule(buffer_set);
         }

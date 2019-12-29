@@ -186,8 +186,8 @@ int main(int argc, char *argv[]) {
                             if(!QUIET) std::cout << "Starting simulation " << experiment.task << " for architecture "
                                                  << experiment.architecture << std::endl;
 
-                            core::BitTactical<float> scheduler(experiment.n_lanes, experiment.n_rows,
-                                    experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape.c_str()[0]);
+                            core::BitTactical<float> scheduler(experiment.lookahead_h, experiment.lookaside_d,
+                                    experiment.search_shape.c_str()[0]);
 
                             std::shared_ptr<core::Dataflow<float>> dataflow =
                                     std::make_shared<core::WindowFirstOutS<float>>(scheduler);
@@ -232,8 +232,8 @@ int main(int argc, char *argv[]) {
                             if(!QUIET) std::cout << "Starting simulation " << experiment.task << " for architecture "
                                     << experiment.architecture << std::endl;
 
-                            core::BitTactical<uint16_t> scheduler(experiment.n_lanes, experiment.n_rows,
-                                    experiment.lookahead_h, experiment.lookaside_d, experiment.search_shape.c_str()[0]);
+                            core::BitTactical<uint16_t> scheduler(experiment.lookahead_h, experiment.lookaside_d,
+                                    experiment.search_shape.c_str()[0]);
 
                             std::shared_ptr<core::Dataflow<uint16_t>> dataflow =
                                     std::make_shared<core::WindowFirstOutS<uint16_t>>(scheduler);

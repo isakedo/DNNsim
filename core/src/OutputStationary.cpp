@@ -184,7 +184,7 @@ namespace core {
 
         // BitTactical schedule
         if (_schedule) {
-            this->scheduler.schedule(weight_buffer);
+            this->scheduler.schedule(weight_buffer, this->N_LANES);
         }
 
         max_window_buffer_time = max_buffer_time * groups;
