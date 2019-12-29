@@ -27,6 +27,11 @@ namespace core {
         return TCT;
     }
 
+    template <typename T>
+    void Parallel<T>::process_tiles(const std::vector<TileData<T>> &tiles_data, int act_prec, int wgt_prec) {
+        this->cycles++;
+    }
+
     /* POTENTIALS */
 
     template <typename T>

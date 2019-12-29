@@ -6,6 +6,13 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
+    uint64_t Loom<T>::getCycles() const {
+        if (this->linear) {
+            return *std::max_element(this->column_cycles.begin(), this->column_cycles.end());
+        } else return this->cycles;
+    }
+
+    template <typename T>
     std::string Loom<T>::name() {
         return DYNAMIC_WEIGHTS ? "DynLoom" : "Loom";
     }
@@ -34,6 +41,11 @@ namespace core {
     template <typename T>
     bool Loom<T>::schedule() {
         return false;
+    }
+
+    template <typename T>
+    void Loom<T>::process_tiles(const std::vector<TileData<T>> &tiles_data, int act_prec, int wgt_prec) {
+
     }
 
     /* POTENTIALS */

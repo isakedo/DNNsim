@@ -6,6 +6,11 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
+    uint64_t BitPragmatic<T>::getCycles() const {
+        return *std::max_element(this->column_cycles.begin(), this->column_cycles.end());
+    }
+
+    template <typename T>
     std::string BitPragmatic<T>::name() {
         return TCT ? "BitTacticalE" : DIFFY ? "BitPragmaticDiffy" : "BitPragmatic";
     }
@@ -34,6 +39,11 @@ namespace core {
     template <typename T>
     bool BitPragmatic<T>::schedule() {
         return TCT;
+    }
+
+    template <typename T>
+    void BitPragmatic<T>::process_tiles(const std::vector<TileData<T>> &tiles_data, int act_prec, int wgt_prec) {
+
     }
 
     /* POTENTIALS */

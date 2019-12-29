@@ -13,7 +13,16 @@ namespace core {
     template <typename T>
     class Architecture {
 
-    public:
+    protected:
+
+        /** Linear layer */
+        bool linear = false;
+
+        /** Column index */
+        uint64_t column_index = 0;
+
+        /** Column cycles */
+        std::vector<uint64_t> column_cycles;
 
         /* STATISTICS */
 
@@ -29,15 +38,55 @@ namespace core {
         /** Idle PEs */
         uint64_t idle_pe = 0;
 
+    public:
+
         /* AUXILIARY FUNCTIONS */
 
         /**
          * Initialise stats to zero
+         * @param COLUMNS Number of columns
+         * @param _linear Linear layer
          */
-        void initialise_stats() {
+        void initialise_batch(uint64_t COLUMNS, bool _linear) {
+            linear = _linear;
+            column_cycles = std::vector<uint64_t>(COLUMNS, 0);
+            column_index = 0;
+
             cycles = 0;
             stall_cycles = 0;
             scheduled_pe = 0;
+        }
+
+        /**
+         * Get number of cycles
+         * @return Cycles
+         */
+        virtual uint64_t getCycles() const {
+            return cycles;
+        }
+
+        /**
+         * Get number of stall cycles
+         * @return Stall cycles
+         */
+        uint64_t getStallCycles() const {
+            return stall_cycles;
+        }
+
+        /**
+         * Get scheduled PEs
+         * @return Scheduled PEs
+         */
+        uint64_t getScheduledPe() const {
+            return scheduled_pe;
+        }
+
+        /**
+         * Get idle PEs
+         * @return Idle PEs
+         */
+        uint64_t getIdlePe() const {
+            return idle_pe;
         }
 
         /**
@@ -76,8 +125,10 @@ namespace core {
         /**
          * Calculate cycles for all the tiles
          * @param tiles_data Processing information for all the tiles
+         * @param act_prec Activations precision
+         * @param wgt_prec Weights precision
          */
-        virtual void process_tiles(const std::vector<TileData<T>> &tiles_data) = 0;
+        virtual void process_tiles(const std::vector<TileData<T>> &tiles_data, int act_prec, int wgt_prec) = 0;
 
         /* POTENTIALS */
 

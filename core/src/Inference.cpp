@@ -222,27 +222,27 @@ namespace core {
                 OutputTensor sim_output = OutputTensor(num_filters, std::vector<std::vector<double>>(Ox,
                         std::vector<double>(Oy, 0)));
 
-                arch->initialise_stats();
+                arch->initialise_batch(COLUMNS, fc || lstm);
                 dataflow->initialise_batch(batch);
 
                 auto tiles_data = std::vector<TileData<T>>(N_TILES, TileData<T>());
                 while(dataflow->next_dataflow_step(tiles_data)) {
-                    arch->process_tiles(tiles_data);
+                    arch->process_tiles(tiles_data, act_prec, wgt_prec);
                     if (this->CHECK) calculate_output(sim_output, tiles_data);
                 }
 
                 if (CHECK) check_result_channel_first(sim_output, act, wgt, batch, Ox, Oy, stride, lstm);
 
                 // Dump stats
-                cycles->value[layer_it][batch] = arch->cycles;
-                stall_cycles->value[layer_it][batch] = arch->stall_cycles;
-                scheduled_pe->value[layer_it][batch] = arch->scheduled_pe;
-                idle_pe->value[layer_it][batch] = arch->idle_pe;
+                cycles->value[layer_it][batch] = arch->getCycles();
+                stall_cycles->value[layer_it][batch] = arch->getStallCycles();
+                scheduled_pe->value[layer_it][batch] = arch->getScheduledPe();
+                idle_pe->value[layer_it][batch] = arch->getIdlePe();
 
-                act_buff_reads->value[layer_it][batch] = dataflow->act_buff_reads;
-                wgt_buff_reads->value[layer_it][batch] = dataflow->wgt_buff_reads;
-                acc_updates->value[layer_it][batch] = dataflow->acc_updates;
-                out_buffer_writes->value[layer_it][batch] = dataflow->out_buffer_writes;
+                act_buff_reads->value[layer_it][batch] = dataflow->getActBuffReads();
+                wgt_buff_reads->value[layer_it][batch] = dataflow->getWgtBuffReads();
+                acc_updates->value[layer_it][batch] = dataflow->getAccUpdates();
+                out_buffer_writes->value[layer_it][batch] = dataflow->getOutBufferWrites();
 
                 act_precision->value[layer_it][batch] = act_prec;
                 wgt_precision->value[layer_it][batch] = wgt_prec;

@@ -54,6 +54,14 @@ namespace core {
          */
         bool schedule();
 
+        /**
+         * Calculate cycles for all the tiles
+         * @param tiles_data Processing information for all the tiles
+         * @param act_prec Activations precision
+         * @param wgt_prec Weights precision
+         */
+        void process_tiles(const std::vector<TileData<T>> &tiles_data, int act_prec, int wgt_prec) override;
+
         /* POTENTIALS */
 
         /**

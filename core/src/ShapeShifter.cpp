@@ -6,6 +6,11 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
+    uint64_t ShapeShifter<T>::getCycles() const {
+        return *std::max_element(this->column_cycles.begin(), this->column_cycles.end());
+    }
+
+    template <typename T>
     std::string ShapeShifter<T>::name() {
         return TCT ? "BitTacticalP" : DIFFY ? "ShapeShifterDiffy" : "ShapeShifter";
     }
@@ -34,6 +39,11 @@ namespace core {
     template <typename T>
     bool ShapeShifter<T>::schedule() {
         return TCT;
+    }
+
+    template <typename T>
+    void ShapeShifter<T>::process_tiles(const std::vector<TileData<T>> &tiles_data, int act_prec, int wgt_prec) {
+
     }
 
     /* POTENTIALS */

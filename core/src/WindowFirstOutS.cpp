@@ -76,8 +76,8 @@ namespace core {
                                 if (this->schedule) {
 
                                     // Skip lines of zeroes
-                                    bool zero_line = this->scheduler.check_zero_line
-                                            (this->weight_buffer[this->filter_set + t][this->time[t]]);
+                                    bool zero_line = this->scheduler.check_zero_line(this->weight_buffer
+                                            [this->filter_sets * this->group + this->filter_set + t][this->time[t]]);
                                     if (this->skip[t] < this->scheduler.getLookaheadH() && zero_line) {
                                         this->skip[t]++;
                                         this->time[t]++;

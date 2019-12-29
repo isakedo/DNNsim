@@ -60,8 +60,6 @@ namespace core {
         /** Number of tiles */
         uint32_t N_TILES;
 
-    public:
-
         /* STATISTICS */
 
         /** Activation buffer reads */
@@ -76,12 +74,46 @@ namespace core {
         /** Output buffer writes */
         uint64_t out_buffer_writes = 0;
 
+    public:
+
         /**
          * Constructor
          * @param _scheduler
          */
         explicit Dataflow(const BitTactical<T> &_scheduler) : scheduler(_scheduler), N_LANES(0), N_COLUMNS(0),
                 N_ROWS(0), N_TILES(0) {}
+
+        /**
+         * Get activation buffer reads
+         * @return Activation buffer reads
+         */
+        uint64_t getActBuffReads() const {
+            return act_buff_reads;
+        }
+
+        /**
+         * Get weight buffer reads
+         * @return Weight buffer reads
+         */
+        uint64_t getWgtBuffReads() const {
+            return wgt_buff_reads;
+        }
+
+        /**
+         * Get Accumulator updates
+         * @return Accumulator updates
+         */
+        uint64_t getAccUpdates() const {
+            return acc_updates;
+        }
+
+        /**
+         * Get output buffer writes
+         * @return Output buffer writes
+         */
+        uint64_t getOutBufferWrites() const {
+            return out_buffer_writes;
+        }
 
         /**
         * Return name for the dataflow
