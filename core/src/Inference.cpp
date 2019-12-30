@@ -96,9 +96,6 @@ namespace core {
                     auto filter_idx = f * tile_data.lanes;
                     auto filter = tile_data.filters[f];
 
-                    if (filter == -1)
-                        continue;
-
                     for (int lane = 0; lane < tile_data.lanes; ++lane) {
 
                         auto wgt_bits = std::get<0>(tile_data.wgt_row[filter_idx + lane]);
@@ -106,14 +103,13 @@ namespace core {
                                 tile_data.num_act_rows;
                         auto lane_d = std::get<2>(tile_data.wgt_row[filter_idx + lane]);
 
-                        if (wgt_bits == 0) continue;
+                        if (time_h < 0) continue;
 
                         auto act_bits = std::get<0>(tile_data.act_row[time_h][window_idx + lane_d]);
 
                         output[filter][x_window][y_window] += act_bits * wgt_bits;
 
-                    } // Multiply 16 weights and 16 window values
-
+                    } // Multiply 16 weights and 16 activations values
                 } // Filter
             } // Window
         } // Tiles
@@ -222,7 +218,7 @@ namespace core {
                 OutputTensor sim_output = OutputTensor(num_filters, std::vector<std::vector<double>>(Ox,
                         std::vector<double>(Oy, 0)));
 
-                arch->initialise_batch(COLUMNS, fc || lstm);
+                arch->initialise_batch(COLUMNS, N_TILES, fc || lstm);
                 dataflow->initialise_batch(batch);
 
                 auto tiles_data = std::vector<TileData<T>>(N_TILES, TileData<T>());

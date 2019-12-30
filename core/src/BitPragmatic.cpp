@@ -7,7 +7,7 @@ namespace core {
 
     template <typename T>
     uint64_t BitPragmatic<T>::getCycles() const {
-        return *std::max_element(this->column_cycles.begin(), this->column_cycles.end());
+        return sys::get_max(this->column_cycles);
     }
 
     template <typename T>
@@ -17,7 +17,7 @@ namespace core {
 
     template <typename T>
     void BitPragmatic<T>::dataConversion(base::Array<T> &data, uint8_t data_prec) {
-        data.powers_of_two_representation(data_prec);
+        if (!DIFFY) data.powers_of_two_representation(data_prec);
     }
 
     /* CYCLES */

@@ -43,8 +43,7 @@ namespace core {
                         // Filter set
                         if (!this->filter_buffer_filled) {
 
-                            this->filters = std::vector<std::vector<int>>(this->N_TILES,
-                                    std::vector<int>(this->N_ROWS, -1));
+                            this->filters = std::vector<std::vector<int>>(this->N_TILES, std::vector<int>());
 
                             for (int t = 0; t < this->N_TILES; ++t) {
 
@@ -56,7 +55,7 @@ namespace core {
                                     auto filter = filter_idx + r;
                                     if (filter >= (this->filters_per_group * (this->group + 1)) || filter >= num_filters)
                                         continue;
-                                    this->filters[t][r] = filter;
+                                    this->filters[t].push_back(filter);
                                 }
                             }
 
@@ -68,7 +67,7 @@ namespace core {
 
                             tiles_data[t].valid = false;
 
-                            if (this->filters[t].front() == -1) break;
+                            if (this->filters[t].empty()) break;
 
                             auto start_time = this->max_buffer_time * this->group;
                             while (this->time[t] < this->max_buffer_time) {

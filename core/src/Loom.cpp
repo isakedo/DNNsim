@@ -7,9 +7,7 @@ namespace core {
 
     template <typename T>
     uint64_t Loom<T>::getCycles() const {
-        if (this->linear) {
-            return *std::max_element(this->column_cycles.begin(), this->column_cycles.end());
-        } else return this->cycles;
+        return this->linear ? sys::get_max(this->column_cycles) : this->cycles;
     }
 
     template <typename T>

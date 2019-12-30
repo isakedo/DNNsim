@@ -22,7 +22,7 @@ namespace core {
         uint64_t column_index = 0;
 
         /** Column cycles */
-        std::vector<uint64_t> column_cycles;
+        std::vector<std::vector<uint64_t>> column_cycles;
 
         /* STATISTICS */
 
@@ -45,16 +45,18 @@ namespace core {
         /**
          * Initialise stats to zero
          * @param COLUMNS Number of columns
+         * @param TILES Number of tiles
          * @param _linear Linear layer
          */
-        void initialise_batch(uint64_t COLUMNS, bool _linear) {
+        void initialise_batch(uint64_t COLUMNS, uint64_t TILES, bool _linear) {
             linear = _linear;
-            column_cycles = std::vector<uint64_t>(COLUMNS, 0);
+            column_cycles = std::vector<std::vector<uint64_t>>(TILES, std::vector<uint64_t>(COLUMNS, 0));
             column_index = 0;
 
             cycles = 0;
             stall_cycles = 0;
             scheduled_pe = 0;
+            idle_pe = 0;
         }
 
         /**
