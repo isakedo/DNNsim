@@ -37,13 +37,13 @@ namespace core {
 
         if (this->linear) {
 
-            if(this->cycles < this->column_cycles[0][this->column_index]) {
-                this->column_stall_cycles += this->column_cycles[0][this->column_index] - this->cycles;
-                this->cycles = this->column_cycles[0][this->column_index];
+            if(this->cycles < this->column_cycles.front()[this->column_index]) {
+                this->column_stall_cycles += this->column_cycles.front()[this->column_index] - this->cycles;
+                this->cycles = this->column_cycles.front()[this->column_index];
             }
 
-            this->column_cycles[0][this->column_index] = this->cycles + this->act_prec;
-            this->column_index = (this->column_index + 1) % this->column_cycles.size();
+            this->column_cycles.front()[this->column_index] = this->cycles + this->act_prec;
+            this->column_index = (this->column_index + 1) % this->column_cycles.front().size();
             this->cycles++;
 
         } else {

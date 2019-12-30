@@ -40,6 +40,21 @@ namespace core {
     template <typename T>
     void Laconic<T>::process_linear(const std::vector<TileData<T>> &tiles_data) {
 
+        auto slowest_column = 0;
+        for (int t = 0; t < tiles_data.size(); ++t) {
+            const auto &tile_data = tiles_data[t];
+
+            auto column_end_cycles = this->column_cycles[t][this->column_index];
+            if (column_end_cycles > slowest_column) slowest_column = column_end_cycles;
+
+        }
+
+        if (this->cycles < slowest_column) {
+            this->column_stall_cycles += slowest_column - this->cycles;
+            this->cycles = slowest_column;
+        }
+
+        auto max_pe_stall_cycles = 0;
         for (int t = 0; t < tiles_data.size(); ++t) {
             const auto &tile_data = tiles_data[t];
 
@@ -47,11 +62,6 @@ namespace core {
                 continue;
 
             auto ROWS = tiles_data[t].wgt_row.size() / tiles_data[t].lanes;
-
-            if (this->cycles < this->column_cycles[t][this->column_index]) {
-                this->column_stall_cycles += this->column_cycles[t][this->column_index] - this->cycles;
-                this->cycles = this->column_cycles[t][this->column_index];
-            }
 
             auto max_cycles = 0;
             auto min_cycles = INT_MAX;
@@ -81,20 +91,25 @@ namespace core {
             } // Filter
 
             this->column_cycles[t][this->column_index] = this->cycles + max_cycles;
-            this->pe_stall_cycles += max_cycles - min_cycles;
             this->scheduled_pe += tiles_data[t].filters.size();
             this->idle_pe += ROWS - tiles_data[t].filters.size();
             this->cycles++;
 
+            auto pe_stall_cycles = max_cycles - min_cycles;
+            if (pe_stall_cycles > max_pe_stall_cycles) max_pe_stall_cycles = pe_stall_cycles;
+
         }
 
-        this->column_index = (this->column_index + 1) % this->column_cycles.size();
+        this->column_index = (this->column_index + 1) % this->column_cycles.front().size();
+
+        this->pe_stall_cycles += max_pe_stall_cycles;
 
     }
 
     template <typename T>
     void Laconic<T>::process_convolution(const std::vector<TileData<T>> &tiles_data) {
 
+        auto max_pe_stall_cycles = 0;
         for (const auto &tile_data : tiles_data) {
 
             if (!tile_data.valid)
@@ -135,11 +150,15 @@ namespace core {
             } // Window
 
             this->cycles += max_cycles;
-            this->pe_stall_cycles += max_cycles - min_cycles;
             this->scheduled_pe += tile_data.windows.size() * tile_data.filters.size();
             this->idle_pe += (COLUMNS * ROWS - tile_data.windows.size() * tile_data.filters.size());
 
+            auto pe_stall_cycles = max_cycles - min_cycles;
+            if (pe_stall_cycles > max_pe_stall_cycles) max_pe_stall_cycles = pe_stall_cycles;
+
         }
+
+        this->pe_stall_cycles += max_pe_stall_cycles;
 
     }
 
