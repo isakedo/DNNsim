@@ -6,6 +6,20 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
+    void ShapeShifter<T>::initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear) {
+        Architecture<T>::initialise_layer(_act_prec, _wgt_prec, _network_bits, _linear);
+        act_mask = (uint16_t)(1u << (_act_prec - 1u));
+    }
+
+    template <typename T>
+    void ShapeShifter<T>::initialise_batch(uint64_t COLUMNS, uint64_t TILES) {
+        Architecture<T>::initialise_batch(COLUMNS, TILES);
+
+        auto GROUPS = COLUMNS / PRECISION_GRANULARITY;
+        this->column_cycles = std::vector<std::vector<uint64_t>>(TILES, std::vector<uint64_t>(GROUPS, 0));
+    }
+
+    template <typename T>
     uint64_t ShapeShifter<T>::getCycles() const {
         return sys::get_max(this->column_cycles);
     }
@@ -42,7 +56,7 @@ namespace core {
     }
 
     template <typename T>
-    void ShapeShifter<T>::process_tiles(const std::vector<TileData<T>> &tiles_data, int act_prec, int wgt_prec) {
+    void ShapeShifter<T>::process_tiles(const std::vector<TileData<T>> &tiles_data) {
 
     }
 
@@ -59,9 +73,7 @@ namespace core {
     }
 
     template <typename T>
-    uint16_t ShapeShifter<T>::computeBits(T act, T wgt, uint8_t act_prec, uint8_t wgt_prec, uint8_t network_bits) {
-
-        static auto act_mask = (uint16_t)(1u << (act_prec - 1u));
+    uint16_t ShapeShifter<T>::computeBits(T act, T wgt) {
 
         if (TCT) {
             if(wgt == 0) return 0;
@@ -82,7 +94,7 @@ namespace core {
         if (MINOR_BIT) act_width = min_act_bit > max_act_bit ? 0 : max_act_bit - min_act_bit + 1u;
         else act_width = max_act_bit + 1u;
 
-        return act_width * network_bits;
+        return act_width * this->network_bits;
     }
 
     template class ShapeShifter<uint16_t>;

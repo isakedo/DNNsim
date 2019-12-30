@@ -28,7 +28,7 @@ namespace core {
     }
 
     template <typename T>
-    void Parallel<T>::process_tiles(const std::vector<TileData<T>> &tiles_data, int act_prec, int wgt_prec) {
+    void Parallel<T>::process_tiles(const std::vector<TileData<T>> &tiles_data) {
 
         this->cycles++;
 
@@ -63,13 +63,13 @@ namespace core {
     }
 
     template <typename T>
-    uint16_t Parallel<T>::computeBits(T act, T wgt, uint8_t act_prec, uint8_t wgt_prec, uint8_t network_bits) {
+    uint16_t Parallel<T>::computeBits(T act, T wgt) {
 
         if (TCT) {
             if(wgt == 0) return 0;
         }
 
-        return network_bits * network_bits;
+        return this->network_bits * this->network_bits;
     }
 
     INITIALISE_DATA_TYPES(Parallel);

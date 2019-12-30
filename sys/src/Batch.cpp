@@ -120,10 +120,9 @@ namespace sys {
             experiment.minor_bit = experiment_proto.minor_bit();
 
             if((experiment_proto.architecture() == "ShapeShifter" || experiment_proto.architecture() == "Loon") &&
-                    (experiment.precision_granularity % experiment.n_columns != 0 ||
-                    (((experiment.n_columns * 16) % experiment.precision_granularity) != 0)))
+                    (experiment.n_columns % experiment.precision_granularity != 0))
                 throw std::runtime_error("Precision granularity on network " + simulate.network +
-                        " must be multiple of 16 and divisible by the columns.");
+                        " must be divisor of the columns.");
 
             // Loom
             experiment.dynamic_weights = experiment_proto.dynamic_weights();
@@ -131,10 +130,9 @@ namespace sys {
                     experiment_proto.pe_serial_bits();
 
             if(experiment_proto.architecture() == "Loom" &&
-                    (experiment.precision_granularity % experiment.n_columns != 0 ||
-                    (((experiment.n_rows * 16) % experiment.precision_granularity) != 0)))
+                    (experiment.n_rows % experiment.precision_granularity != 0))
                 throw std::runtime_error("Precision granularity on network " + simulate.network +
-                        " must be multiple of 16 and divisible by the rows.");
+                        " must be divisor of the rows.");
 
             // BitTactical
             experiment.lookahead_h = experiment_proto.lookahead_h() < 1 ? 2 : experiment_proto.lookahead_h();

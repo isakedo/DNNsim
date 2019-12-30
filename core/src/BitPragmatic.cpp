@@ -42,7 +42,7 @@ namespace core {
     }
 
     template <typename T>
-    void BitPragmatic<T>::process_tiles(const std::vector<TileData<T>> &tiles_data, int act_prec, int wgt_prec) {
+    void BitPragmatic<T>::process_tiles(const std::vector<TileData<T>> &tiles_data) {
 
     }
 
@@ -59,7 +59,7 @@ namespace core {
     }
 
     template <typename T>
-    uint16_t BitPragmatic<T>::computeBits(T act, T wgt, uint8_t act_prec, uint8_t wgt_prec, uint8_t network_bits) {
+    uint16_t BitPragmatic<T>::computeBits(T act, T wgt) {
 
         if (TCT) {
             if(wgt == 0) return 0;
@@ -67,7 +67,7 @@ namespace core {
 
         uint16_t act_bits = act;
         act_bits = BOOTH_ENCODING ? booth_encoding(act_bits) : act_bits;
-        return effectualBits(act_bits) * network_bits;
+        return effectualBits(act_bits) * this->network_bits;
     }
 
     template class BitPragmatic<uint16_t>;

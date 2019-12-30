@@ -15,8 +15,7 @@ namespace core {
 
     protected:
 
-        /** Linear layer */
-        bool linear = false;
+        /* SIMULATION PARAMETERS */
 
         /** Column index */
         uint64_t column_index = 0;
@@ -24,13 +23,28 @@ namespace core {
         /** Column cycles */
         std::vector<std::vector<uint64_t>> column_cycles;
 
+        /** Activations precision */
+        int act_prec = 0;
+
+        /** Weights precision */
+        int wgt_prec = 0;
+
+        /** Network bits */
+        int network_bits = 0;
+
+        /** Linear layer */
+        bool linear = false;
+
         /* STATISTICS */
 
         /** Number of cycles */
         uint64_t cycles = 0;
 
-        /** Number of stall cycles */
-        uint64_t stall_cycles = 0;
+        /** Number of PE stall cycles */
+        uint64_t pe_stall_cycles = 0;
+
+        /** Number of column stall cycles */
+        uint64_t column_stall_cycles = 0;
 
         /** Scheduled PEs */
         uint64_t scheduled_pe = 0;
@@ -43,18 +57,31 @@ namespace core {
         /* AUXILIARY FUNCTIONS */
 
         /**
-         * Initialise stats to zero
-         * @param COLUMNS Number of columns
-         * @param TILES Number of tiles
-         * @param _linear Linear layer
+         * Initialise layer
+         * @param _act_prec     Activations precision
+         * @param _wgt_prec     Weights precision
+         * @param _network_bits Network bits
+         * @param _linear       Linear layer
          */
-        void initialise_batch(uint64_t COLUMNS, uint64_t TILES, bool _linear) {
+        virtual void initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear) {
+            act_prec = _act_prec;
+            wgt_prec = _wgt_prec;
+            network_bits = _network_bits;
             linear = _linear;
+        }
+
+        /**
+         * Initialise stats to zero
+         * @param COLUMNS   Number of columns
+         * @param TILES     Number of tiles
+         */
+        virtual void initialise_batch(uint64_t COLUMNS, uint64_t TILES) {
             column_cycles = std::vector<std::vector<uint64_t>>(TILES, std::vector<uint64_t>(COLUMNS, 0));
             column_index = 0;
 
             cycles = 0;
-            stall_cycles = 0;
+            pe_stall_cycles = 0;
+            column_stall_cycles = 0;
             scheduled_pe = 0;
             idle_pe = 0;
         }
@@ -68,11 +95,19 @@ namespace core {
         }
 
         /**
-         * Get number of stall cycles
-         * @return Stall cycles
+         * Get number of pe stall cycles
+         * @return PE stall cycles
          */
-        uint64_t getStallCycles() const {
-            return stall_cycles;
+        uint64_t getPEStallCycles() const {
+            return pe_stall_cycles;
+        }
+
+        /**
+         * Get number of column stall cycles
+         * @return Column stall cycles
+         */
+        uint64_t getColumnStallCycles() const {
+            return column_stall_cycles;
         }
 
         /**
@@ -127,10 +162,8 @@ namespace core {
         /**
          * Calculate cycles for all the tiles
          * @param tiles_data Processing information for all the tiles
-         * @param act_prec Activations precision
-         * @param wgt_prec Weights precision
          */
-        virtual void process_tiles(const std::vector<TileData<T>> &tiles_data, int act_prec, int wgt_prec) = 0;
+        virtual void process_tiles(const std::vector<TileData<T>> &tiles_data) = 0;
 
         /* POTENTIALS */
 
@@ -147,14 +180,11 @@ namespace core {
         virtual std::string header_pot() = 0;
 
         /** Compute number of one bit multiplications given a weights and an activation
-         * @param act           Activation
-         * @param wgt           Weight
-         * @param act_prec      Activation layer precision
-         * @param wgt_prec      Weight layer precision
-         * @param network_bits  Maximum number of bits in the network
-         * @return              Number of one bit multiplications
+         * @param act   Activation
+         * @param wgt   Weight
+         * @return      Number of one bit multiplications
          */
-        virtual uint16_t computeBits(T act, T wgt, uint8_t act_prec, uint8_t wgt_prec, uint8_t network_bits) = 0;
+        virtual uint16_t computeBits(T act, T wgt) = 0;
 
     };
 

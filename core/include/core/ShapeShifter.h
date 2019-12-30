@@ -31,14 +31,32 @@ namespace core {
         /** BitTactical simulation */
         const bool TCT;
 
+        /** Activations mask to remove negative numbers */
+        uint16_t act_mask = 0;
+
         /* AUXILIARY FUNCTIONS */
+
+        /**
+         * Initialise layer
+         * @param _act_prec     Activations precision
+         * @param _wgt_prec     Weights precision
+         * @param _network_bits Network bits
+         * @param _linear       Linear layer
+         */
+        void initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear);
+
+        /**
+         * Initialise stats to zero
+         * @param COLUMNS   Number of columns
+         * @param TILES     Number of tiles
+         */
+        void initialise_batch(uint64_t COLUMNS, uint64_t TILES);
 
         /**
          * Get number of cycles
          * @return Cycles
          */
         uint64_t getCycles() const override;
-
 
         /**
          * Return name of the class
@@ -76,10 +94,8 @@ namespace core {
         /**
          * Calculate cycles for all the tiles
          * @param tiles_data Processing information for all the tiles
-         * @param act_prec Activations precision
-         * @param wgt_prec Weights precision
          */
-        void process_tiles(const std::vector<TileData<T>> &tiles_data, int act_prec, int wgt_prec) override;
+        void process_tiles(const std::vector<TileData<T>> &tiles_data) override;
 
         /* POTENTIALS */
 
@@ -98,12 +114,9 @@ namespace core {
         /** Compute number of one bit multiplications given a weights and an activation
          * @param act           Activation
          * @param wgt           Weight
-         * @param act_prec      Activation layer precision
-         * @param wgt_prec      Weight layer precision
-         * @param network_bits  Maximum number of bits in the network
          * @return              Number of one bit multiplications
          */
-        uint16_t computeBits(T act, T wgt, uint8_t act_prec, uint8_t wgt_prec, uint8_t network_bits) override;
+        uint16_t computeBits(T act, T wgt) override;
 
     public:
 

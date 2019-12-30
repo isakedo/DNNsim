@@ -79,6 +79,34 @@ namespace sys {
     }
 
     /**
+     * Return the minimum of a 1D vector
+     * @tparam T Data type of the stat
+     * @param vector_stat 1D Vector with the stats
+     * @return Min value in the vector
+     */
+    template <typename T>
+    T get_min(const std::vector<T> &vector_stat)
+    {
+        return *min_element(vector_stat.begin(), vector_stat.end());
+    }
+
+    /**
+     * Return the minimum of a 2D vector
+     * @tparam T Data type of the stat
+     * @param vector_stat 2D Vector with the stats
+     * @return Min value in the vector
+     */
+    template <typename T>
+    T get_min(const std::vector<std::vector<T>> &vector_stat)
+    {
+        std::vector<T> mins = std::vector<T>(vector_stat.size(), 0);
+        for(uint64_t i = 0; i < vector_stat.size(); i++) {
+            mins[i] = get_min(vector_stat[i]);
+        }
+        return get_min(mins);
+    }
+
+    /**
      * Return the maximum of a 1D vector
      * @tparam T Data type of the stat
      * @param vector_stat 1D Vector with the stats

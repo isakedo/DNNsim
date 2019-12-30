@@ -131,7 +131,8 @@ namespace core {
 
         // Architecture stats
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
-        auto stall_cycles = stats.register_uint_t("stall cycles", 0, sys::AverageTotal);
+        auto pe_stall_cycles = stats.register_uint_t("PE stall cycles", 0, sys::AverageTotal);
+        auto column_stall_cycles = stats.register_uint_t("column stall cycles", 0, sys::AverageTotal);
         auto scheduled_pe = stats.register_uint_t("scheduled PEs", 0, sys::AverageTotal);
         auto idle_pe = stats.register_uint_t("idle PEs", 0, sys::AverageTotal);
 
@@ -144,6 +145,7 @@ namespace core {
         auto act_precision = stats.register_uint_t("activations precision", 0, sys::Average);
         auto wgt_precision = stats.register_uint_t("weights precision", 0, sys::Average);
 
+        auto network_bits = network.getNetwork_bits();
         for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
@@ -209,6 +211,7 @@ namespace core {
             auto COLUMNS = N_COLUMNS / columns_per_act;
             auto ROWS = N_ROWS / rows_per_wgt;
 
+            arch->initialise_layer(act_prec, wgt_prec, network_bits, fc || lstm);
             dataflow->initialise_layer(act, wgt, arch->schedule(), fc, lstm, R, Ox, Oy, stride, N_LANES, COLUMNS, ROWS,
                     N_TILES);
 
@@ -218,12 +221,12 @@ namespace core {
                 OutputTensor sim_output = OutputTensor(num_filters, std::vector<std::vector<double>>(Ox,
                         std::vector<double>(Oy, 0)));
 
-                arch->initialise_batch(COLUMNS, N_TILES, fc || lstm);
+                arch->initialise_batch(COLUMNS, N_TILES);
                 dataflow->initialise_batch(batch);
 
                 auto tiles_data = std::vector<TileData<T>>(N_TILES, TileData<T>());
                 while(dataflow->next_dataflow_step(tiles_data)) {
-                    arch->process_tiles(tiles_data, act_prec, wgt_prec);
+                    arch->process_tiles(tiles_data);
                     if (this->CHECK) calculate_output(sim_output, tiles_data);
                 }
 
@@ -231,7 +234,8 @@ namespace core {
 
                 // Dump stats
                 cycles->value[layer_it][batch] = arch->getCycles();
-                stall_cycles->value[layer_it][batch] = arch->getStallCycles();
+                pe_stall_cycles->value[layer_it][batch] = arch->getPEStallCycles();
+                column_stall_cycles->value[layer_it][batch] = arch->getColumnStallCycles();
                 scheduled_pe->value[layer_it][batch] = arch->getScheduledPe();
                 idle_pe->value[layer_it][batch] = arch->getIdlePe();
 
@@ -338,6 +342,8 @@ namespace core {
                     num_filters * wgt_channels * R;
             uint64_t max_bit_counter = max_par_counter * MAX_BITS;
 
+            arch->initialise_layer(act_prec, wgt_prec, network_bits, fc || lstm);
+
             for(int n = 0; n < batch_size; ++n) {
 
                 // Stats
@@ -363,8 +369,7 @@ namespace core {
                                         for (int k = 0; k < wgt_channels; ++k) {
                                             T act_bits = act.get(n, start_group + k, stride * x + i, stride * y + j);
                                             T wgt_bits = wgt.get(m, k, i, j);
-                                            bit_counter += arch->computeBits(act_bits, wgt_bits, act_prec, wgt_prec,
-                                                    network_bits);
+                                            bit_counter += arch->computeBits(act_bits, wgt_bits);
                                         }
                                     }
                                 }
@@ -379,7 +384,7 @@ namespace core {
                             for (int k = 0; k < wgt_channels; ++k) {
                                 T act_bits = lstm ? act.get(r, n, k) : act.get(n, k);
                                 T wgt_bits = wgt.get(m, k);
-                                bit_counter += arch->computeBits(act_bits, wgt_bits, act_prec, wgt_prec, network_bits);
+                                bit_counter += arch->computeBits(act_bits, wgt_bits);
                             }
                         }
                     }

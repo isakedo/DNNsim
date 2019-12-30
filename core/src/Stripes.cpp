@@ -33,21 +33,21 @@ namespace core {
     }
 
     template <typename T>
-    void Stripes<T>::process_tiles(const std::vector<TileData<T>> &tiles_data, int act_prec, int wgt_prec) {
+    void Stripes<T>::process_tiles(const std::vector<TileData<T>> &tiles_data) {
 
         if (this->linear) {
 
             if(this->cycles < this->column_cycles[0][this->column_index]) {
-                this->stall_cycles += this->column_cycles[0][this->column_index] - this->cycles;
+                this->column_stall_cycles += this->column_cycles[0][this->column_index] - this->cycles;
                 this->cycles = this->column_cycles[0][this->column_index];
             }
 
-            this->column_cycles[0][this->column_index] = this->cycles + act_prec;
+            this->column_cycles[0][this->column_index] = this->cycles + this->act_prec;
             this->column_index = (this->column_index + 1) % this->column_cycles.size();
             this->cycles++;
 
         } else {
-            this->cycles += act_prec;
+            this->cycles += this->act_prec;
         }
 
         for (const auto &tile_data : tiles_data) {
@@ -64,6 +64,7 @@ namespace core {
                 this->scheduled_pe += tile_data.windows.size() * tile_data.filters.size();
                 this->idle_pe += (COLUMNS * ROWS - tile_data.windows.size() * tile_data.filters.size());
             }
+
         }
 
     }
@@ -81,8 +82,8 @@ namespace core {
     }
 
     template <typename T>
-    uint16_t Stripes<T>::computeBits(T act, T wgt, uint8_t act_prec, uint8_t wgt_prec, uint8_t network_bits) {
-        return act_prec * network_bits;
+    uint16_t Stripes<T>::computeBits(T act, T wgt) {
+        return this->act_prec * this->network_bits;
     }
 
     template class Stripes<uint16_t>;
