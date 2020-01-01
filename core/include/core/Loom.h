@@ -16,8 +16,8 @@ namespace core {
 
         /* PARAMETERS */
 
-        /** Number of activations per group */
-        const uint32_t PRECISION_GRANULARITY;
+        /** Number of columns/rows per group */
+        const uint32_t GROUP_SIZE;
 
         /** Number of bits in series that the PE process */
         const uint32_t PE_SERIAL_BITS;
@@ -126,14 +126,14 @@ namespace core {
     public:
 
         /** Constructor
-         * @param _PRECISION_GRANULARITY    Granularity for dynamic precisions
+         * @param _GROUP_SIZE               Granularity for dynamic precisions
          * @param _PE_SERIAL_BITS           Number of bits in series that the PE process
          * @param _MINOR_BIT                Calculate also the minor bit for dynamic precisions
          * @param _DYNAMIC_WEIGHTS          Calculate dynamic precision for weights rather than profiled
          */
-        Loom(uint32_t _PRECISION_GRANULARITY, uint32_t _PE_SERIAL_BITS, bool _MINOR_BIT, bool _DYNAMIC_WEIGHTS) :
-                PRECISION_GRANULARITY(_PRECISION_GRANULARITY), PE_SERIAL_BITS(_PE_SERIAL_BITS),
-                MINOR_BIT(_MINOR_BIT), DYNAMIC_WEIGHTS(_DYNAMIC_WEIGHTS) {}
+        Loom(uint32_t _GROUP_SIZE, uint32_t _PE_SERIAL_BITS, bool _MINOR_BIT, bool _DYNAMIC_WEIGHTS) :
+                GROUP_SIZE(_GROUP_SIZE), PE_SERIAL_BITS(_PE_SERIAL_BITS), MINOR_BIT(_MINOR_BIT),
+                DYNAMIC_WEIGHTS(_DYNAMIC_WEIGHTS) {}
 
     };
 

@@ -48,8 +48,8 @@ namespace sys {
                 /** Booth-like encoding */
                 bool booth = false;
 
-                /** Precision granularity */
-                uint32_t precision_granularity = 0;
+                /** Group size */
+                uint32_t group_size = 0;
 
                 /** Minor bit */
                 bool minor_bit = false;

@@ -115,13 +115,12 @@ namespace sys {
             experiment.bits_first_stage = experiment_proto.bits_first_stage();
 
             // ShapeShifter-Loom
-            experiment.precision_granularity = experiment_proto.precision_granularity() < 1 ? 16 :
-                    experiment_proto.precision_granularity();
+            experiment.group_size = experiment_proto.group_size() < 1 ? 1 : experiment_proto.group_size();
             experiment.minor_bit = experiment_proto.minor_bit();
 
             if((experiment_proto.architecture() == "ShapeShifter" || experiment_proto.architecture() == "Loon") &&
-                    (experiment.n_columns % experiment.precision_granularity != 0))
-                throw std::runtime_error("Precision granularity on network " + simulate.network +
+                    (experiment.n_columns % experiment.group_size != 0))
+                throw std::runtime_error("Group size on network " + simulate.network +
                         " must be divisor of the columns.");
 
             // Loom
@@ -130,8 +129,8 @@ namespace sys {
                     experiment_proto.pe_serial_bits();
 
             if(experiment_proto.architecture() == "Loom" &&
-                    (experiment.n_rows % experiment.precision_granularity != 0))
-                throw std::runtime_error("Precision granularity on network " + simulate.network +
+                    (experiment.n_rows % experiment.group_size != 0))
+                throw std::runtime_error("Group size on network " + simulate.network +
                         " must be divisor of the rows.");
 
             // BitTactical

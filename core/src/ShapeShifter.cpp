@@ -15,7 +15,7 @@ namespace core {
     void ShapeShifter<T>::initialise_batch(uint64_t COLUMNS, uint64_t TILES) {
         Architecture<T>::initialise_batch(COLUMNS, TILES);
 
-        auto GROUPS = COLUMNS / PRECISION_GRANULARITY;
+        auto GROUPS = COLUMNS / GROUP_SIZE;
         this->column_cycles = std::vector<std::vector<uint64_t>>(TILES, std::vector<uint64_t>(GROUPS, 0));
     }
 
@@ -38,13 +38,13 @@ namespace core {
 
     template <typename T>
     std::string ShapeShifter<T>::filename() {
-        return "_PG" + std::to_string(PRECISION_GRANULARITY) + "_CR" + std::to_string(COLUMN_REGISTERS) +
+        return "_GS" + std::to_string(GROUP_SIZE) + "_CR" + std::to_string(COLUMN_REGISTERS) +
                (MINOR_BIT ? "_MB" : "");
     }
 
     template <typename T>
     std::string ShapeShifter<T>::header() {
-        std::string header = "Number of values per group: " + std::to_string(PRECISION_GRANULARITY) + "\n";
+        std::string header = "Number of columns per group: " + std::to_string(GROUP_SIZE) + "\n";
         header += "Number of run-ahead input registers per column: " + std::to_string(COLUMN_REGISTERS) + "\n";
         header +=  MINOR_BIT ? "Trim bits from the bottom\n" : "";
         return header;

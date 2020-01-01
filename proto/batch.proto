@@ -24,7 +24,7 @@ message Batch {
             uint32 bits_first_stage = 10;
 
             // For ShapeShifter-Loom
-            uint32 precision_granularity = 11;
+            uint32 group_size = 11;
             bool minor_bit = 12;
 
             // For Loom

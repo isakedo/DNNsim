@@ -268,7 +268,7 @@ int main(int argc, char *argv[]) {
 
                             } else if (experiment.architecture == "ShapeShifter") {
                                 std::shared_ptr<core::Architecture<uint16_t>> arch =
-                                        std::make_shared<core::ShapeShifter<uint16_t>>(experiment.precision_granularity,
+                                        std::make_shared<core::ShapeShifter<uint16_t>>(experiment.group_size,
                                         experiment.column_registers, experiment.minor_bit, experiment.diffy,
                                         experiment.tactical);
 
@@ -277,7 +277,7 @@ int main(int argc, char *argv[]) {
 
                             } else if (experiment.architecture == "Loom") {
                                 std::shared_ptr<core::Architecture<uint16_t>> arch =
-                                        std::make_shared<core::Loom<uint16_t>>(experiment.precision_granularity,
+                                        std::make_shared<core::Loom<uint16_t>>(experiment.group_size,
                                         experiment.pe_serial_bits, experiment.minor_bit, experiment.dynamic_weights);
 
                                 if(experiment.task == "Cycles") DNNsim.run(network, arch, dataflow);

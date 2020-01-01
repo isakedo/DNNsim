@@ -31,13 +31,13 @@ namespace core {
 
     template <typename T>
     std::string Loom<T>::filename() {
-        return "_PG" + std::to_string(PRECISION_GRANULARITY) + "_PSB" + std::to_string(PE_SERIAL_BITS) +
+        return "_GS" + std::to_string(GROUP_SIZE) + "_PSB" + std::to_string(PE_SERIAL_BITS) +
                (MINOR_BIT ? "_MB" : "");
     }
 
     template <typename T>
     std::string Loom<T>::header() {
-        std::string header = "Number of values per group: " + std::to_string(PRECISION_GRANULARITY) + "\n";
+        std::string header = "Number of columns/rows per group: " + std::to_string(GROUP_SIZE) + "\n";
         header += "Number of activations processing bits per PE: " + std::to_string(PE_SERIAL_BITS) + "\n";
         header +=  MINOR_BIT ? "Trim bits from the bottom\n" : "";
         return header;
@@ -49,8 +49,51 @@ namespace core {
     }
 
     template <typename T>
+    void calculate_dynamic_cycles(const BufferRow<T> &row, int idx, int lanes, uint16_t mask, int &min_group_bit,
+            int &max_group_bit) {
+
+        for (int lane = 0; lane < lanes; ++lane) {
+
+            auto bits = std::get<0>(row[idx + lane]);
+
+            bool neg = false;
+            if((bits & mask) != 0) {
+                bits = bits & ~mask;
+                neg = true;
+            }
+
+            const auto &min_max_bits = minMax(bits);
+
+            auto min_bit = std::get<0>(min_max_bits);
+            auto max_bit = std::get<1>(min_max_bits);
+
+            if (neg) max_bit += 1;
+
+            if(min_bit < min_group_bit) min_group_bit = min_bit;
+            if(max_bit > max_group_bit) max_group_bit = max_bit;
+
+        }
+
+    }
+
+    template <typename T>
     void Loom<T>::process_linear(const std::vector<TileData<T>> &tiles_data) {
 
+        auto slowest_column = 0;
+        for (int t = 0; t < tiles_data.size(); ++t) {
+            const auto &tile_data = tiles_data[t];
+
+            auto column_end_cycles = this->column_cycles[t][this->column_index];
+            if (column_end_cycles > slowest_column) slowest_column = column_end_cycles;
+
+        }
+
+        if (this->cycles < slowest_column) {
+            this->column_stall_cycles += slowest_column - this->cycles;
+            this->cycles = slowest_column;
+        }
+
+        auto max_pe_stall_cycles = 0;
         for (int t = 0; t < tiles_data.size(); ++t) {
             const auto &tile_data = tiles_data[t];
 
@@ -64,39 +107,70 @@ namespace core {
                 this->cycles = this->column_cycles[t][this->column_index];
             }
 
-            auto max_bit = 0;
-            auto min_bit = 16;
+            auto max_act_bit = 0;
+            auto min_act_bit = INT_MAX;
             auto window_cycles = 0;
             auto window_idx = this->column_index * tile_data.lanes;
-            for (int lane = 0; lane < tile_data.lanes; ++lane) {
 
-                auto act_bits = std::get<0>(tile_data.act_row.front()[window_idx + lane]);
+            calculate_dynamic_cycles(tile_data.act_row.front(), window_idx, tile_data.lanes, act_mask, min_act_bit,
+                    max_act_bit);
 
-                bool act_neg = false;
-                if((act_bits & act_mask) != 0) {
-                    act_bits = act_bits & ~act_mask;
-                    act_neg = true;
-                }
-
-                const auto &min_max_act_bits = minMax(act_bits);
-
-                auto min_act_bit = std::get<0>(min_max_act_bits);
-                auto max_act_bit = std::get<1>(min_max_act_bits);
-
-                if (act_neg) max_act_bit += 1;
-
-                if(min_act_bit < min_bit) min_bit = min_act_bit;
-                if(max_act_bit > max_bit) max_bit = max_act_bit;
-
-            }
-
-            window_cycles = MINOR_BIT ? min_bit > max_bit ? 1 : max_bit - min_bit + 1 : max_bit + 1;
+            window_cycles = MINOR_BIT ? min_act_bit > max_act_bit ? 1 : max_act_bit - min_act_bit + 1 : max_act_bit + 1;
 
             auto column_cycles = 0;
             if (DYNAMIC_WEIGHTS) {
 
+                auto ROW_GROUPS = ROWS / GROUP_SIZE;
+                auto filter_cycles = std::vector<int>(ROW_GROUPS, 0);
+
+                auto group = 0;
+                auto group_count = 0;
+                auto max_wgt_bit = 0;
+                auto min_wgt_bit = INT_MAX;
+                for (int f = 0; f < tile_data.filters.size(); ++f) {
+                    auto filter_idx = f * tile_data.lanes;
+
+                    calculate_dynamic_cycles(tile_data.wgt_row, filter_idx, tile_data.lanes, wgt_mask, min_wgt_bit,
+                            max_wgt_bit);
+
+                    group_count++;
+                    if (group_count >= GROUP_SIZE) {
+                        filter_cycles[group] = MINOR_BIT ?
+                                min_wgt_bit > max_wgt_bit ? 1 : max_wgt_bit - min_wgt_bit + 1 : max_wgt_bit + 1;
+
+                        group++;
+                        group_count = 0;
+                        max_wgt_bit = 0;
+                        min_wgt_bit = INT_MAX;
+                    }
+                }
+
+                if (group_count < GROUP_SIZE)
+                    filter_cycles[group] = MINOR_BIT ?
+                            min_wgt_bit > max_wgt_bit ? 1 : max_wgt_bit - min_wgt_bit + 1 : max_wgt_bit + 1;
+
+                // Calculate cycles
+                auto max_cycles = 0;
+                auto min_cycles = INT_MAX;
+                for (const auto &wgt_cycles : filter_cycles) {
+                    auto act_pe_cycles = (int)ceil(window_cycles / (double)PE_SERIAL_BITS);
+                    auto wgt_pe_cycles = (int)ceil(wgt_cycles / (double)PE_SERIAL_BITS);
+
+                    auto cycles = act_pe_cycles * wgt_pe_cycles;
+                    if (cycles > max_cycles) max_cycles = cycles;
+                    if (cycles < min_cycles) min_cycles = cycles;
+                }
+
+                column_cycles += max_cycles;
+
+                auto pe_stall_cycles = max_cycles - min_cycles;
+                if (pe_stall_cycles > max_pe_stall_cycles) max_pe_stall_cycles = pe_stall_cycles;
+
             } else {
-                column_cycles = window_cycles * this->wgt_prec;
+                auto act_pe_cycles = (int)ceil(window_cycles / (double)PE_SERIAL_BITS);
+                auto wgt_pe_cycles = (int)ceil(this->wgt_prec / (double)PE_SERIAL_BITS);
+
+                column_cycles = act_pe_cycles * wgt_pe_cycles;
             }
 
             this->column_cycles[t][this->column_index] = this->cycles + column_cycles;
@@ -108,12 +182,15 @@ namespace core {
 
         this->column_index = (this->column_index + 1) % this->column_cycles.size();
 
+        this->pe_stall_cycles += max_pe_stall_cycles;
+
     }
 
 
     template <typename T>
     void Loom<T>::process_convolution(const std::vector<TileData<T>> &tiles_data) {
 
+        auto max_pe_stall_cycles = 0;
         for (const auto &tile_data : tiles_data) {
 
             if (!tile_data.valid)
@@ -122,64 +199,102 @@ namespace core {
             auto ROWS = tile_data.wgt_row.size() / tile_data.lanes;
             auto COLUMNS = tile_data.wgt_row.size() / tile_data.lanes;
 
-            auto COLUMN_GROUPS = COLUMNS / PRECISION_GRANULARITY;
+            auto COLUMN_GROUPS = COLUMNS / GROUP_SIZE;
             auto window_cycles = std::vector<int>(COLUMN_GROUPS, 0);
 
             auto group = 0;
-            auto max_bit = 0;
-            auto min_bit = 16;
+            auto group_count = 0;
+            auto max_act_bit = 0;
+            auto min_act_bit = INT_MAX;
             for (int w = 0; w < tile_data.windows.size(); ++w) {
                 auto window_idx = w * tile_data.lanes;
 
-                for (int lane = 0; lane < tile_data.lanes; ++lane) {
+                calculate_dynamic_cycles(tile_data.act_row.front(), window_idx, tile_data.lanes, act_mask, min_act_bit,
+                        max_act_bit);
 
-                    auto act_bits = std::get<0>(tile_data.act_row.front()[window_idx + lane]);
-
-                    bool act_neg = false;
-                    if((act_bits & act_mask) != 0) {
-                        act_bits = act_bits & ~act_mask;
-                        act_neg = true;
-                    }
-
-                    const auto &min_max_act_bits = minMax(act_bits);
-
-                    auto min_act_bit = std::get<0>(min_max_act_bits);
-                    auto max_act_bit = std::get<1>(min_max_act_bits);
-
-                    if (act_neg) max_act_bit += 1;
-
-                    if(min_act_bit < min_bit) min_bit = min_act_bit;
-                    if(max_act_bit > max_bit) max_bit = max_act_bit;
-
-                }
-
-                if ((w % PRECISION_GRANULARITY) == 0) {
-                    window_cycles[group] = MINOR_BIT ? min_bit > max_bit ? 1 : max_bit - min_bit + 1 : max_bit + 1;
+                group_count++;
+                if (group_count >= GROUP_SIZE) {
+                    window_cycles[group] = MINOR_BIT ?
+                            min_act_bit > max_act_bit ? 1 : max_act_bit - min_act_bit + 1 : max_act_bit + 1;
 
                     group++;
-                    max_bit = 0;
-                    min_bit = 16;
+                    group_count = 0;
+                    max_act_bit = 0;
+                    min_act_bit = INT_MAX;
                 }
             }
 
-            if (group < COLUMN_GROUPS)
-                window_cycles[group] = MINOR_BIT ? min_bit > max_bit ? 1 : max_bit - min_bit + 1 : max_bit + 1;
+            if (group_count < GROUP_SIZE)
+                window_cycles[group] = MINOR_BIT ?
+                        min_act_bit > max_act_bit ? 1 : max_act_bit - min_act_bit + 1 : max_act_bit + 1;
 
             if (DYNAMIC_WEIGHTS) {
 
-            } else {
-                auto max_cycles = (int)ceil(sys::get_max(window_cycles) / (double)PE_SERIAL_BITS);
-                auto min_cycles = (int)ceil(sys::get_min(window_cycles) / (double)PE_SERIAL_BITS);
-                auto wgt_cycles = (int)ceil(this->wgt_prec / (double)PE_SERIAL_BITS);
+                auto ROW_GROUPS = ROWS / GROUP_SIZE;
+                auto filter_cycles = std::vector<int>(ROW_GROUPS, 0);
 
-                this->cycles += max_cycles * wgt_cycles;
-                this->pe_stall_cycles += (max_cycles * wgt_cycles) - (min_cycles * wgt_cycles);
+                group = 0;
+                group_count = 0;
+                auto max_wgt_bit = 0;
+                auto min_wgt_bit = 16;
+                for (int f = 0; f < tile_data.filters.size(); ++f) {
+                    auto filter_idx = f * tile_data.lanes;
+
+                    calculate_dynamic_cycles(tile_data.wgt_row, filter_idx, tile_data.lanes, wgt_mask, min_wgt_bit,
+                            max_wgt_bit);
+
+                    group_count++;
+                    if (group_count >= GROUP_SIZE) {
+                        filter_cycles[group] = MINOR_BIT ?
+                                min_wgt_bit > max_wgt_bit ? 1 : max_wgt_bit - min_wgt_bit + 1 : max_wgt_bit + 1;
+
+                        group++;
+                        group_count = 0;
+                        max_wgt_bit = 0;
+                        min_wgt_bit = INT_MAX;
+                    }
+                }
+
+                if (group_count < GROUP_SIZE)
+                    filter_cycles[group] = MINOR_BIT ?
+                            min_wgt_bit > max_wgt_bit ? 1 : max_wgt_bit - min_wgt_bit + 1 : max_wgt_bit + 1;
+
+                // Calculate cycles
+                auto max_cycles = 0;
+                auto min_cycles = INT_MAX;
+                for (const auto &act_cycles : window_cycles) {
+                    for (const auto &wgt_cycles : filter_cycles) {
+                        auto act_pe_cycles = (int)ceil(act_cycles / (double)PE_SERIAL_BITS);
+                        auto wgt_pe_cycles = (int)ceil(wgt_cycles / (double)PE_SERIAL_BITS);
+
+                        auto cycles = act_pe_cycles * wgt_pe_cycles;
+                        if (cycles > max_cycles) max_cycles = cycles;
+                        if (cycles < min_cycles) min_cycles = cycles;
+                    }
+                }
+
+                this->cycles += max_cycles;
+
+                auto pe_stall_cycles = max_cycles - min_cycles;
+                if (pe_stall_cycles > max_pe_stall_cycles) max_pe_stall_cycles = pe_stall_cycles;
+
+            } else {
+                auto max_act_cycles = (int)ceil(sys::get_max(window_cycles) / (double)PE_SERIAL_BITS);
+                auto min_act_cycles = (int)ceil(sys::get_min(window_cycles) / (double)PE_SERIAL_BITS);
+                auto wgt_pe_cycles = (int)ceil(this->wgt_prec / (double)PE_SERIAL_BITS);
+
+                this->cycles += max_act_cycles * wgt_pe_cycles;
+
+                auto pe_stall_cycles = (max_act_cycles - min_act_cycles) * wgt_pe_cycles;
+                if (pe_stall_cycles > max_pe_stall_cycles) max_pe_stall_cycles = pe_stall_cycles;
             }
 
             this->scheduled_pe += tile_data.windows.size() * tile_data.filters.size();
             this->idle_pe += (COLUMNS * ROWS - tile_data.windows.size() * tile_data.filters.size());
 
         }
+
+        this->pe_stall_cycles += max_pe_stall_cycles;
 
     }
 
@@ -218,9 +333,8 @@ namespace core {
         auto act_width = MINOR_BIT ? min_act_bit > max_act_bit ? 0 : max_act_bit - min_act_bit + 1u :
                 max_act_bit + 1u;
 
-        if (!DYNAMIC_WEIGHTS) {
-            return act_width * this->wgt_prec;
-        } else {
+        if (DYNAMIC_WEIGHTS) {
+
             bool neg_wgt = false;
             if((wgt & wgt_mask) != 0) {
                 wgt = wgt & ~wgt_mask;
@@ -236,6 +350,8 @@ namespace core {
                     max_wgt_bit + 1u;
 
             return act_width * wgt_width;
+        } else {
+            return act_width * this->wgt_prec;
         }
 
     }

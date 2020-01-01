@@ -16,8 +16,8 @@ namespace core {
 
         /* PARAMETERS */
 
-        /** Number of activations per group */
-        const uint32_t PRECISION_GRANULARITY;
+        /** Number of columns per group */
+        const uint32_t GROUP_SIZE;
 
         /** Number of registers per SIP */
         const uint32_t COLUMN_REGISTERS;
@@ -121,15 +121,15 @@ namespace core {
     public:
 
         /** Constructor
-         * @param _PRECISION_GRANULARITY    Granularity for dynamic precisions
+         * @param _GROUP_SIZE               Granularity for dynamic precisions
          * @param _COLUMN_REGISTERS         Number of registers per SIP
          * @param _MINOR_BIT                Calculate also the minor bit for dynamic precisions
          * @param _DIFFY                    Enable Diffy
          * @param _TCT                      Enable BitTactical simulation
          */
-        ShapeShifter(uint32_t _PRECISION_GRANULARITY, uint32_t _COLUMN_REGISTERS, bool _MINOR_BIT, bool _DIFFY,
-                bool _TCT) : PRECISION_GRANULARITY(_PRECISION_GRANULARITY), COLUMN_REGISTERS(_COLUMN_REGISTERS),
-                MINOR_BIT(_MINOR_BIT), DIFFY(_DIFFY), TCT(_TCT) {}
+        ShapeShifter(uint32_t _GROUP_SIZE, uint32_t _COLUMN_REGISTERS, bool _MINOR_BIT, bool _DIFFY, bool _TCT) :
+                GROUP_SIZE(_GROUP_SIZE), COLUMN_REGISTERS(_COLUMN_REGISTERS), MINOR_BIT(_MINOR_BIT), DIFFY(_DIFFY),
+                TCT(_TCT) {}
 
     };
 
