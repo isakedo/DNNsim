@@ -107,13 +107,10 @@ namespace core {
 
             auto ROWS = tile_data.wgt_row.size() / tile_data.lanes;
 
-            if(this->cycles < this->column_cycles[t][this->column_index]) {
-                this->column_stall_cycles += this->column_cycles[t][this->column_index] - this->cycles;
-                this->cycles = this->column_cycles[t][this->column_index];
-            }
-
             auto max_act_bit = 0;
             auto min_act_bit = INT_MAX;
+
+            auto column_cycles = 0;
             auto window_cycles = 0;
             auto window_idx = this->column_index * tile_data.lanes;
 
@@ -122,7 +119,6 @@ namespace core {
 
             window_cycles = MINOR_BIT ? min_act_bit > max_act_bit ? 1 : max_act_bit - min_act_bit + 1 : max_act_bit + 1;
 
-            auto column_cycles = 0;
             if (DYNAMIC_WEIGHTS) {
 
                 auto ROW_GROUPS = ceil(ROWS / (double)GROUP_SIZE);

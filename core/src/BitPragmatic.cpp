@@ -130,6 +130,67 @@ namespace core {
     template <typename T>
     void BitPragmatic<T>::process_linear(const std::vector<core::TileData<T>> &tiles_data) {
 
+        auto slowest_column = 0;
+        for (int t = 0; t < tiles_data.size(); ++t) {
+            const auto &tile_data = tiles_data[t];
+
+            auto column_end_cycles = this->column_cycles[t][this->column_index];
+            if (column_end_cycles > slowest_column) slowest_column = column_end_cycles;
+
+        }
+
+        if (this->cycles < slowest_column) {
+            this->column_stall_cycles += slowest_column - this->cycles;
+            this->cycles = slowest_column;
+        }
+
+        auto max_pe_stall_cycles = 0;
+        for (int t = 0; t < tiles_data.size(); ++t) {
+            const auto &tile_data = tiles_data[t];
+
+            if (!tile_data.valid)
+                continue;
+
+            auto ROWS = tiles_data[t].wgt_row.size() / tiles_data[t].lanes;
+
+            auto column_cycles = 0;
+            auto window_idx = this->column_index * tile_data.lanes;
+
+            if (TCT) {
+
+                auto max_cycles = 0;
+                auto min_cycles = INT_MAX;
+                for (int f = 0; f < tile_data.filters.size(); ++f) {
+                    auto filter_idx = f * tile_data.lanes;
+
+                    auto cycles = process_pe(tile_data.act_row, tile_data.wgt_row, window_idx, filter_idx,
+                            tile_data.lanes, tile_data.time);
+                    if (cycles > max_cycles) max_cycles = cycles;
+                    if (cycles < min_cycles) min_cycles = cycles;
+
+                } // Filter
+
+                column_cycles = max_cycles;
+                auto pe_stall_cycles = max_cycles - min_cycles;
+                if (pe_stall_cycles > max_pe_stall_cycles) max_pe_stall_cycles = pe_stall_cycles;
+
+
+            } else {
+               column_cycles = process_pe(tile_data.act_row, BufferRow<T>(), window_idx, -1, tile_data.lanes, -1);
+            }
+
+            this->column_cycles[t][this->column_index] = this->cycles + column_cycles;
+            this->scheduled_pe += tiles_data[t].filters.size();
+            this->idle_pe += ROWS - tiles_data[t].filters.size();
+            this->cycles++;
+
+        }
+
+        this->column_index = (this->column_index + 1) % this->column_cycles.front().size();
+
+        this->pe_stall_cycles += max_pe_stall_cycles;
+
+
     }
 
     template <typename T>
