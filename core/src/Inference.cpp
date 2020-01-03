@@ -99,8 +99,7 @@ namespace core {
                     for (int lane = 0; lane < tile_data.lanes; ++lane) {
 
                         auto wgt_bits = std::get<0>(tile_data.wgt_row[filter_idx + lane]);
-                        auto time_h = (std::get<1>(tile_data.wgt_row[filter_idx + lane]) - tile_data.time) %
-                                tile_data.num_act_rows;
+                        auto time_h = (std::get<1>(tile_data.wgt_row[filter_idx + lane]) - tile_data.time);
                         auto lane_d = std::get<2>(tile_data.wgt_row[filter_idx + lane]);
 
                         if (time_h < 0) continue;

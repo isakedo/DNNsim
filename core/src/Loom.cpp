@@ -120,7 +120,7 @@ namespace core {
             auto column_cycles = 0;
             if (DYNAMIC_WEIGHTS) {
 
-                auto ROW_GROUPS = ROWS / GROUP_SIZE;
+                auto ROW_GROUPS = ceil(ROWS / (double)GROUP_SIZE);
                 auto filter_cycles = std::vector<int>(ROW_GROUPS, 0);
 
                 auto group = 0;
@@ -154,9 +154,8 @@ namespace core {
                 auto min_cycles = INT_MAX;
                 for (const auto &wgt_cycles : filter_cycles) {
                     auto act_pe_cycles = (int)ceil(window_cycles / (double)PE_SERIAL_BITS);
-                    auto wgt_pe_cycles = (int)ceil(wgt_cycles / (double)PE_SERIAL_BITS);
 
-                    auto cycles = act_pe_cycles * wgt_pe_cycles;
+                    auto cycles = act_pe_cycles * wgt_cycles;
                     if (cycles > max_cycles) max_cycles = cycles;
                     if (cycles < min_cycles) min_cycles = cycles;
                 }
@@ -168,9 +167,8 @@ namespace core {
 
             } else {
                 auto act_pe_cycles = (int)ceil(window_cycles / (double)PE_SERIAL_BITS);
-                auto wgt_pe_cycles = (int)ceil(this->wgt_prec / (double)PE_SERIAL_BITS);
 
-                column_cycles = act_pe_cycles * wgt_pe_cycles;
+                column_cycles = act_pe_cycles * this->wgt_prec;
             }
 
             this->column_cycles[t][this->column_index] = this->cycles + column_cycles;
@@ -199,7 +197,7 @@ namespace core {
             auto ROWS = tile_data.wgt_row.size() / tile_data.lanes;
             auto COLUMNS = tile_data.wgt_row.size() / tile_data.lanes;
 
-            auto COLUMN_GROUPS = COLUMNS / GROUP_SIZE;
+            auto COLUMN_GROUPS = ceil(COLUMNS / (double)GROUP_SIZE);
             auto window_cycles = std::vector<int>(COLUMN_GROUPS, 0);
 
             auto group = 0;
@@ -230,7 +228,7 @@ namespace core {
 
             if (DYNAMIC_WEIGHTS) {
 
-                auto ROW_GROUPS = ROWS / GROUP_SIZE;
+                auto ROW_GROUPS = ceil(ROWS / (double)GROUP_SIZE);
                 auto filter_cycles = std::vector<int>(ROW_GROUPS, 0);
 
                 group = 0;
@@ -265,9 +263,8 @@ namespace core {
                 for (const auto &act_cycles : window_cycles) {
                     for (const auto &wgt_cycles : filter_cycles) {
                         auto act_pe_cycles = (int)ceil(act_cycles / (double)PE_SERIAL_BITS);
-                        auto wgt_pe_cycles = (int)ceil(wgt_cycles / (double)PE_SERIAL_BITS);
 
-                        auto cycles = act_pe_cycles * wgt_pe_cycles;
+                        auto cycles = act_pe_cycles * wgt_cycles;
                         if (cycles > max_cycles) max_cycles = cycles;
                         if (cycles < min_cycles) min_cycles = cycles;
                     }
@@ -281,11 +278,10 @@ namespace core {
             } else {
                 auto max_act_cycles = (int)ceil(sys::get_max(window_cycles) / (double)PE_SERIAL_BITS);
                 auto min_act_cycles = (int)ceil(sys::get_min(window_cycles) / (double)PE_SERIAL_BITS);
-                auto wgt_pe_cycles = (int)ceil(this->wgt_prec / (double)PE_SERIAL_BITS);
 
-                this->cycles += max_act_cycles * wgt_pe_cycles;
+                this->cycles += max_act_cycles * this->wgt_prec;
 
-                auto pe_stall_cycles = (max_act_cycles - min_act_cycles) * wgt_pe_cycles;
+                auto pe_stall_cycles = (max_act_cycles - min_act_cycles) * this->wgt_prec;
                 if (pe_stall_cycles > max_pe_stall_cycles) max_pe_stall_cycles = pe_stall_cycles;
             }
 

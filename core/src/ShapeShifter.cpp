@@ -15,7 +15,7 @@ namespace core {
     void ShapeShifter<T>::initialise_batch(uint64_t COLUMNS, uint64_t TILES) {
         Architecture<T>::initialise_batch(COLUMNS, TILES);
 
-        auto GROUPS = COLUMNS / GROUP_SIZE;
+        auto GROUPS = ceil(COLUMNS / (double)GROUP_SIZE);
         this->column_cycles = std::vector<std::vector<uint64_t>>(TILES, std::vector<uint64_t>(GROUPS, 0));
     }
 
@@ -56,8 +56,19 @@ namespace core {
     }
 
     template <typename T>
-    void ShapeShifter<T>::process_tiles(const std::vector<TileData<T>> &tiles_data) {
+    void ShapeShifter<T>::process_linear(const std::vector<core::TileData<T>> &tiles_data) {
 
+    }
+
+    template <typename T>
+    void ShapeShifter<T>::process_convolution(const std::vector<core::TileData<T>> &tiles_data) {
+
+    }
+
+    template <typename T>
+    void ShapeShifter<T>::process_tiles(const std::vector<TileData<T>> &tiles_data) {
+        if (this->linear) process_linear(tiles_data);
+        else process_convolution(tiles_data);
     }
 
     /* POTENTIALS */

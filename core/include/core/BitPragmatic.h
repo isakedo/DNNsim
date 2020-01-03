@@ -31,7 +31,29 @@ namespace core {
         /** BitTactical simulation */
         const bool TCT;
 
+        /** Previous ending cycles */
+        std::vector<std::vector<uint64_t>> previous_cycles;
+
+        /** Activations mask to remove negative numbers */
+        uint16_t act_mask = 0;
+
         /* AUXILIARY FUNCTIONS */
+
+        /**
+         * Initialise layer
+         * @param _act_prec     Activations precision
+         * @param _wgt_prec     Weights precision
+         * @param _network_bits Network bits
+         * @param _linear       Linear layer
+         */
+        void initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear);
+
+        /**
+         * Initialise stats to zero
+         * @param COLUMNS   Number of columns
+         * @param TILES     Number of tiles
+         */
+        void initialise_batch(uint64_t COLUMNS, uint64_t TILES);
 
         /**
          * Get number of cycles
@@ -71,6 +93,31 @@ namespace core {
          * @return True if weight buffer to schedule, False if not
          */
         bool schedule() override;
+
+        /**
+         * Calculate cycles for the current pe
+         * @param act_row       Act rows
+         * @param wgt_row       Wgt row
+         * @param window_idx    Window index
+         * @param filter_idx    Filter index
+         * @param lanes         Number of lanes
+         * @param time          Current time
+         * @return              Cycles for the PE
+         */
+        uint16_t process_pe(const BufferSet<T> &act_row, const BufferRow<T> &wgt_row, int window_idx, int filter_idx,
+                int lanes, int time);
+
+        /**
+         * Calculate cycles for linear layers
+         * @param tile_data Processing information for all the tiles
+         */
+        void process_linear(const std::vector<TileData<T>> &tiles_data);
+
+        /**
+         * Calculate cycles for convolutional layers
+         * @param tile_data Processing information for all the tiles
+         */
+        void process_convolution(const std::vector<TileData<T>> &tiles_data);
 
         /**
          * Calculate cycles for all the tiles

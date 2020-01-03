@@ -171,13 +171,6 @@ namespace core {
         return min_max_table[value];
     }
 
-    bool check_act_bits(const std::vector<std::queue<uint8_t>> &offsets) {
-        for (const auto &act_bits : offsets) {
-            if (!act_bits.empty()) return true;
-        }
-        return false;
-    }
-
     uint16_t sign_magnitude(short two_comp, uint16_t mask) {
         bool neg = two_comp < 0;
         int max_value = mask - 1;

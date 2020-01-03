@@ -97,7 +97,6 @@ namespace core {
                                 tiles_data[t].windows = this->windows;
                                 tiles_data[t].filters = this->filters[t];
                                 tiles_data[t].time = this->time[t];
-                                tiles_data[t].num_act_rows = num_act_rows;
                                 tiles_data[t].lanes = this->N_LANES;
                                 tiles_data[t].valid = true;
 

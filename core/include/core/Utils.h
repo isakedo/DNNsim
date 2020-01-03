@@ -34,7 +34,6 @@ namespace core {
         std::vector<WindowCoord> windows;
         std::vector<int> filters;
         int time = 0;
-        int num_act_rows = 0;
         int lanes = 0;
         bool valid = false;
     };
@@ -102,12 +101,6 @@ namespace core {
      * @return          Number of effectual bits
      */
     uint8_t effectualBits(uint16_t value);
-
-    /** Return true if all the queues of activation bits are empty
-     * @param offsets   Collection of activations with their explicit one positions in a queue
-     * @return          True if empty
-     */
-    bool check_act_bits(const std::vector<std::queue<uint8_t>> &offsets);
 
     /** Return value into sign-magnitude representation
      * @param two_comp  Signed value in two complement
