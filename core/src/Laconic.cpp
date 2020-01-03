@@ -121,7 +121,7 @@ namespace core {
                 continue;
 
             auto ROWS = tile_data.wgt_row.size() / tile_data.lanes;
-            auto COLUMNS = tile_data.wgt_row.size() / tile_data.lanes;
+            auto COLUMNS = tile_data.act_row.front().size() / tile_data.lanes;
 
             auto max_cycles = 0;
             auto min_cycles = INT_MAX;

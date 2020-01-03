@@ -190,7 +190,6 @@ namespace core {
 
         this->pe_stall_cycles += max_pe_stall_cycles;
 
-
     }
 
     template <typename T>
@@ -205,7 +204,7 @@ namespace core {
                 continue;
 
             auto ROWS = tile_data.wgt_row.size() / tile_data.lanes;
-            auto COLUMNS = tile_data.wgt_row.size() / tile_data.lanes;
+            auto COLUMNS = tile_data.act_row.front().size() / tile_data.lanes;
 
             if (TCT) {
 

@@ -31,6 +31,9 @@ namespace core {
         /** BitTactical simulation */
         const bool TCT;
 
+        /** Previous ending cycles */
+        std::vector<std::vector<uint64_t>> previous_cycles;
+
         /** Activations mask to remove negative numbers */
         uint16_t act_mask = 0;
 
@@ -96,6 +99,20 @@ namespace core {
          * @return True if weight buffer to schedule, False if not
          */
         bool schedule() override;
+
+        /**
+         * Calculate cycles for the current pe
+         * @param act_row       Act rows
+         * @param wgt_row       Wgt row
+         * @param window_idx    Window index
+         * @param filter_idx    Filter index
+         * @param lanes         Number of lanes
+         * @param time          Current time
+         * @param min_group_bit Minor bit for the group (Overwritten)
+         * @param max_group_bit Leading bit for the group (Overwritten)
+         */
+        void process_pe(const BufferSet<T> &act_row, const BufferRow<T> &wgt_row, int window_idx, int filter_idx,
+                int lanes, int time, int &min_group_bit, int &max_group_bit);
 
         /**
          * Calculate cycles for linear layers
