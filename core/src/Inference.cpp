@@ -211,8 +211,8 @@ namespace core {
             auto ROWS = N_ROWS / rows_per_wgt;
 
             arch->initialise_layer(act_prec, wgt_prec, network_bits, fc || lstm);
-            dataflow->initialise_layer(act, wgt, arch->schedule(), fc, lstm, R, Ox, Oy, stride, N_LANES, COLUMNS, ROWS,
-                    N_TILES);
+            dataflow->initialise_layer(act, wgt, arch->diffy(), arch->schedule(), fc, lstm, R, Ox, Oy, stride, N_LANES,
+                    COLUMNS, ROWS, N_TILES);
 
             // Iterate over the images
             for (int batch = 0; batch < batch_size; ++batch) {

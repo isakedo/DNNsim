@@ -33,6 +33,11 @@ namespace core {
     }
 
     template <typename T>
+    bool Laconic<T>::diffy() {
+        return false;
+    }
+
+    template <typename T>
     bool Laconic<T>::schedule() {
         return false;
     }

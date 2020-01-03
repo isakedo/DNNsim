@@ -25,14 +25,14 @@ namespace core {
          * Return name of the class
          * @return Name
          */
-        std::string name();
+        std::string name() override;
 
         /**
          * Convert the data representation to the one need it.
          * @param data          Array of values
          * @param data_prec     Activation layer precision
          */
-        void dataConversion(base::Array<T> &data, uint8_t data_prec) {}
+        void dataConversion(base::Array<T> &data, uint8_t data_prec) override {}
 
         /* CYCLES */
 
@@ -40,19 +40,25 @@ namespace core {
          * Return stats filename for the architecture in the cycles function
          * @return Filename
          */
-        std::string filename();
+        std::string filename() override;
 
         /**
          * Return stats header for the architecture in the cycles function
          * @return Header
          */
-        std::string header();
+        std::string header() override;
+
+        /**
+         * Return if calculate deltas for the window buffer
+         * @return True if diffy, False if not
+         */
+        bool diffy() override;
 
         /**
          * Return if schedule the weight buffer
          * @return True if weight buffer to schedule, False if not
          */
-        bool schedule();
+        bool schedule() override;
 
         /**
          * Calculate cycles for all the tiles
@@ -66,20 +72,20 @@ namespace core {
          * Return stats filename for the architecture in the potentials function
          * @return Filename
          */
-        std::string filename_pot();
+        std::string filename_pot() override;
 
         /**
          * Return stats header for the architecture in the potentials function
          * @return Header
          */
-        std::string header_pot();
+        std::string header_pot() override;
 
         /** Compute number of one bit multiplications given a weights and an activation
          * @param act           Activation
          * @param wgt           Weight
          * @return              Number of one bit multiplications
          */
-        uint16_t computeBits(T act, T wgt);
+        uint16_t computeBits(T act, T wgt) override;
 
     public:
 

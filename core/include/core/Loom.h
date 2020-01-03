@@ -79,6 +79,12 @@ namespace core {
         std::string header() override;
 
         /**
+         * Return if calculate deltas for the window buffer
+         * @return True if diffy, False if not
+         */
+        bool diffy() override;
+
+        /**
          * Return if schedule the weight buffer
          * @return True if weight buffer to schedule, False if not
          */

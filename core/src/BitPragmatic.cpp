@@ -49,6 +49,11 @@ namespace core {
     }
 
     template <typename T>
+    bool BitPragmatic<T>::diffy() {
+        return DIFFY;
+    }
+
+    template <typename T>
     bool BitPragmatic<T>::schedule() {
         return TCT;
     }
@@ -65,7 +70,7 @@ namespace core {
     uint16_t BitPragmatic<T>::process_pe(const BufferSet<T> &act_row, const BufferRow<T> &wgt_row, int window_idx,
             int filter_idx, int lanes, int time) {
 
-        std::vector<T> acts = std::vector<T>(lanes);
+        std::vector<T> acts;
         for (int lane = 0; lane < lanes; ++lane) {
 
             auto time_h = 0;
@@ -73,12 +78,16 @@ namespace core {
             if (!wgt_row.empty()) {
                 time_h = std::get<1>(wgt_row[filter_idx + lane]) - time;
                 lane_d = std::get<2>(wgt_row[filter_idx + lane]);
+
+                if (time_h < 0) continue;
             }
 
             auto act_bits = std::get<0>(act_row[time_h][window_idx + lane_d]);
             if (DIFFY) act_bits = sign_magnitude(act_bits, act_mask);
             if (BOOTH_ENCODING) act_bits = booth_encoding(act_bits);
-            acts[lane] = act_bits;
+
+            auto it = std::find(acts.begin(), acts.end(), act_bits);
+            if (it == acts.end()) acts.push_back(act_bits);
 
         }
 
@@ -153,6 +162,7 @@ namespace core {
                         if (cycles < min_cycles) min_cycles = cycles;
 
                     } // Filter
+
                     this->column_cycles[t][w] += max_cycles;
 
                     auto pe_stall_cycles = max_cycles - min_cycles;

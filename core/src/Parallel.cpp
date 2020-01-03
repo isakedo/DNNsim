@@ -23,6 +23,11 @@ namespace core {
     }
 
     template <typename T>
+    bool Parallel<T>::diffy() {
+        return false;
+    }
+
+    template <typename T>
     bool Parallel<T>::schedule() {
         return TCT;
     }

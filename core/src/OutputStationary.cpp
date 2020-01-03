@@ -112,6 +112,13 @@ namespace core {
 
                                 auto act_bits = this->lstm ? this->act->get(current_recurrence, this->batch, ch) :
                                         this->act->get(this->batch, start_group + ch, x_window + x, y_window + y);
+
+                                if (this->diffy && !this->fc && !this->lstm) {
+                                    auto prev_act_bits = (x_window - this->stride < 0) ? 0 : this->act->get(this->batch,
+                                            start_group + ch, x_window + x - this->stride, y_window + y);
+                                    act_bits = (short)act_bits - (short)prev_act_bits;
+                                }
+
                                 auto column = (this->fc || this->lstm) ? next_column : w;
                                 int pos = column * this->N_LANES + index;
                                 window_buffer[buffer_time][pos] = std::make_tuple(act_bits, buffer_time, index);
@@ -140,12 +147,12 @@ namespace core {
 
     template <typename T>
     void OutputStationary<T>::initialise_layer(const std::shared_ptr<base::Array<T>> &_act,
-            const std::shared_ptr<base::Array<T>> &_wgt, bool _schedule, bool _fc, bool _lstm, int _recurrence,
-            int _out_x, int _out_y, int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS,
-            uint32_t _N_TILES) {
+            const std::shared_ptr<base::Array<T>> &_wgt, bool _diffy, bool _schedule, bool _fc, bool _lstm,
+            int _recurrence, int _out_x, int _out_y, int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS,
+            uint32_t _N_ROWS, uint32_t _N_TILES) {
 
-        Dataflow<T>::initialise_layer(_act, _wgt, _schedule, _fc, _lstm, _recurrence, _out_x, _out_y, _stride, _N_LANES,
-                _N_COLUMNS, _N_ROWS, _N_TILES);
+        Dataflow<T>::initialise_layer(_act, _wgt, _diffy, _schedule, _fc, _lstm, _recurrence, _out_x, _out_y, _stride,
+                _N_LANES, _N_COLUMNS, _N_ROWS, _N_TILES);
 
         window_sets = (uint64_t)ceil(this->out_x * this->out_y / (double)this->N_COLUMNS);
 

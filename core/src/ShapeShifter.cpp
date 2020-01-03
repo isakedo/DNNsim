@@ -51,6 +51,11 @@ namespace core {
     }
 
     template <typename T>
+    bool ShapeShifter<T>::diffy() {
+        return DIFFY;
+    }
+
+    template <typename T>
     bool ShapeShifter<T>::schedule() {
         return TCT;
     }

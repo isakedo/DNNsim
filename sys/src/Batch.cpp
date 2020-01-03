@@ -184,9 +184,6 @@ namespace sys {
                 throw std::runtime_error("Architecture on network " + simulate.network +
                                          " in Float32 must be <Parallel|SCNN>.");
 
-            if (arch != "ShapeShifter" && arch != "BitPragmatic" && experiment.diffy)
-                throw std::runtime_error("Diffy simulation is only allowed for backends <ShapeShifter|Pragmatic>");
-
             if (arch != "Parallel" && arch != "ShapeShifter" && arch != "BitPragmatic" && experiment.tactical)
                 throw std::runtime_error("Tactical simulation on network " + simulate.network +
                         " in Fixed16 is only allowed for backends <Parallel|ShapeShifter|BitPragmatic>");
@@ -194,6 +191,10 @@ namespace sys {
             if (arch != "ShapeShifter" && arch != "BitPragmatic" && experiment.diffy)
                 throw std::runtime_error("Diffy simulation on network " + simulate.network +
                                          " in Fixed16 is only allowed for backends <ShapeShifter|BitPragmatic>");
+
+            if (experiment.tactical && experiment.diffy)
+                throw std::runtime_error("Both Tactical and Diffy simulation on network " + simulate.network +
+                                         " are not allowed");
 
             experiment.architecture = experiment_proto.architecture();
             experiment.task = experiment_proto.task();

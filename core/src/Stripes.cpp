@@ -28,6 +28,11 @@ namespace core {
     }
 
     template <typename T>
+    bool Stripes<T>::diffy() {
+        return false;
+    }
+
+    template <typename T>
     bool Stripes<T>::schedule() {
         return false;
     }

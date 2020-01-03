@@ -44,6 +44,11 @@ namespace core {
     }
 
     template <typename T>
+    bool Loom<T>::diffy() {
+        return false;
+    }
+
+    template <typename T>
     bool Loom<T>::schedule() {
         return false;
     }

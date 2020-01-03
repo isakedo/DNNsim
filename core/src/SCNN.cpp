@@ -372,6 +372,11 @@ namespace core {
     }
 
     template <typename T>
+    bool SCNN<T>::diffy() {
+        throw std::runtime_error("SCNN simulation is not implemented by Inference module");
+    }
+
+    template <typename T>
     bool SCNN<T>::schedule() {
         throw std::runtime_error("SCNN simulation is not implemented by Inference module");
     }

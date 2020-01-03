@@ -154,6 +154,12 @@ namespace core {
         virtual std::string header() = 0;
 
         /**
+         * Return if calculate deltas for the window buffer
+         * @return True if diffy, False if not
+         */
+        virtual bool diffy() = 0;
+
+        /**
          * Return if schedule the weight buffer
          * @return True if weight buffer to schedule, False if not
          */
