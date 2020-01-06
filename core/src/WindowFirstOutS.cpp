@@ -57,6 +57,10 @@ namespace core {
                                         continue;
                                     this->filters[t].push_back(filter);
                                 }
+
+                                this->out_buffer_writes += (this->fc || this->lstm) ? this->filters[t].size() :
+                                        this->windows.size() * this->filters[t].size();
+
                             }
 
                             this->filter_buffer_filled = true;
@@ -71,6 +75,11 @@ namespace core {
 
                             auto start_time = this->max_buffer_time * this->group;
                             while (this->time[t] < this->max_buffer_time) {
+
+                                this->act_buff_reads++;
+                                this->wgt_buff_reads++;
+                                this->acc_updates += (this->fc || this->lstm) ? this->filters[t].size() :
+                                        this->windows.size() * this->filters[t].size();
 
                                 if (this->schedule) {
 

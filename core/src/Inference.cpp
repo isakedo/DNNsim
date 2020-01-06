@@ -252,6 +252,7 @@ namespace core {
 
         //Dump statistics
         std::string header = arch->name() + " Number of Cycles for " + network.getName() + "\n";
+        header += "Dataflow: " + dataflow->name() + "\n";
         header += "Number of lanes/terms per PE: " + std::to_string(N_LANES) + "\n";
         header += "Number of columns/windows in parallel: " + std::to_string(N_COLUMNS) + "\n";
         header += "Number of rows/filters in parallel: " + std::to_string(N_ROWS) + "\n";
