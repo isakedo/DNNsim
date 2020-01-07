@@ -3,18 +3,16 @@ simulate {
 	model: "Caffe"
 	data_type: "Fixed16"
 	experiment {
-        architecture: "Laconic"
+        architecture: "ShapeShifter"
         task: "Cycles"
         n_lanes: 16
         n_columns: 16
         n_rows: 16
         n_tiles: 16
         bits_pe: 16
-        booth_encoding: true
-	}
-	experiment {
-        architecture: "Laconic"
-        task: "Potentials"
-        booth_encoding: true
+        group_size: 1
+        column_registers: 0
+        minor_bit: false
+        diffy: true
 	}
 }

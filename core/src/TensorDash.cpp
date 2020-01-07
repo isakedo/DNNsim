@@ -1660,6 +1660,7 @@ namespace core {
 
     /* CYCLES */
 
+    // TODO FIX
     template <typename T>
     void TensorDash<T>::potentials(const sys::Batch::Simulate &simulate, int epochs) {
 

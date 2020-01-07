@@ -121,6 +121,8 @@ namespace core {
     void Inference<T>::run(const base::Network<T> &network, const std::shared_ptr<Architecture<T>> &arch,
             const std::shared_ptr<Dataflow<T>> &dataflow) {
 
+        if(!QUIET) std::cout << "Starting cycles simulation for architecture " << arch->name() << std::endl;
+
         // Initialize statistics
         std::string filename = arch->name() + "_L" + std::to_string(N_LANES) + "_C" + std::to_string(N_COLUMNS) +
                 "_R" + std::to_string(N_ROWS) + "_T" + std::to_string(N_TILES) + "_BP" + std::to_string(BITS_PE) +
@@ -266,6 +268,8 @@ namespace core {
 
     template <typename T>
     void Inference<T>::potentials(const base::Network<T> &network, const std::shared_ptr<Architecture<T>> &arch) {
+
+        if(!QUIET) std::cout << "Starting potentials simulation for architecture " << arch->name() << std::endl;
 
         // Initialize statistics
         std::string filename = arch->name() + arch->filename_pot() + "_potentials";

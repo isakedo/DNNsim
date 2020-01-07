@@ -9,7 +9,7 @@ simulate {
         n_columns: 16
         n_rows: 16
         n_tiles: 16
-        bits_pe: 8
+        bits_pe: 16
 	}
 	experiment {
         architecture: "Stripes"

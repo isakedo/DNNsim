@@ -9,12 +9,15 @@ simulate {
         n_columns: 16
         n_rows: 16
         n_tiles: 16
-        precision_granularity: 16
+        group_size: 1
         pe_serial_bits: 1
+        minor_bit: false
         dynamic_weights: false
 	}
 	experiment {
         architecture: "Loom"
         task: "Potentials"
+        minor_bit: false
+        dynamic_weights: false
 	}
 }

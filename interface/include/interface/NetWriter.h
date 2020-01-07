@@ -23,13 +23,6 @@ namespace interface {
          */
         void fill_layer(protobuf::Network_Layer* layer_proto, const base::Layer<T> &layer);
 
-        /** Store the a tuple of the scheduler into a protobuf tuple
-         * @param schedule_tuple_proto  Schedule tuple for protobuf
-         * @param dense_schedule_tuple  Schedule tuple
-         */
-        void fill_schedule_tuple(protobuf::Schedule_Layer_Set_Time_Tuple* schedule_tuple_proto,
-                const inf_schedule_tuple &dense_schedule_tuple);
-
     public:
 
         /** Constructor

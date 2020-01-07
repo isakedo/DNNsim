@@ -183,9 +183,6 @@ int main(int argc, char *argv[]) {
 		                auto network = read<float>(simulate, QUIET);
 		                for(const auto &experiment : simulate.experiments) {
 
-                            if(!QUIET) std::cout << "Starting simulation " << experiment.task << " for architecture "
-                                                 << experiment.architecture << std::endl;
-
                             core::BitTactical<float> scheduler(experiment.lookahead_h, experiment.lookaside_d,
                                     experiment.search_shape.c_str()[0]);
 
@@ -228,9 +225,6 @@ int main(int argc, char *argv[]) {
 						if(STORE_PROTOBUF) write(network, QUIET);
 
 						for(const auto &experiment : simulate.experiments) {
-
-                            if(!QUIET) std::cout << "Starting simulation " << experiment.task << " for architecture "
-                                    << experiment.architecture << std::endl;
 
                             core::BitTactical<uint16_t> scheduler(experiment.lookahead_h, experiment.lookaside_d,
                                     experiment.search_shape.c_str()[0]);

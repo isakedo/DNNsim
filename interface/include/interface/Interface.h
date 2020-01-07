@@ -4,7 +4,6 @@
 #include <sys/common.h>
 #include <base/Network.h>
 #include <network.pb.h>
-#include <schedule.pb.h>
 
 typedef std::vector<std::vector<std::vector<std::tuple<int,int,int,uint16_t>>>> inf_schedule;
 typedef std::vector<std::vector<std::tuple<int,int,int,uint16_t>>> inf_set_schedule;

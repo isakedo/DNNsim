@@ -11,10 +11,11 @@ simulate {
         n_tiles: 16
         bits_first_stage: 2
         column_registers: 1
-        diffy: false
+        booth_encoding: true
 	}
 	experiment {
         architecture: "BitPragmatic"
         task: "Potentials"
+        booth_encoding: true
 	}
 }

@@ -13,7 +13,7 @@ The following parameters are valid for this architecture:
 | Ht | uint32 | Number of PE rows | Positive number | 8 |
 | I | uint32 | Column multipliers per PE | Positive number | 4 |
 | F | uint32 | Number of PE columns | Positive number | 4 |
-| out_acc_size | uint32 | Size of the output accumulator per PE | Positive number | 1024 |
+| out_acc_size | uint32 | Size of the output accumulator per PE | Positive number | 6144 |
 | banks | uint32 | Number of banks in the output accumulator per PE | Positive number | 32 |
 
 Example batch files:

@@ -3,20 +3,15 @@ simulate {
 	model: "Caffe"
 	data_type: "Fixed16"
 	experiment {
-        architecture: "DynamicStripes"
+        architecture: "BitPragmatic"
         task: "Cycles"
         n_lanes: 16
         n_columns: 16
         n_rows: 16
         n_tiles: 16
+        bits_first_stage: 2
         column_registers: 1
-        precision_granularity: 16
-        leading_bit: true
-        bits_pe: 16
-        diffy: false
-	}
-	experiment {
-        architecture: "DynamicStripes"
-        task: "Potentials"
+        booth_encoding: true
+        diffy: true
 	}
 }

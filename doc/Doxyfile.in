@@ -11,15 +11,13 @@ INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/base/include/base/ @CMAKE_CU
                          @CMAKE_CURRENT_SOURCE_DIR@/core/include/core/ @CMAKE_CURRENT_SOURCE_DIR@/core/src/ \
                          @CMAKE_CURRENT_SOURCE_DIR@/interface/include/interface/ @CMAKE_CURRENT_SOURCE_DIR@/interface/src/ \
                          @CMAKE_CURRENT_SOURCE_DIR@/sys/include/sys/ @CMAKE_CURRENT_SOURCE_DIR@/sys/src/ \
-                         @CMAKE_CURRENT_SOURCE_DIR@/README.md @CMAKE_CURRENT_SOURCE_DIR@/examples/BitFusion/README.md \
-                         @CMAKE_CURRENT_SOURCE_DIR@/examples/BitFusion/README.md \
-                         @CMAKE_CURRENT_SOURCE_DIR@/examples/BitPragmatic/README.md \
-                         @CMAKE_CURRENT_SOURCE_DIR@/examples/BitTactical/README.md \
-                         @CMAKE_CURRENT_SOURCE_DIR@/examples/DynamicStripes/README.md \
-                         @CMAKE_CURRENT_SOURCE_DIR@/examples/Laconic/README.md \
-                         @CMAKE_CURRENT_SOURCE_DIR@/examples/Loom/README.md \
-                         @CMAKE_CURRENT_SOURCE_DIR@/examples/None/README.md \
-                         @CMAKE_CURRENT_SOURCE_DIR@/examples/SCNN/README.md \
-                         @CMAKE_CURRENT_SOURCE_DIR@/examples/SCNNx/README.md \
+                         @CMAKE_CURRENT_SOURCE_DIR@/README.md \
+                         @CMAKE_CURRENT_SOURCE_DIR@/examples/Parallel/README.md \
                          @CMAKE_CURRENT_SOURCE_DIR@/examples/Stripes/README.md \
+                         @CMAKE_CURRENT_SOURCE_DIR@/examples/ShapeShifter/README.md \
+                         @CMAKE_CURRENT_SOURCE_DIR@/examples/Loom/README.md \
+                         @CMAKE_CURRENT_SOURCE_DIR@/examples/BitPragmatic/README.md \
+                         @CMAKE_CURRENT_SOURCE_DIR@/examples/Laconic/README.md \
+                         @CMAKE_CURRENT_SOURCE_DIR@/examples/SCNN/README.md \
+                         @CMAKE_CURRENT_SOURCE_DIR@/examples/TensorDash/README.md \
                          @CMAKE_CURRENT_SOURCE_DIR@/doc/

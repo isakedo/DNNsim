@@ -3,14 +3,6 @@
 S. Sharify, A. Delmas, P. Judd, K. Siu, and A. Moshovos
 [Loom: exploiting weight and activation precisions to accelerate convolutional neural networks](https://dl.acm.org/citation.cfm?id=3196072)
 
-## Default Parameters Description   
-
-Default for the architecture. This parameters are defined in core/include/core/Loom.h
-
-| Name | Data Type | Description | Valid Options | Default |
-|:---:|:---:|:---:|:---:|:---:|
-| ZERO_COUNT | bool | Zero values count as one cycle | True-False | True | 
-   
 ## Input Parameters Description   
 
 The following parameters are valid for this architecture:
@@ -21,9 +13,10 @@ The following parameters are valid for this architecture:
 | n_columns | uint32 | Number of columns/windows in the tile | Positive number | 16 |
 | n_rows | uint32 | Number of rows/filters in the tile | Positive number | 16 |
 | n_tiles | uint32 | Number of tiles | Positive number | 16 |
-| precision_granularity | uint32 | Size of the group of values | Positive number | 16 |
-| leading bit | bool | Only the leading bit for dynamic precisions | True-False | False |
+| bits_pe | uint32 | Number of bits per PE | Positive number | 16 |
+| group_size | uint32 | Number of columns/rows per group | Positive number | 1 |
 | pe_serial_bits | uint32 | Number of serial activations bits per PE | Positive Number | 1 |
+| minor_bit | bool | Calculate also the minor bit for dynamic precisions | True-False | false |
 | dynamic_weights | bool | Use dynamic precision for the weights | True-False | False |
 
 Example batch files:

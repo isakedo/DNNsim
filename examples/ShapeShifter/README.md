@@ -1,7 +1,7 @@
-# BitPragmatic Example
+# ShapeShifter Example
 
-J. Albericio, A. Delmas Lascorz, P. Judd, S. Sharify, G. O'Leary, R. Genov, and A. Moshovos, 
-[Bit-Pragmatic Deep Learning Computing, IEEE/ACM MICRO 2017](https://dl.acm.org/citation.cfm?id=3123982)
+A. Delmas Lascorz, S. Sarify, I. Edo, D. Malone Stuart, O. Mohamed Awad, P. Judd, M. Mahmoud, M. Nikolic, K. Siu, Z. Poulos, A. Moshovos 
+[ShapeShifter: Enabling Fine-Grain Data Width Adaptation in Deep Learning](https://dl.acm.org/doi/10.1145/3352460.3358295)
 
 M. Mahmoud, K. Siu, and A. Moshovos 
 [Diffy: a déjà vu-free differential deep neural network accelerator](https://dl.acm.org/doi/10.1109/MICRO.2018.00020)
@@ -21,9 +21,9 @@ The following parameters are valid for this architecture:
 | n_rows | uint32 | Number of rows/filters in the tile | Positive number | 16 |
 | n_tiles | uint32 | Number of tiles | Positive number | 16 |
 | bits_pe | uint32 | Number of bits per PE | Positive number | 16 |
-| bits_first_stage | uint32 | Number of bits of the first stage shifter | Positive number | 0 |
+| group_size | uint32 | Number of columns per group | Positive number | 1 |
 | column_register | uint32 | Number of registers per SIP | Positive number | 0 |
-| booth_encoding | bool | Add booth encoding on top | True-False | false |
+| minor_bit | bool | Calculate also the minor bit for dynamic precisions | True-False | false |
 | diffy | bool | Add Differential Convolution on top | True-False | false |
 | tactical | bool | Add BitTactical zero weight skipping on top | True-False | false |
 | lookahead_h | uint32 | Lookahead value of H | Positive number | 2 |
@@ -32,6 +32,6 @@ The following parameters are valid for this architecture:
 
 Example batch files:
 
-*   BitPragmatic_example: Performs BitPragmatic simulation and calculates potentials 
-*   BitPragmaticDiffy_example: Performs BitPragmatic Diffy simulation 
-*   BitTacticalE_example: Performs BitTacticalE simulation and calculates potentials 
+*   ShapeShifter_example: Performs ShapeShifter simulation and calculates potentials 
+*   ShapeShifterDiffy_example: Performs ShapeShifter Diffy simulation 
+*   BitTacticalP_example: Performs BitTacticalP simulation and calculates potentials 

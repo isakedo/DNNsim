@@ -3,21 +3,16 @@ simulate {
 	model: "Caffe"
 	data_type: "Fixed16"
 	experiment {
-        architecture: "BitTacticalP"
+        architecture: "Parallel"
         task: "Cycles"
         n_lanes: 16
         n_columns: 16
         n_rows: 16
         n_tiles: 16
-        lookahead_h: 2
-        lookaside_d: 5
-        search_shape: "L"
-        column_registers: 1
-        precision_granularity: 16
-        leading_bit: true
+        bits_pe: 16
 	}
 	experiment {
-        architecture: "BitTacticalP"
+        architecture: "Parallel"
         task: "Potentials"
 	}
 }

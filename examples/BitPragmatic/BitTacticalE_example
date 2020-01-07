@@ -3,18 +3,24 @@ simulate {
 	model: "Caffe"
 	data_type: "Fixed16"
 	experiment {
-        architecture: "Laconic"
+        architecture: "BitPragmatic"
         task: "Cycles"
         n_lanes: 16
         n_columns: 16
         n_rows: 16
         n_tiles: 16
-        bits_pe: 16
+        bits_first_stage: 2
+        column_registers: 1
         booth_encoding: true
+        tactical: true
+        lookahead_h: 2
+        lookaside_d: 5
+        search_shape: 'T'
 	}
 	experiment {
-        architecture: "Laconic"
+        architecture: "BitPragmatic"
         task: "Potentials"
         booth_encoding: true
+        tactical: true
 	}
 }

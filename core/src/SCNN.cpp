@@ -186,6 +186,8 @@ namespace core {
     template <typename T>
     void SCNN<T>::run(const base::Network<T> &network) {
 
+        if(!QUIET) std::cout << "Starting cycles simulation for architecture SCNN" << std::endl;
+
         // Initialize statistics
         std::string filename = "SCNN_Wt" + std::to_string(Wt) + "_Ht" + std::to_string(Ht) + "_I" + std::to_string(I) +
                 "_F" + std::to_string(F) + "_acc_out" + std::to_string(OUT_ACC_SIZE) + "_B" + std::to_string(BANKS) +
