@@ -45,15 +45,11 @@ namespace core {
          * @param _wgt_prec     Weights precision
          * @param _network_bits Network bits
          * @param _linear       Linear layer
+         * @param COLUMNS       Number of columns
+         * @param TILES         Number of tiles
          */
-        void initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear);
-
-        /**
-         * Initialise stats to zero
-         * @param COLUMNS   Number of columns
-         * @param TILES     Number of tiles
-         */
-        void initialise_batch(uint64_t COLUMNS, uint64_t TILES);
+        void initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear, uint64_t COLUMNS,
+                uint64_t TILES) override;
 
         /**
          * Get number of cycles

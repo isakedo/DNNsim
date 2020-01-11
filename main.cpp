@@ -99,10 +99,6 @@ void check_options(const cxxopts::Options &options)
         }
     }
 
-    if(options.count("threads") == 1 && options["threads"].as<uint16_t>() < 1) {
-        throw std::runtime_error("The number of threads must be at least one.");
-    }
-
 }
 
 cxxopts::Options parse_options(int argc, char *argv[]) {
@@ -116,7 +112,6 @@ cxxopts::Options parse_options(int argc, char *argv[]) {
             "<Prototxt file>");
 
     options.add_options("simulation")
-    ("t,threads", "Specify the number of threads",cxxopts::value<uint16_t>(),"<Positive number>")
     ("q,quiet", "Don't show stdout progress messages",cxxopts::value<bool>(),"<Boolean>")
     ("fast_mode", "Enable fast mode: simulate only one image",cxxopts::value<bool>(),"<Boolean>")
     ("store_fixed_point_protobuf", "Store the fixed point network in an intermediate Protobuf file",
@@ -143,7 +138,6 @@ int main(int argc, char *argv[]) {
 
         check_options(options);
 
-        uint8_t N_THREADS = options.count("threads") == 0 ? (uint8_t)1 : (uint8_t)options["threads"].as<uint16_t>();
         bool QUIET = options.count("quiet") == 0 ? false : options["quiet"].as<bool>();
         bool FAST_MODE = options.count("fast_mode") == 0 ? false : options["fast_mode"].as<bool>();
         bool STORE_PROTOBUF = options.count("store_fixed_point_protobuf") == 0 ? false :
@@ -170,15 +164,13 @@ int main(int argc, char *argv[]) {
                         std::shared_ptr<core::Dataflow<float>> dataflow =
                                 std::make_shared<core::WindowFirstOutS<float>>(scheduler);
 
-                        core::Simulator<float> DNNsim(experiment.n_lanes, experiment.n_columns,
-                                experiment.n_rows, experiment.n_tiles, experiment.bits_pe, N_THREADS, FAST_MODE,
-                                QUIET, CHECK);
+                        core::Simulator<float> DNNsim(experiment.n_lanes, experiment.n_columns, experiment.n_rows,
+                                experiment.n_tiles, experiment.bits_pe, FAST_MODE, QUIET, CHECK);
 
                         if (experiment.architecture == "SCNN") {
                             std::shared_ptr<core::Architecture<float>> arch =
                                     std::make_shared<core::SCNN<float>>(experiment.Wt, experiment.Ht, experiment.I,
-                                    experiment.F, experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE,
-                                    QUIET);
+                                    experiment.F, experiment.out_acc_size, experiment.banks, FAST_MODE, QUIET);
 
                             if (experiment.task == "Cycles")
                                 std::static_pointer_cast<core::SCNN<float>>(arch)->run(network);
@@ -214,13 +206,12 @@ int main(int argc, char *argv[]) {
                                 std::make_shared<core::WindowFirstOutS<uint16_t>>(scheduler);
 
                         core::Simulator<uint16_t> DNNsim(experiment.n_lanes, experiment.n_columns, experiment.n_rows,
-                                experiment.n_tiles, experiment.bits_pe, N_THREADS, FAST_MODE, QUIET, CHECK);
+                                experiment.n_tiles, experiment.bits_pe, FAST_MODE, QUIET, CHECK);
 
                         if (experiment.architecture == "SCNN") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
                                     std::make_shared<core::SCNN<uint16_t>>(experiment.Wt, experiment.Ht, experiment.I,
-                                    experiment.F, experiment.out_acc_size, experiment.banks, N_THREADS, FAST_MODE,
-                                    QUIET);
+                                    experiment.F, experiment.out_acc_size, experiment.banks, FAST_MODE, QUIET);
 
                             if (experiment.task == "Cycles")
                                 std::static_pointer_cast<core::SCNN<uint16_t>>(arch)->run(network);

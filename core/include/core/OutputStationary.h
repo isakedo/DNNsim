@@ -114,12 +114,6 @@ namespace core {
                 uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES) override;
 
         /**
-         * Initialise the batch
-         * @param _batch Batch of the activations
-         */
-        void initialise_batch(int _batch) override;
-
-        /**
          * Return if schedule the weight buffer
          * @param tile_data
          * @return True if weight buffer to schedule, False if not

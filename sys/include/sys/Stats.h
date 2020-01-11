@@ -143,11 +143,11 @@ namespace sys {
     };
 
     /**
-     * Measure for the batches
-     * Average: Average for batches and layers
-     * AverageTotal: Average for batches and total across layers
-     * Total: Total for batches and layers
-     * Max: Max across batches and layers
+     * Measure for the images
+     * Average: Average for images and layers
+     * AverageTotal: Average for images and total across layers
+     * Total: Total for images and layers
+     * Max: Max across images and layers
      */
     enum Measure {
         No_Measure,
@@ -209,11 +209,11 @@ namespace sys {
         virtual stat_type getType() = 0;
 
         /**
-         * Return the values of the stat in csv string format for specific batch and layer
-         * @param batch Batch of the value
+         * Return the values of the stat in csv string format for specific image and layer
+         * @param image image of the value
          * @param layer Layer of the value
          */
-        virtual std::string to_string(uint64_t layer, uint64_t batch) = 0;
+        virtual std::string to_string(uint64_t layer, uint64_t image) = 0;
 
         /**
          * Return the values of the stat in csv string format for specific layer
@@ -254,12 +254,12 @@ namespace sys {
         /**
          * Constructor
          * @param _layers Number of layers
-         * @param _batches Number of batches
+         * @param _images Number of images
          * @param _value Initial value
          * @param _measure Measure for the statistics
          * @param _skip_first Skip first value when doing average
          */
-        stat_string_t(uint64_t _layers, uint64_t _batches, const std::string &_value, Measure _measure,
+        stat_string_t(uint64_t _layers, uint64_t _images, const std::string &_value, Measure _measure,
                 bool _skip_first);
 
         /**
@@ -270,9 +270,9 @@ namespace sys {
         /**
          * Return the values of the stat in csv string format
          * @param layer Index for the layer
-         * @param batch Index for the batch
+         * @param image Index for the image
          */
-        std::string to_string(uint64_t layer, uint64_t batch) override;
+        std::string to_string(uint64_t layer, uint64_t image) override;
 
         /**
          * Return the values of the stat in csv string format
@@ -313,12 +313,12 @@ namespace sys {
         /**
          * Constructor
          * @param _layers Number of layers
-         * @param _batches Number of batches
+         * @param _images Number of images
          * @param _value Initial value
          * @param _measure Measure for the statistics
          * @param _skip_first Skip first value when doing average
          */
-        stat_uint_t(uint64_t _layers, uint64_t _batches, uint64_t _value, Measure _measure, bool _skip_first);
+        stat_uint_t(uint64_t _layers, uint64_t _images, uint64_t _value, Measure _measure, bool _skip_first);
 
         /**
          * Return scalar as type
@@ -328,9 +328,9 @@ namespace sys {
         /**
          * Return the values of the stat in csv string format
          * @param layer Index for the layer
-         * @param batch Index for the batch
+         * @param image Index for the image
          */
-        std::string to_string(uint64_t layer, uint64_t batch) override;
+        std::string to_string(uint64_t layer, uint64_t image) override;
 
         /**
          * Return the values of the stat in csv string format
@@ -371,12 +371,12 @@ namespace sys {
         /**
          * Constructor
          * @param _layers Number of layers
-         * @param _batches Number of batches
+         * @param _images Number of images
          * @param _value Initial value
          * @param _measure Measure for the statistics
          * @param _skip_first Skip first value when doing average
          */
-        stat_double_t(uint64_t _layers, uint64_t _batches, double _value, Measure _measure, bool _skip_first);
+        stat_double_t(uint64_t _layers, uint64_t _images, double _value, Measure _measure, bool _skip_first);
 
         /**
          * Return scalar as type
@@ -386,9 +386,9 @@ namespace sys {
         /**
          * Return the values of the stat in csv string format
          * @param layer Index for the layer
-         * @param batch Index for the batch
+         * @param image Index for the image
          */
-        std::string to_string(uint64_t layer, uint64_t batch) override;
+        std::string to_string(uint64_t layer, uint64_t image) override;
 
         /**
          * Return the values of the stat in csv string format
@@ -439,14 +439,14 @@ namespace sys {
         /**
          * Constructor
          * @param _layers Number of layers
-         * @param _batches Number of batches
+         * @param _images Number of images
          * @param _min_range Minimum value for the distribution range
          * @param _max_range Maximum value for the distribution range
          * @param _value Initial value
          * @param _measure Measure for the statistics
          * @param _skip_first Skip first value when doing average
          */
-        stat_uint_dist_t(uint64_t _layers, uint64_t _batches, uint64_t _min_range, uint64_t _max_range, uint64_t _value,
+        stat_uint_dist_t(uint64_t _layers, uint64_t _images, uint64_t _min_range, uint64_t _max_range, uint64_t _value,
                 Measure _measure, bool _skip_first);
 
         /**
@@ -457,9 +457,9 @@ namespace sys {
         /**
          * Return the values of the stat in csv string format
          * @param layer Index for the layer
-         * @param batch Index for the batch
+         * @param image Index for the image
          */
-        std::string to_string(uint64_t layer, uint64_t batch) override;
+        std::string to_string(uint64_t layer, uint64_t image) override;
 
         /**
          * Return the values of the stat in csv string format
@@ -510,14 +510,14 @@ namespace sys {
         /**
          * Constructor
          * @param _layers Number of layers
-         * @param _batches Number of batches
+         * @param _images Number of images
          * @param _min_range Minimum value for the distribution range
          * @param _max_range Maximum value for the distribution range
          * @param _value Initial value
          * @param _measure Measure for the statistics
          * @param _skip_first Skip first value when doing average
          */
-        stat_double_dist_t(uint64_t _layers, uint64_t _batches, uint64_t _min_range, uint64_t _max_range, double _value,
+        stat_double_dist_t(uint64_t _layers, uint64_t _images, uint64_t _min_range, uint64_t _max_range, double _value,
                 Measure _measure, bool _skip_first);
 
         /**
@@ -528,9 +528,9 @@ namespace sys {
         /**
          * Return the values of the stat in csv string format
          * @param layer Index for the layer
-         * @param batch Index for the batch
+         * @param image Index for the image
          */
-        std::string to_string(uint64_t layer, uint64_t batch) override;
+        std::string to_string(uint64_t layer, uint64_t image) override;
 
         /**
          * Return the values of the stat in csv string format
@@ -589,24 +589,14 @@ namespace sys {
         uint64_t layers;
 
         /**
-         * Number of batches for the stats.
+         * Number of images for the stats.
          */
-        uint64_t batches;
+        uint64_t images;
 
         /**
          * Name of the file
          */
         std::string filename;
-
-        /**
-         * Tensorflow 8b quantization
-         */
-        bool tensorflow = false;
-
-        /**
-         * Training traces
-         */
-        bool training = false;
 
         /**
          * Check if the path exists
@@ -619,10 +609,10 @@ namespace sys {
         /**
          * Constructor
          * @param _layers Number of layers
-         * @param _batches Number of batches
+         * @param _images Number of images
          * @param _filename Name of the file
          */
-        Stats(uint64_t _layers, uint64_t _batches, const std::string &_filename);
+        Stats(uint64_t _layers, uint64_t _images, const std::string &_filename);
 
         /**
          * Destructor
@@ -696,18 +686,6 @@ namespace sys {
          */
         void dump_csv(const std::string &network_name, const std::vector<std::string> &layers_name,
                 const std::string &header, bool QUIET);
-
-        /**
-         * Set tensorflow 8b flag
-         * @param tensorflow True if tensorflow quantization
-         */
-        void setTensorflow(bool tensorflow);
-
-        /**
-         * Set training flag
-         * @param training True if Training traces
-         */
-        void setTraining(bool training);
 
     };
 

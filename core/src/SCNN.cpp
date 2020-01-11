@@ -192,7 +192,7 @@ namespace core {
         std::string filename = "SCNN_Wt" + std::to_string(Wt) + "_Ht" + std::to_string(Ht) + "_I" + std::to_string(I) +
                 "_F" + std::to_string(F) + "_acc_out" + std::to_string(OUT_ACC_SIZE) + "_B" + std::to_string(BANKS) +
                 "_cycles";
-        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatches(), filename);
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getImages(), filename);
 
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
         auto dense_cycles = stats.register_uint_t("dense_cycles", 0, sys::AverageTotal);
@@ -315,13 +315,13 @@ namespace core {
                     int x_vec[] = {(int)R - 1 - padding, (int)tw, padding};
                     int y_vec[] = {(int)S - 1 - padding, (int)th, padding};
                     int max_psum = 0;
-                    uint32_t batch_halo_transfers = 0;
+                    uint32_t tmp_halo_transfers = 0;
 
                     for(int x = 0; x < DIM; x++) {
                         for (int y = 0; y < DIM; y++) {
                             int psum = x_vec[x] * y_vec[y];
                             if(x != 1 || y != 1)  {
-                                batch_halo_transfers += psum;
+                                tmp_halo_transfers += psum;
                                 if(psum > max_psum)
                                     max_psum = psum;
                             }
@@ -332,7 +332,7 @@ namespace core {
                     cycles->value[layer_it][n] += max_psums;
                     dense_cycles->value[layer_it][n] += max_psums;
                     idle_halo->value[layer_it][n] += max_psums * Ht * Wt * I * F;
-                    halo_transfers->value[layer_it][n] += batch_halo_transfers;
+                    halo_transfers->value[layer_it][n] += tmp_halo_transfers;
                 }
                 total_mult_cycles->value[layer_it][n] = mults->value[layer_it][n] + idle_bricks->value[layer_it][n] +
                         idle_conflicts->value[layer_it][n] + idle_pe->value[layer_it][n] + idle_halo->value[layer_it][n];

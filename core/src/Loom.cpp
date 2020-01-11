@@ -6,8 +6,9 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    void Loom<T>::initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear) {
-        Architecture<T>::initialise_layer(_act_prec, _wgt_prec, _network_bits, _linear);
+    void Loom<T>::initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear,
+            uint64_t COLUMNS, uint64_t TILES) {
+        Architecture<T>::initialise_layer(_act_prec, _wgt_prec, _network_bits, _linear, COLUMNS, TILES);
         act_mask = (uint16_t)(1u << (_act_prec - 1u));
         wgt_mask = (uint16_t)(1u << (_wgt_prec - 1u));
     }

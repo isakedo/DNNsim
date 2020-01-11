@@ -36,9 +36,6 @@ namespace core {
         /** Indicate if LSTM layer (different dimensions order) */
         bool lstm = false;
 
-        /** Current batch for the dataflow */
-        int batch = 0;
-
         /** Number of recurrences for Recurrent neural network */
         int recurrence = 0;
 
@@ -159,14 +156,6 @@ namespace core {
             N_COLUMNS = _N_COLUMNS;
             N_ROWS = _N_ROWS;
             N_TILES = _N_TILES;
-        }
-
-        /**
-         * Initialise the batch
-         * @param _batch Batch of the activations
-         */
-        virtual void initialise_batch(int _batch) {
-            batch = _batch;
 
             act_buff_reads = 0;
             wgt_buff_reads = 0;

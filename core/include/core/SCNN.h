@@ -3,10 +3,6 @@
 
 #include "Architecture.h"
 
-#ifdef OPENMP
-#include <omp.h>
-#endif
-
 typedef std::vector<std::tuple<int,int>> act_idxMap;
 typedef std::vector<std::tuple<int,int,int>> wgt_idxMap;
 
@@ -40,9 +36,6 @@ namespace core {
 
         /** Number of banks */
         const int BANKS;
-
-        /** Number of parallel cores */
-        const int N_THREADS;
 
         /** Enable fast mode: only one image */
         const bool FAST_MODE = false;
@@ -197,13 +190,12 @@ namespace core {
          * @param _F            Row multipliers per PE
          * @param _OUT_ACC_SIZE Output accumulator size
          * @param _BANKS        Number of banks
-         * @param _N_THREADS    Number of parallel threads for multi-threading execution
          * @param _FAST_MODE    Enable fast mode to simulate only one image
          * @param _QUIET        Avoid std::out messages
          */
         SCNN(uint32_t _Wt, uint32_t _Ht, uint32_t _I, uint32_t _F, uint32_t _OUT_ACC_SIZE, uint32_t _BANKS,
-             uint8_t _N_THREADS, bool _FAST_MODE, bool _QUIET) : Wt(_Wt), Ht(_Ht), I(_I), F(_F),
-             OUT_ACC_SIZE(_OUT_ACC_SIZE), BANKS(_BANKS), N_THREADS(_N_THREADS), QUIET(_QUIET) {}
+             bool _FAST_MODE, bool _QUIET) : Wt(_Wt), Ht(_Ht), I(_I), F(_F), OUT_ACC_SIZE(_OUT_ACC_SIZE), BANKS(_BANKS),
+             QUIET(_QUIET) {}
 
         /** Run the timing simulator of the architecture
          * @param network   Network we want to simulate

@@ -62,20 +62,16 @@ namespace core {
          * @param _wgt_prec     Weights precision
          * @param _network_bits Network bits
          * @param _linear       Linear layer
+         * @param COLUMNS       Number of columns
+         * @param TILES         Number of tiles
          */
-        virtual void initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear) {
+        virtual void initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear, uint64_t COLUMNS,
+                uint64_t TILES) {
             act_prec = _act_prec;
             wgt_prec = _wgt_prec;
             network_bits = _network_bits;
             linear = _linear;
-        }
 
-        /**
-         * Initialise stats to zero
-         * @param COLUMNS   Number of columns
-         * @param TILES     Number of tiles
-         */
-        virtual void initialise_batch(uint64_t COLUMNS, uint64_t TILES) {
             column_cycles = std::vector<std::vector<uint64_t>>(TILES, std::vector<uint64_t>(COLUMNS, 0));
             column_index = 0;
 

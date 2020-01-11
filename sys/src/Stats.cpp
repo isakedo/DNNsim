@@ -13,10 +13,10 @@ namespace sys {
 
     // string_t
 
-    stat_string_t::stat_string_t(uint64_t _layers, uint64_t _batches, const std::string &_value, Measure _measure,
+    stat_string_t::stat_string_t(uint64_t _layers, uint64_t _images, const std::string &_value, Measure _measure,
             bool _skip_first) : stat_base_t(_measure,_skip_first)
     {
-        value = std::vector<std::vector<std::string>>(_layers, std::vector<std::string>(_batches, _value));
+        value = std::vector<std::vector<std::string>>(_layers, std::vector<std::string>(_images, _value));
     }
 
     inline stat_type stat_string_t::getType()
@@ -24,9 +24,9 @@ namespace sys {
         return stat_type::Scalar;
     }
 
-    inline std::string stat_string_t::to_string(uint64_t layer, uint64_t batch)
+    inline std::string stat_string_t::to_string(uint64_t layer, uint64_t image)
     {
-        return value[layer][batch];
+        return value[layer][image];
     }
 
     inline std::string stat_string_t::layer_to_string(uint64_t layer)
@@ -46,10 +46,10 @@ namespace sys {
 
     // stat_uint_t
 
-    stat_uint_t::stat_uint_t(uint64_t _layers, uint64_t _batches, uint64_t _value, Measure _measure, bool _skip_first)
+    stat_uint_t::stat_uint_t(uint64_t _layers, uint64_t _images, uint64_t _value, Measure _measure, bool _skip_first)
             : stat_base_t(_measure,_skip_first)
     {
-        value = std::vector<std::vector<uint64_t>>(_layers, std::vector<uint64_t>(_batches, _value));
+        value = std::vector<std::vector<uint64_t>>(_layers, std::vector<uint64_t>(_images, _value));
     }
 
     inline stat_type stat_uint_t::getType()
@@ -57,9 +57,9 @@ namespace sys {
         return stat_type::Scalar;
     }
 
-    inline std::string stat_uint_t::to_string(uint64_t layer, uint64_t batch)
+    inline std::string stat_uint_t::to_string(uint64_t layer, uint64_t image)
     {
-        return std::to_string(value[layer][batch]);
+        return std::to_string(value[layer][image]);
     }
 
     inline std::string stat_uint_t::layer_to_string(uint64_t layer)
@@ -97,10 +97,10 @@ namespace sys {
 
     // stat_double_t
 
-    stat_double_t::stat_double_t(uint64_t _layers, uint64_t _batches, double _value, Measure _measure, bool _skip_first) :
+    stat_double_t::stat_double_t(uint64_t _layers, uint64_t _images, double _value, Measure _measure, bool _skip_first) :
             stat_base_t(_measure,_skip_first)
     {
-        value = std::vector<std::vector<double>>(_layers, std::vector<double>(_batches, _value));
+        value = std::vector<std::vector<double>>(_layers, std::vector<double>(_images, _value));
     }
 
     inline stat_type stat_double_t::getType()
@@ -108,9 +108,9 @@ namespace sys {
         return stat_type::Scalar;
     }
 
-    inline std::string stat_double_t::to_string(uint64_t layer, uint64_t batch)
+    inline std::string stat_double_t::to_string(uint64_t layer, uint64_t image)
     {
-        return std::to_string(value[layer][batch]);
+        return std::to_string(value[layer][image]);
     }
 
     inline std::string stat_double_t::layer_to_string(uint64_t layer)
@@ -150,13 +150,13 @@ namespace sys {
 
     stat_uint_dist_t::stat_uint_dist_t() : min_range(0), max_range(0) {}
 
-    stat_uint_dist_t::stat_uint_dist_t(uint64_t _layers, uint64_t _batches, uint64_t _min_range, uint64_t _max_range,
+    stat_uint_dist_t::stat_uint_dist_t(uint64_t _layers, uint64_t _images, uint64_t _min_range, uint64_t _max_range,
             uint64_t _value, Measure _measure, bool _skip_first) : min_range(_min_range), max_range(_max_range),
             stat_base_t(_measure,_skip_first)
     {
         auto _n_values = max_range - min_range + 1;
         value = std::vector<std::vector<std::vector<uint64_t>>>(_n_values, std::vector<std::vector<uint64_t>>
-                (_layers, std::vector<uint64_t>(_batches, _value)));
+                (_layers, std::vector<uint64_t>(_images, _value)));
     }
 
     inline stat_type stat_uint_dist_t::getType()
@@ -164,10 +164,10 @@ namespace sys {
         return stat_type::Distribution;
     }
 
-    inline std::string stat_uint_dist_t::to_string(uint64_t layer, uint64_t batch) {
+    inline std::string stat_uint_dist_t::to_string(uint64_t layer, uint64_t image) {
         std::string line;
         for (const auto &_value : value) {
-            line += std::to_string(_value[layer][batch]) + ',';
+            line += std::to_string(_value[layer][image]) + ',';
         }
         line = line.substr(0, line.size() - 1);
         return line;
@@ -225,13 +225,13 @@ namespace sys {
 
     stat_double_dist_t::stat_double_dist_t() : min_range(0), max_range(0) {}
 
-    stat_double_dist_t::stat_double_dist_t(uint64_t _layers, uint64_t _batches, uint64_t _min_range, uint64_t _max_range,
+    stat_double_dist_t::stat_double_dist_t(uint64_t _layers, uint64_t _images, uint64_t _min_range, uint64_t _max_range,
             double _value, Measure _measure, bool _skip_first) : min_range(_min_range), max_range(_max_range),
             stat_base_t(_measure,_skip_first)
     {
         auto _n_values = max_range - min_range + 1;
         value = std::vector<std::vector<std::vector<double>>>(_n_values, std::vector<std::vector<double>>
-                (_layers, std::vector<double>(_batches, _value)));
+                (_layers, std::vector<double>(_images, _value)));
     }
 
     inline stat_type stat_double_dist_t::getType()
@@ -239,10 +239,10 @@ namespace sys {
         return stat_type::Distribution;
     }
 
-    inline std::string stat_double_dist_t::to_string(uint64_t layer, uint64_t batch) {
+    inline std::string stat_double_dist_t::to_string(uint64_t layer, uint64_t image) {
         std::string line;
         for (const auto &_value : value) {
-            line += std::to_string(_value[layer][batch]) + ',';
+            line += std::to_string(_value[layer][image]) + ',';
         }
         line = line.substr(0, line.size() - 1);
         return line;
@@ -297,8 +297,8 @@ namespace sys {
 
     // Stats
 
-    Stats::Stats(uint64_t _layers, uint64_t _batches, const std::string &_filename) : layers(_layers),
-            batches(_batches)
+    Stats::Stats(uint64_t _layers, uint64_t _images, const std::string &_filename) : layers(_layers),
+            images(_images)
     {
         filename = _filename;
     }
@@ -314,7 +314,7 @@ namespace sys {
     std::shared_ptr<stat_string_t> Stats::register_string_t(const std::string &name, Measure measure, bool skip_first) {
         table_t table;
         table.name = name;
-        table.var = std::make_shared<stat_string_t>(stat_string_t(layers, batches, "-", measure, skip_first));
+        table.var = std::make_shared<stat_string_t>(stat_string_t(layers, images, "-", measure, skip_first));
 
         database.emplace_back(table);
         return std::dynamic_pointer_cast<stat_string_t>(table.var);
@@ -325,7 +325,7 @@ namespace sys {
     {
         table_t table;
         table.name = name;
-        table.var = std::make_shared<stat_uint_t>(stat_uint_t(layers, batches, init_value, measure, skip_first));
+        table.var = std::make_shared<stat_uint_t>(stat_uint_t(layers, images, init_value, measure, skip_first));
 
         database.emplace_back(table);
         return std::dynamic_pointer_cast<stat_uint_t>(table.var);
@@ -336,7 +336,7 @@ namespace sys {
     {
         table_t table;
         table.name = name;
-        table.var = std::make_shared<stat_double_t>(stat_double_t(layers, batches, init_value, measure, skip_first));
+        table.var = std::make_shared<stat_double_t>(stat_double_t(layers, images, init_value, measure, skip_first));
 
         database.emplace_back(table);
         return std::dynamic_pointer_cast<stat_double_t>(table.var);
@@ -347,7 +347,7 @@ namespace sys {
     {
         table_t table;
         table.name = name;
-        table.var = std::make_shared<stat_uint_dist_t>(stat_uint_dist_t(layers, batches, min_range, max_range,
+        table.var = std::make_shared<stat_uint_dist_t>(stat_uint_dist_t(layers, images, min_range, max_range,
                 init_value, measure, skip_first));
 
         database.emplace_back(table);
@@ -359,7 +359,7 @@ namespace sys {
     {
         table_t table;
         table.name = name;
-        table.var = std::make_shared<stat_double_dist_t>(stat_double_dist_t(layers, batches, min_range, max_range,
+        table.var = std::make_shared<stat_double_dist_t>(stat_double_dist_t(layers, images, min_range, max_range,
                 init_value, measure, skip_first));
 
         database.emplace_back(table);
@@ -386,7 +386,7 @@ namespace sys {
                 throw std::runtime_error("Error creating folder results/" + network_name);
         }
 
-        std::string path = "results/" + network_name + "/" + filename + (tensorflow ? "-TF.csv" : ".csv");
+        std::string path = "results/" + network_name + "/" + filename + ".csv";
         o_file.open (path);
 
         o_file << std::endl << header << std::endl;
@@ -400,71 +400,23 @@ namespace sys {
 
         if (scalar) {
 
-            std::string scalar_parameter_names = training ? "Epoch,Layer," : "Layer,Batch,";
+            std::string scalar_parameter_names = "Layer,image,";
             for (const auto &table : database) {
                 if (table.var->getType() == stat_type::Scalar)
                     scalar_parameter_names += table.name + ',';
             }
             scalar_parameter_names = scalar_parameter_names.substr(0, scalar_parameter_names.size() - 1);
 
-            o_file << std::endl << (training ? "Per epoch scalar results:" : "Per image scalar results:") << std::endl;
+            o_file << std::endl << "Per image scalar results:" << std::endl;
             o_file << scalar_parameter_names << std::endl;
 
-            if (training) {
-                for (uint64_t layer = 0; layer < layers; ++layer) {
-                    for (uint64_t batch = 0; batch < batches; ++batch) {
-
-                        std::string line = std::to_string(layer) + ',' + layers_name[batch]  + ',';
-                        for (const auto &table : database) {
-                            if (table.var->getType() == stat_type::Scalar)
-                                line += table.var->to_string(layer, batch) + ',';
-                        }
-                        line = line.substr(0, line.size() - 1);
-                        o_file << line << std::endl;
-
-                    }
-                }
-
-                o_file << std::endl << "Epoch scalar results:" << std::endl;
-                o_file << scalar_parameter_names << std::endl;
+            for (uint64_t image = 0; image < images; ++image) {
                 for (uint64_t layer = 0; layer < layers; ++layer) {
 
-                    std::string line = std::to_string(layer) + ",ALL,";
-                    for (const auto &table : database) {
-                        if (table.var->getType() == stat_type::Scalar) {
-                            if (table.var->measure == Measure::Special)
-                                line += std::to_string(table.var->special_value_vector[layer]) + ',';
-                            else
-                                line += table.var->layer_to_string(layer) + ',';
-                        }
-                    }
-                    line = line.substr(0, line.size() - 1);
-                    o_file << line << std::endl;
-
-                }
-            } else {
-                for (uint64_t batch = 0; batch < batches; ++batch) {
-                    for (uint64_t layer = 0; layer < layers; ++layer) {
-
-                        std::string line = layers_name[layer] + ',' + std::to_string(batch) + ',';
-                        for (const auto &table : database) {
-                            if (table.var->getType() == stat_type::Scalar)
-                                line += table.var->to_string(layer, batch) + ',';
-                        }
-                        line = line.substr(0, line.size() - 1);
-                        o_file << line << std::endl;
-
-                    }
-                }
-
-                o_file << std::endl << "Layer scalar results:" << std::endl;
-                o_file << scalar_parameter_names << std::endl;
-                for (uint64_t layer = 0; layer < layers; ++layer) {
-
-                    std::string line = layers_name[layer] + ",ALL,";
+                    std::string line = layers_name[layer] + ',' + std::to_string(image) + ',';
                     for (const auto &table : database) {
                         if (table.var->getType() == stat_type::Scalar)
-                            line += table.var->layer_to_string(layer) + ',';
+                            line += table.var->to_string(layer, image) + ',';
                     }
                     line = line.substr(0, line.size() - 1);
                     o_file << line << std::endl;
@@ -472,9 +424,23 @@ namespace sys {
                 }
             }
 
+            o_file << std::endl << "Layer scalar results:" << std::endl;
+            o_file << scalar_parameter_names << std::endl;
+            for (uint64_t layer = 0; layer < layers; ++layer) {
+
+                std::string line = layers_name[layer] + ",ALL,";
+                for (const auto &table : database) {
+                    if (table.var->getType() == stat_type::Scalar)
+                        line += table.var->layer_to_string(layer) + ',';
+                }
+                line = line.substr(0, line.size() - 1);
+                o_file << line << std::endl;
+
+            }
+
             o_file << std::endl << "Network scalar results:" << std::endl;
             o_file << scalar_parameter_names << std::endl;
-            std::string line = training ? "ALL," + network_name + ',' : network_name + ",ALL,";
+            std::string line = network_name + ",ALL,";
             for (const auto &table : database) {
                 if (table.var->getType() == stat_type::Scalar) {
                     if (table.var->measure == Measure::Special)
@@ -491,15 +457,15 @@ namespace sys {
         for (const auto &table : database) {
             if (table.var->getType() == stat_type::Distribution) {
 
-                std::string parameter_names = "Layer,Batch," + table.var->dist_to_string();
+                std::string parameter_names = "Layer,Image," + table.var->dist_to_string();
 
                 o_file << std::endl << "Per image " << table.name << " results:" << std::endl;
                 o_file << parameter_names << std::endl;
 
-                for(uint64_t batch = 0; batch < batches; ++batch) {
+                for(uint64_t image = 0; image < images; ++image) {
                     for (uint64_t layer = 0; layer < layers; ++layer) {
-                        std::string line = layers_name[layer] + ',' + std::to_string(batch) + ',';
-                        o_file << line << table.var->to_string(layer, batch) << std::endl;
+                        std::string line = layers_name[layer] + ',' + std::to_string(image) + ',';
+                        o_file << line << table.var->to_string(layer, image) << std::endl;
                     }
                 }
 
@@ -521,14 +487,6 @@ namespace sys {
         o_file.close();
 
         if (!QUIET) std::cout << "Results stored in: " << path << std::endl;
-    }
-
-    void Stats::setTensorflow(bool _tensorflow) {
-        Stats::tensorflow = _tensorflow;
-    }
-
-    void Stats::setTraining(bool _training) {
-        Stats::training = _training;
     }
 
 }

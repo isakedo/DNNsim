@@ -63,13 +63,11 @@ Print help:
 The simulator instructions are defined in prototxt files. Example files can be found [here](examples/).
 
 Results from simulations can be found inside the results folder. One csv file for each simulation 
-containing one line for each layer which are grouped per batch. After that, one line for the each layer is shown with the 
-average results for all batches. Finally, the last line corresponds to the total of the network. 
+containing one line for each layer which are grouped per images. After that, one line for the each layer is shown with the 
+average results for all images. Finally, the last line corresponds to the total of the network. 
 
 ## Command line options
 
-* Option **--threads \<positive_num\>** indicates the number of simultaneous threads that can be executed. The code is 
-parallelized per batch using OpenMP library
 * Option **--quiet** remove stdout messages from simulations.
 * Option **--fast_mode** makes the simulation execute only one batch per network, the first one.
 * Option **--store_fixed_point_protobuf** store the fixed point network in a intermediate Protobuf file.

@@ -91,17 +91,18 @@ namespace base {
         bool isIntelINQ() const { return intel_inq; }
 
         /**
-         * Get number of batches in the layer traces
-         * @return Number of layers
+         * Get number of images in the layer traces
+         * @return Number of images
          */
-        uint64_t getBatches() const {
-            uint64_t max_batches = 0;
+        uint64_t getImages() const {
+            uint64_t max_images = 0;
             for (const auto &layer : this->layers) {
-                uint64_t batches = layer.getActivations().getShape()[0];
-                if (batches > max_batches)
-                    max_batches = batches;
+                uint64_t images = layer.getType() == "LSTM" ? layer.getActivations().getShape()[1] :
+                        layer.getActivations().getShape()[0];
+                if (images > max_images)
+                    max_images = images;
             }
-            return max_batches;
+            return max_images;
         }
 
         /**

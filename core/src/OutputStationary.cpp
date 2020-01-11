@@ -110,11 +110,11 @@ namespace core {
                                 if ((start_group + ch) >= act_channels)
                                     continue;
 
-                                auto act_bits = this->lstm ? this->act->get(current_recurrence, this->batch, ch) :
-                                        this->act->get(this->batch, start_group + ch, x_window + x, y_window + y);
+                                auto act_bits = this->lstm ? this->act->get(current_recurrence, 0, ch) :
+                                        this->act->get(0, start_group + ch, x_window + x, y_window + y);
 
                                 if (this->diffy && !this->fc && !this->lstm) {
-                                    auto prev_act_bits = (x_window - this->stride < 0) ? 0 : this->act->get(this->batch,
+                                    auto prev_act_bits = (x_window - this->stride < 0) ? 0 : this->act->get(0,
                                             start_group + ch, x_window + x - this->stride, y_window + y);
                                     act_bits = (short)act_bits - (short)prev_act_bits;
                                 }
@@ -153,6 +153,15 @@ namespace core {
 
         Dataflow<T>::initialise_layer(_act, _wgt, _diffy, _schedule, _fc, _lstm, _recurrence, _out_x, _out_y, _stride,
                 _N_LANES, _N_COLUMNS, _N_ROWS, _N_TILES);
+
+        windows = std::vector<WindowCoord>();
+        current_recurrence = 0;
+        window_set = 0;
+        filter_set = 0;
+        time = std::vector<int>(this->N_TILES, 0);
+        skip = std::vector<int>(this->N_TILES, 0);
+        window_buffer_filled = false;
+        filter_buffer_filled = false;
 
         window_sets = (uint64_t)ceil(this->out_x * this->out_y / (double)this->N_COLUMNS);
 
@@ -196,19 +205,6 @@ namespace core {
 
         max_window_buffer_time = max_buffer_time * groups;
 
-    }
-
-    template <typename T>
-    void OutputStationary<T>::initialise_batch(int _batch) {
-        Dataflow<T>::initialise_batch(_batch);
-        windows = std::vector<WindowCoord>();
-        current_recurrence = 0;
-        window_set = 0;
-        filter_set = 0;
-        time = std::vector<int>(this->N_TILES, 0);
-        skip = std::vector<int>(this->N_TILES, 0);
-        window_buffer_filled = false;
-        filter_buffer_filled = false;
     }
 
     INITIALISE_DATA_TYPES(OutputStationary);
