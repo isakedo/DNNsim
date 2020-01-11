@@ -89,7 +89,7 @@ parallelized per batch using OpenMP library
 
 | Architecture | Description | Details | 
 |:---:|:---:|:---:|
-| Parallel | Baseline parallel machine | [Parallel](examples/Parallel/README.md) |
+| DaDianNao | Baseline DaDianNao machine | [DaDianNao](examples/DaDianNao/README.md) |
 | Stripes | **Ap**: Exploits precision requirements of activations | [Stripes](examples/Stripes/README.md) |
 | ShapeShifter | **Ap**: Exploits dynamic precision requirements of a group of activations | [ShapeShifter](examples/ShapeShifter/README.md) |
 | Loom | **Wp + Ap**: Exploits precision requirements of weights and dynamic group of activations | [Loom](examples/Loom/README.md) |

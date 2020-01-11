@@ -112,17 +112,17 @@ namespace sys {
                                          " is only allowed for <Cycles>.");
 
             const auto &arch = experiment_proto.architecture();
-            if (dtype == "Fixed16" && arch != "Parallel" && arch != "Stripes" && arch != "ShapeShifter" &&
+            if (dtype == "Fixed16" && arch != "DaDianNao" && arch != "Stripes" && arch != "ShapeShifter" &&
                     arch != "Loom" && arch != "BitPragmatic" && arch != "Laconic" && arch != "SCNN")
                 throw std::runtime_error("Architecture on network " + simulate.network +
-                    " in Fixed16 must be <Parallel|Stripes|ShapeShifter|Loom|BitPragmatic|Laconic|SCNN>.");
-            else  if (dtype == "Float32" && arch != "Parallel" && arch != "SCNN")
+                    " in Fixed16 must be <DaDianNao|Stripes|ShapeShifter|Loom|BitPragmatic|Laconic|SCNN>.");
+            else  if (dtype == "Float32" && arch != "DaDianNao" && arch != "SCNN")
                 throw std::runtime_error("Architecture on network " + simulate.network +
-                                         " in Float32 must be <Parallel|SCNN>.");
+                                         " in Float32 must be <DaDianNao|SCNN>.");
 
-            if (arch != "Parallel" && arch != "ShapeShifter" && arch != "BitPragmatic" && experiment.tactical)
+            if (arch != "DaDianNao" && arch != "ShapeShifter" && arch != "BitPragmatic" && experiment.tactical)
                 throw std::runtime_error("Tactical simulation on network " + simulate.network +
-                        " in Fixed16 is only allowed for backends <Parallel|ShapeShifter|BitPragmatic>");
+                        " in Fixed16 is only allowed for backends <DaDianNao|ShapeShifter|BitPragmatic>");
 
             if (arch != "ShapeShifter" && arch != "BitPragmatic" && experiment.diffy)
                 throw std::runtime_error("Diffy simulation on network " + simulate.network +

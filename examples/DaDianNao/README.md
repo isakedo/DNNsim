@@ -1,6 +1,7 @@
-# Parallel Example
+# DaDianNao Example
 
-Generic SIMD architecture.
+Y. Chen, T. Luo, S. Liu, S. Zhang, J. Wang, L. Li, T. Chen, Z. Xu, N. Sun, and O. Tenman
+[DaDianNao: A Machine-Learning Supercomputer](https://ieeexplore.ieee.org/document/7011421)
 
 A. Delmas Lascorz, P. Judd, D. Malone Stuart, Z. Poulos, M. Mahmoud, S. Sharify, M. Nikolic, K. Siu, and A. Moshovos
 [Bit-Tactical: A Software/Hardware Approach to Exploiting Value and Bit Sparsity in Neural Networks](https://dl.acm.org/citation.cfm?id=3304041)
@@ -23,5 +24,5 @@ The following parameters are valid for this architecture:
 
 Example batch files:
 
-*   Parallel_example: Performs generic parallel simulation and calculates potentials 
+*   DaDianNao_example: Performs DaDianNao simulation and calculates potentials 
 *   BitTactical_example: Performs BitTactical simulation and calculates potentials

@@ -6,11 +6,11 @@
 namespace core {
 
     /**
-     * Parallel simulator
+     * DaDianNao simulator
      * @tparam T 16 bits fixed point or 32 bits floating-point
      */
     template <typename T>
-    class Parallel : public Architecture<T> {
+    class DaDianNao : public Architecture<T> {
 
     private:
 
@@ -92,7 +92,7 @@ namespace core {
         /** Constructor
          * @param _TCT                  Enable BitTactical simulation
          */
-        explicit Parallel(bool _TCT) : TCT(_TCT) {}
+        explicit DaDianNao(bool _TCT) : TCT(_TCT) {}
 
     };
 

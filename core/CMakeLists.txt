@@ -14,7 +14,7 @@ add_library(
         src/OutputStationary.cpp
         src/WindowFirstOutS.cpp
         src/Simulator.cpp
-        src/Parallel.cpp
+        src/DaDianNao.cpp
         src/Stripes.cpp
         src/ShapeShifter.cpp
         src/Loom.cpp

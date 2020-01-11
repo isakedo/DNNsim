@@ -3,21 +3,16 @@ simulate {
 	model: "Caffe"
 	data_type: "Fixed16"
 	experiment {
-        architecture: "Parallel"
+        architecture: "DaDianNao"
         task: "Cycles"
         n_lanes: 16
         n_columns: 16
         n_rows: 16
         n_tiles: 16
         bits_pe: 16
-        tactical: true
-        lookahead_h: 2
-        lookaside_d: 5
-        search_shape: 'T'
 	}
 	experiment {
-        architecture: "Parallel"
+        architecture: "DaDianNao"
         task: "Potentials"
-        tactical: true
 	}
 }

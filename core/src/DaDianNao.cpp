@@ -1,39 +1,39 @@
 
-#include <core/Parallel.h>
+#include <core/DaDianNao.h>
 
 namespace core {
 
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    std::string Parallel<T>::name() {
-        return TCT ? "BitTactical" : "Parallel";
+    std::string DaDianNao<T>::name() {
+        return TCT ? "BitTactical" : "DaDianNao";
     }
 
     /* CYCLES */
 
     template <typename T>
-    std::string Parallel<T>::filename() {
+    std::string DaDianNao<T>::filename() {
         return "";
     }
 
     template <typename T>
-    std::string Parallel<T>::header() {
+    std::string DaDianNao<T>::header() {
         return "";
     }
 
     template <typename T>
-    bool Parallel<T>::diffy() {
+    bool DaDianNao<T>::diffy() {
         return false;
     }
 
     template <typename T>
-    bool Parallel<T>::schedule() {
+    bool DaDianNao<T>::schedule() {
         return TCT;
     }
 
     template <typename T>
-    void Parallel<T>::process_tiles(const std::vector<TileData<T>> &tiles_data) {
+    void DaDianNao<T>::process_tiles(const std::vector<TileData<T>> &tiles_data) {
 
         this->cycles++;
 
@@ -58,17 +58,17 @@ namespace core {
     /* POTENTIALS */
 
     template <typename T>
-    std::string Parallel<T>::filename_pot() {
+    std::string DaDianNao<T>::filename_pot() {
         return "";
     }
 
     template <typename T>
-    std::string Parallel<T>::header_pot() {
+    std::string DaDianNao<T>::header_pot() {
         return "";
     }
 
     template <typename T>
-    uint16_t Parallel<T>::computeBits(T act, T wgt) {
+    uint16_t DaDianNao<T>::computeBits(T act, T wgt) {
 
         if (TCT) {
             if(wgt == 0) return 0;
@@ -77,6 +77,6 @@ namespace core {
         return this->network_bits * this->network_bits;
     }
 
-    INITIALISE_DATA_TYPES(Parallel);
+    INITIALISE_DATA_TYPES(DaDianNao);
 
 }

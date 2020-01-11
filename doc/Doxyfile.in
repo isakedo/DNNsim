@@ -12,7 +12,7 @@ INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/base/include/base/ @CMAKE_CU
                          @CMAKE_CURRENT_SOURCE_DIR@/interface/include/interface/ @CMAKE_CURRENT_SOURCE_DIR@/interface/src/ \
                          @CMAKE_CURRENT_SOURCE_DIR@/sys/include/sys/ @CMAKE_CURRENT_SOURCE_DIR@/sys/src/ \
                          @CMAKE_CURRENT_SOURCE_DIR@/README.md \
-                         @CMAKE_CURRENT_SOURCE_DIR@/examples/Parallel/README.md \
+                         @CMAKE_CURRENT_SOURCE_DIR@/examples/DaDianNao/README.md \
                          @CMAKE_CURRENT_SOURCE_DIR@/examples/Stripes/README.md \
                          @CMAKE_CURRENT_SOURCE_DIR@/examples/ShapeShifter/README.md \
                          @CMAKE_CURRENT_SOURCE_DIR@/examples/Loom/README.md \

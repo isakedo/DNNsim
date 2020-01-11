@@ -26,7 +26,7 @@ THE SOFTWARE.
 
 #include <base/Network.h>
 #include <core/Simulator.h>
-#include <core/Parallel.h>
+#include <core/DaDianNao.h>
 #include <core/Stripes.h>
 #include <core/ShapeShifter.h>
 #include <core/Loom.h>
@@ -184,9 +184,9 @@ int main(int argc, char *argv[]) {
                                 std::static_pointer_cast<core::SCNN<float>>(arch)->run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
-                        } else if (experiment.architecture == "Parallel") {
+                        } else if (experiment.architecture == "DaDianNao") {
                             std::shared_ptr<core::Architecture<float>> arch =
-                                    std::make_shared<core::Parallel<float>>(experiment.tactical);
+                                    std::make_shared<core::DaDianNao<float>>(experiment.tactical);
 
                             if (experiment.task == "Cycles") DNNsim.run(network, arch, dataflow);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
@@ -226,9 +226,9 @@ int main(int argc, char *argv[]) {
                                 std::static_pointer_cast<core::SCNN<uint16_t>>(arch)->run(network);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
-                        } else if (experiment.architecture == "Parallel") {
+                        } else if (experiment.architecture == "DaDianNao") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
-                                    std::make_shared<core::Parallel<uint16_t>>(experiment.tactical);
+                                    std::make_shared<core::DaDianNao<uint16_t>>(experiment.tactical);
 
                             if (experiment.task == "Cycles") DNNsim.run(network, arch, dataflow);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
