@@ -149,45 +149,6 @@ namespace base {
          */
         void zero_pad(int padding);
 
-        /** Asymmetric zero pad the activations
-         * @param padding   Padding of the layer
-         */
-        void asym_right_zero_pad(int padding);
-
-        /** Asymmetric zero pad the output gradients
-         * @param padding   Padding of the layer
-         */
-        void asym_left_zero_pad(int padding);
-
-        /** Zero padding for X dimension only
-         * @param padding   Padding of the layer
-         */
-        void zero_pad_x(int padding);
-
-        /** Zero padding for Y dimension only
-         * @param padding   Padding of the layer
-         */
-        void zero_pad_y(int padding);
-
-        /**
-         * Dilate the output gradrients to add splitting zeroes depeding on the stride
-         * @param stride Stride of the layer
-         * @param Nx_pad Activations width after padding
-         * @param Kx Kernel width
-         */
-        void dilate_out_grad(int stride, int Nx_pad, int Kx);
-
-        /**
-         * Rotate weights 180 degrees for training
-         */
-        void rotate_180deg();
-
-        /**
-         * Reshape weights as channel wise for training
-         * @param out_grad_channels Number of channels for the output gradients
-         */
-        void reshape_channel_wise(int out_grad_channels);
-
         /** zero pad the activations to fit on the grid size
          * @param X   New X dimension for the activations
          * @param Y   New Y dimension for the activations
@@ -221,12 +182,6 @@ namespace base {
          * @param stride    Stride of the layer, must be bigger than 1
          */
         void reshape_first_layer_wgt(uint16_t stride);
-
-        /**
-         * Remove all the batches but the want desired
-         * @param batch Batch to get
-         */
-        void get_batch(uint64_t batch);
 
     };
 

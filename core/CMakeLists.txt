@@ -5,22 +5,15 @@ project(
         LANGUAGES CXX
 )
 
-add_custom_target(
-        libdramsim_make
-        COMMAND make libdramsim.so
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../DRAMSim2
-)
-
 # Create library
 add_library(
         ${PROJECT_NAME}
         include/core/Dataflow.h
         include/core/Architecture.h
         src/Utils.cpp
-        src/Memory.cpp
         src/OutputStationary.cpp
         src/WindowFirstOutS.cpp
-        src/Inference.cpp
+        src/Simulator.cpp
         src/Parallel.cpp
         src/Stripes.cpp
         src/ShapeShifter.cpp
@@ -28,20 +21,13 @@ add_library(
         src/BitPragmatic.cpp
         src/Laconic.cpp
         src/BitTactical.cpp
-        src/TensorDash.cpp
         src/SCNN.cpp
-)
-
-add_dependencies(
-        ${PROJECT_NAME}
-        libdramsim_make
 )
 
 
 target_include_directories(
         ${PROJECT_NAME}
         PUBLIC include/
-        PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../DRAMSim2/
 )
 
 target_link_libraries(
@@ -49,7 +35,6 @@ target_link_libraries(
         PRIVATE base
         PRIVATE interface
         PRIVATE sys
-        ${CMAKE_CURRENT_SOURCE_DIR}/../DRAMSim2/libdramsim.so
 )
 
 set_target_properties(

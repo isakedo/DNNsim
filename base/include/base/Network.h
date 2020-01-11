@@ -24,12 +24,6 @@ namespace base {
         /** Max number of bits for the network*/
         uint32_t network_bits;
 
-        /** Active forward traces */
-        bool forward;
-
-        /** Active backward traces */
-        bool backward;
-
         /** Tensorflow 8b quantization */
         bool tensorflow_8b;
 
@@ -44,14 +38,11 @@ namespace base {
         /** Constructor
          * @param _name             The name of the network
          * @param _network_bits     Max number of bits of the network
-         * @param _forward          Active forward traces
-         * @param _backward         Active backward traces
          * @param _tensorflow_8b    Active tensorflow 8b quantization
          * @param _intel_inq        Active intel INQ
          */
-        explicit Network(const std::string &_name, uint32_t _network_bits = 16, bool _forward = false,
-                bool _backward = false, bool _tensorflow_8b = false, bool _intel_inq = false) :
-                network_bits(_network_bits), forward(_forward), backward(_backward), tensorflow_8b(_tensorflow_8b),
+        explicit Network(const std::string &_name, uint32_t _network_bits = 16, bool _tensorflow_8b = false,
+                bool _intel_inq = false) : network_bits(_network_bits), tensorflow_8b(_tensorflow_8b),
                 intel_inq(_intel_inq) {
             name = _name;
         }
@@ -60,15 +51,12 @@ namespace base {
          * @param _name             The name of the network
          * @param _layers           Vector of layers
          * @param _network_bits     Max number of bits of the network
-         * @param _forward          Active forward traces
-         * @param _backward         Active backward traces
          * @param _tensorflow_8b    Active tensorflow 8b
          * @param _intel_inq        Active intel INQ
          */
         Network(const std::string &_name, const std::vector<Layer<T>> &_layers, uint32_t _network_bits = 16,
-                bool _forward = false, bool _backward = false, bool _tensorflow_8b = false, bool _intel_inq = false) :
-                network_bits(_network_bits), forward(_forward), backward(_backward), tensorflow_8b(_tensorflow_8b),
-                intel_inq(_intel_inq) {
+                bool _tensorflow_8b = false, bool _intel_inq = false) : network_bits(_network_bits),
+                tensorflow_8b(_tensorflow_8b), intel_inq(_intel_inq) {
             name = _name; layers = _layers;
         }
 
@@ -89,18 +77,6 @@ namespace base {
          * @return Network bits
          */
         uint32_t getNetwork_bits() const { return network_bits; }
-
-        /**
-         * Get the if only forward traces
-         * @return True if only forward traces
-         */
-        bool getForward() const { return forward; }
-
-        /**
-         * Get the if only backward traces
-         * @return True if only backward traces
-         */
-        bool getBackward() const { return backward; }
 
         /**
          * Get the tensorflow quantization
@@ -157,18 +133,6 @@ namespace base {
         void setNetwork_bits(uint32_t _network_bits) { Network::network_bits = _network_bits; }
 
         /**
-         * Update only forward flag
-         * @param _forward True if only forward traces
-         */
-        void setForkward(bool _forward) { Network::forward = _forward; }
-
-        /**
-         * Update only backward flag
-         * @param _backward True if only backward traces
-         */
-        void setBackward(bool _backward) { Network::backward = _backward; }
-
-        /**
          * Update tensorflow quantization flag
          * @param _tensorflow_8b True if tensorflow quantization
          */
@@ -184,7 +148,7 @@ namespace base {
          * @return   Network in fixed point
          */
         Network<uint16_t> fixed_point() {
-            auto fixed_network = Network<uint16_t>(name, network_bits, forward, backward, tensorflow_8b, intel_inq);
+            auto fixed_network = Network<uint16_t>(name, network_bits, tensorflow_8b, intel_inq);
 
             for(auto &layer : layers) {
                 auto fixed_layer = Layer<uint16_t>(layer.getType(),layer.getName(),layer.getInput(),layer.getNn(),

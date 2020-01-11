@@ -255,56 +255,6 @@ namespace interface {
     }
 
     template <typename T>
-    void NetReader<T>::read_training_weights_npy(base::Network<T> &network) {
-        check_path("net_traces/" + this->name);
-		check_path("net_traces/" + this->name + "/weights");
-        for(base::Layer<T> &layer : network.updateLayers()) {
-            std::string layer_name = layer.getName();
-            if(layer.getType() == "Decoder") {
-                auto pos = layer_name.find_last_of('_');
-                layer_name = layer_name.substr(0, pos);
-            }
-            std::string file = "/weights/" + layer_name + "-" + std::to_string(epoch) + "-" +
-                   std::to_string(batch) + "-w.npy" ;
-            base::Array<T> weights; weights.set_values("net_traces/" + this->name + file);
-            layer.setWeights(weights);
-        }
-
-        if(!QUIET) std::cout << "Forward weight traces loaded from numpy arrays" << std::endl;
-
-    }
-
-    template <typename T>
-    void NetReader<T>::read_training_activations_npy(base::Network<T> &network) {
-        check_path("net_traces/" + this->name);
-		check_path("net_traces/" + this->name + "/input");
-        for(base::Layer<T> &layer : network.updateLayers()) {
-            std::string file = "/input/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
-                    std::to_string(batch) + "-in.npy" ;
-            base::Array<T> activations; activations.set_values("net_traces/" + this->name + file);
-            layer.setActivations(activations);
-        }
-
-        if(!QUIET) std::cout << "Forward activation traces loaded from numpy arrays" << std::endl;
-
-    }
-
-    template <typename T>
-    void NetReader<T>::read_training_output_activation_gradients_npy(base::Network<T> &network) {
-        check_path("net_traces/" + this->name);
-		check_path("net_traces/" + this->name + "/outGrad");
-        for(base::Layer<T> &layer : network.updateLayers()) {
-            std::string file = "/outGrad/" + layer.getName() + "-" + std::to_string(epoch) + "-" +
-                    std::to_string(batch) + "-outGrad.npy" ;
-            base::Array<T> output_gradients; output_gradients.set_values("net_traces/" + this->name + file);
-            layer.setOutputGradients(output_gradients);
-        }
-
-        if(!QUIET) std::cout << "Backward output gradient traces loaded from numpy arrays" << std::endl;
-
-    }
-
-    template <typename T>
     void NetReader<T>::read_precision(base::Network<T> &network) {
 
         if(network.isTensorflow_8b()) {

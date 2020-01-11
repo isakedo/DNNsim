@@ -93,36 +93,36 @@ namespace core {
         virtual std::string name() = 0;
 
         /**
-         *
-         * @param _act
-         * @param _wgt
-         * @param _diffy
-         * @param _schedule
-         * @param _fc
-         * @param _lstm
-         * @param _recurrence
-         * @param _out_x
-         * @param _out_y
-         * @param _stride
-         * @param _N_LANES
-         * @param _N_COLUMNS
-         * @param _N_ROWS
-         * @param _N_TILES
+         * Initialise values for the current layer
+         * @param _act          Activation array
+         * @param _wgt          Weight array
+         * @param _diffy        Diffy
+         * @param _schedule     Schedule buffer
+         * @param _fc           Fully connected
+         * @param _lstm         LSTM
+         * @param _recurrence   Recurrences
+         * @param _out_x        Output X windows
+         * @param _out_y        Output Y windows
+         * @param _stride       Stride
+         * @param _N_LANES      Number of lanes
+         * @param _N_COLUMNS    Number of columns
+         * @param _N_ROWS       Number of rows
+         * @param _N_TILES      Number of tiles
          */
         void initialise_layer(const std::shared_ptr<base::Array<T>> &_act, const std::shared_ptr<base::Array<T>> &_wgt,
                 bool _diffy, bool _schedule, bool _fc, bool _lstm, int _recurrence, int _out_x, int _out_y, int _stride,
                 uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES) override;
 
         /**
-         *
-         * @param _batch
+         * Initialise the batch
+         * @param _batch Batch of the activations
          */
         void initialise_batch(int _batch) override;
 
         /**
-         *
+         * Return if schedule the weight buffer
          * @param tile_data
-         * @return
+         * @return True if weight buffer to schedule, False if not
          */
         virtual bool next_dataflow_step(std::vector<TileData<T>> &tile_data) = 0;
 

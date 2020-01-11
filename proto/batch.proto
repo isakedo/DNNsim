@@ -59,10 +59,7 @@ message Batch {
         uint32 network_bits = 6;
         bool tensorflow_8b = 7;
         bool intel_inq = 8;
-        bool training = 9;
-        bool only_forward = 10;
-        bool only_backward = 11;
-        repeated Experiment experiment = 15;
+        repeated Experiment experiment = 9;
     }
 
     repeated Simulate simulate = 1;

@@ -63,9 +63,6 @@ namespace base {
         /** numpy array containing the activations for the layer */
         Array<T> activations;
 
-        /** numpy array containing the output activation gradients for the layer */
-        Array<T> output_gradients;
-
     public:
 
         /** Constructor
@@ -206,12 +203,6 @@ namespace base {
         const Array<T> &getActivations() const { return activations; }
 
         /**
-         * Get output gradients data
-         * @return Output gradients data
-         */
-        const Array<T> &getOutputGradients() const { return output_gradients; }
-
-        /**
          * Set the name of the layer
          * @param _name Name of the layer
          */
@@ -228,12 +219,6 @@ namespace base {
          * @param _activations Activations data
          */
         void setActivations(const Array<T> &_activations) { Layer::activations = _activations; }
-
-        /**
-         * Set the output gradients
-         * @param _output_gradients Output gradients data
-         */
-        void setOutputGradients(const Array<T> &_output_gradients) { Layer::output_gradients = _output_gradients; }
 
         /**
          * Set the activations precision

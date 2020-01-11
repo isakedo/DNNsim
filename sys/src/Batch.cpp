@@ -12,69 +12,6 @@ namespace sys {
         return success;
     }
 
-    Batch::Simulate Batch::read_training_simulation(const protobuf::Batch_Simulate &simulate_proto) {
-
-        Batch::Simulate simulate;
-        std::string value;
-        simulate.network = simulate_proto.network();
-        simulate.batch = simulate_proto.batch();
-        simulate.epochs = simulate_proto.epochs() < 1 ? 1 : simulate_proto.epochs();
-        simulate.network_bits = 16;
-		simulate.training = simulate_proto.training();
-        simulate.only_forward = simulate_proto.only_forward();
-        simulate.only_backward = simulate_proto.only_backward();
-
-        value = simulate_proto.model();
-        if(value != "Trace")
-            throw std::runtime_error("Training input type configuration in network " + simulate.network +
-                                     " must be <Trace>.");
-        else
-            simulate.model = simulate_proto.model();
-
-        if(simulate_proto.data_type() != "BFloat16")
-            throw std::runtime_error("Training input data type configuration in network " + simulate.network +
-                                     " must be <BFloat16>.");
-        else
-            simulate.data_type = simulate_proto.data_type();
-
-        for(const auto &experiment_proto : simulate_proto.experiment()) {
-
-            Batch::Simulate::Experiment experiment;
-            experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
-            experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
-            experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
-            experiment.n_tiles = experiment_proto.n_tiles() < 1 ? 1 : experiment_proto.n_tiles();
-            experiment.lookahead_h = experiment_proto.lookahead_h() < 1 ? 2 : experiment_proto.lookahead_h();
-            experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();
-            experiment.search_shape = experiment_proto.search_shape().empty() ? "T" :
-                    experiment_proto.search_shape();
-            experiment.banks = experiment_proto.banks() < 1 ? 16 : experiment_proto.banks();
-
-            // Sanity checks
-            value = experiment.search_shape;
-            if(value != "L" && value != "T")
-                throw std::runtime_error("BitTactical search shape in network " + simulate.network +
-                                         " must be <L|T>.");
-
-            if(experiment_proto.architecture() != "TensorDash")
-                throw std::runtime_error("Training architecture in network " + simulate.network +
-                                         " in BFloat16 must be <TensorDash>.");
-
-            value = experiment_proto.task();
-            if(value != "Cycles" && value != "Potentials")
-                throw std::runtime_error("Training task in network " + simulate.network +
-                                         " in BFloat16 must be <Cycles|Potentials>.");
-
-            experiment.architecture = experiment_proto.architecture();
-            experiment.task = experiment_proto.task();
-            simulate.experiments.emplace_back(experiment);
-
-        }
-
-
-        return simulate;
-    }
-
     Batch::Simulate Batch::read_inference_simulation(const protobuf::Batch_Simulate &simulate_proto) {
 
         Batch::Simulate simulate;
@@ -83,7 +20,6 @@ namespace sys {
         simulate.tensorflow_8b = simulate_proto.tensorflow_8b();
         simulate.intel_inq = simulate_proto.intel_inq();
         simulate.network_bits = simulate_proto.network_bits() < 1 ? 16 : simulate_proto.network_bits();
-		simulate.training = simulate_proto.training();
         if(simulate.tensorflow_8b) simulate.network_bits = 8;
 
         const auto &model = simulate_proto.model();
@@ -215,8 +151,7 @@ namespace sys {
 
         for(const auto &simulate : batch.simulate()) {
             try {
-                this->simulations.emplace_back(simulate.training() ? 
-					read_training_simulation(simulate) : read_inference_simulation(simulate));
+                this->simulations.emplace_back(read_inference_simulation(simulate));
             } catch (std::exception &exception) {
                 std::cerr << "Prototxt simulation error: " << exception.what() << std::endl;
                 #ifdef STOP_AFTER_ERROR

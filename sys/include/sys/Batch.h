@@ -125,15 +125,6 @@ namespace sys {
             /** Intel INQ quantization */
             bool intel_inq = false;
 
-            /** Training traces */
-            bool training = false;
-
-            /** Only forward traces */
-            bool only_forward = false;
-
-            /** Only backward traces */
-            bool only_backward = false;
-
             /** Array of experiments */
             std::vector<Experiment> experiments;
         };
@@ -145,12 +136,6 @@ namespace sys {
 
         /** Simulations */
         std::vector<Simulate> simulations;
-
-        /** Return the training simulation parsed from the prototxt file
-         * @param simulate_proto   prototxt simulation
-         * @return Simulate configurations
-         */
-        Simulate read_training_simulation(const protobuf::Batch_Simulate &simulate_proto);
 
         /** Return the inference simulation parsed from the prototxt file
          * @param simulate_proto   prototxt simulation

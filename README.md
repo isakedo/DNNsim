@@ -51,13 +51,6 @@ Create folder **net_traces** including a folder for each network.
 In the case of **inference** simulation, every network must include:
    * wgt-$LAYER.npy
    * act-$LAYER-$BATCH.npy
-
-In the case of **training** simulation, every network must include subdirectories:
-   * weights/$LAYER-$EPOCH-$BATCH-w.npy
-   * input/$LAYER-$EPOCH-$BATCH-in.npy
-   * outGrad/$LAYER-$EPOCH-$BATCH-wGrad.npy
-   * outGrad/$LAYER-$EPOCH-$BATCH-inGrad.npy
-   * outGrad/$LAYER-$EPOCH-$BATCH-wGrad.npy
        
 All traces must be in **float32**       
        
@@ -72,7 +65,6 @@ The simulator instructions are defined in prototxt files. Example files can be f
 Results from simulations can be found inside the results folder. One csv file for each simulation 
 containing one line for each layer which are grouped per batch. After that, one line for the each layer is shown with the 
 average results for all batches. Finally, the last line corresponds to the total of the network. 
-(In the case of training the results are grouped per epoch)
 
 ## Command line options
 
@@ -112,27 +104,6 @@ parallelized per batch using OpenMP library
 | Cycles | Simulate number of cycles and memory accesses | 
 | Potentials | Calculate ideal speedup and work reduction | 
 
-## Allowed Training simulations
-
-*  Allowed input types for the simulations:
-
-| inputType | Description | 
-|:---:|:---:|
-| Trace | Load network model from *trace_params.csv*, precisions from *precision.txt*, and traces from numpy arrays | 
-
-*  Allowed architectures:
-
-| Architecture | Description | Details | 
-|:---:|:---:|:---:|
-| TensorDash | **A + W + G**: Skips zero activations, zero weights or zero output gradients | [TensorDash](examples/TensorDash/README.md) |
-
-*  Allowed tasks for these architectures:
-
-| Task | Description | 
-|:---:|:---:|
-| Cycles | Simulate number of cycles and memory accesses | 
-| Potentials | Calculate ideal speedup and work reduction | 
-
 ## Input Parameters Description   
 
 The batch file can be constructed as follows for the simulation tool:
@@ -146,9 +117,6 @@ The batch file can be constructed as follows for the simulation tool:
 | network | string | Name of the network as in the models folder | Valid path | N/A |
 | network_bits | uint32 | Number of baseline bits of the network | Positive Number | 16 |
 | tensorflow_8b | bool | Use tensorflow 8bits quantization | True-False | False |
-| training | bool | Change mode to training simulations | True-False | False |
-| only_forward | bool | Only forward traces in the training simulations | True-False | False |
-| only_backward | bool | Only backward traces in the training simulations | True-False | False |
 
 Experiments contain the following parameters.
 
