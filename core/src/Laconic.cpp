@@ -7,7 +7,7 @@ namespace core {
 
     template <typename T>
     uint64_t Laconic<T>::getCycles() const {
-        return this->linear ? sys::get_max(this->column_cycles) : this->cycles;
+        return this->linear ? sys::get_max(this->compute_cycles) : this->cycles;
     }
 
     template <typename T>
@@ -45,21 +45,7 @@ namespace core {
     template <typename T>
     void Laconic<T>::process_linear(const std::vector<TileData<T>> &tiles_data) {
 
-        auto slowest_column = 0;
-        for (int t = 0; t < tiles_data.size(); ++t) {
-            const auto &tile_data = tiles_data[t];
-
-            auto column_end_cycles = this->column_cycles[t][this->column_index];
-            if (column_end_cycles > slowest_column) slowest_column = column_end_cycles;
-
-        }
-
-        if (this->cycles < slowest_column) {
-            this->column_stall_cycles += slowest_column - this->cycles;
-            this->cycles = slowest_column;
-        }
-
-        auto max_pe_stall_cycles = 0;
+        auto max_tile_cycles = 0;
         for (int t = 0; t < tiles_data.size(); ++t) {
             const auto &tile_data = tiles_data[t];
 
@@ -95,26 +81,32 @@ namespace core {
                 } // Multiply 16 weights and 16 activations values
             } // Filter
 
-            this->column_cycles[t][this->column_index] = this->cycles + max_cycles;
+            if (max_tile_cycles < max_cycles) max_tile_cycles = max_cycles;
+
             this->scheduled_pe += tiles_data[t].filters.size();
             this->idle_pe += ROWS - tiles_data[t].filters.size();
-            this->cycles++;
-
-            auto pe_stall_cycles = max_cycles - min_cycles;
-            if (pe_stall_cycles > max_pe_stall_cycles) max_pe_stall_cycles = pe_stall_cycles;
 
         }
 
-        this->column_index = (this->column_index + 1) % this->column_cycles.front().size();
+        if (this->cycles < this->compute_cycles[this->column_index])
+            this->cycles = this->compute_cycles[this->column_index];
 
-        this->pe_stall_cycles += max_pe_stall_cycles;
+        this->compute_cycles[this->column_index] = this->cycles + max_tile_cycles;
+        this->cycles++;
+
+        this->column_cycles[this->column_index] = *this->global_cycle + max_tile_cycles;
+        this->column_index = (this->column_index + 1) % this->column_cycles.size();
+
+        auto new_done_cycle = *this->global_cycle + max_tile_cycles;
+        if (new_done_cycle > this->done_cycle) this->done_cycle = new_done_cycle;
+        this->ready_cycle = this->column_cycles[this->column_index];
 
     }
 
     template <typename T>
     void Laconic<T>::process_convolution(const std::vector<TileData<T>> &tiles_data) {
 
-        auto max_pe_stall_cycles = 0;
+        auto max_tile_cycles = 0;
         for (const auto &tile_data : tiles_data) {
 
             if (!tile_data.valid)
@@ -154,17 +146,29 @@ namespace core {
                 } // Filter
             } // Window
 
-            this->cycles += max_cycles;
+            if (max_tile_cycles < max_cycles) max_tile_cycles = max_cycles;
+
             this->scheduled_pe += tile_data.windows.size() * tile_data.filters.size();
             this->idle_pe += (COLUMNS * ROWS - tile_data.windows.size() * tile_data.filters.size());
 
-            auto pe_stall_cycles = max_cycles - min_cycles;
-            if (pe_stall_cycles > max_pe_stall_cycles) max_pe_stall_cycles = pe_stall_cycles;
-
         }
 
-        this->pe_stall_cycles += max_pe_stall_cycles;
+        this->done_cycle = *this->global_cycle + max_tile_cycles;
+        this->ready_cycle = *this->global_cycle + max_tile_cycles;
+        this->cycles += max_tile_cycles;
 
+    }
+
+    template <typename T>
+    bool Laconic<T>::ready() {
+        if(this->ready_cycle > *this->global_cycle) this->stall_cycles++;
+        return this->ready_cycle <= *this->global_cycle;
+    }
+
+    template <typename T>
+    bool Laconic<T>::flush() {
+        if(this->ready_cycle > *this->global_cycle) this->stall_cycles++;
+        return this->done_cycle <= *this->global_cycle;
     }
 
     template <typename T>

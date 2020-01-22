@@ -133,8 +133,8 @@ namespace core {
 
         // Architecture stats
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
-        auto pe_stall_cycles = stats.register_uint_t("PE stall cycles", 0, sys::AverageTotal);
-        auto column_stall_cycles = stats.register_uint_t("column stall cycles", 0, sys::AverageTotal);
+        auto compute_cycles = stats.register_uint_t("compute_cycles", 0, sys::AverageTotal);
+        auto compute_stall_cycles = stats.register_uint_t("compute stall cycles", 0, sys::AverageTotal);
         auto scheduled_pe = stats.register_uint_t("scheduled PEs", 0, sys::AverageTotal);
         auto idle_pe = stats.register_uint_t("idle PEs", 0, sys::AverageTotal);
 
@@ -217,25 +217,42 @@ namespace core {
                 auto COLUMNS = N_COLUMNS / columns_per_act;
                 auto ROWS = N_ROWS / rows_per_wgt;
 
-                arch->initialise_layer(act_prec, wgt_prec, network_bits, fc || lstm, COLUMNS, N_TILES);
+                arch->initialise_layer(act_prec, wgt_prec, network_bits, fc || lstm, COLUMNS);
                 dataflow->initialise_layer(act, wgt, arch->diffy(), arch->schedule(), fc, lstm, R, Ox, Oy, stride,
                         N_LANES, COLUMNS, ROWS, N_TILES);
 
                 OutputTensor sim_output = OutputTensor(num_filters, std::vector<std::vector<double>>(Ox,
                         std::vector<double>(Oy, 0)));
 
+                std::shared_ptr<uint64_t>global_cycle = std::make_shared<uint64_t>(0);
+                arch->setGlobalCycle(global_cycle);
+
                 auto tiles_data = std::vector<TileData<T>>(N_TILES, TileData<T>());
-                while (dataflow->next_dataflow_step(tiles_data)) {
-                    arch->process_tiles(tiles_data);
-                    if (this->CHECK) calculate_output(sim_output, tiles_data);
+                bool still_data = dataflow->next_dataflow_step(tiles_data);
+
+                while (still_data) {
+
+                    if (arch->ready()) {
+                        arch->process_tiles(tiles_data);
+                        if (this->CHECK) calculate_output(sim_output, tiles_data);
+                        still_data = dataflow->next_dataflow_step(tiles_data);
+                    }
+
+                    *global_cycle += 1;
+                }
+
+                // Flush pipeline
+                while (!arch->flush()) {
+                    *global_cycle += 1;
                 }
 
                 if (CHECK) check_result_channel_first(sim_output, act, wgt, Ox, Oy, stride, lstm);
 
                 // Dump stats
-                cycles->value[layer_it][image] = arch->getCycles();
-                pe_stall_cycles->value[layer_it][image] = arch->getPEStallCycles();
-                column_stall_cycles->value[layer_it][image] = arch->getColumnStallCycles();
+                cycles->value[layer_it][image] = *global_cycle;
+
+                compute_cycles->value[layer_it][image] = arch->getCycles();
+                compute_stall_cycles->value[layer_it][image] = arch->getStallCycles();
                 scheduled_pe->value[layer_it][image] = arch->getScheduledPe();
                 idle_pe->value[layer_it][image] = arch->getIdlePe();
 
@@ -345,7 +362,7 @@ namespace core {
                     num_filters * wgt_channels * R;
             uint64_t max_bit_counter = max_par_counter * MAX_BITS;
 
-            arch->initialise_layer(act_prec, wgt_prec, network_bits, fc || lstm, N_COLUMNS, N_TILES);
+            arch->initialise_layer(act_prec, wgt_prec, network_bits, fc || lstm, N_COLUMNS);
 
             for(int n = 0; n < images; ++n) {
 

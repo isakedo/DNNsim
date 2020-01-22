@@ -74,7 +74,7 @@ namespace core {
         void fill_weight_buffer();
 
         /**
-         *
+         * Fill the window buffer with the activations to process
          */
         void fill_window_buffer();
 
@@ -82,13 +82,13 @@ namespace core {
 
         /**
          * Constructor
-         * @param _scheduler
+         * @param _scheduler True if schedule the weight buffer
          */
         explicit OutputStationary(const BitTactical<T> &_scheduler) : Dataflow<T>(_scheduler) {}
 
         /**
         * Return name for the dataflow
-        * @return Name
+        * @return Name of the dataflow
         */
         virtual std::string name() = 0;
 
@@ -114,9 +114,9 @@ namespace core {
                 uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES) override;
 
         /**
-         * Return if schedule the weight buffer
-         * @param tile_data
-         * @return True if weight buffer to schedule, False if not
+         * Return if still data to process
+         * @param tile_data Tile data to process
+         * @return True if still data to process, False if not
          */
         virtual bool next_dataflow_step(std::vector<TileData<T>> &tile_data) = 0;
 

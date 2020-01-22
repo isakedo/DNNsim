@@ -21,7 +21,7 @@ namespace core {
         uint64_t column_index = 0;
 
         /** Column cycles */
-        std::vector<std::vector<uint64_t>> column_cycles;
+        std::vector<uint64_t> column_cycles;
 
         /** Activations precision */
         int act_prec = 0;
@@ -35,16 +35,25 @@ namespace core {
         /** Linear layer */
         bool linear = false;
 
+        /** Global cycle */
+        std::shared_ptr<uint64_t> global_cycle;
+
+        /** Ready cycle */
+        uint64_t ready_cycle = 0;
+
+        /** Done cycle */
+        uint64_t done_cycle = 0;
+
         /* STATISTICS */
+
+        /** Compute cycles */
+        std::vector<uint64_t> compute_cycles;
 
         /** Number of cycles */
         uint64_t cycles = 0;
 
-        /** Number of PE stall cycles */
-        uint64_t pe_stall_cycles = 0;
-
-        /** Number of column stall cycles */
-        uint64_t column_stall_cycles = 0;
+        /** Number of stalle cycles */
+        uint64_t stall_cycles = 0;
 
         /** Scheduled PEs */
         uint64_t scheduled_pe = 0;
@@ -63,23 +72,31 @@ namespace core {
          * @param _network_bits Network bits
          * @param _linear       Linear layer
          * @param COLUMNS       Number of columns
-         * @param TILES         Number of tiles
          */
-        virtual void initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear, uint64_t COLUMNS,
-                uint64_t TILES) {
+        virtual void initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear, uint64_t COLUMNS) {
             act_prec = _act_prec;
             wgt_prec = _wgt_prec;
             network_bits = _network_bits;
             linear = _linear;
+            ready_cycle = 0;
+            done_cycle = 0;
 
-            column_cycles = std::vector<std::vector<uint64_t>>(TILES, std::vector<uint64_t>(COLUMNS, 0));
+            column_cycles = std::vector<uint64_t>(COLUMNS, 0);
             column_index = 0;
 
+            compute_cycles = std::vector<uint64_t>(COLUMNS, 0);
             cycles = 0;
-            pe_stall_cycles = 0;
-            column_stall_cycles = 0;
+            stall_cycles = 0;
             scheduled_pe = 0;
             idle_pe = 0;
+        }
+
+        /**
+         * Set shared global cycle
+         * @param globalCycle
+         */
+        void setGlobalCycle(const std::shared_ptr<uint64_t> &globalCycle) {
+            global_cycle = globalCycle;
         }
 
         /**
@@ -91,19 +108,11 @@ namespace core {
         }
 
         /**
-         * Get number of pe stall cycles
-         * @return PE stall cycles
+         * Get number of stall cycles
+         * @return Sstall cycles
          */
-        uint64_t getPEStallCycles() const {
-            return pe_stall_cycles;
-        }
-
-        /**
-         * Get number of column stall cycles
-         * @return Column stall cycles
-         */
-        uint64_t getColumnStallCycles() const {
-            return column_stall_cycles;
+        uint64_t getStallCycles() const {
+            return stall_cycles;
         }
 
         /**
@@ -166,6 +175,24 @@ namespace core {
          * @param tiles_data Processing information for all the tiles
          */
         virtual void process_tiles(const std::vector<TileData<T>> &tiles_data) = 0;
+
+        /**
+         * Return true if ready to feed need data
+         * @return True if ready to process data
+         */
+        virtual bool ready() { return ready_cycle <= *global_cycle; }
+
+        /**
+         * Return true if processing is done
+         * @return True if done
+         */
+        virtual bool done() { return done_cycle <= *global_cycle; }
+
+        /**
+         * Return true if processing has finished
+         * @return True if done
+         */
+        virtual bool flush() { return done_cycle <= *global_cycle; }
 
         /* POTENTIALS */
 

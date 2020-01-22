@@ -35,6 +35,8 @@ namespace core {
     template <typename T>
     void DaDianNao<T>::process_tiles(const std::vector<TileData<T>> &tiles_data) {
 
+        this->done_cycle = *this->global_cycle + 1;
+        this->ready_cycle = *this->global_cycle + 1;
         this->cycles++;
 
         for (const auto &tile_data : tiles_data) {

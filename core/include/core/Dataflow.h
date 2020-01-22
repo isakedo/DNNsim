@@ -164,9 +164,9 @@ namespace core {
         }
 
         /**
-         * Return if schedule the weight buffer
-         * @param tile_data
-         * @return True if weight buffer to schedule, False if not
+         * Return if still data to process
+         * @param tile_data Tile data to process
+         * @return True if still data to process, False if not
          */
         virtual bool next_dataflow_step(std::vector<TileData<T>> &tile_data) = 0;
 

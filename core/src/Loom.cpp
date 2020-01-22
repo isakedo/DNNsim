@@ -7,15 +7,15 @@ namespace core {
 
     template <typename T>
     void Loom<T>::initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear,
-            uint64_t COLUMNS, uint64_t TILES) {
-        Architecture<T>::initialise_layer(_act_prec, _wgt_prec, _network_bits, _linear, COLUMNS, TILES);
+            uint64_t COLUMNS) {
+        Architecture<T>::initialise_layer(_act_prec, _wgt_prec, _network_bits, _linear, COLUMNS);
         act_mask = (uint16_t)(1u << (_act_prec - 1u));
         wgt_mask = (uint16_t)(1u << (_wgt_prec - 1u));
     }
 
     template <typename T>
     uint64_t Loom<T>::getCycles() const {
-        return this->linear ? sys::get_max(this->column_cycles) : this->cycles;
+        return this->linear ? sys::get_max(this->compute_cycles) : this->cycles;
     }
 
     template <typename T>
@@ -85,21 +85,7 @@ namespace core {
     template <typename T>
     void Loom<T>::process_linear(const std::vector<TileData<T>> &tiles_data) {
 
-        auto slowest_column = 0;
-        for (int t = 0; t < tiles_data.size(); ++t) {
-            const auto &tile_data = tiles_data[t];
-
-            auto column_end_cycles = this->column_cycles[t][this->column_index];
-            if (column_end_cycles > slowest_column) slowest_column = column_end_cycles;
-
-        }
-
-        if (this->cycles < slowest_column) {
-            this->column_stall_cycles += slowest_column - this->cycles;
-            this->cycles = slowest_column;
-        }
-
-        auto max_pe_stall_cycles = 0;
+        auto max_tile_cycles = 0;
         for (int t = 0; t < tiles_data.size(); ++t) {
             const auto &tile_data = tiles_data[t];
 
@@ -162,24 +148,30 @@ namespace core {
 
                 column_cycles += max_cycles;
 
-                auto pe_stall_cycles = max_cycles - min_cycles;
-                if (pe_stall_cycles > max_pe_stall_cycles) max_pe_stall_cycles = pe_stall_cycles;
-
             } else {
                 auto act_pe_cycles = (int)ceil(window_cycles / (double)PE_SERIAL_BITS);
                 column_cycles = act_pe_cycles * this->wgt_prec;
             }
 
-            this->column_cycles[t][this->column_index] = this->cycles + column_cycles;
+            if (max_tile_cycles < column_cycles) max_tile_cycles = column_cycles;
+
             this->scheduled_pe += tile_data.filters.size();
             this->idle_pe += ROWS - tile_data.filters.size();
-            this->cycles++;
 
         }
 
-        this->column_index = (this->column_index + 1) % this->column_cycles.front().size();
+        if (this->cycles < this->compute_cycles[this->column_index])
+            this->cycles = this->compute_cycles[this->column_index];
 
-        this->pe_stall_cycles += max_pe_stall_cycles;
+        this->compute_cycles[this->column_index] = this->cycles + max_tile_cycles;
+        this->cycles++;
+
+        this->column_cycles[this->column_index] = *this->global_cycle + max_tile_cycles;
+        this->column_index = (this->column_index + 1) % this->column_cycles.size();
+
+        auto new_done_cycle = *this->global_cycle + max_tile_cycles;
+        if (new_done_cycle > this->done_cycle) this->done_cycle = new_done_cycle;
+        this->ready_cycle = this->column_cycles[this->column_index];
 
     }
 
@@ -187,7 +179,7 @@ namespace core {
     template <typename T>
     void Loom<T>::process_convolution(const std::vector<TileData<T>> &tiles_data) {
 
-        auto max_pe_stall_cycles = 0;
+        auto max_tile_cycles = 0;
         for (const auto &tile_data : tiles_data) {
 
             if (!tile_data.valid)
@@ -266,17 +258,14 @@ namespace core {
                     }
                 }
 
-                this->cycles += max_cycles;
-                auto pe_stall_cycles = max_cycles - min_cycles;
-                if (pe_stall_cycles > max_pe_stall_cycles) max_pe_stall_cycles = pe_stall_cycles;
+
+                if (max_tile_cycles < max_cycles) max_tile_cycles = max_cycles;
 
             } else {
                 auto max_act_cycles = (int)ceil(sys::get_max(window_cycles) / (double)PE_SERIAL_BITS);
-                auto min_act_cycles = (int)ceil(sys::get_min(window_cycles) / (double)PE_SERIAL_BITS);
-                this->cycles += max_act_cycles * this->wgt_prec;
+                auto max_cycles = max_act_cycles * this->wgt_prec;
 
-                auto pe_stall_cycles = (max_act_cycles - min_act_cycles) * this->wgt_prec;
-                if (pe_stall_cycles > max_pe_stall_cycles) max_pe_stall_cycles = pe_stall_cycles;
+                if (max_tile_cycles < max_cycles) max_tile_cycles = max_cycles;
             }
 
             this->scheduled_pe += tile_data.windows.size() * tile_data.filters.size();
@@ -284,7 +273,9 @@ namespace core {
 
         }
 
-        this->pe_stall_cycles += max_pe_stall_cycles;
+        this->done_cycle = *this->global_cycle + max_tile_cycles;
+        this->ready_cycle = *this->global_cycle + max_tile_cycles;
+        this->cycles += max_tile_cycles;
 
     }
 
@@ -292,6 +283,18 @@ namespace core {
     void Loom<T>::process_tiles(const std::vector<TileData<T>> &tiles_data) {
         if (this->linear) process_linear(tiles_data);
         else process_convolution(tiles_data);
+    }
+
+    template <typename T>
+    bool Loom<T>::ready() {
+        if(this->ready_cycle > *this->global_cycle) this->stall_cycles++;
+        return this->ready_cycle <= *this->global_cycle;
+    }
+
+    template <typename T>
+    bool Loom<T>::flush() {
+        if(this->ready_cycle > *this->global_cycle) this->stall_cycles++;
+        return this->done_cycle <= *this->global_cycle;
     }
 
     /* POTENTIALS */

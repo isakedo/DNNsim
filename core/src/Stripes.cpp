@@ -7,7 +7,7 @@ namespace core {
 
     template <typename T>
     uint64_t Stripes<T>::getCycles() const {
-        return this->linear ? sys::get_max(this->column_cycles[0]) : this->cycles;
+        return this->linear ? sys::get_max(this->compute_cycles) : this->cycles;
     }
 
     template <typename T>
@@ -42,17 +42,24 @@ namespace core {
 
         if (this->linear) {
 
-            if(this->cycles < this->column_cycles.front()[this->column_index]) {
-                this->column_stall_cycles += this->column_cycles.front()[this->column_index] - this->cycles;
-                this->cycles = this->column_cycles.front()[this->column_index];
-            }
+            if (this->cycles < this->compute_cycles[this->column_index])
+                this->cycles = this->compute_cycles[this->column_index];
 
-            this->column_cycles.front()[this->column_index] = this->cycles + this->act_prec;
-            this->column_index = (this->column_index + 1) % this->column_cycles.front().size();
+            this->compute_cycles[this->column_index] = this->cycles + this->act_prec;
             this->cycles++;
 
+            this->column_cycles[this->column_index] = *this->global_cycle + this->act_prec;
+            this->column_index = (this->column_index + 1) % this->column_cycles.size();
+
+            this->done_cycle = *this->global_cycle + this->act_prec;
+            this->ready_cycle = this->column_cycles[this->column_index];
+
         } else {
+
+            this->done_cycle = *this->global_cycle + this->act_prec;
+            this->ready_cycle = *this->global_cycle + this->act_prec;
             this->cycles += this->act_prec;
+
         }
 
         for (const auto &tile_data : tiles_data) {
@@ -72,6 +79,18 @@ namespace core {
 
         }
 
+    }
+
+    template <typename T>
+    bool Stripes<T>::ready() {
+        if(this->ready_cycle > *this->global_cycle) this->stall_cycles++;
+        return this->ready_cycle <= *this->global_cycle;
+    }
+
+    template <typename T>
+    bool Stripes<T>::flush() {
+        if(this->ready_cycle > *this->global_cycle) this->stall_cycles++;
+        return this->done_cycle <= *this->global_cycle;
     }
 
     /* POTENTIALS */

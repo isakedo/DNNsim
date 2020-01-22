@@ -84,6 +84,18 @@ namespace core {
          */
         void process_tiles(const std::vector<TileData<T>> &tiles_data) override;
 
+        /**
+         * Return true if ready to feed need data
+         * @return True if ready to process data
+         */
+        bool ready() override;
+
+        /**
+         * Return true if processing has finished
+         * @return True if done
+         */
+        bool flush() override;
+
         /* POTENTIALS */
 
         /**

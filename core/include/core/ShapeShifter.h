@@ -31,8 +31,17 @@ namespace core {
         /** BitTactical simulation */
         const bool TCT;
 
+        /** Ready compute cycle */
+        uint64_t ready_compute_cycle;
+
+        /** Previous index */
+        uint64_t previous_index;
+
         /** Previous ending cycles */
-        std::vector<std::vector<uint64_t>> previous_cycles;
+        std::vector<uint64_t> previous_cycles;
+
+        /** Previous compute cycles */
+        std::vector<uint64_t> previous_compute_cycles;
 
         /** Activations mask to remove negative numbers */
         uint16_t act_mask = 0;
@@ -46,10 +55,8 @@ namespace core {
          * @param _network_bits Network bits
          * @param _linear       Linear layer
          * @param COLUMNS       Number of columns
-         * @param TILES         Number of tiles
          */
-        void initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear, uint64_t COLUMNS,
-                uint64_t TILES) override;
+        void initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear, uint64_t COLUMNS) override;
 
         /**
          * Get number of cycles
@@ -127,6 +134,18 @@ namespace core {
          * @param tiles_data Processing information for all the tiles
          */
         void process_tiles(const std::vector<TileData<T>> &tiles_data) override;
+
+        /**
+         * Return true if ready to feed need data
+         * @return True if ready to process data
+         */
+        bool ready() override;
+
+        /**
+         * Return true if processing has finished
+         * @return True if done
+         */
+        bool flush() override;
 
         /* POTENTIALS */
 
