@@ -9,7 +9,6 @@ EXCLUDE                = @CMAKE_CURRENT_SOURCE_DIR@/sys/include/sys/cxxopts.h \
                          @CMAKE_CURRENT_SOURCE_DIR@/base/include/base/cnpy.h @CMAKE_CURRENT_SOURCE_DIR@/base/src/cnpy.cpp
 INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/base/include/base/ @CMAKE_CURRENT_SOURCE_DIR@/base/src/ \
                          @CMAKE_CURRENT_SOURCE_DIR@/core/include/core/ @CMAKE_CURRENT_SOURCE_DIR@/core/src/ \
-                         @CMAKE_CURRENT_SOURCE_DIR@/interface/include/interface/ @CMAKE_CURRENT_SOURCE_DIR@/interface/src/ \
                          @CMAKE_CURRENT_SOURCE_DIR@/sys/include/sys/ @CMAKE_CURRENT_SOURCE_DIR@/sys/src/ \
                          @CMAKE_CURRENT_SOURCE_DIR@/README.md \
                          @CMAKE_CURRENT_SOURCE_DIR@/examples/DaDianNao/README.md \

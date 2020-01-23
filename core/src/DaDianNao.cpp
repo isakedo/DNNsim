@@ -7,7 +7,7 @@ namespace core {
 
     template <typename T>
     std::string DaDianNao<T>::name() {
-        return TCT ? "BitTactical" : "DaDianNao";
+        return TCL ? "BitTactical" : "DaDianNao";
     }
 
     /* CYCLES */
@@ -29,7 +29,7 @@ namespace core {
 
     template <typename T>
     bool DaDianNao<T>::schedule() {
-        return TCT;
+        return TCL;
     }
 
     template <typename T>
@@ -72,7 +72,7 @@ namespace core {
     template <typename T>
     uint16_t DaDianNao<T>::computeBits(T act, T wgt) {
 
-        if (TCT) {
+        if (TCL) {
             if(wgt == 0) return 0;
         }
 

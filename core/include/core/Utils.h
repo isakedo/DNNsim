@@ -3,7 +3,6 @@
 
 #include <base/Layer.h>
 #include <base/Network.h>
-#include <interface/NetReader.h>
 #include <sys/common.h>
 
 namespace core {

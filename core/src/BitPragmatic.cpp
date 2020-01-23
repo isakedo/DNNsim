@@ -24,7 +24,7 @@ namespace core {
 
     template <typename T>
     std::string BitPragmatic<T>::name() {
-        return TCT ? "BitTacticalE" : DIFFY ? "BitPragmaticDiffy" : "BitPragmatic";
+        return TCL ? "BitTacticalE" : DIFFY ? "BitPragmaticDiffy" : "BitPragmatic";
     }
 
     template <typename T>
@@ -55,7 +55,7 @@ namespace core {
 
     template <typename T>
     bool BitPragmatic<T>::schedule() {
-        return TCT;
+        return TCL;
     }
 
     template <typename T>
@@ -142,7 +142,7 @@ namespace core {
             auto column_cycles = 0;
             auto window_idx = this->column_index * tile_data.lanes;
 
-            if (TCT) {
+            if (TCL) {
 
                 auto max_cycles = 0;
                 auto min_cycles = INT_MAX;
@@ -198,7 +198,7 @@ namespace core {
             auto ROWS = tile_data.wgt_row.size() / tile_data.lanes;
             auto COLUMNS = tile_data.act_row.front().size() / tile_data.lanes;
 
-            if (TCT) {
+            if (TCL) {
 
                 for (int w = 0; w < tile_data.windows.size(); ++w) {
                     auto window_idx = w * tile_data.lanes;
@@ -298,7 +298,7 @@ namespace core {
     template <typename T>
     uint16_t BitPragmatic<T>::computeBits(T act, T wgt) {
 
-        if (TCT) {
+        if (TCL) {
             if(wgt == 0) return 0;
         }
 

@@ -21,8 +21,7 @@ THE SOFTWARE.
 #include <sys/cxxopts.h>
 #include <sys/Batch.h>
 
-#include <interface/NetReader.h>
-#include <interface/NetWriter.h>
+#include <base/NetReader.h>
 
 #include <base/Network.h>
 #include <core/Simulator.h>
@@ -41,7 +40,7 @@ base::Network<T> read(const sys::Batch::Simulate &simulate, bool QUIET) {
 
     // Read the network
     base::Network<T> network;
-    interface::NetReader<T> reader = interface::NetReader<T>(simulate.network, simulate.batch, 0, QUIET);
+    base::NetReader<T> reader = base::NetReader<T>(simulate.network, simulate.batch, 0, QUIET);
     if (simulate.model == "Caffe") {
         network = reader.read_network_caffe();
         network.setNetwork_bits(simulate.network_bits);
@@ -51,8 +50,8 @@ base::Network<T> read(const sys::Batch::Simulate &simulate, bool QUIET) {
         reader.read_weights_npy(network);
         reader.read_activations_npy(network);
 
-    } else if (simulate.model == "Trace") {
-        network = reader.read_network_trace_params();
+    } else if (simulate.model == "CSV") {
+        network = reader.read_network_csv();
         network.setNetwork_bits(simulate.network_bits);
         network.setTensorflow_8b(simulate.tensorflow_8b);
         network.setIntelINQ(simulate.intel_inq);
@@ -60,30 +59,11 @@ base::Network<T> read(const sys::Batch::Simulate &simulate, bool QUIET) {
         reader.read_weights_npy(network);
         reader.read_activations_npy(network);
 
-    } else if (simulate.model == "CParams") {
-        network = reader.read_network_conv_params();
-        network.setNetwork_bits(simulate.network_bits);
-        network.setTensorflow_8b(simulate.tensorflow_8b);
-        network.setIntelINQ(simulate.intel_inq);
-        reader.read_weights_npy(network);
-        reader.read_activations_npy(network);
-
-    } else if (simulate.model == "Protobuf") {
-        network = reader.read_network_protobuf();
     } else {
 		throw std::runtime_error("Input model option not recognized");
 	}
 
     return network;
-
-}
-
-template <typename T>
-void write(const base::Network<T> &network, bool QUIET) {
-
-    // Write network
-    interface::NetWriter<T> writer = interface::NetWriter<T>(network.getName(),QUIET);
-    writer.write_network_protobuf(network);
 
 }
 
@@ -114,8 +94,6 @@ cxxopts::Options parse_options(int argc, char *argv[]) {
     options.add_options("simulation")
     ("q,quiet", "Don't show stdout progress messages",cxxopts::value<bool>(),"<Boolean>")
     ("fast_mode", "Enable fast mode: simulate only one image",cxxopts::value<bool>(),"<Boolean>")
-    ("store_fixed_point_protobuf", "Store the fixed point network in an intermediate Protobuf file",
-    		cxxopts::value<bool>(),"<Boolean>")
     ("check_values", "Check the correctness of the output values of the simulations.", cxxopts::value<bool>(),
             "<Boolean>");
 
@@ -140,8 +118,6 @@ int main(int argc, char *argv[]) {
 
         bool QUIET = options.count("quiet") == 0 ? false : options["quiet"].as<bool>();
         bool FAST_MODE = options.count("fast_mode") == 0 ? false : options["fast_mode"].as<bool>();
-        bool STORE_PROTOBUF = options.count("store_fixed_point_protobuf") == 0 ? false :
-        		options["store_fixed_point_protobuf"].as<bool>();
         bool CHECK = options.count("check_values") == 0 ? false : options["check_values"].as<bool>();
         std::string batch_path = options["batch"].as<std::string>();
         sys::Batch batch = sys::Batch(batch_path);
@@ -187,15 +163,11 @@ int main(int argc, char *argv[]) {
 
                 } else if (simulate.data_type == "Fixed16") {
                     base::Network<uint16_t> network;
-                    if (simulate.model != "Protobuf") {
+                    {
                         base::Network<float> tmp_network;
                         tmp_network = read<float>(simulate, QUIET);
                         network = tmp_network.fixed_point();
-                    } else {
-                        network = read<uint16_t>(simulate, QUIET);
                     }
-
-                    if (STORE_PROTOBUF) write(network, QUIET);
 
                     for (const auto &experiment : simulate.experiments) {
 

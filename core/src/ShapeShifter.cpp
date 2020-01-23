@@ -27,7 +27,7 @@ namespace core {
 
     template <typename T>
     std::string ShapeShifter<T>::name() {
-        return TCT ? "BitTacticalP" : DIFFY ? "ShapeShifterDiffy" : "ShapeShifter";
+        return TCL ? "BitTacticalP" : DIFFY ? "ShapeShifterDiffy" : "ShapeShifter";
     }
 
     template <typename T>
@@ -58,7 +58,7 @@ namespace core {
 
     template <typename T>
     bool ShapeShifter<T>::schedule() {
-        return TCT;
+        return TCL;
     }
 
     template <typename T>
@@ -117,7 +117,7 @@ namespace core {
             auto column_cycles = 0;
             auto window_idx = this->column_index * tile_data.lanes;
 
-            if (TCT) {
+            if (TCL) {
                 for (int f = 0; f < tile_data.filters.size(); ++f) {
                     auto filter_idx = f * tile_data.lanes;
 
@@ -177,7 +177,7 @@ namespace core {
             for (int w = 0; w < tile_data.windows.size(); ++w) {
                 auto window_idx = w * tile_data.lanes;
 
-                if (TCT) {
+                if (TCL) {
                     for (int f = 0; f < tile_data.filters.size(); ++f) {
                         auto filter_idx = f * tile_data.lanes;
 
@@ -282,7 +282,7 @@ namespace core {
     template <typename T>
     uint16_t ShapeShifter<T>::computeBits(T act, T wgt) {
 
-        if (TCT) {
+        if (TCL) {
             if(wgt == 0) return 0;
         }
 

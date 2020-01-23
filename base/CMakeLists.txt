@@ -12,6 +12,7 @@ add_library(
         include/base/Network.h
         src/cnpy.cpp
         src/Array.cpp
+        src/NetReader.cpp
 )
 
 target_include_directories(

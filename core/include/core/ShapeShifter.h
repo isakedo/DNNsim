@@ -29,7 +29,7 @@ namespace core {
         const bool DIFFY;
 
         /** BitTactical simulation */
-        const bool TCT;
+        const bool TCL;
 
         /** Ready compute cycle */
         uint64_t ready_compute_cycle;
@@ -175,11 +175,11 @@ namespace core {
          * @param _COLUMN_REGISTERS         Number of registers per SIP
          * @param _MINOR_BIT                Calculate also the minor bit for dynamic precisions
          * @param _DIFFY                    Enable Diffy
-         * @param _TCT                      Enable BitTactical simulation
+         * @param _TCL                      Enable BitTactical simulation
          */
-        ShapeShifter(uint32_t _GROUP_SIZE, uint32_t _COLUMN_REGISTERS, bool _MINOR_BIT, bool _DIFFY, bool _TCT) :
+        ShapeShifter(uint32_t _GROUP_SIZE, uint32_t _COLUMN_REGISTERS, bool _MINOR_BIT, bool _DIFFY, bool _TCL) :
                 GROUP_SIZE(_GROUP_SIZE), COLUMN_REGISTERS(_COLUMN_REGISTERS), MINOR_BIT(_MINOR_BIT), DIFFY(_DIFFY),
-                TCT(_TCT) {}
+                TCL(_TCL) {}
 
     };
 

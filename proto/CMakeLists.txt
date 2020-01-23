@@ -13,7 +13,6 @@ set(ProtobufIncludePath ${CMAKE_CURRENT_BINARY_DIR}
 protobuf_generate_cpp(
         PROTO_GENERATED_SOURCES
         PROTO_GENERATED_HEADERS
-        network.proto
         caffe.proto
         batch.proto
 )

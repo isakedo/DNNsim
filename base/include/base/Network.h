@@ -152,10 +152,9 @@ namespace base {
             auto fixed_network = Network<uint16_t>(name, network_bits, tensorflow_8b, intel_inq);
 
             for(auto &layer : layers) {
-                auto fixed_layer = Layer<uint16_t>(layer.getType(),layer.getName(),layer.getInput(),layer.getNn(),
-                        layer.getKx(),layer.getKy(),layer.getStride(),layer.getPadding(),layer.getActPrecision(),
-                        layer.getActMagnitude(),layer.getActFraction(),layer.getWgtPrecision(),layer.getWgtMagnitude(),
-                        layer.getWgtFraction());
+                auto fixed_layer = Layer<uint16_t>(layer.getName(), layer.getType(), layer.getStride(),
+                        layer.getPadding(), layer.getActPrecision(), layer.getActMagnitude(), layer.getActFraction(),
+                        layer.getWgtPrecision(), layer.getWgtMagnitude(), layer.getWgtFraction());
 
                 if(tensorflow_8b) fixed_layer.setActivations(layer.getActivations().tensorflow_fixed_point());
                 else if(intel_inq) fixed_layer.setActivations(layer.getActivations().intel_inq_fixed_point(true));

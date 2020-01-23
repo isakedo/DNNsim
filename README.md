@@ -26,13 +26,8 @@ Then, we can proceed to build the project
 
 Create folder **models** including a folder for each network. Every network must include one of these files:
    *  train_val.prototxt
-   *  trace_params.csv (Instead of the prototxt file)
-      *  _Header_: \<Layer\>:\<Input layer\*\>:\<Output channels\>:\<Kernel X\>:\<Kernel Y\>:\<Stride\>:\<Padding\>
-      *  \* Input layer is optional
-   *  conv_params.csv (Instead of the prototxt file and the precision.txt) 
-      *  _Header_: \<Network\>:\<Layer\>:\<Type(conv|fc|lstm)\>:\<Output channels\>:\<Weight channels\>:\<Kernel X\>: \\  
-                   \<Kernel Y\>:\<Kernel size\>:\<Stride\>:\<Padding\>:\<Precision\>:\<Magnitude (without sign)\>
-      *  Weights are generic precision 0:15                
+   *  model.csv (Instead of the prototxt file)
+      *  _Header_: \<Name\>:\<Type(conv|fc|lstm)\>:\<Stride\>:\<Padding\>             
       
 They can also include a:      
    *  precision.txt (Contain 5 lines as the example, first line is skipped)
@@ -70,7 +65,7 @@ average results for all images. Finally, the last line corresponds to the total 
 
 * Option **--quiet** remove stdout messages from simulations.
 * Option **--fast_mode** makes the simulation execute only one batch per network, the first one.
-* Option **--store_fixed_point_protobuf** store the fixed point network in a intermediate Protobuf file.
+* Option **--check_values** calculate the output values and check their correctness.
 
 ## Allowed Inference simulations
 

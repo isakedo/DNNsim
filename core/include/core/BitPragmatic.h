@@ -29,7 +29,7 @@ namespace core {
         const bool DIFFY;
 
         /** BitTactical simulation */
-        const bool TCT;
+        const bool TCL;
 
         /** Ready compute cycle */
         uint64_t ready_compute_cycle;
@@ -174,11 +174,11 @@ namespace core {
          * @param _COLUMN_REGISTERS     Number of registers per SIP
          * @param _BOOTH_ENCODING       Activate booth-like encoding
          * @param _DIFFY                Enable Diffy
-         * @param _TCT                  Enable BitTactical simulation
+         * @param _TCL                  Enable BitTactical simulation
          */
         BitPragmatic(uint32_t _BITS_FIRST_STAGE, uint32_t _COLUMN_REGISTERS, bool _BOOTH_ENCODING, bool _DIFFY,
-                bool _TCT) : BITS_FIRST_STAGE(_BITS_FIRST_STAGE), COLUMN_REGISTERS(_COLUMN_REGISTERS),
-                BOOTH_ENCODING(_BOOTH_ENCODING), DIFFY(_DIFFY), TCT(_TCT) {}
+                bool _TCL) : BITS_FIRST_STAGE(_BITS_FIRST_STAGE), COLUMN_REGISTERS(_COLUMN_REGISTERS),
+                BOOTH_ENCODING(_BOOTH_ENCODING), DIFFY(_DIFFY), TCL(_TCL) {}
 
     };
 

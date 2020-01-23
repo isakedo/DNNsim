@@ -20,8 +20,6 @@ add_subdirectory(proto)
 add_subdirectory(sys)
 # Add the base library
 add_subdirectory(base)
-# Add library for load the inputs and dump the networks
-add_subdirectory(interface)
 # Add the core library
 add_subdirectory(core)
 
@@ -38,7 +36,6 @@ target_link_libraries(
         ${PROJECT_NAME}
         PRIVATE base
         PRIVATE core
-        PRIVATE interface
         PRIVATE sys
 )
 

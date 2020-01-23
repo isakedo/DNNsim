@@ -23,9 +23,9 @@ namespace sys {
         if(simulate.tensorflow_8b) simulate.network_bits = 8;
 
         const auto &model = simulate_proto.model();
-        if(model  != "Caffe" && model != "Trace" && model != "CParams" && model != "Protobuf")
+        if(model  != "Caffe" && model != "CSV")
             throw std::runtime_error("Model configuration on network " + simulate.network +
-                                     " must be <Caffe|Trace|CParams|Protobuf>.");
+                                     " must be <Caffe|CSV>.");
         else
             simulate.model = simulate_proto.model();
 

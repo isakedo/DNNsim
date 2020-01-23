@@ -17,7 +17,7 @@ namespace core {
         /* PARAMETERS */
 
         /** BitTactical simulation */
-        const bool TCT;
+        const bool TCL;
 
         /* AUXILIARY FUNCTIONS */
 
@@ -90,9 +90,9 @@ namespace core {
     public:
 
         /** Constructor
-         * @param _TCT                  Enable BitTactical simulation
+         * @param _TCL Enable BitTactical simulation
          */
-        explicit DaDianNao(bool _TCT) : TCT(_TCT) {}
+        explicit DaDianNao(bool _TCL) : TCL(_TCL) {}
 
     };
 

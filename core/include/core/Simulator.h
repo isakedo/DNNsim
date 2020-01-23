@@ -8,7 +8,6 @@
 #include <base/Array.h>
 #include <base/Layer.h>
 #include <base/Network.h>
-#include <interface/NetReader.h>
 
 #include "Dataflow.h"
 #include "Architecture.h"
