@@ -74,7 +74,7 @@ namespace core {
          * @param _linear       Linear layer
          * @param COLUMNS       Number of columns
          */
-        virtual void initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear, uint64_t COLUMNS) {
+        virtual void configure_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear, uint64_t COLUMNS) {
             act_prec = _act_prec;
             wgt_prec = _wgt_prec;
             network_bits = _network_bits;

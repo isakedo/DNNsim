@@ -1,5 +1,6 @@
 
 #include <sys/Batch.h>
+#include <regex>
 
 namespace sys {
 
@@ -12,29 +13,60 @@ namespace sys {
         return success;
     }
 
+    uint64_t parse_memory_size(const std::string &size) {
+
+        if (std::regex_match(size, std::regex("0*(GB|GiB|MB|MiB|KB|KiB|B)$")))
+            return 0;
+
+        int base, power;
+
+        if (std::regex_match(size, std::regex("[0-9]+GB$")))
+            base = 10, power = 9;
+        else if (std::regex_match(size, std::regex("[0-9]+GiB$")))
+            base = 2, power = 30;
+        else if (std::regex_match(size, std::regex("[0-9]+MB$")))
+            base = 10, power = 6;
+        else if (std::regex_match(size, std::regex("[0-9]+MiB$")))
+            base = 2, power = 20;
+        else if (std::regex_match(size, std::regex("[0-9]+KB$")))
+            base = 10, power = 3;
+        else if (std::regex_match(size, std::regex("[0-9]+KiB$")))
+            base = 2, power = 10;
+        else if (std::regex_match(size, std::regex("[0-9]+B$")))
+            base = 10, power = 0;
+        else
+            throw std::exception();
+
+        auto npos = size.find_first_of("GMKBi");
+        return std::stoul(size.substr(0, npos)) * (uint64_t)pow(base, power);
+
+    }
+
     Batch::Simulate Batch::read_inference_simulation(const protobuf::Batch_Simulate &simulate_proto) {
 
         Batch::Simulate simulate;
         simulate.network = simulate_proto.network();
         simulate.batch = simulate_proto.batch();
-        simulate.tensorflow_8b = simulate_proto.tensorflow_8b();
+        simulate.tensorflow = simulate_proto.tensorflow();
         simulate.intel_inq = simulate_proto.intel_inq();
-        simulate.network_bits = simulate_proto.network_bits() < 1 ? 16 : simulate_proto.network_bits();
-        if(simulate.tensorflow_8b) simulate.network_bits = 8;
 
         const auto &model = simulate_proto.model();
         if(model  != "Caffe" && model != "CSV")
-            throw std::runtime_error("Model configuration on network " + simulate.network +
-                                     " must be <Caffe|CSV>.");
+            throw std::runtime_error("Model configuration must be <Caffe|CSV>.");
         else
             simulate.model = simulate_proto.model();
 
         const auto &dtype = simulate_proto.data_type();
-        if(dtype  != "Float32" && dtype != "Fixed16")
-            throw std::runtime_error("Input data type configuration on network " + simulate.network +
-                                     " must be <Float32|Fixed16>.");
+        if(dtype  != "Float32" && dtype != "FixedPoint")
+            throw std::runtime_error("Input data type configuration must be <Float32|FixedPoint>.");
         else
             simulate.data_type = simulate_proto.data_type();
+
+        if (dtype == "Float32") simulate.network_bits = 32;
+        else simulate.network_bits = simulate_proto.network_bits() < 1 ? 16 : simulate_proto.network_bits();
+
+        if (simulate.network_bits > 16)
+            throw std::runtime_error("Maximum data width allowed for FixedPoint data type is 16");
 
         for(const auto &experiment_proto : simulate_proto.experiment()) {
 
@@ -46,6 +78,14 @@ namespace sys {
             experiment.column_registers = experiment_proto.column_registers();
             experiment.bits_pe = experiment_proto.bits_pe() < 1 ? 16 : experiment_proto.bits_pe();
 
+            // Memory parameters
+            try {
+                if (experiment_proto.global_buffer_size().empty()) experiment.global_buffer_size = (uint64_t)pow(10, 9);
+                else experiment.global_buffer_size = parse_memory_size(experiment_proto.global_buffer_size());
+            } catch (const std::exception &e) {
+                throw std::runtime_error("Global Buffer size not recognised.");
+            }
+
             // BitPragmatic-Laconic
             experiment.booth = experiment_proto.booth_encoding();
             experiment.bits_first_stage = experiment_proto.bits_first_stage();
@@ -56,8 +96,7 @@ namespace sys {
 
             if((experiment_proto.architecture() == "ShapeShifter" || experiment_proto.architecture() == "Loon") &&
                     (experiment.n_columns % experiment.group_size != 0))
-                throw std::runtime_error("Group size on network " + simulate.network +
-                        " must be divisor of the columns.");
+                throw std::runtime_error("Group size on network must be divisor of the columns.");
 
             // Loom
             experiment.dynamic_weights = experiment_proto.dynamic_weights();
@@ -66,8 +105,7 @@ namespace sys {
 
             if(experiment_proto.architecture() == "Loom" &&
                     (experiment.n_rows % experiment.group_size != 0))
-                throw std::runtime_error("Group size on network " + simulate.network +
-                        " must be divisor of the rows.");
+                throw std::runtime_error("Group size on network must be divisor of the rows.");
 
             // BitTactical
             experiment.lookahead_h = experiment_proto.lookahead_h() < 1 ? 2 : experiment_proto.lookahead_h();
@@ -78,11 +116,10 @@ namespace sys {
 
             const auto &search_shape = experiment.search_shape;
             if(search_shape != "L" && search_shape != "T")
-                throw std::runtime_error("BitTactical search shape on network " + simulate.network +
-                                         " must be <L|T>.");
+                throw std::runtime_error("BitTactical search shape on network must be <L|T>.");
             if(search_shape == "T" && (experiment.lookahead_h != 2 || experiment.lookaside_d != 5))
-                throw std::runtime_error("BitTactical search T-shape on network " + simulate.network +
-                                         " must be lookahead of 2, and lookaside of 5.");
+                throw std::runtime_error("BitTactical search T-shape on network must be lookahead of 2, and "
+                                         "lookaside of 5.");
 
             // SCNN
             experiment.Wt = experiment_proto.wt() < 1 ? 8 : experiment_proto.wt();
@@ -94,8 +131,7 @@ namespace sys {
             experiment.banks = experiment_proto.banks() < 1 ? 32 : experiment_proto.banks();
 
             if(experiment.banks > 32)
-                throw std::runtime_error("Banks for SCNN on network " + simulate.network +
-                                         " must be from 1 to 32");
+                throw std::runtime_error("Banks for SCNN on network must be from 1 to 32");
 
             // On top architectures
             experiment.diffy = experiment_proto.diffy();
@@ -104,33 +140,29 @@ namespace sys {
             // Sanity check
             const auto &task = experiment_proto.task();
             if(task  != "Cycles" && task != "Potentials")
-                throw std::runtime_error("Task on network " + simulate.network +
-                                         " in Fixed16 must be <Cycles|Potentials>.");
+                throw std::runtime_error("Task on network in FixedPoint must be <Cycles|Potentials>.");
 
             if (task == "Potentials" && experiment.diffy)
-                throw std::runtime_error("Diffy simulation on network " + simulate.network +
-                                         " is only allowed for <Cycles>.");
+                throw std::runtime_error("Diffy simulation on network is only allowed for <Cycles>.");
 
             const auto &arch = experiment_proto.architecture();
-            if (dtype == "Fixed16" && arch != "DaDianNao" && arch != "Stripes" && arch != "ShapeShifter" &&
+            if (dtype == "FixedPoint" && arch != "DaDianNao" && arch != "Stripes" && arch != "ShapeShifter" &&
                     arch != "Loom" && arch != "BitPragmatic" && arch != "Laconic" && arch != "SCNN")
                 throw std::runtime_error("Architecture on network " + simulate.network +
-                    " in Fixed16 must be <DaDianNao|Stripes|ShapeShifter|Loom|BitPragmatic|Laconic|SCNN>.");
+                    " in FixedPoint must be <DaDianNao|Stripes|ShapeShifter|Loom|BitPragmatic|Laconic|SCNN>.");
             else  if (dtype == "Float32" && arch != "DaDianNao" && arch != "SCNN")
-                throw std::runtime_error("Architecture on network " + simulate.network +
-                                         " in Float32 must be <DaDianNao|SCNN>.");
+                throw std::runtime_error("Architecture on network in Float32 must be <DaDianNao|SCNN>.");
 
             if (arch != "DaDianNao" && arch != "ShapeShifter" && arch != "BitPragmatic" && experiment.tactical)
-                throw std::runtime_error("Tactical simulation on network " + simulate.network +
-                        " in Fixed16 is only allowed for backends <DaDianNao|ShapeShifter|BitPragmatic>");
+                throw std::runtime_error("Tactical simulation in FixedPoint is only allowed for backends "
+                                         "<DaDianNao|ShapeShifter|BitPragmatic>");
 
             if (arch != "ShapeShifter" && arch != "BitPragmatic" && experiment.diffy)
-                throw std::runtime_error("Diffy simulation on network " + simulate.network +
-                                         " in Fixed16 is only allowed for backends <ShapeShifter|BitPragmatic>");
+                throw std::runtime_error("Diffy simulation on network in FixedPoint is only allowed for backends "
+                                         "<ShapeShifter|BitPragmatic>");
 
             if (experiment.tactical && experiment.diffy)
-                throw std::runtime_error("Both Tactical and Diffy simulation on network " + simulate.network +
-                                         " are not allowed");
+                throw std::runtime_error("Both Tactical and Diffy simulation are not allowed on the same experiment");
 
             experiment.architecture = experiment_proto.architecture();
             experiment.task = experiment_proto.task();

@@ -290,10 +290,10 @@ namespace base {
 }
 
     template <typename T>
-    Array<uint16_t> Array<T>::tensorflow_fixed_point() const {
+    Array<uint16_t> Array<T>::tensorflow_fixed_point(int network_bits) const {
         //const int NUM_BITS = 8;
-        int max_fixed = 127;
-        int min_fixed = -127;
+        int max_fixed = (int)pow(2, network_bits - 1) - 1;
+        int min_fixed = (int)(pow(2, network_bits - 1) - 1) * -1;
         //const int num_discrete_values = 1u << NUM_BITS;
         //const auto range_adjust = num_discrete_values / (num_discrete_values - 1.0);
 
@@ -306,7 +306,7 @@ namespace base {
             float scale;
             if (min_value == 0) {
                 min_fixed = 0;
-                max_fixed = 255;
+                max_fixed = (int)pow(2, network_bits) - 1;
                 scale = (max_fixed - min_fixed) / m;
             } else {
                 scale = (max_fixed - min_fixed) / (2 * m);
@@ -327,7 +327,7 @@ namespace base {
             float scale;
             if (min_value == 0) {
                 min_fixed = 0;
-                max_fixed = 255;
+                max_fixed = (int)pow(2, network_bits) - 1;
                 scale = (max_fixed - min_fixed) / m;
             } else {
                 scale = (max_fixed - min_fixed) / (2 * m);
@@ -351,7 +351,7 @@ namespace base {
             if (min_value == 0) {
                 min_fixed = 0;
                 max_fixed = 255;
-                scale = (max_fixed - min_fixed) / m;
+                max_fixed = (int)pow(2, network_bits) - 1;
             } else {
                 scale = (max_fixed - min_fixed) / (2 * m);
             }
@@ -375,7 +375,7 @@ namespace base {
             float scale;
             if (min_value == 0) {
                 min_fixed = 0;
-                max_fixed = 255;
+                max_fixed = (int)pow(2, network_bits) - 1;
                 scale = (max_fixed - min_fixed) / m;
             } else {
                 scale = (max_fixed - min_fixed) / (2 * m);

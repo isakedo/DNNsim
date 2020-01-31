@@ -106,10 +106,10 @@ The batch file can be constructed as follows for the simulation tool:
 | batch | uint32 | Corresponding batch for the Numpy traces | Positive numbers | 0 | 
 | epoch | uint32 | Number of epochs in the Numpy traces | Positive numbers | 1 | 
 | model | string | Format of the input model definition and traces | Trace-Caffe-CParams-Protobuf | N/A |
-| data_type | string | Data type of the input traces | Float32-Fixed16-BFloat16 | N/A |
+| data_type | string | Data type of the input traces | Float32-FixedPoint | N/A |
 | network | string | Name of the network as in the models folder | Valid path | N/A |
 | network_bits | uint32 | Number of baseline bits of the network | Positive Number | 16 |
-| tensorflow_8b | bool | Use tensorflow 8bits quantization | True-False | False |
+| tensorflow | bool | Use tensorflow quantization | True-False | False |
 
 Experiments contain the following parameters.
 

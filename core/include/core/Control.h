@@ -1,5 +1,5 @@
-#ifndef DNNSIM_DATAFLOW_H
-#define DNNSIM_DATAFLOW_H
+#ifndef DNNSIM_CONTROL_H
+#define DNNSIM_CONTROL_H
 
 #include "Utils.h"
 #include "BitTactical.h"
@@ -7,13 +7,32 @@
 namespace core {
 
     /**
-     * Generic Dataflow
+     * Control Logic
      * @tparam T Data type values
      */
     template <typename T>
-    class Dataflow {
+    class Control {
 
     protected:
+
+        /** Weight buffer scheduler */
+        BitTactical<T> scheduler;
+
+        uint64_t data_size;
+
+        uint64_t global_buffer_size;
+
+        uint64_t act_buffer_size;
+
+        uint64_t wgt_buffer_size;
+
+        uint64_t start_act_address;
+
+        uint64_t start_wgt_address;
+
+        uint64_t next_act_address;
+
+        uint64_t next_wgt_address;
 
         /** Pointer to activations */
         std::shared_ptr<base::Array<T>> act;
@@ -21,11 +40,12 @@ namespace core {
         /** Pointer to weights */
         std::shared_ptr<base::Array<T>> wgt;
 
-        /** Weight buffer scheduler */
-        BitTactical<T> scheduler;
-
         /** Schedule weight buffer */
         bool schedule = false;
+
+        AddressMap act_address_map;
+
+        AddressMap wgt_address_map;
 
         /** Diffy simulation */
         bool diffy = false;
@@ -37,7 +57,7 @@ namespace core {
         bool lstm = false;
 
         /** Number of recurrences for Recurrent neural network */
-        int recurrence = 0;
+        int recurrences = 0;
 
         /** Output window X dimensions */
         int out_x = 0;
@@ -49,71 +69,41 @@ namespace core {
         int stride = 0;
 
         /** Number of concurrent multiplications per PE */
-        uint32_t N_LANES;
+        uint32_t N_LANES = 0;
 
         /** Number of columns */
-        uint32_t N_COLUMNS;
+        uint32_t N_COLUMNS = 0;
 
         /** Number of rows */
-        uint32_t N_ROWS;
+        uint32_t N_ROWS = 0;
 
         /** Number of tiles */
-        uint32_t N_TILES;
+        uint32_t N_TILES = 0;
 
-        /* STATISTICS */
+        virtual void generate_address_maps() = 0;
 
-        /** Activation buffer reads */
-        uint64_t act_buff_reads = 0;
+        virtual void generate_conv_execution_graph() = 0;
 
-        /** Weight buffer reads */
-        uint64_t wgt_buff_reads = 0;
-
-        /** Accumulator updates */
-        uint64_t acc_updates = 0;
-
-        /** Output buffer writes */
-        uint64_t out_buffer_writes = 0;
+        virtual void generate_linear_execution_graph() = 0;
 
     public:
 
         /**
          * Constructor
          * @param _scheduler
+         * @param _data_size
+         * @param _global_buffer_size
+         * @param _act_buffer_size
+         * @param _wgt_buffer_size
+         * @param _start_act_address
+         * @param _start_wgt_address
          */
-        explicit Dataflow(const BitTactical<T> &_scheduler) : scheduler(_scheduler), N_LANES(0), N_COLUMNS(0),
-                N_ROWS(0), N_TILES(0) {}
-
-        /**
-         * Get activation buffer reads
-         * @return Activation buffer reads
-         */
-        uint64_t getActBuffReads() const {
-            return act_buff_reads;
-        }
-
-        /**
-         * Get weight buffer reads
-         * @return Weight buffer reads
-         */
-        uint64_t getWgtBuffReads() const {
-            return wgt_buff_reads;
-        }
-
-        /**
-         * Get Accumulator updates
-         * @return Accumulator updates
-         */
-        uint64_t getAccUpdates() const {
-            return acc_updates;
-        }
-
-        /**
-         * Get output buffer writes
-         * @return Output buffer writes
-         */
-        uint64_t getOutBufferWrites() const {
-            return out_buffer_writes;
-        }
+        Control(const BitTactical<T> &_scheduler, uint64_t _data_size, uint64_t _global_buffer_size,
+                uint64_t _act_buffer_size, uint64_t _wgt_buffer_size, uint64_t _start_act_address,
+                uint64_t _start_wgt_address) : scheduler(_scheduler),  data_size(_data_size),
+                global_buffer_size(_global_buffer_size), act_buffer_size(_act_buffer_size),
+                wgt_buffer_size(_wgt_buffer_size), start_act_address(_start_act_address),
+                start_wgt_address(_start_wgt_address), next_act_address(0), next_wgt_address(0) {}
 
         /**
         * Return name for the dataflow
@@ -122,14 +112,14 @@ namespace core {
         virtual std::string name() = 0;
 
         /**
-         * Initialise values for the current layer
+         * Configure control values for the current layer
          * @param _act          Activation array
          * @param _wgt          Weight array
          * @param _diffy        Diffy
          * @param _schedule     Schedule buffer
          * @param _fc           Fully connected
          * @param _lstm         LSTM
-         * @param _recurrence   Recurrences
+         * @param _recurrences  Recurrences
          * @param _out_x        Output X windows
          * @param _out_y        Output Y windows
          * @param _stride       Stride
@@ -138,9 +128,9 @@ namespace core {
          * @param _N_ROWS       Number of rows
          * @param _N_TILES      Number of tiles
          */
-        virtual void initialise_layer(const std::shared_ptr<base::Array<T>> &_act,
+        virtual void configure_layer(const std::shared_ptr<base::Array<T>> &_act,
                 const std::shared_ptr<base::Array<T>> &_wgt, bool _diffy, bool _schedule, bool _fc, bool _lstm,
-                int _recurrence, int _out_x, int _out_y, int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS,
+                int _recurrences, int _out_x, int _out_y, int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS,
                 uint32_t _N_ROWS, uint32_t _N_TILES) {
             act = _act;
             wgt = _wgt;
@@ -148,7 +138,7 @@ namespace core {
             schedule = _schedule;
             fc = _fc;
             lstm = _lstm;
-            recurrence = _recurrence;
+            recurrences = _recurrences;
             out_x = _out_x;
             out_y = _out_y;
             stride = _stride;
@@ -156,22 +146,19 @@ namespace core {
             N_COLUMNS = _N_COLUMNS;
             N_ROWS = _N_ROWS;
             N_TILES = _N_TILES;
-
-            act_buff_reads = 0;
-            wgt_buff_reads = 0;
-            acc_updates = 0;
-            out_buffer_writes = 0;
         }
+
+        virtual void notify_done() = 0;
 
         /**
          * Return if still data to process
-         * @param tile_data Tile data to process
+         * @param tiles_data Tile data to process
          * @return True if still data to process, False if not
          */
-        virtual bool next_dataflow_step(std::vector<TileData<T>> &tile_data) = 0;
+        virtual bool next_tile(std::vector<TileData<T>> &tiles_data) = 0;
 
     };
 
 }
 
-#endif //DNNSIM_DATAFLOW_H
+#endif //DNNSIM_CONTROL_H

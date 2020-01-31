@@ -6,9 +6,9 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    void ShapeShifter<T>::initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear,
+    void ShapeShifter<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear,
             uint64_t COLUMNS) {
-        Architecture<T>::initialise_layer(_act_prec, _wgt_prec, _network_bits, _linear, COLUMNS);
+        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_bits, _linear, COLUMNS);
 
         auto GROUPS = ceil(this->column_cycles.size() / (double)GROUP_SIZE);
         this->column_cycles = std::vector<uint64_t>(GROUPS, 0);

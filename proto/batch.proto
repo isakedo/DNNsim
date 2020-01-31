@@ -49,17 +49,19 @@ message Batch {
             bool diffy = 25;
             bool tactical = 26;
 
+            // Memory parameters
+            string global_buffer_size = 27;
+
         }
 
         uint32 batch = 1;
-        uint32 epochs = 2;
-        string model = 3;
-        string data_type = 4;
-        string network = 5;
-        uint32 network_bits = 6;
-        bool tensorflow_8b = 7;
-        bool intel_inq = 8;
-        repeated Experiment experiment = 9;
+        string model = 2;
+        string data_type = 3;
+        string network = 4;
+        uint32 network_bits = 5;
+        bool tensorflow = 6;
+        bool intel_inq = 7;
+        repeated Experiment experiment = 8;
     }
 
     repeated Simulate simulate = 1;

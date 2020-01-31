@@ -124,9 +124,10 @@ namespace base {
 
         /**
          * Return a fixed point array for tensorflow 8bits quantization
+         * @param network_bits Network bits
          * @return Fixed point quantized tensor
          */
-        Array<uint16_t> tensorflow_fixed_point() const;
+        Array<uint16_t> tensorflow_fixed_point(int network_bits) const;
 
         /** Return a fixed point array for intel INQ quantization
          * @param activations True if activations traces

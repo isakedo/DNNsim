@@ -44,7 +44,7 @@ base::Network<T> read(const sys::Batch::Simulate &simulate, bool QUIET) {
     if (simulate.model == "Caffe") {
         network = reader.read_network_caffe();
         network.setNetwork_bits(simulate.network_bits);
-        network.setTensorflow_8b(simulate.tensorflow_8b);
+        network.setTensorflow(simulate.tensorflow);
         network.setIntelINQ(simulate.intel_inq);
         reader.read_precision(network);
         reader.read_weights_npy(network);
@@ -53,7 +53,7 @@ base::Network<T> read(const sys::Batch::Simulate &simulate, bool QUIET) {
     } else if (simulate.model == "CSV") {
         network = reader.read_network_csv();
         network.setNetwork_bits(simulate.network_bits);
-        network.setTensorflow_8b(simulate.tensorflow_8b);
+        network.setTensorflow(simulate.tensorflow);
         network.setIntelINQ(simulate.intel_inq);
         reader.read_precision(network);
         reader.read_weights_npy(network);
@@ -137,8 +137,10 @@ int main(int argc, char *argv[]) {
                         core::BitTactical<float> scheduler(experiment.lookahead_h, experiment.lookaside_d,
                                 experiment.search_shape.c_str()[0]);
 
-                        std::shared_ptr<core::Dataflow<float>> dataflow =
-                                std::make_shared<core::WindowFirstOutS<float>>(scheduler);
+                        std::shared_ptr<core::Control<float>> control =
+                                std::make_shared<core::WindowFirstOutS<float>>(scheduler,
+                                ceil(simulate.network_bits / 8.), experiment.global_buffer_size, 0, 0, 0x40000000,
+                                0x20000000);
 
                         core::Simulator<float> DNNsim(experiment.n_lanes, experiment.n_columns, experiment.n_rows,
                                 experiment.n_tiles, experiment.bits_pe, FAST_MODE, QUIET, CHECK);
@@ -156,12 +158,12 @@ int main(int argc, char *argv[]) {
                             std::shared_ptr<core::Architecture<float>> arch =
                                     std::make_shared<core::DaDianNao<float>>(experiment.tactical);
 
-                            if (experiment.task == "Cycles") DNNsim.run(network, arch, dataflow);
+                            if (experiment.task == "Cycles") DNNsim.run(network, arch, control);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
                         }
                     }
 
-                } else if (simulate.data_type == "Fixed16") {
+                } else if (simulate.data_type == "FixedPoint") {
                     base::Network<uint16_t> network;
                     {
                         base::Network<float> tmp_network;
@@ -174,8 +176,10 @@ int main(int argc, char *argv[]) {
                         core::BitTactical<uint16_t> scheduler(experiment.lookahead_h, experiment.lookaside_d,
                                 experiment.search_shape.c_str()[0]);
 
-                        std::shared_ptr<core::Dataflow<uint16_t>> dataflow =
-                                std::make_shared<core::WindowFirstOutS<uint16_t>>(scheduler);
+                        std::shared_ptr<core::Control<uint16_t>> control =
+                                std::make_shared<core::WindowFirstOutS<uint16_t>>(scheduler,
+                                ceil(simulate.network_bits / 8.), experiment.global_buffer_size, 0, 0, 0x40000000,
+                                0x20000000);
 
                         core::Simulator<uint16_t> DNNsim(experiment.n_lanes, experiment.n_columns, experiment.n_rows,
                                 experiment.n_tiles, experiment.bits_pe, FAST_MODE, QUIET, CHECK);
@@ -193,14 +197,14 @@ int main(int argc, char *argv[]) {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
                                     std::make_shared<core::DaDianNao<uint16_t>>(experiment.tactical);
 
-                            if (experiment.task == "Cycles") DNNsim.run(network, arch, dataflow);
+                            if (experiment.task == "Cycles") DNNsim.run(network, arch, control);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                         } else if (experiment.architecture == "Stripes") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
                                     std::make_shared<core::Stripes<uint16_t>>();
 
-                            if (experiment.task == "Cycles") DNNsim.run(network, arch, dataflow);
+                            if (experiment.task == "Cycles") DNNsim.run(network, arch, control);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                         } else if (experiment.architecture == "ShapeShifter") {
@@ -209,7 +213,7 @@ int main(int argc, char *argv[]) {
                                     experiment.column_registers, experiment.minor_bit, experiment.diffy,
                                     experiment.tactical);
 
-                            if (experiment.task == "Cycles") DNNsim.run(network, arch, dataflow);
+                            if (experiment.task == "Cycles") DNNsim.run(network, arch, control);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                         } else if (experiment.architecture == "Loom") {
@@ -217,7 +221,7 @@ int main(int argc, char *argv[]) {
                                     std::make_shared<core::Loom<uint16_t>>(experiment.group_size,
                                     experiment.pe_serial_bits, experiment.minor_bit, experiment.dynamic_weights);
 
-                            if (experiment.task == "Cycles") DNNsim.run(network, arch, dataflow);
+                            if (experiment.task == "Cycles") DNNsim.run(network, arch, control);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                         } else if (experiment.architecture == "BitPragmatic") {
@@ -226,14 +230,14 @@ int main(int argc, char *argv[]) {
                                     experiment.column_registers, experiment.booth, experiment.diffy,
                                     experiment.tactical);
 
-                            if (experiment.task == "Cycles") DNNsim.run(network, arch, dataflow);
+                            if (experiment.task == "Cycles") DNNsim.run(network, arch, control);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                         } else if (experiment.architecture == "Laconic") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
                                     std::make_shared<core::Laconic<uint16_t>>(experiment.booth);
 
-                            if (experiment.task == "Cycles") DNNsim.run(network, arch, dataflow);
+                            if (experiment.task == "Cycles") DNNsim.run(network, arch, control);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                         }

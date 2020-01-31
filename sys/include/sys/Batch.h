@@ -99,13 +99,13 @@ namespace sys {
                 /** Dynamic width precision: Loom */
                 bool dynamic_weights = false;
 
+                /** Global buffer memory size */
+                uint64_t global_buffer_size = 0;
+
             };
 
             /** Batch number of the traces */
             uint32_t batch = 0;
-
-            /** Number of epochs of the training traces */
-            uint32_t epochs = 0;
 
             /** Model input type */
             std::string model = "";
@@ -120,7 +120,7 @@ namespace sys {
             uint32_t network_bits = 0;
 
             /** Tensorflow quantization */
-            bool tensorflow_8b = false;
+            bool tensorflow = false;
 
             /** Intel INQ quantization */
             bool intel_inq = false;

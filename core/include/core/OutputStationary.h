@@ -1,7 +1,7 @@
 #ifndef DNNSIM_OUTPUTSTATIONARY_H
 #define DNNSIM_OUTPUTSTATIONARY_H
 
-#include "Dataflow.h"
+#include "Control.h"
 
 namespace core {
 
@@ -10,18 +10,33 @@ namespace core {
      * @tparam T Data type values
      */
     template <typename T>
-    class OutputStationary : public Dataflow<T> {
+    class OutputStationary : public Control<T> {
 
     protected:
+
+        struct NodeOutS {
+            uint64_t recurrence = 0;
+            uint64_t start_channel = 0;
+            uint64_t end_channel = 0;
+            std::vector<int> window_sets;
+            std::vector<int> filter_tile_sets;
+            std::vector<AddressRange> read_addresses;
+            std::vector<AddressRange> clean_addresses;
+        };
+
+        std::vector<NodeOutS> on_chip_graph;
+
+        virtual void generate_address_maps() = 0;
+
+        virtual void generate_conv_execution_graph() = 0;
+
+        virtual void generate_linear_execution_graph() = 0;
 
         /** Weight buffer */
         Buffer<T> weight_buffer;
 
         /** Window buffer */
         BufferSet<T> window_buffer;
-
-        /** Number of window sets */
-        uint64_t window_sets = 0;
 
         /** Number of filter sets */
         uint64_t filter_sets = 0;
@@ -45,16 +60,16 @@ namespace core {
         std::vector<std::vector<int>> filters;
 
         /** Recurrence counter */
-        int current_recurrence = 0;
+        //int current_recurrence = 0;
 
-        /** Group counter */
-        int group = 0;
+        /** Group iterator */
+        int group_it = 0;
 
-        /** Window counter */
-        int window_set = 0;
+        /** Window iterator */
+        int window_set_it = 0;
 
-        /** Filter counter */
-        int filter_set = 0;
+        /** Filter iterator */
+        int filter_set_it = 0;
 
         /** Time counter */
         std::vector<int> time;
@@ -78,14 +93,6 @@ namespace core {
          */
         void fill_window_buffer();
 
-    public:
-
-        /**
-         * Constructor
-         * @param _scheduler True if schedule the weight buffer
-         */
-        explicit OutputStationary(const BitTactical<T> &_scheduler) : Dataflow<T>(_scheduler) {}
-
         /**
         * Return name for the dataflow
         * @return Name of the dataflow
@@ -100,7 +107,7 @@ namespace core {
          * @param _schedule     Schedule buffer
          * @param _fc           Fully connected
          * @param _lstm         LSTM
-         * @param _recurrence   Recurrences
+         * @param _recurrences  Recurrences
          * @param _out_x        Output X windows
          * @param _out_y        Output Y windows
          * @param _stride       Stride
@@ -109,16 +116,36 @@ namespace core {
          * @param _N_ROWS       Number of rows
          * @param _N_TILES      Number of tiles
          */
-        void initialise_layer(const std::shared_ptr<base::Array<T>> &_act, const std::shared_ptr<base::Array<T>> &_wgt,
-                bool _diffy, bool _schedule, bool _fc, bool _lstm, int _recurrence, int _out_x, int _out_y, int _stride,
-                uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES) override;
+        virtual void configure_layer(const std::shared_ptr<base::Array<T>> &_act,
+                const std::shared_ptr<base::Array<T>> &_wgt, bool _diffy, bool _schedule, bool _fc, bool _lstm,
+                int _recurrences, int _out_x, int _out_y, int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS,
+                uint32_t _N_ROWS, uint32_t _N_TILES);
+
+        void notify_done();
 
         /**
          * Return if still data to process
-         * @param tile_data Tile data to process
+         * @param tiles_data Tile data to process
          * @return True if still data to process, False if not
          */
-        virtual bool next_dataflow_step(std::vector<TileData<T>> &tile_data) = 0;
+        virtual bool next_tile(std::vector<TileData<T>> &tiles_data) = 0;
+
+    public:
+
+        /**
+         * Constructor
+         * @param _scheduler
+         * @param _data_size
+         * @param _global_buffer_size
+         * @param _act_buffer_size
+         * @param _wgt_buffer_size
+         * @param _start_act_address
+         * @param _start_wgt_address
+         */
+        OutputStationary(const BitTactical<T> &_scheduler, uint64_t _data_size, uint64_t _global_buffer_size,
+                uint64_t _act_buffer_size, uint64_t _wgt_buffer_size, uint64_t _start_act_address,
+                uint64_t _start_wgt_address) : Control<T>(_scheduler, _data_size, _global_buffer_size, _act_buffer_size,
+                _wgt_buffer_size, _start_act_address, _start_wgt_address) {}
 
     };
 

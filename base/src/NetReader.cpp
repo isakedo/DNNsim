@@ -139,15 +139,15 @@ namespace base {
     template <typename T>
     void NetReader<T>::read_precision(base::Network<T> &network) {
 
-        if(network.isTensorflow_8b()) {
+        if(network.isTensorflow()) {
             int i = 0;
             for(base::Layer<T> &layer : network.updateLayers()) {
-                layer.setAct_precision(8,7,0);
-                layer.setWgt_precision(8,7,0);
+                layer.setAct_precision(network.getNetwork_bits(),0,0);
+                layer.setWgt_precision(network.getNetwork_bits(),0,0);
                 i++;
             }
 
-            if(!QUIET) std::cout << "Using generic precisions for Tensorflow 8b quantization" << std::endl;
+            if(!QUIET) std::cout << "Precisions set for Tensorflow quantization" << std::endl;
 
             return;
         }
@@ -155,12 +155,12 @@ namespace base {
         if(network.isIntelINQ()) {
             int i = 0;
             for(base::Layer<T> &layer : network.updateLayers()) {
-                layer.setAct_precision(16,15,0);
-                layer.setWgt_precision(8,7,0);
+                layer.setAct_precision(network.getNetwork_bits(),0,0);
+                layer.setWgt_precision(network.getNetwork_bits(),0,0);
                 i++;
             }
 
-            if(!QUIET) std::cout << "Using generic precisions for Intel INQ quantization" << std::endl;
+            if(!QUIET) std::cout << "Precisions set for IntelINQ quantization" << std::endl;
 
             return;
         }
@@ -216,14 +216,19 @@ namespace base {
                 if (network.getNetwork_bits() == 8) {
                     layer.setAct_precision(8,6,1);
                     layer.setWgt_precision(8,0,7);
-                } else {
+                } else if (network.getNetwork_bits() == 16){
                     layer.setAct_precision(16,13,2);
                     layer.setWgt_precision(16,0,15);
+                } else if (network.getNetwork_bits() == 32) {
+                    layer.setAct_precision(32,0,0);
+                    layer.setWgt_precision(32,0,0);
+                } else {
+                    throw std::runtime_error("No profiled network generic precisions for the given network bits");
                 }
                 i++;
             }
 
-            if(!QUIET) std::cout << "No profiled precisions: Using generic precisions" << std::endl;
+            if(!QUIET) std::cout << "Generic precisions set" << std::endl;
 
         }
     }

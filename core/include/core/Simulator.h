@@ -9,7 +9,7 @@
 #include <base/Layer.h>
 #include <base/Network.h>
 
-#include "Dataflow.h"
+#include "Control.h"
 #include "Architecture.h"
 #include "BitTactical.h"
 #include "Utils.h"
@@ -68,10 +68,10 @@ namespace core {
         /** Simulate architecture for the given network
         * @param network   Network we want to calculate work reduction
         * @param arch      Pointer to the architecture to simulate
-        * @param dataflow  Pointer to the dataflow
+        * @param control   Pointer to the control
         */
         void run(const base::Network<T> &network, const std::shared_ptr<Architecture<T>> &arch,
-                 const std::shared_ptr<Dataflow<T>> &dataflow);
+                 const std::shared_ptr<Control<T>> &control);
 
         /** Calculate potentials for the given network
          * @param network   Network we want to calculate work reduction

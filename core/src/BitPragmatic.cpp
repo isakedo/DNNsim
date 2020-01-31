@@ -6,9 +6,9 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    void BitPragmatic<T>::initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear,
+    void BitPragmatic<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear,
             uint64_t COLUMNS) {
-        Architecture<T>::initialise_layer(_act_prec, _wgt_prec, _network_bits, _linear, COLUMNS);
+        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_bits, _linear, COLUMNS);
 
         ready_compute_cycle = 0;
         previous_index = 0;

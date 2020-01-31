@@ -1,7 +1,7 @@
 simulate {
 	network: "bvlc_googlenet"
 	model: "CSV"
-	data_type: "Fixed16"
+	data_type: "FixedPoint"
 	experiment {
         architecture: "BitPragmatic"
         task: "Cycles"

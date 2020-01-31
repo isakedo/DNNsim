@@ -8,7 +8,8 @@ namespace core {
     template <typename T>
     void OutputStationary<T>::fill_weight_buffer() {
 
-        weight_buffer = Buffer<T>(filter_sets * this->groups, BufferSet<T>(max_buffer_time,
+        auto filter_sets = (uint64_t)ceil(filters_per_group / (double)this->N_ROWS);
+        weight_buffer = Buffer<T>(filter_sets * groups, BufferSet<T>(max_buffer_time,
                 BufferRow<T>(this->N_ROWS * this->N_LANES, std::make_tuple(0, 0, 0))));
 
         const std::vector<size_t> &act_shape = this->act->getShape();
@@ -26,9 +27,9 @@ namespace core {
         int set_wgt = -1;
         for (int g = 0; g < groups; ++g) {
 
-            for (int m = 0; m < this->filters_per_group; ++m) {
+            for (int m = 0; m < filters_per_group; ++m) {
 
-                auto start_group = this->filters_per_group * g;
+                auto start_group = filters_per_group * g;
 
                 if ((start_group + m) >= num_filters)
                     continue;
@@ -71,6 +72,8 @@ namespace core {
     template <typename T>
     void OutputStationary<T>::fill_window_buffer() {
 
+        auto recurrence = on_chip_graph.front().recurrence;
+
         if (windows.empty()) {
             throw std::runtime_error("Window indices may not be empty");
         }
@@ -110,7 +113,7 @@ namespace core {
                                 if ((start_group + ch) >= act_channels)
                                     continue;
 
-                                auto act_bits = this->lstm ? this->act->get(current_recurrence, 0, ch) :
+                                auto act_bits = this->lstm ? this->act->get(recurrence, 0, ch) :
                                         this->act->get(0, start_group + ch, x_window + x, y_window + y);
 
                                 if (this->diffy && !this->fc && !this->lstm) {
@@ -146,24 +149,21 @@ namespace core {
     }
 
     template <typename T>
-    void OutputStationary<T>::initialise_layer(const std::shared_ptr<base::Array<T>> &_act,
+    void OutputStationary<T>::configure_layer(const std::shared_ptr<base::Array<T>> &_act,
             const std::shared_ptr<base::Array<T>> &_wgt, bool _diffy, bool _schedule, bool _fc, bool _lstm,
             int _recurrence, int _out_x, int _out_y, int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS,
             uint32_t _N_ROWS, uint32_t _N_TILES) {
 
-        Dataflow<T>::initialise_layer(_act, _wgt, _diffy, _schedule, _fc, _lstm, _recurrence, _out_x, _out_y, _stride,
+        Control<T>::configure_layer(_act, _wgt, _diffy, _schedule, _fc, _lstm, _recurrence, _out_x, _out_y, _stride,
                 _N_LANES, _N_COLUMNS, _N_ROWS, _N_TILES);
 
-        windows = std::vector<WindowCoord>();
-        current_recurrence = 0;
-        window_set = 0;
-        filter_set = 0;
+        group_it = 0;
+        window_set_it = 0;
+        filter_set_it = 0;
         time = std::vector<int>(this->N_TILES, 0);
         skip = std::vector<int>(this->N_TILES, 0);
         window_buffer_filled = false;
         filter_buffer_filled = false;
-
-        window_sets = (uint64_t)ceil(this->out_x * this->out_y / (double)this->N_COLUMNS);
 
         const std::vector<size_t> &act_shape = this->act->getShape();
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
@@ -205,6 +205,11 @@ namespace core {
 
         max_window_buffer_time = max_buffer_time * groups;
 
+    }
+
+    template <typename T>
+    void OutputStationary<T>::notify_done() {
+        on_chip_graph.erase(on_chip_graph.begin());
     }
 
     INITIALISE_DATA_TYPES(OutputStationary);

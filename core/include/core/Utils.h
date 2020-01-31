@@ -25,6 +25,10 @@ namespace core {
 
     typedef std::tuple<int, int> WindowCoord;
 
+    typedef std::tuple<uint64_t, uint64_t> AddressRange;
+
+    typedef std::vector<std::vector<std::vector<std::vector<uint64_t>>>> AddressMap;
+
     template <typename T>
     class TileData {
     public:

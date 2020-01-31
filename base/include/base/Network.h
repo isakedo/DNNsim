@@ -24,8 +24,8 @@ namespace base {
         /** Max number of bits for the network*/
         uint32_t network_bits;
 
-        /** Tensorflow 8b quantization */
-        bool tensorflow_8b;
+        /** Tensorflow quantization */
+        bool tensorflow;
 
         /** Intel INQ quantization */
         bool intel_inq;
@@ -38,11 +38,11 @@ namespace base {
         /** Constructor
          * @param _name             The name of the network
          * @param _network_bits     Max number of bits of the network
-         * @param _tensorflow_8b    Active tensorflow 8b quantization
+         * @param _tensorflow       Active tensorflow quantization
          * @param _intel_inq        Active intel INQ
          */
-        explicit Network(const std::string &_name, uint32_t _network_bits = 16, bool _tensorflow_8b = false,
-                bool _intel_inq = false) : network_bits(_network_bits), tensorflow_8b(_tensorflow_8b),
+        explicit Network(const std::string &_name, uint32_t _network_bits = 16, bool _tensorflow = false,
+                bool _intel_inq = false) : network_bits(_network_bits), tensorflow(_tensorflow),
                 intel_inq(_intel_inq) {
             name = _name;
         }
@@ -51,12 +51,12 @@ namespace base {
          * @param _name             The name of the network
          * @param _layers           Vector of layers
          * @param _network_bits     Max number of bits of the network
-         * @param _tensorflow_8b    Active tensorflow 8b
+         * @param _tensorflow       Active tensorflow quantization
          * @param _intel_inq        Active intel INQ
          */
         Network(const std::string &_name, const std::vector<Layer<T>> &_layers, uint32_t _network_bits = 16,
-                bool _tensorflow_8b = false, bool _intel_inq = false) : network_bits(_network_bits),
-                tensorflow_8b(_tensorflow_8b), intel_inq(_intel_inq) {
+                bool _tensorflow = false, bool _intel_inq = false) : network_bits(_network_bits),
+                tensorflow(_tensorflow), intel_inq(_intel_inq) {
             name = _name; layers = _layers;
         }
 
@@ -82,7 +82,7 @@ namespace base {
          * Get the tensorflow quantization
          * @return True if tensorflow quantization
          */
-        bool isTensorflow_8b() const { return tensorflow_8b; }
+        bool isTensorflow() const { return tensorflow; }
 
         /**
          * Get the Intel INQ quantization
@@ -135,9 +135,9 @@ namespace base {
 
         /**
          * Update tensorflow quantization flag
-         * @param _tensorflow_8b True if tensorflow quantization
+         * @param _tensorflow True if tensorflow quantization
          */
-        void setTensorflow_8b(bool _tensorflow_8b) { Network::tensorflow_8b = _tensorflow_8b; }
+        void setTensorflow(bool _tensorflow) { Network::tensorflow = _tensorflow; }
 
         /**
          * Update Intel INQ quantization flag
@@ -149,20 +149,20 @@ namespace base {
          * @return   Network in fixed point
          */
         Network<uint16_t> fixed_point() {
-            auto fixed_network = Network<uint16_t>(name, network_bits, tensorflow_8b, intel_inq);
+            auto fixed_network = Network<uint16_t>(name, network_bits, tensorflow, intel_inq);
 
             for(auto &layer : layers) {
                 auto fixed_layer = Layer<uint16_t>(layer.getName(), layer.getType(), layer.getStride(),
                         layer.getPadding(), layer.getActPrecision(), layer.getActMagnitude(), layer.getActFraction(),
                         layer.getWgtPrecision(), layer.getWgtMagnitude(), layer.getWgtFraction());
 
-                if(tensorflow_8b) fixed_layer.setActivations(layer.getActivations().tensorflow_fixed_point());
+                if(tensorflow) fixed_layer.setActivations(layer.getActivations().tensorflow_fixed_point(network_bits));
                 else if(intel_inq) fixed_layer.setActivations(layer.getActivations().intel_inq_fixed_point(true));
                 else fixed_layer.setActivations(layer.getActivations().profiled_fixed_point(layer.getActMagnitude(),
                         layer.getActFraction()));
                 layer.setActivations(Array<T>());
 
-                if(tensorflow_8b) fixed_layer.setWeights(layer.getWeights().tensorflow_fixed_point());
+                if(tensorflow) fixed_layer.setWeights(layer.getWeights().tensorflow_fixed_point(network_bits));
                 else if(intel_inq) fixed_layer.setWeights(layer.getWeights().intel_inq_fixed_point(false));
                 else fixed_layer.setWeights(layer.getWeights().profiled_fixed_point(layer.getWgtMagnitude(),
                         layer.getWgtFraction()));

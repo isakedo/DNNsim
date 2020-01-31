@@ -56,7 +56,7 @@ namespace core {
          * @param _linear       Linear layer
          * @param COLUMNS       Number of columns
          */
-        void initialise_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear, uint64_t COLUMNS) override;
+        void configure_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear, uint64_t COLUMNS) override;
 
         /**
          * Get number of cycles

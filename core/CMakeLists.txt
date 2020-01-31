@@ -8,7 +8,7 @@ project(
 # Create library
 add_library(
         ${PROJECT_NAME}
-        include/core/Dataflow.h
+        include/core/Control.h
         include/core/Architecture.h
         src/Utils.cpp
         src/OutputStationary.cpp

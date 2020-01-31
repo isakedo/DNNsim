@@ -119,7 +119,7 @@ namespace core {
 
     template <typename T>
     void Simulator<T>::run(const base::Network<T> &network, const std::shared_ptr<Architecture<T>> &arch,
-            const std::shared_ptr<Dataflow<T>> &dataflow) {
+            const std::shared_ptr<Control<T>> &control) {
 
         if(!QUIET) std::cout << "Starting cycles simulation for architecture " << arch->name() << std::endl;
 
@@ -159,6 +159,8 @@ namespace core {
                 bool conv = layer.getType() == "Convolution";
                 bool lstm = layer.getType() == "LSTM";
                 bool fc = layer.getType() == "InnerProduct";
+
+                if (!conv) continue;
 
                 if (!QUIET) printf("Simulating image: %d/%lu for layer: %s\n", image, images,
                         layer.getName().c_str());
@@ -217,8 +219,8 @@ namespace core {
                 auto COLUMNS = N_COLUMNS / columns_per_act;
                 auto ROWS = N_ROWS / rows_per_wgt;
 
-                arch->initialise_layer(act_prec, wgt_prec, network_bits, fc || lstm, COLUMNS);
-                dataflow->initialise_layer(act, wgt, arch->diffy(), arch->schedule(), fc, lstm, R, Ox, Oy, stride,
+                arch->configure_layer(act_prec, wgt_prec, network_bits, fc || lstm, COLUMNS);
+                control->configure_layer(act, wgt, arch->diffy(), arch->schedule(), fc, lstm, R, Ox, Oy, stride,
                         N_LANES, COLUMNS, ROWS, N_TILES);
 
                 OutputTensor sim_output = OutputTensor(num_filters, std::vector<std::vector<double>>(Ox,
@@ -228,14 +230,14 @@ namespace core {
                 arch->setGlobalCycle(global_cycle);
 
                 auto tiles_data = std::vector<TileData<T>>(N_TILES, TileData<T>());
-                bool still_data = dataflow->next_dataflow_step(tiles_data);
+                bool still_data = control->next_tile(tiles_data);
 
                 while (still_data) {
 
                     if (arch->ready()) {
                         arch->process_tiles(tiles_data);
                         if (this->CHECK) calculate_output(sim_output, tiles_data);
-                        still_data = dataflow->next_dataflow_step(tiles_data);
+                        still_data = control->next_tile(tiles_data);
                     }
 
                     *global_cycle += 1;
@@ -256,10 +258,10 @@ namespace core {
                 scheduled_pe->value[layer_it][image] = arch->getScheduledPe();
                 idle_pe->value[layer_it][image] = arch->getIdlePe();
 
-                act_buff_reads->value[layer_it][image] = dataflow->getActBuffReads();
-                wgt_buff_reads->value[layer_it][image] = dataflow->getWgtBuffReads();
-                acc_updates->value[layer_it][image] = dataflow->getAccUpdates();
-                out_buffer_writes->value[layer_it][image] = dataflow->getOutBufferWrites();
+                //act_buff_reads->value[layer_it][image] = control->getActBuffReads();
+                //wgt_buff_reads->value[layer_it][image] = control->getWgtBuffReads();
+                //acc_updates->value[layer_it][image] = control->getAccUpdates();
+                //out_buffer_writes->value[layer_it][image] = control->getOutBufferWrites();
 
                 act_precision->value[layer_it][image] = act_prec;
                 wgt_precision->value[layer_it][image] = wgt_prec;
@@ -270,7 +272,7 @@ namespace core {
 
         //Dump statistics
         std::string header = arch->name() + " Number of Cycles for " + network.getName() + "\n";
-        header += "Dataflow: " + dataflow->name() + "\n";
+        header += "Dataflow: " + control->name() + "\n";
         header += "Number of lanes/terms per PE: " + std::to_string(N_LANES) + "\n";
         header += "Number of columns/windows in parallel: " + std::to_string(N_COLUMNS) + "\n";
         header += "Number of rows/filters in parallel: " + std::to_string(N_ROWS) + "\n";
@@ -362,7 +364,7 @@ namespace core {
                     num_filters * wgt_channels * R;
             uint64_t max_bit_counter = max_par_counter * MAX_BITS;
 
-            arch->initialise_layer(act_prec, wgt_prec, network_bits, fc || lstm, N_COLUMNS);
+            arch->configure_layer(act_prec, wgt_prec, network_bits, fc || lstm, N_COLUMNS);
 
             for(int n = 0; n < images; ++n) {
 
