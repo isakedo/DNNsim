@@ -230,23 +230,40 @@ namespace core {
                 arch->setGlobalCycle(global_cycle);
 
                 auto tiles_data = std::vector<TileData<T>>(N_TILES, TileData<T>());
-                bool still_data = control->next_tile(tiles_data);
+                do {
 
-                while (still_data) {
+                    // Feed off-chip data
+                    // Clean addresses on-chip
+                    // Request addresses on-chip
 
-                    if (arch->ready()) {
-                        arch->process_tiles(tiles_data);
-                        if (this->CHECK) calculate_output(sim_output, tiles_data);
-                        still_data = control->next_tile(tiles_data);
+                    bool still_data = control->still_on_chip_data(tiles_data);
+                    while(still_data) {
+
+                        // Check if activation addresses are on-chip
+                        // Check if weights addresses are on-chip
+                        bool act_on_chip = true;
+                        bool wgt_on_chip = true;
+
+                        if (act_on_chip && wgt_on_chip && arch->ready()) {
+                            // Calculate global buffer accesses
+                            arch->process_tiles(tiles_data);
+                            // Calculate global buffer writes
+
+                            if (this->CHECK) calculate_output(sim_output, tiles_data);
+                            still_data = control->still_on_chip_data(tiles_data);
+                        }
+
+                        *global_cycle += 1;
                     }
 
-                    *global_cycle += 1;
-                }
+                    // Flush pipeline
+                    while (!arch->flush()) {
+                        *global_cycle += 1;
+                    }
 
-                // Flush pipeline
-                while (!arch->flush()) {
-                    *global_cycle += 1;
-                }
+                    // Write values to DRAM (if necesary)
+
+                } while(control->still_off_chip_data());
 
                 if (CHECK) check_result_channel_first(sim_output, act, wgt, Ox, Oy, stride, lstm);
 

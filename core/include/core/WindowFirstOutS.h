@@ -20,35 +20,37 @@ namespace core {
          */
         std::string name() override;
 
-        void generate_address_maps();
+        void generate_address_maps() override;
 
-        void generate_conv_execution_graph();
+        void generate_execution_graph_conv_layer();
 
-        void generate_linear_execution_graph();
+        void generate_execution_graph_linear_layer();
+
+        void generate_execution_graph() override;
 
         void configure_layer(const std::shared_ptr<base::Array<T>> &_act, const std::shared_ptr<base::Array<T>> &_wgt,
                 bool _diffy, bool _schedule, bool _fc, bool _lstm, int _recurrences, int _out_x, int _out_y,
-                int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES);
+                int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES) override;
         /**
          * Return if still data to process for convolutional layers
          * @param tiles_data Tile data to process
          * @return True if still data to process, False if not
          */
-        bool next_conv_tile(std::vector<TileData<T>> &tiles_data);
+        bool still_on_chip_data_conv_layer(std::vector<TileData<T>> &tiles_data);
 
         /**
          * Return if still data to process for linear layers
          * @param tiles_data Tile data to process
          * @return True if still data to process, False if not
          */
-        bool next_linear_tile(std::vector<TileData<T>> &tiles_data);
+        bool still_on_chip_data_linear_layer(std::vector<TileData<T>> &tiles_data);
 
         /**
          * Return if still data to process
          * @param tiles_data Tile data to process
          * @return True if still data to process, False if not
          */
-        bool next_tile(std::vector<TileData<T>> &tiles_data);
+        bool still_on_chip_data(std::vector<TileData<T>> &tiles_data) override;
 
     public:
 

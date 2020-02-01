@@ -33,7 +33,7 @@ namespace core {
         auto Ky = wgt_shape[3];
 
         // Generate address map
-        auto values_block = 64 / this->data_size;
+        auto values_block = 8 / this->data_size;
 
         this->act_address_map = std::vector<std::vector<std::vector<std::vector<uint64_t>>>>(1,
                 std::vector<std::vector<std::vector<uint64_t>>>(Ny, std::vector<std::vector<uint64_t>>(Nx,
@@ -85,7 +85,7 @@ namespace core {
     }
 
     template <typename T>
-    void WindowFirstOutS<T>::generate_conv_execution_graph() {
+    void WindowFirstOutS<T>::generate_execution_graph_conv_layer() {
 
         const std::vector<size_t> &act_shape = this->act->getShape();
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
@@ -105,6 +105,10 @@ namespace core {
         auto wgt_channels = wgt_shape[1];
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
+
+        auto values_block = 8 / this->data_size;
+        auto last_act_index = (int)ceil(act_channels / (double)values_block) - 1;
+        auto last_wgt_index = (int)ceil(wgt_channels / (double)values_block) - 1;
 
         auto window_sets = (uint64_t)ceil(this->out_x * this->out_y / (double)this->N_COLUMNS);
         auto filter_tile_sets = (uint64_t)ceil(num_filters / (double)(this->N_ROWS * this->N_TILES));
@@ -133,17 +137,17 @@ namespace core {
 
             // First read fist row of activations
             auto first_address = this->act_address_map[0][0][0][0];
-            auto last_address = this->act_address_map[0][Ky + extra_rows - 1][Kx - 1][wgt_channels - 1];
+            auto last_address = this->act_address_map[0][Ky + extra_rows - 1][Nx - 1][last_act_index];
             unique_node.read_addresses[0] = std::make_tuple(first_address, last_address);
 
             // Then read all filters
             first_address = this->wgt_address_map[0][0][0][0];
-            last_address = this->wgt_address_map[num_filters - 1][Ky - 1][Kx - 1][wgt_channels - 1];
+            last_address = this->wgt_address_map[num_filters - 1][Ky - 1][Kx - 1][last_wgt_index];
             unique_node.read_addresses[1] = std::make_tuple(first_address, last_address);
 
             // Finally read remaining activations
             first_address = this->act_address_map[0][Ky + extra_rows][0][0];
-            last_address = this->act_address_map[0][Ny - 1][Nx - 1][act_channels - 1];
+            last_address = this->act_address_map[0][Ny - 1][Nx - 1][last_act_index];
             unique_node.read_addresses[2] = std::make_tuple(first_address, last_address);
 
             this->on_chip_graph.emplace_back(unique_node);
@@ -184,14 +188,14 @@ namespace core {
 
                 if (start_act_row != -1) {
                     auto first_address = this->act_address_map[0][start_act_row][0][0];
-                    auto last_address = this->act_address_map[0][end_act_row - 1][Kx - 1][wgt_channels - 1];
+                    auto last_address = this->act_address_map[0][end_act_row - 1][Nx - 1][last_act_index];
                     this->on_chip_graph[r].read_addresses.emplace_back(std::make_tuple(first_address, last_address));
                 }
 
                 // Read all filters for first node
                 if (r == 0) {
                     auto first_address = this->wgt_address_map[0][0][0][0];
-                    auto last_address = this->wgt_address_map[num_filters - 1][Ky - 1][Kx - 1][wgt_channels - 1];
+                    auto last_address = this->wgt_address_map[num_filters - 1][Ky - 1][Kx - 1][last_wgt_index];
                     this->on_chip_graph[r].read_addresses.emplace_back(std::make_tuple(first_address, last_address));
                 }
 
@@ -201,7 +205,7 @@ namespace core {
 
                 if (start_act_row != -1) {
                     auto first_address = this->act_address_map[0][start_act_row][0][0];
-                    auto last_address = this->act_address_map[0][end_act_row - 1][Kx - 1][wgt_channels - 1];
+                    auto last_address = this->act_address_map[0][end_act_row - 1][Nx - 1][last_act_index];
                     this->on_chip_graph[r].clean_addresses.emplace_back(std::make_tuple(first_address, last_address));
                 }
 
@@ -234,7 +238,7 @@ namespace core {
 
                 if (start_act_row != -1) {
                     auto first_address = this->act_address_map[0][start_act_row][0][0];
-                    auto last_address = this->act_address_map[0][end_act_row - 1][Kx - 1][wgt_channels - 1];
+                    auto last_address = this->act_address_map[0][end_act_row - 1][Nx - 1][last_act_index];
                     this->on_chip_graph[idx].read_addresses.emplace_back(std::make_tuple(first_address, last_address));
                 }
 
@@ -244,7 +248,7 @@ namespace core {
 
                 if (start_act_row != -1) {
                     auto first_address = this->act_address_map[0][start_act_row][0][0];
-                    auto last_address = this->act_address_map[0][end_act_row - 1][Kx - 1][wgt_channels - 1];
+                    auto last_address = this->act_address_map[0][end_act_row - 1][Nx - 1][last_act_index];
                     this->on_chip_graph[idx].clean_addresses.emplace_back(std::make_tuple(first_address, last_address));
                 }
 
@@ -263,14 +267,14 @@ namespace core {
                     // Read new filters
                     auto last_filter = std::min((f + 1) * this->N_ROWS, (uint32_t)num_filters);
                     auto first_address = this->wgt_address_map[f * this->N_ROWS][0][0][0];
-                    auto last_address = this->wgt_address_map[last_filter - 1][Ky - 1][Kx - 1][wgt_channels - 1];
+                    auto last_address = this->wgt_address_map[last_filter - 1][Ky - 1][Kx - 1][last_wgt_index];
                     this->on_chip_graph[idx].read_addresses.emplace_back(std::make_tuple(first_address, last_address));
 
                     // Clean old filters
                     if (prev_f != -1) {
                         last_filter = std::min((prev_f + 1) * this->N_ROWS, (uint32_t)num_filters);
                         first_address = this->wgt_address_map[prev_f * this->N_ROWS][0][0][0];
-                        last_address = this->wgt_address_map[last_filter - 1][Ky - 1][Kx - 1][wgt_channels - 1];
+                        last_address = this->wgt_address_map[last_filter - 1][Ky - 1][Kx - 1][last_wgt_index];
                         this->on_chip_graph[idx].clean_addresses.emplace_back(std::make_tuple(first_address, last_address));
                     }
 
@@ -345,7 +349,7 @@ namespace core {
     }
 
     template <typename T>
-    void WindowFirstOutS<T>::generate_linear_execution_graph() {
+    void WindowFirstOutS<T>::generate_execution_graph_linear_layer() {
 
         throw std::runtime_error("TODO");
 
@@ -376,6 +380,12 @@ namespace core {
     }
 
     template <typename T>
+    void WindowFirstOutS<T>::generate_execution_graph() {
+        if (this->fc || this->lstm) generate_execution_graph_linear_layer();
+        else generate_execution_graph_conv_layer();
+    }
+
+    template <typename T>
     void WindowFirstOutS<T>::configure_layer(const std::shared_ptr<base::Array<T>> &_act,
             const std::shared_ptr<base::Array<T>> &_wgt, bool _diffy, bool _schedule, bool _fc, bool _lstm,
             int _recurrence, int _out_x, int _out_y, int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS,
@@ -388,14 +398,12 @@ namespace core {
         generate_address_maps();
 
         // Generate execution graph for on-chip memory
-        if (this->fc || this->lstm) generate_linear_execution_graph();
-        else generate_conv_execution_graph();
-
+        generate_execution_graph();
 
     }
 
     template <typename T>
-    bool WindowFirstOutS<T>::next_conv_tile(std::vector<core::TileData<T>> &tiles_data) {
+    bool WindowFirstOutS<T>::still_on_chip_data_conv_layer(std::vector<core::TileData<T>> &tiles_data) {
 
         // Select values from current node
         const auto &current_node = this->on_chip_graph.front();
@@ -409,7 +417,7 @@ namespace core {
                 // Fill window buffer
                 if (!this->window_buffer_filled) {
 
-                    auto window_idx = window_sets[this->window_set_it];
+                    auto window_idx = window_sets[this->window_set_it] * this->N_COLUMNS;
                     for (int c = 0; c < this->N_COLUMNS; ++c) {
 
                         auto window = window_idx + c;
@@ -520,14 +528,14 @@ namespace core {
     }
 
     template <typename T>
-    bool WindowFirstOutS<T>::next_linear_tile(std::vector<core::TileData<T>> &tiles_data) {
+    bool WindowFirstOutS<T>::still_on_chip_data_linear_layer(std::vector<core::TileData<T>> &tiles_data) {
         throw std::runtime_error("TODO");
     }
 
     template <typename T>
-    bool WindowFirstOutS<T>::next_tile(std::vector<core::TileData<T>> &tiles_data) {
-        if (this->fc || this->lstm) next_linear_tile(tiles_data);
-        else next_conv_tile(tiles_data);
+    bool WindowFirstOutS<T>::still_on_chip_data(std::vector<core::TileData<T>> &tiles_data) {
+        if (this->fc || this->lstm) return still_on_chip_data_linear_layer(tiles_data);
+        else return still_on_chip_data_conv_layer(tiles_data);
     }
 
     INITIALISE_DATA_TYPES(WindowFirstOutS);

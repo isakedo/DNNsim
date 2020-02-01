@@ -82,9 +82,7 @@ namespace core {
 
         virtual void generate_address_maps() = 0;
 
-        virtual void generate_conv_execution_graph() = 0;
-
-        virtual void generate_linear_execution_graph() = 0;
+        virtual void generate_execution_graph() = 0;
 
     public:
 
@@ -148,14 +146,14 @@ namespace core {
             N_TILES = _N_TILES;
         }
 
-        virtual void notify_done() = 0;
+        virtual bool still_off_chip_data() = 0;
 
         /**
          * Return if still data to process
          * @param tiles_data Tile data to process
          * @return True if still data to process, False if not
          */
-        virtual bool next_tile(std::vector<TileData<T>> &tiles_data) = 0;
+        virtual bool still_on_chip_data(std::vector<TileData<T>> &tiles_data) = 0;
 
     };
 

@@ -36,6 +36,8 @@ namespace core {
         BufferRow<T> wgt_row;
         std::vector<WindowCoord> windows;
         std::vector<int> filters;
+        std::vector<uint64_t> act_addresses;
+        std::vector<uint64_t> wgt_addresses;
         int time = 0;
         int lanes = 0;
         bool valid = false;

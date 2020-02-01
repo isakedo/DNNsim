@@ -22,15 +22,10 @@ namespace core {
             std::vector<int> filter_tile_sets;
             std::vector<AddressRange> read_addresses;
             std::vector<AddressRange> clean_addresses;
+            std::vector<AddressRange> write_addresses;
         };
 
         std::vector<NodeOutS> on_chip_graph;
-
-        virtual void generate_address_maps() = 0;
-
-        virtual void generate_conv_execution_graph() = 0;
-
-        virtual void generate_linear_execution_graph() = 0;
 
         /** Weight buffer */
         Buffer<T> weight_buffer;
@@ -94,12 +89,6 @@ namespace core {
         void fill_window_buffer();
 
         /**
-        * Return name for the dataflow
-        * @return Name of the dataflow
-        */
-        virtual std::string name() = 0;
-
-        /**
          * Initialise values for the current layer
          * @param _act          Activation array
          * @param _wgt          Weight array
@@ -121,14 +110,7 @@ namespace core {
                 int _recurrences, int _out_x, int _out_y, int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS,
                 uint32_t _N_ROWS, uint32_t _N_TILES);
 
-        void notify_done();
-
-        /**
-         * Return if still data to process
-         * @param tiles_data Tile data to process
-         * @return True if still data to process, False if not
-         */
-        virtual bool next_tile(std::vector<TileData<T>> &tiles_data) = 0;
+        bool still_off_chip_data() override;
 
     public:
 

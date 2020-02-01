@@ -8,7 +8,6 @@ namespace core {
     template <typename T>
     void OutputStationary<T>::fill_weight_buffer() {
 
-        auto filter_sets = (uint64_t)ceil(filters_per_group / (double)this->N_ROWS);
         weight_buffer = Buffer<T>(filter_sets * groups, BufferSet<T>(max_buffer_time,
                 BufferRow<T>(this->N_ROWS * this->N_LANES, std::make_tuple(0, 0, 0))));
 
@@ -208,8 +207,9 @@ namespace core {
     }
 
     template <typename T>
-    void OutputStationary<T>::notify_done() {
+    bool OutputStationary<T>::still_off_chip_data() {
         on_chip_graph.erase(on_chip_graph.begin());
+        return !on_chip_graph.empty();
     }
 
     INITIALISE_DATA_TYPES(OutputStationary);
