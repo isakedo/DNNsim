@@ -19,7 +19,7 @@ namespace core {
             uint64_t start_channel = 0;
             uint64_t end_channel = 0;
             std::vector<int> window_sets;
-            std::vector<int> filter_tile_sets;
+            std::vector<int> filter_sets;
             std::vector<AddressRange> read_addresses;
             std::vector<AddressRange> clean_addresses;
             std::vector<AddressRange> write_addresses;
@@ -27,38 +27,36 @@ namespace core {
 
         std::vector<NodeOutS> on_chip_graph;
 
+        ActBankMap act_bank_map;
+
+        AddressMap act_address_map;
+
+        AddressMap wgt_address_map;
+
         /** Weight buffer */
         Buffer<T> weight_buffer;
 
         /** Window buffer */
         BufferSet<T> window_buffer;
 
+        uint64_t next_act_address;
+
+        uint64_t next_wgt_address;
+
+        /** Number of window sets */
+        uint64_t window_sets = 0;
+
         /** Number of filter sets */
         uint64_t filter_sets = 0;
 
-        /** Number of groups */
-        uint64_t groups = 0;
-
         /** Maximum buffer depth */
         uint64_t max_buffer_time = 0;
-
-        /** Filters per group */
-        uint64_t filters_per_group = 0;
-
-        /** Window buffer depth for all groups */
-        uint64_t max_window_buffer_time = 0;
 
         /** List of coordinates for the windows */
         std::vector<WindowCoord> windows;
 
         /** List of filters per tile */
         std::vector<std::vector<int>> filters;
-
-        /** Recurrence counter */
-        //int current_recurrence = 0;
-
-        /** Group iterator */
-        int group_it = 0;
 
         /** Window iterator */
         int window_set_it = 0;
@@ -77,6 +75,8 @@ namespace core {
 
         /** Indicate if filter buffer already filled */
         bool filter_buffer_filled = false;
+
+        void generate_memory_maps() override;
 
         /**
          * Fill the weight buffer with the weights
@@ -127,7 +127,7 @@ namespace core {
         OutputStationary(const BitTactical<T> &_scheduler, uint64_t _data_size, uint64_t _global_buffer_size,
                 uint64_t _act_buffer_size, uint64_t _wgt_buffer_size, uint64_t _start_act_address,
                 uint64_t _start_wgt_address) : Control<T>(_scheduler, _data_size, _global_buffer_size, _act_buffer_size,
-                _wgt_buffer_size, _start_act_address, _start_wgt_address) {}
+                _wgt_buffer_size, _start_act_address, _start_wgt_address), next_act_address(0), next_wgt_address(0) {}
 
     };
 

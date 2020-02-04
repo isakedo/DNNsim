@@ -27,19 +27,26 @@ namespace core {
 
     typedef std::tuple<uint64_t, uint64_t> AddressRange;
 
-    typedef std::vector<std::vector<std::vector<std::vector<uint64_t>>>> AddressMap;
+    typedef std::vector<std::vector<std::vector<uint64_t>>> AddressMap;
+
+    typedef std::vector<std::vector<int>> ActBankMap;
 
     template <typename T>
     class TileData {
     public:
         BufferSet<T> act_row;
         BufferRow<T> wgt_row;
+
         std::vector<WindowCoord> windows;
         std::vector<int> filters;
+
         std::vector<uint64_t> act_addresses;
         std::vector<uint64_t> wgt_addresses;
+        std::vector<uint64_t> out_addresses;
+
         int time = 0;
         int lanes = 0;
+
         bool valid = false;
     };
 

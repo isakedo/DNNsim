@@ -20,8 +20,6 @@ namespace core {
          */
         std::string name() override;
 
-        void generate_address_maps() override;
-
         void generate_execution_graph_conv_layer();
 
         void generate_execution_graph_linear_layer();

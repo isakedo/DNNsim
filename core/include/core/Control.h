@@ -30,9 +30,7 @@ namespace core {
 
         uint64_t start_wgt_address;
 
-        uint64_t next_act_address;
-
-        uint64_t next_wgt_address;
+        uint64_t global_buffer_banks;
 
         /** Pointer to activations */
         std::shared_ptr<base::Array<T>> act;
@@ -42,10 +40,6 @@ namespace core {
 
         /** Schedule weight buffer */
         bool schedule = false;
-
-        AddressMap act_address_map;
-
-        AddressMap wgt_address_map;
 
         /** Diffy simulation */
         bool diffy = false;
@@ -80,7 +74,7 @@ namespace core {
         /** Number of tiles */
         uint32_t N_TILES = 0;
 
-        virtual void generate_address_maps() = 0;
+        virtual void generate_memory_maps() = 0;
 
         virtual void generate_execution_graph() = 0;
 
@@ -101,7 +95,7 @@ namespace core {
                 uint64_t _start_wgt_address) : scheduler(_scheduler),  data_size(_data_size),
                 global_buffer_size(_global_buffer_size), act_buffer_size(_act_buffer_size),
                 wgt_buffer_size(_wgt_buffer_size), start_act_address(_start_act_address),
-                start_wgt_address(_start_wgt_address), next_act_address(0), next_wgt_address(0) {}
+                start_wgt_address(_start_wgt_address) {}
 
         /**
         * Return name for the dataflow

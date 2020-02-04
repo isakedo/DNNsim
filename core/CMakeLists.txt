@@ -13,7 +13,7 @@ add_library(
         src/Utils.cpp
         src/OutputStationary.cpp
         src/WindowFirstOutS.cpp
-        src/Simulator.cpp
+        src/GlobalBuffer.cpp
         src/DaDianNao.cpp
         src/Stripes.cpp
         src/ShapeShifter.cpp
@@ -22,6 +22,7 @@ add_library(
         src/Laconic.cpp
         src/BitTactical.cpp
         src/SCNN.cpp
+        src/Simulator.cpp
 )
 
 
