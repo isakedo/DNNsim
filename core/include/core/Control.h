@@ -32,6 +32,8 @@ namespace core {
 
         uint64_t global_buffer_banks;
 
+        uint64_t global_buffer_bank_width;
+
         /** Pointer to activations */
         std::shared_ptr<base::Array<T>> act;
 
@@ -87,15 +89,18 @@ namespace core {
          * @param _global_buffer_size
          * @param _act_buffer_size
          * @param _wgt_buffer_size
+         * @param _global_buffer_banks
+         * @param _global_buffer_bank_width
          * @param _start_act_address
          * @param _start_wgt_address
          */
         Control(const BitTactical<T> &_scheduler, uint64_t _data_size, uint64_t _global_buffer_size,
-                uint64_t _act_buffer_size, uint64_t _wgt_buffer_size, uint64_t _start_act_address,
-                uint64_t _start_wgt_address) : scheduler(_scheduler),  data_size(_data_size),
-                global_buffer_size(_global_buffer_size), act_buffer_size(_act_buffer_size),
-                wgt_buffer_size(_wgt_buffer_size), start_act_address(_start_act_address),
-                start_wgt_address(_start_wgt_address) {}
+                uint64_t _act_buffer_size, uint64_t _wgt_buffer_size, uint64_t _global_buffer_banks,
+                uint64_t _global_buffer_bank_width, uint64_t _start_act_address, uint64_t _start_wgt_address) :
+                scheduler(_scheduler),  data_size(_data_size), global_buffer_size(_global_buffer_size),
+                act_buffer_size(_act_buffer_size), wgt_buffer_size(_wgt_buffer_size),
+                global_buffer_banks(_global_buffer_banks), global_buffer_bank_width(_global_buffer_bank_width),
+                start_act_address(_start_act_address), start_wgt_address(_start_wgt_address) {}
 
         /**
         * Return name for the dataflow

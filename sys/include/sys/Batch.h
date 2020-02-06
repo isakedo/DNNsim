@@ -102,6 +102,12 @@ namespace sys {
                 /** Global buffer memory size */
                 uint64_t global_buffer_size = 0;
 
+                /** Global buffer banks */
+                uint64_t global_buffer_banks = 0;
+
+                /** Global buffer bank width */
+                uint64_t global_buffer_bank_width = 0;
+
             };
 
             /** Batch number of the traces */

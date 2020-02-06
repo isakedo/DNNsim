@@ -139,7 +139,8 @@ int main(int argc, char *argv[]) {
 
                         std::shared_ptr<core::Control<float>> control =
                                 std::make_shared<core::WindowFirstOutS<float>>(scheduler,
-                                ceil(simulate.network_bits / 8.), experiment.global_buffer_size, 0, 0, 0x40000000,
+                                ceil(simulate.network_bits / 8.), experiment.global_buffer_size, 0, 0,
+                                experiment.global_buffer_banks, experiment.global_buffer_bank_width, 0x40000000,
                                 0x20000000);
 
                         core::Simulator<float> DNNsim(experiment.n_lanes, experiment.n_columns, experiment.n_rows,
@@ -178,7 +179,8 @@ int main(int argc, char *argv[]) {
 
                         std::shared_ptr<core::Control<uint16_t>> control =
                                 std::make_shared<core::WindowFirstOutS<uint16_t>>(scheduler,
-                                ceil(simulate.network_bits / 8.), experiment.global_buffer_size, 0, 0, 0x40000000,
+                                ceil(simulate.network_bits / 8.), experiment.global_buffer_size, 0, 0,
+                                experiment.global_buffer_banks, experiment.global_buffer_bank_width, 0x40000000,
                                 0x20000000);
 
                         core::Simulator<uint16_t> DNNsim(experiment.n_lanes, experiment.n_columns, experiment.n_rows,

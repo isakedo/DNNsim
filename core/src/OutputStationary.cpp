@@ -24,8 +24,8 @@ namespace core {
         // Generate address map
         auto values_block = 8 / this->data_size;
 
-        act_address_map = std::vector<std::vector<std::vector<uint64_t>>>(Ny, std::vector<std::vector<uint64_t>>(Nx,
-                std::vector<uint64_t>(ceil(act_channels / (double)values_block))));
+        act_address_map = std::vector<std::vector<std::vector<uint32_t>>>(Ny, std::vector<std::vector<uint32_t>>(Nx,
+                std::vector<uint32_t>(ceil(act_channels / (double)values_block))));
 
         // Column third
         for (int y = 0; y < Ny; ++y) {
@@ -37,34 +37,6 @@ namespace core {
                 for (int k = 0; k < act_channels; k += values_block) {
                     act_address_map[y][x][k/values_block] = this->start_act_address + next_act_address;
                     next_act_address += 0x40; // Align to 64 bits
-                }
-            }
-        }
-
-        auto values_per_row = (uint64_t)ceil(this->N_ROWS * this->N_LANES / (double)values_block);
-        wgt_address_map = std::vector<std::vector<std::vector<uint64_t>>>(filter_sets,
-                std::vector<std::vector<uint64_t>>(max_buffer_time, std::vector<uint64_t>(values_per_row)));
-
-        // Filter Set third
-        for (int m = 0; m < filter_sets; ++m) {
-
-            // Buffer depth second
-            int skip_buf = 0;
-            for (int y = 0; y < max_buffer_time; ++y) {
-
-                if (this->schedule) {
-                    bool zero_line = this->scheduler.check_zero_line(this->weight_buffer[m][y]);
-                    if (skip_buf < this->scheduler.getLookaheadH() && zero_line) {
-                        skip_buf++;
-                        continue;
-                    }
-                    skip_buf = 0;
-                }
-
-                // Buffer width first
-                for (int x = 0; x < values_per_row; ++x) {
-                    this->wgt_address_map[m][y][x] = this->start_wgt_address + next_wgt_address;
-                    this->next_wgt_address += 0x40; // Align to 64 bits
                 }
             }
         }
@@ -90,6 +62,7 @@ namespace core {
     template <typename T>
     void OutputStationary<T>::fill_weight_buffer() {
 
+        // Data buffer
         weight_buffer = Buffer<T>(filter_sets, BufferSet<T>(max_buffer_time,
                 BufferRow<T>(this->N_ROWS * this->N_LANES, std::make_tuple(0, 0, 0))));
 
@@ -140,6 +113,76 @@ namespace core {
 
         } // Filter sets
 
+        // BitTactical schedule
+        if (this->schedule) {
+            this->scheduler.schedule(weight_buffer, this->N_LANES);
+        }
+
+        // Addresses buffer
+        auto values_block = 8 / this->data_size;
+        auto addresses_per_row = (uint64_t)ceil(this->N_LANES / (double)values_block) * this->N_ROWS;
+        wgt_address_buffer = AddressBuffer(filter_sets, AddressBufferSet(max_buffer_time,
+                AddressBufferRow(addresses_per_row)));
+
+        wgt_address_map.first_address = this->start_wgt_address + next_wgt_address;
+
+        // Filter Set third
+        for (int m = 0; m < filter_sets; ++m) {
+
+            // Buffer depth second
+            int skip_buf = 0;
+            for (int y = 0; y < max_buffer_time; ++y) {
+
+                if (this->schedule) {
+                    bool zero_line = this->scheduler.check_zero_line(this->weight_buffer[m][y]);
+                    if (skip_buf < this->scheduler.getLookaheadH() && zero_line) {
+                        skip_buf++;
+                        continue;
+                    }
+                    skip_buf = 0;
+                }
+
+                // Buffer width first
+                for (int x = 0; x < addresses_per_row; ++x) {
+                    this->wgt_address_buffer[m][y][x] = this->start_wgt_address + next_wgt_address;
+                    this->next_wgt_address += 0x40; // Align to 64 bits
+                }
+            }
+        }
+
+        wgt_address_map.last_address = this->start_wgt_address + next_wgt_address - 0x40;
+
+        // Banks buffer
+        auto BANKS = this->global_buffer_banks / 2;
+        auto accesses_per_filter = (uint64_t)ceil(this->N_LANES * this->data_size /
+                (double)this->global_buffer_bank_width);
+        wgt_bank_buffer = BankBuffer(filter_sets, BankBufferSet(max_buffer_time,
+                BankBufferRow(accesses_per_filter * this->N_ROWS)));
+
+        for (int m = 0; m < filter_sets; ++m) {
+
+            int skip_buf = 0;
+            for (int y = 0; y < max_buffer_time; ++y) {
+
+                if (this->schedule) {
+                    bool zero_line = this->scheduler.check_zero_line(this->weight_buffer[m][y]);
+                    if (skip_buf < this->scheduler.getLookaheadH() && zero_line) {
+                        skip_buf++;
+                        continue;
+                    }
+                    skip_buf = 0;
+                }
+
+                int bank = 0;
+                for (int r = 0; r < this->N_ROWS; ++r) {
+                    for (int f = 0; f < accesses_per_filter; ++f) {
+                        this->wgt_bank_buffer[m][y][r * accesses_per_filter + f] = BANKS + bank;
+                        bank = (bank + 1) % BANKS;
+                    }
+                }
+            }
+        }
+
     }
 
     template <typename T>
@@ -154,6 +197,15 @@ namespace core {
         auto num_windows = (this->fc || this->lstm) ? this->N_COLUMNS : windows.size();
         window_buffer = BufferSet<T>(max_buffer_time, BufferRow<T>(num_windows * this->N_LANES,
                 std::make_tuple(0.0f, 0, 0)));
+
+        auto values_block = 8 / this->data_size;
+        auto addresses_per_row = (uint64_t)ceil(this->N_LANES / (double)values_block) * this->N_COLUMNS;
+        window_address_buffer = AddressBufferSet(windows.size(), AddressBufferRow(addresses_per_row, 0xFFFFFFFF));
+
+        auto BANKS = this->global_buffer_banks / 2;
+        auto accesses_per_window = (uint64_t)ceil(this->N_LANES * this->data_size /
+                (double)this->global_buffer_bank_width);
+        window_bank_buffer = BankBufferSet(windows.size(), BankBufferRow(accesses_per_window * windows.size(), -1));
 
         const std::vector<size_t> &act_shape = this->act->getShape();
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
@@ -205,6 +257,7 @@ namespace core {
 
         } // Windows
 
+
         if (this->fc || this->lstm) windows = std::vector<WindowCoord>(this->N_COLUMNS, std::make_tuple(0, 0));
 
     }
@@ -243,12 +296,6 @@ namespace core {
         max_buffer_time = (uint64_t)ceil(round_wgt_channels * Kx * Ky / (double)this->N_LANES);
 
         fill_weight_buffer();
-
-        // BitTactical schedule
-        if (_schedule) {
-            this->scheduler.schedule(weight_buffer, this->N_LANES);
-        }
-
     }
 
     template <typename T>

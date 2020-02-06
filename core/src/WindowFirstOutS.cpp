@@ -42,7 +42,6 @@ namespace core {
 
         auto values_block = 8 / this->data_size;
         auto last_act_index = (int)ceil(act_channels / (double)values_block) - 1;
-        auto values_per_row = (uint64_t)ceil(this->N_ROWS * this->N_LANES / (double)values_block);
 
         // Try to fit whole layer
         auto all_windows = act_channels * Nx * Ny * this->data_size;
@@ -72,8 +71,8 @@ namespace core {
             unique_node.read_addresses[0] = std::make_tuple(first_address, last_address);
 
             // Then read all filters
-            first_address = this->wgt_address_map[0][0][0];
-            last_address = this->wgt_address_map[this->filter_sets - 1][this->max_buffer_time - 1][values_per_row - 1];
+            first_address = this->wgt_address_map.first_address;
+            last_address = this->wgt_address_map.last_address;
             unique_node.read_addresses[1] = std::make_tuple(first_address, last_address);
 
             // Finally read remaining activations
@@ -347,6 +346,7 @@ namespace core {
             // Fill window buffer
             if (!this->window_buffer_filled) {
 
+                // Select windows
                 auto window_idx = window_sets[this->window_set_it] * this->N_COLUMNS;
                 for (int c = 0; c < this->N_COLUMNS; ++c) {
 
@@ -372,6 +372,7 @@ namespace core {
 
                     this->filters = std::vector<std::vector<int>>(this->N_TILES, std::vector<int>());
 
+                    // Select filter for each tile
                     for (int t = 0; t < this->N_TILES; ++t) {
 
                         auto filter_idx = (filter_set + t) * this->N_ROWS;
@@ -417,7 +418,15 @@ namespace core {
                         tiles_data[t].act_row = BufferSet<T>(this->window_buffer.begin() + this->time[t],
                                 std::min(this->window_buffer.begin() + this->time[t] +
                                 num_act_rows, this->window_buffer.end()));
+                        tiles_data[t].act_addresses = AddressBufferSet(this->window_address_buffer.begin() + this->time[t],
+                                std::min(this->window_address_buffer.begin() + this->time[t] +
+                                num_act_rows, this->window_address_buffer.end()));
+                        tiles_data[t].act_banks = this->window_bank_buffer[this->time[t]];
+
                         tiles_data[t].wgt_row = this->weight_buffer[filter_set + t][this->time[t]];
+                        tiles_data[t].wgt_addresses = this->wgt_address_buffer[filter_set + t][this->time[t]];
+                        tiles_data[t].wgt_banks = this->wgt_bank_buffer[filter_set + t][this->time[t]];
+
                         tiles_data[t].windows = this->windows;
                         tiles_data[t].filters = this->filters[t];
                         tiles_data[t].time = this->time[t];

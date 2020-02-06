@@ -85,6 +85,10 @@ namespace sys {
             } catch (const std::exception &e) {
                 throw std::runtime_error("Global Buffer size not recognised.");
             }
+            experiment.global_buffer_banks = experiment_proto.global_buffer_banks() < 1 ? 32 :
+                    experiment_proto.global_buffer_banks();
+            experiment.global_buffer_bank_width = experiment_proto.global_buffer_bank_width() < 1 ? 32 :
+                    experiment_proto.global_buffer_bank_width();
 
             // BitPragmatic-Laconic
             experiment.booth = experiment_proto.booth_encoding();

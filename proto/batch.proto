@@ -51,6 +51,8 @@ message Batch {
 
             // Memory parameters
             string global_buffer_size = 27;
+            uint32 global_buffer_banks = 28;
+            uint32 global_buffer_bank_width = 29;
 
         }
 

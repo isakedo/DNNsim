@@ -14,6 +14,11 @@ namespace core {
 
     protected:
 
+        struct BufferAddresses {
+            uint64_t first_address = 0;
+            uint64_t last_address = 0;
+        };
+
         struct NodeOutS {
             uint64_t recurrence = 0;
             uint64_t start_channel = 0;
@@ -27,17 +32,32 @@ namespace core {
 
         std::vector<NodeOutS> on_chip_graph;
 
-        ActBankMap act_bank_map;
-
-        AddressMap act_address_map;
-
-        AddressMap wgt_address_map;
-
         /** Weight buffer */
         Buffer<T> weight_buffer;
 
+        /** Weight Addresses buffer */
+        AddressBuffer wgt_address_buffer;
+
+        /** Weight Addresses map */
+        BufferAddresses wgt_address_map;
+
+        /** Weight banks buffer */
+        BankBuffer wgt_bank_buffer;
+
         /** Window buffer */
         BufferSet<T> window_buffer;
+
+        /** Window Addresses buffer */
+        AddressBufferSet window_address_buffer;
+
+        /** Activation Addresses map */
+        AddressMap act_address_map;
+
+        /** Window Bank buffer */
+        BankBufferSet window_bank_buffer;
+
+        /** Activation Bank map */
+        ActBankMap act_bank_map;
 
         uint64_t next_act_address;
 
@@ -121,13 +141,17 @@ namespace core {
          * @param _global_buffer_size
          * @param _act_buffer_size
          * @param _wgt_buffer_size
+         * @param _global_buffer_banks
+         * @param _global_buffer_bank_width
          * @param _start_act_address
          * @param _start_wgt_address
          */
         OutputStationary(const BitTactical<T> &_scheduler, uint64_t _data_size, uint64_t _global_buffer_size,
-                uint64_t _act_buffer_size, uint64_t _wgt_buffer_size, uint64_t _start_act_address,
-                uint64_t _start_wgt_address) : Control<T>(_scheduler, _data_size, _global_buffer_size, _act_buffer_size,
-                _wgt_buffer_size, _start_act_address, _start_wgt_address), next_act_address(0), next_wgt_address(0) {}
+                uint64_t _act_buffer_size, uint64_t _wgt_buffer_size, uint64_t _global_buffer_banks,
+                uint64_t _global_buffer_bank_width, uint64_t _start_act_address, uint64_t _start_wgt_address) :
+                Control<T>(_scheduler, _data_size, _global_buffer_size, _act_buffer_size, _wgt_buffer_size,
+                _global_buffer_banks, _global_buffer_bank_width, _start_act_address, _start_wgt_address),
+                next_act_address(0), next_wgt_address(0) {}
 
     };
 

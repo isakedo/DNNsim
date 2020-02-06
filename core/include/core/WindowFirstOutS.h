@@ -59,13 +59,16 @@ namespace core {
          * @param _global_buffer_size
          * @param _act_buffer_size
          * @param _wgt_buffer_size
+         * @param _global_buffer_banks
+         * @param _global_buffer_bank_width
          * @param _start_act_address
          * @param _start_wgt_address
          */
         WindowFirstOutS(const BitTactical<T> &_scheduler, uint64_t _data_size, uint64_t _global_buffer_size,
-                uint64_t _act_buffer_size, uint64_t _wgt_buffer_size, uint64_t _start_act_address,
-                uint64_t _start_wgt_address) : OutputStationary<T>(_scheduler, _data_size, _global_buffer_size,
-                _act_buffer_size, _wgt_buffer_size, _start_act_address, _start_wgt_address) {}
+                uint64_t _act_buffer_size, uint64_t _wgt_buffer_size, uint64_t _global_buffer_banks,
+                uint64_t _global_buffer_bank_width, uint64_t _start_act_address, uint64_t _start_wgt_address) :
+                OutputStationary<T>(_scheduler, _data_size, _global_buffer_size, _act_buffer_size, _wgt_buffer_size,
+                _global_buffer_banks, _global_buffer_bank_width, _start_act_address, _start_wgt_address) {}
 
     };
 
