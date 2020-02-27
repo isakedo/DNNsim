@@ -50,9 +50,16 @@ message Batch {
             bool tactical = 26;
 
             // Memory parameters
-            string global_buffer_size = 27;
-            uint32 global_buffer_banks = 28;
-            uint32 global_buffer_bank_width = 29;
+            string dram_size = 27;
+            uint32 dram_start_act_address = 28;
+            uint32 dram_start_wgt_address = 29;
+
+            string global_buffer_size = 30;
+            uint32 global_buffer_act_banks = 31;
+            uint32 global_buffer_wgt_banks = 32;
+            uint32 global_buffer_bank_width = 33;
+            uint32 global_buffer_read_delay = 34;
+            uint32 global_buffer_write_delay = 35;
 
         }
 

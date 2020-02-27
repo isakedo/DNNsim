@@ -118,15 +118,17 @@ namespace core {
     /* CYCLES */
 
     template <typename T>
-    void Simulator<T>::run(const base::Network<T> &network, const std::shared_ptr<Architecture<T>> &arch,
-            const std::shared_ptr<Control<T>> &control) {
+    void Simulator<T>::run(const base::Network<T> &network, const std::shared_ptr<Control<T>> &control) {
+
+        // Get components from control
+        auto dram = control->getDram();
+        auto gbuffer = control->getGbuffer();
+        auto arch = control->getArch();
 
         if(!QUIET) std::cout << "Starting cycles simulation for architecture " << arch->name() << std::endl;
 
         // Initialize statistics
-        std::string filename = arch->name() + "_L" + std::to_string(N_LANES) + "_C" + std::to_string(N_COLUMNS) +
-                "_R" + std::to_string(N_ROWS) + "_T" + std::to_string(N_TILES) + "_BP" + std::to_string(BITS_PE) +
-                arch->filename() + "_cycles";
+        std::string filename = arch->name() + arch->filename() + "_cycles";
 
         auto images = this->FAST_MODE ? 1 : network.getImages();
         sys::Stats stats = sys::Stats(network.getNumLayers(), images, filename);
@@ -213,52 +215,65 @@ namespace core {
                 auto act_prec = layer.getActPrecision();
                 auto wgt_prec = layer.getWgtPrecision();
 
-                auto columns_per_act = (uint32_t) ceil(act_prec / (double) BITS_PE);
-                auto rows_per_wgt = (uint32_t) ceil(wgt_prec / (double) BITS_PE);
+                auto columns_per_act = (uint32_t) ceil(act_prec / (double) arch->getBitsPe());
+                auto rows_per_wgt = (uint32_t) ceil(wgt_prec / (double) arch->getBitsPe());
 
-                auto COLUMNS = N_COLUMNS / columns_per_act;
-                auto ROWS = N_ROWS / rows_per_wgt;
+                auto COLUMNS = arch->getNColumns() / columns_per_act;
+                auto ROWS = arch->getNRows() / rows_per_wgt;
 
                 arch->configure_layer(act_prec, wgt_prec, network_bits, fc || lstm, COLUMNS);
-                control->configure_layer(act, wgt, arch->diffy(), arch->schedule(), fc, lstm, R, Ox, Oy, stride,
-                        N_LANES, COLUMNS, ROWS, N_TILES);
+                control->configure_layer(act, wgt, fc, lstm, stride, COLUMNS, ROWS);
 
                 OutputTensor sim_output = OutputTensor(num_filters, std::vector<std::vector<double>>(Ox,
                         std::vector<double>(Oy, 0)));
 
                 std::shared_ptr<uint64_t>global_cycle = std::make_shared<uint64_t>(0);
                 arch->setGlobalCycle(global_cycle);
+                gbuffer->setGlobalCycle(global_cycle);
 
-                auto tiles_data = std::vector<TileData<T>>(N_TILES, TileData<T>());
+                auto tiles_data = std::vector<TileData<T>>(arch->getNTiles(), TileData<T>());
                 do {
 
                     // Feed off-chip data
-                    // Clean addresses on-chip
-                    // Request addresses on-chip
+                    gbuffer->evict_data(control->getEvictAddresses());
+                    dram->read_data(control->getReadAddresses());
 
                     bool still_data = control->still_on_chip_data(tiles_data);
                     while(still_data) {
 
-                        // Check if activation addresses are on-chip
-                        // Check if weights addresses are on-chip
-                        bool act_on_chip = true;
-                        bool wgt_on_chip = true;
+                        // Check if data is on-chip
+                        //while (!dram->data_ready(tiles_data)) {
+                        //    *global_cycle += 1;
+                        //    dram->cycle();
+                        //}
 
-                        if (act_on_chip && wgt_on_chip && arch->ready()) {
-                            // Calculate global buffer accesses
-                            arch->process_tiles(tiles_data);
-                            // Calculate global buffer writes
+                        // Request data to on-chip buffer
+                        //gbuffer->read_request(tiles_data);
+                        //while (!gbuffer->data_ready()) {
+                        //    *global_cycle += 1;
+                        //    dram->cycle();
+                        //}
 
-                            if (this->CHECK) calculate_output(sim_output, tiles_data);
-                            still_data = control->still_on_chip_data(tiles_data);
+                        // Request data to local buffers
+
+                        while (!arch->ready()) {
+                            *global_cycle += 1;
+                            dram->cycle();
                         }
 
-                        *global_cycle += 1;
+                        // Calculate global buffer accesses
+                        arch->process_tiles(tiles_data);
+                        // Calculate global buffer writes
+
+                        if (this->CHECK) calculate_output(sim_output, tiles_data);
+                        still_data = control->still_on_chip_data(tiles_data);
+
                     }
 
                     // Flush pipeline
                     while (!arch->flush()) {
                         *global_cycle += 1;
+                        dram->cycle();
                     }
 
                     // Write values to DRAM (if necesary)
@@ -290,13 +305,11 @@ namespace core {
         //Dump statistics
         std::string header = arch->name() + " Number of Cycles for " + network.getName() + "\n";
         header += "Dataflow: " + control->name() + "\n";
-        header += "Number of lanes/terms per PE: " + std::to_string(N_LANES) + "\n";
-        header += "Number of columns/windows in parallel: " + std::to_string(N_COLUMNS) + "\n";
-        header += "Number of rows/filters in parallel: " + std::to_string(N_ROWS) + "\n";
-        header += "Number of tiles: " + std::to_string(N_TILES) + "\n";
-        header += "Size of the PE in bits: " + std::to_string(BITS_PE) + "\n";
+        // DRAM header
+        // Global buffer header
+        header += arch->header();
 
-        stats.dump_csv(network.getName(), network.getLayersName(), header + arch->header(), QUIET);
+        stats.dump_csv(network.getName(), network.getLayersName(), header, QUIET);
     }
 
     /* POTENTIALS */
@@ -381,7 +394,7 @@ namespace core {
                     num_filters * wgt_channels * R;
             uint64_t max_bit_counter = max_par_counter * MAX_BITS;
 
-            arch->configure_layer(act_prec, wgt_prec, network_bits, fc || lstm, N_COLUMNS);
+            arch->configure_layer(act_prec, wgt_prec, network_bits, fc || lstm, arch->getNColumns());
 
             for(int n = 0; n < images; ++n) {
 

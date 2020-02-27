@@ -27,8 +27,7 @@ namespace core {
         void generate_execution_graph() override;
 
         void configure_layer(const std::shared_ptr<base::Array<T>> &_act, const std::shared_ptr<base::Array<T>> &_wgt,
-                bool _diffy, bool _schedule, bool _fc, bool _lstm, int _recurrences, int _out_x, int _out_y,
-                int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES) override;
+                bool _linear, bool _lstm, int _stride, uint32_t _EF_COLUMNS, uint32_t _EF_ROWS) override;
         /**
          * Return if still data to process for convolutional layers
          * @param tiles_data Tile data to process
@@ -52,23 +51,9 @@ namespace core {
 
     public:
 
-        /**
-         * Constructor
-         * @param _scheduler
-         * @param _data_size
-         * @param _global_buffer_size
-         * @param _act_buffer_size
-         * @param _wgt_buffer_size
-         * @param _global_buffer_banks
-         * @param _global_buffer_bank_width
-         * @param _start_act_address
-         * @param _start_wgt_address
-         */
-        WindowFirstOutS(const BitTactical<T> &_scheduler, uint64_t _data_size, uint64_t _global_buffer_size,
-                uint64_t _act_buffer_size, uint64_t _wgt_buffer_size, uint64_t _global_buffer_banks,
-                uint64_t _global_buffer_bank_width, uint64_t _start_act_address, uint64_t _start_wgt_address) :
-                OutputStationary<T>(_scheduler, _data_size, _global_buffer_size, _act_buffer_size, _wgt_buffer_size,
-                _global_buffer_banks, _global_buffer_bank_width, _start_act_address, _start_wgt_address) {}
+        WindowFirstOutS(const std::shared_ptr<BitTactical<T>> &_scheduler, const std::shared_ptr<DRAM<T>> &_dram,
+                const std::shared_ptr<GlobalBuffer<T>> &_gbuffer, const std::shared_ptr<Architecture<T>> &_arch) :
+                OutputStationary<T>(_scheduler, _dram, _gbuffer, _arch) {}
 
     };
 

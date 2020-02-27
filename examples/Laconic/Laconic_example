@@ -1,7 +1,7 @@
 simulate {
 	network: "bvlc_googlenet"
 	model: "Caffe"
-	data_type: "FixedPoint"
+	data_type: "Fixed"
 	experiment {
         architecture: "Laconic"
         task: "Cycles"

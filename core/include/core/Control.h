@@ -3,6 +3,9 @@
 
 #include "Utils.h"
 #include "BitTactical.h"
+#include "DRAM.h"
+#include "GlobalBuffer.h"
+#include "Architecture.h"
 
 namespace core {
 
@@ -15,24 +18,23 @@ namespace core {
 
     protected:
 
+        class Node {
+        public:
+            std::vector<AddressRange> read_addresses;
+            std::vector<AddressRange> evict_addresses;
+            std::vector<AddressRange> write_addresses;
+        };
+
+        std::vector<std::shared_ptr<Node>> on_chip_graph;
+
         /** Weight buffer scheduler */
-        BitTactical<T> scheduler;
+        std::shared_ptr<BitTactical<T>> scheduler;
 
-        uint64_t data_size;
+        std::shared_ptr<DRAM<T>> dram;
 
-        uint64_t global_buffer_size;
+        std::shared_ptr<GlobalBuffer<T>> gbuffer;
 
-        uint64_t act_buffer_size;
-
-        uint64_t wgt_buffer_size;
-
-        uint64_t start_act_address;
-
-        uint64_t start_wgt_address;
-
-        uint64_t global_buffer_banks;
-
-        uint64_t global_buffer_bank_width;
+        std::shared_ptr<Architecture<T>> arch;
 
         /** Pointer to activations */
         std::shared_ptr<base::Array<T>> act;
@@ -40,41 +42,23 @@ namespace core {
         /** Pointer to weights */
         std::shared_ptr<base::Array<T>> wgt;
 
-        /** Schedule weight buffer */
-        bool schedule = false;
-
-        /** Diffy simulation */
-        bool diffy = false;
-
-        /** Indicate if FC layer (alternate fashion window buffer) */
-        bool fc = false;
+        /** Indicate if linear layer (alternate fashion window buffer) */
+        bool linear = false;
 
         /** Indicate if LSTM layer (different dimensions order) */
         bool lstm = false;
 
-        /** Number of recurrences for Recurrent neural network */
-        int recurrences = 0;
-
-        /** Output window X dimensions */
-        int out_x = 0;
-
-        /** Output window Y dimensions */
-        int out_y = 0;
-
         /** Stride of the layer */
         int stride = 0;
 
-        /** Number of concurrent multiplications per PE */
-        uint32_t N_LANES = 0;
+        /** Number of effective concurrent multiplications per PE */
+        uint32_t EF_LANES = 0;
 
-        /** Number of columns */
-        uint32_t N_COLUMNS = 0;
+        /** Number of effective columns */
+        uint32_t EF_COLUMNS = 0;
 
-        /** Number of rows */
-        uint32_t N_ROWS = 0;
-
-        /** Number of tiles */
-        uint32_t N_TILES = 0;
+        /** Number of efffective rows */
+        uint32_t EF_ROWS = 0;
 
         virtual void generate_memory_maps() = 0;
 
@@ -85,22 +69,25 @@ namespace core {
         /**
          * Constructor
          * @param _scheduler
-         * @param _data_size
-         * @param _global_buffer_size
-         * @param _act_buffer_size
-         * @param _wgt_buffer_size
-         * @param _global_buffer_banks
-         * @param _global_buffer_bank_width
-         * @param _start_act_address
-         * @param _start_wgt_address
+         * @param _dram
+         * @param _gbuffer
+         * @param _arch
          */
-        Control(const BitTactical<T> &_scheduler, uint64_t _data_size, uint64_t _global_buffer_size,
-                uint64_t _act_buffer_size, uint64_t _wgt_buffer_size, uint64_t _global_buffer_banks,
-                uint64_t _global_buffer_bank_width, uint64_t _start_act_address, uint64_t _start_wgt_address) :
-                scheduler(_scheduler),  data_size(_data_size), global_buffer_size(_global_buffer_size),
-                act_buffer_size(_act_buffer_size), wgt_buffer_size(_wgt_buffer_size),
-                global_buffer_banks(_global_buffer_banks), global_buffer_bank_width(_global_buffer_bank_width),
-                start_act_address(_start_act_address), start_wgt_address(_start_wgt_address) {}
+        Control(const std::shared_ptr<BitTactical<T>> &_scheduler, const std::shared_ptr<DRAM<T>> &_dram,
+                const std::shared_ptr<GlobalBuffer<T>> &_gbuffer, const std::shared_ptr<Architecture<T>> &_arch) :
+                scheduler(_scheduler), dram(_dram), gbuffer(_gbuffer), arch(_arch) {}
+
+        const std::shared_ptr<DRAM<T>> &getDram() const {
+            return dram;
+        }
+
+        const std::shared_ptr<GlobalBuffer<T>> &getGbuffer() const {
+            return gbuffer;
+        }
+
+        const std::shared_ptr<Architecture<T>> &getArch() const {
+            return arch;
+        }
 
         /**
         * Return name for the dataflow
@@ -112,40 +99,38 @@ namespace core {
          * Configure control values for the current layer
          * @param _act          Activation array
          * @param _wgt          Weight array
-         * @param _diffy        Diffy
-         * @param _schedule     Schedule buffer
-         * @param _fc           Fully connected
+         * @param _linear       Linear layer
          * @param _lstm         LSTM
-         * @param _recurrences  Recurrences
-         * @param _out_x        Output X windows
-         * @param _out_y        Output Y windows
          * @param _stride       Stride
-         * @param _N_LANES      Number of lanes
-         * @param _N_COLUMNS    Number of columns
-         * @param _N_ROWS       Number of rows
-         * @param _N_TILES      Number of tiles
+         * @param _EF_COLUMNS   Number of effective columns
+         * @param _EF_ROWS      Number of effective rows
          */
         virtual void configure_layer(const std::shared_ptr<base::Array<T>> &_act,
-                const std::shared_ptr<base::Array<T>> &_wgt, bool _diffy, bool _schedule, bool _fc, bool _lstm,
-                int _recurrences, int _out_x, int _out_y, int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS,
-                uint32_t _N_ROWS, uint32_t _N_TILES) {
+                const std::shared_ptr<base::Array<T>> &_wgt, bool _linear, bool _lstm, int _stride,
+                uint32_t _EF_COLUMNS, uint32_t _EF_ROWS) {
             act = _act;
             wgt = _wgt;
-            diffy = _diffy;
-            schedule = _schedule;
-            fc = _fc;
+            linear = _linear;
             lstm = _lstm;
-            recurrences = _recurrences;
-            out_x = _out_x;
-            out_y = _out_y;
+
             stride = _stride;
-            N_LANES = _N_LANES;
-            N_COLUMNS = _N_COLUMNS;
-            N_ROWS = _N_ROWS;
-            N_TILES = _N_TILES;
+            EF_LANES = arch->getNLanes();
+            EF_COLUMNS = _EF_COLUMNS;
+            EF_ROWS = _EF_ROWS;
         }
 
-        virtual bool still_off_chip_data() = 0;
+        const std::vector<AddressRange> &getReadAddresses() {
+            return on_chip_graph.front()->read_addresses;
+        }
+
+        const std::vector<AddressRange> &getEvictAddresses() {
+            return on_chip_graph.front()->evict_addresses;
+        }
+
+        bool still_off_chip_data() {
+            on_chip_graph.erase(on_chip_graph.begin());
+            return !on_chip_graph.empty();
+        }
 
         /**
          * Return if still data to process

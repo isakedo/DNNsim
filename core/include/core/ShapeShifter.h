@@ -32,10 +32,10 @@ namespace core {
         const bool TCL;
 
         /** Ready compute cycle */
-        uint64_t ready_compute_cycle;
+        uint64_t ready_compute_cycle = 0;
 
         /** Previous index */
-        uint64_t previous_index;
+        uint64_t previous_index = 0;
 
         /** Previous ending cycles */
         std::vector<uint64_t> previous_cycles;
@@ -54,9 +54,9 @@ namespace core {
          * @param _wgt_prec     Weights precision
          * @param _network_bits Network bits
          * @param _linear       Linear layer
-         * @param COLUMNS       Number of columns
+         * @param EF_COLUMNS    Number of effective columns
          */
-        void configure_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear, uint64_t COLUMNS) override;
+        void configure_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear, uint64_t EF_COLUMNS) override;
 
         /**
          * Get number of cycles
@@ -171,15 +171,21 @@ namespace core {
     public:
 
         /** Constructor
+         * @param _N_LANES                  Number of concurrent multiplications per PE
+         * @param _N_COLUMNS                Number of columns
+         * @param _N_ROWS                   Number of rows
+         * @param _N_TILES                  Number of tiles
+         * @param _BITS_PE                  Bits per PE
          * @param _GROUP_SIZE               Granularity for dynamic precisions
          * @param _COLUMN_REGISTERS         Number of registers per SIP
          * @param _MINOR_BIT                Calculate also the minor bit for dynamic precisions
          * @param _DIFFY                    Enable Diffy
          * @param _TCL                      Enable BitTactical simulation
          */
-        ShapeShifter(uint32_t _GROUP_SIZE, uint32_t _COLUMN_REGISTERS, bool _MINOR_BIT, bool _DIFFY, bool _TCL) :
-                GROUP_SIZE(_GROUP_SIZE), COLUMN_REGISTERS(_COLUMN_REGISTERS), MINOR_BIT(_MINOR_BIT), DIFFY(_DIFFY),
-                TCL(_TCL) {}
+        ShapeShifter(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES, uint32_t _BITS_PE,
+                uint32_t _GROUP_SIZE, uint32_t _COLUMN_REGISTERS, bool _MINOR_BIT, bool _DIFFY, bool _TCL) :
+                Architecture<T>(_N_LANES, _N_COLUMNS, _N_ROWS, _N_TILES, _BITS_PE), GROUP_SIZE(_GROUP_SIZE),
+                COLUMN_REGISTERS(_COLUMN_REGISTERS), MINOR_BIT(_MINOR_BIT), DIFFY(_DIFFY), TCL(_TCL) {}
 
     };
 

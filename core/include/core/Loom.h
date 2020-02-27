@@ -42,9 +42,9 @@ namespace core {
          * @param _wgt_prec     Weights precision
          * @param _network_bits Network bits
          * @param _linear       Linear layer
-         * @param COLUMNS       Number of columns
+         * @param EF_COLUMNS    Number of effective columns
          */
-        void configure_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear, uint64_t COLUMNS) override;
+        void configure_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear, uint64_t EF_COLUMNS) override;
 
         /**
          * Get number of cycles
@@ -145,14 +145,20 @@ namespace core {
     public:
 
         /** Constructor
+         * @param _N_LANES                  Number of concurrent multiplications per PE
+         * @param _N_COLUMNS                Number of columns
+         * @param _N_ROWS                   Number of rows
+         * @param _N_TILES                  Number of tiles
+         * @param _BITS_PE                  Bits per PE
          * @param _GROUP_SIZE               Granularity for dynamic precisions
          * @param _PE_SERIAL_BITS           Number of bits in series that the PE process
          * @param _MINOR_BIT                Calculate also the minor bit for dynamic precisions
          * @param _DYNAMIC_WEIGHTS          Calculate dynamic precision for weights rather than profiled
          */
-        Loom(uint32_t _GROUP_SIZE, uint32_t _PE_SERIAL_BITS, bool _MINOR_BIT, bool _DYNAMIC_WEIGHTS) :
-                GROUP_SIZE(_GROUP_SIZE), PE_SERIAL_BITS(_PE_SERIAL_BITS), MINOR_BIT(_MINOR_BIT),
-                DYNAMIC_WEIGHTS(_DYNAMIC_WEIGHTS) {}
+        Loom(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES, uint32_t _BITS_PE,
+                uint32_t _GROUP_SIZE, uint32_t _PE_SERIAL_BITS, bool _MINOR_BIT, bool _DYNAMIC_WEIGHTS) :
+                Architecture<T>(_N_LANES, _N_COLUMNS, _N_ROWS, _N_TILES, _BITS_PE), GROUP_SIZE(_GROUP_SIZE),
+                PE_SERIAL_BITS(_PE_SERIAL_BITS), MINOR_BIT(_MINOR_BIT), DYNAMIC_WEIGHTS(_DYNAMIC_WEIGHTS) {}
 
     };
 

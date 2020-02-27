@@ -57,16 +57,16 @@ namespace sys {
             simulate.model = simulate_proto.model();
 
         const auto &dtype = simulate_proto.data_type();
-        if(dtype  != "Float32" && dtype != "FixedPoint")
-            throw std::runtime_error("Input data type configuration must be <Float32|FixedPoint>.");
+        if(dtype  != "Float" && dtype != "Fixed")
+            throw std::runtime_error("Input data type configuration must be <Float|Fixed>.");
         else
             simulate.data_type = simulate_proto.data_type();
 
-        if (dtype == "Float32") simulate.network_bits = 32;
+        if (dtype == "Float") simulate.network_bits = 32;
         else simulate.network_bits = simulate_proto.network_bits() < 1 ? 16 : simulate_proto.network_bits();
 
         if (simulate.network_bits > 16)
-            throw std::runtime_error("Maximum data width allowed for FixedPoint data type is 16");
+            throw std::runtime_error("Maximum data width allowed for Fixed data type is 16");
 
         for(const auto &experiment_proto : simulate_proto.experiment()) {
 
@@ -80,15 +80,31 @@ namespace sys {
 
             // Memory parameters
             try {
+                if (experiment_proto.dram_size().empty()) experiment.dram_size = (uint64_t)pow(2, 14);
+                else experiment.dram_size = parse_memory_size(experiment_proto.dram_size());
+            } catch (const std::exception &e) {
+                throw std::runtime_error("DRAM size not recognised.");
+            }
+
+            experiment.dram_start_act_address = experiment_proto.dram_start_act_address() < 1 ? 0x4000000 :
+                    experiment_proto.dram_start_act_address();
+            experiment.dram_start_wgt_address = experiment_proto.dram_start_wgt_address() < 1 ? 0x0000000 :
+                    experiment_proto.dram_start_wgt_address();
+
+            try {
                 if (experiment_proto.global_buffer_size().empty()) experiment.global_buffer_size = (uint64_t)pow(10, 9);
                 else experiment.global_buffer_size = parse_memory_size(experiment_proto.global_buffer_size());
             } catch (const std::exception &e) {
                 throw std::runtime_error("Global Buffer size not recognised.");
             }
-            experiment.global_buffer_banks = experiment_proto.global_buffer_banks() < 1 ? 32 :
-                    experiment_proto.global_buffer_banks();
+            experiment.global_buffer_act_banks = experiment_proto.global_buffer_act_banks() < 1 ? 16 :
+                    experiment_proto.global_buffer_act_banks();
+            experiment.global_buffer_wgt_banks = experiment_proto.global_buffer_wgt_banks() < 1 ? 256 :
+                    experiment_proto.global_buffer_wgt_banks();
             experiment.global_buffer_bank_width = experiment_proto.global_buffer_bank_width() < 1 ? 32 :
                     experiment_proto.global_buffer_bank_width();
+            experiment.global_buffer_read_delay = experiment_proto.global_buffer_read_delay();
+            experiment.global_buffer_write_delay = experiment_proto.global_buffer_write_delay();
 
             // BitPragmatic-Laconic
             experiment.booth = experiment_proto.booth_encoding();
@@ -144,25 +160,25 @@ namespace sys {
             // Sanity check
             const auto &task = experiment_proto.task();
             if(task  != "Cycles" && task != "Potentials")
-                throw std::runtime_error("Task on network in FixedPoint must be <Cycles|Potentials>.");
+                throw std::runtime_error("Task on network in Fixed must be <Cycles|Potentials>.");
 
             if (task == "Potentials" && experiment.diffy)
                 throw std::runtime_error("Diffy simulation on network is only allowed for <Cycles>.");
 
             const auto &arch = experiment_proto.architecture();
-            if (dtype == "FixedPoint" && arch != "DaDianNao" && arch != "Stripes" && arch != "ShapeShifter" &&
+            if (dtype == "Fixed" && arch != "DaDianNao" && arch != "Stripes" && arch != "ShapeShifter" &&
                     arch != "Loom" && arch != "BitPragmatic" && arch != "Laconic" && arch != "SCNN")
                 throw std::runtime_error("Architecture on network " + simulate.network +
-                    " in FixedPoint must be <DaDianNao|Stripes|ShapeShifter|Loom|BitPragmatic|Laconic|SCNN>.");
-            else  if (dtype == "Float32" && arch != "DaDianNao" && arch != "SCNN")
-                throw std::runtime_error("Architecture on network in Float32 must be <DaDianNao|SCNN>.");
+                    " in Fixed must be <DaDianNao|Stripes|ShapeShifter|Loom|BitPragmatic|Laconic|SCNN>.");
+            else  if (dtype == "Float" && arch != "DaDianNao" && arch != "SCNN")
+                throw std::runtime_error("Architecture on network in Float must be <DaDianNao|SCNN>.");
 
             if (arch != "DaDianNao" && arch != "ShapeShifter" && arch != "BitPragmatic" && experiment.tactical)
-                throw std::runtime_error("Tactical simulation in FixedPoint is only allowed for backends "
+                throw std::runtime_error("Tactical simulation in Fixed is only allowed for backends "
                                          "<DaDianNao|ShapeShifter|BitPragmatic>");
 
             if (arch != "ShapeShifter" && arch != "BitPragmatic" && experiment.diffy)
-                throw std::runtime_error("Diffy simulation on network in FixedPoint is only allowed for backends "
+                throw std::runtime_error("Diffy simulation on network in Fixed is only allowed for backends "
                                          "<ShapeShifter|BitPragmatic>");
 
             if (experiment.tactical && experiment.diffy)

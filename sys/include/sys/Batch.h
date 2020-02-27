@@ -99,14 +99,32 @@ namespace sys {
                 /** Dynamic width precision: Loom */
                 bool dynamic_weights = false;
 
+                /** Dram size */
+                uint64_t dram_size = 0;
+
+                /** DRAM start activations address */
+                uint64_t dram_start_act_address = 0;
+
+                /** DRAM start weights address */
+                uint64_t dram_start_wgt_address = 0;
+
                 /** Global buffer memory size */
                 uint64_t global_buffer_size = 0;
 
-                /** Global buffer banks */
-                uint64_t global_buffer_banks = 0;
+                /** Global buffer act banks */
+                uint64_t global_buffer_act_banks = 0;
+
+                /** Global buffer wgt banks */
+                uint64_t global_buffer_wgt_banks = 0;
 
                 /** Global buffer bank width */
                 uint64_t global_buffer_bank_width = 0;
+
+                /** Global buffer read delay */
+                uint64_t global_buffer_read_delay = 0;
+
+                /** Global buffer write delay */
+                uint64_t global_buffer_write_delay = 0;
 
             };
 

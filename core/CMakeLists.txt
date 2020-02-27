@@ -5,14 +5,22 @@ project(
         LANGUAGES CXX
 )
 
+add_custom_target(
+        libdramsim_make
+        COMMAND make libdramsim.so
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../DRAMSim2
+)
+
 # Create library
 add_library(
         ${PROJECT_NAME}
         include/core/Control.h
+        include/core/Memory.h
         include/core/Architecture.h
         src/Utils.cpp
         src/OutputStationary.cpp
         src/WindowFirstOutS.cpp
+        src/DRAM.cpp
         src/GlobalBuffer.cpp
         src/DaDianNao.cpp
         src/Stripes.cpp
@@ -25,16 +33,22 @@ add_library(
         src/Simulator.cpp
 )
 
+add_dependencies(
+        ${PROJECT_NAME}
+        libdramsim_make
+)
 
 target_include_directories(
         ${PROJECT_NAME}
         PUBLIC include/
+        PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../DRAMSim2/
 )
 
 target_link_libraries(
         ${PROJECT_NAME}
         PRIVATE base
         PRIVATE sys
+        ${CMAKE_CURRENT_SOURCE_DIR}/../DRAMSim2/libdramsim.so
 )
 
 set_target_properties(

@@ -1,7 +1,7 @@
 simulate {
 	network: "bvlc_googlenet"
 	model: "Caffe"
-	data_type: "Float32"
+	data_type: "Float"
 	experiment {
         architecture: "SCNN"
         task: "Cycles"

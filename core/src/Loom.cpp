@@ -7,8 +7,8 @@ namespace core {
 
     template <typename T>
     void Loom<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear,
-            uint64_t COLUMNS) {
-        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_bits, _linear, COLUMNS);
+            uint64_t EF_COLUMNS) {
+        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_bits, _linear, EF_COLUMNS);
         act_mask = (uint16_t)(1u << (_act_prec - 1u));
         wgt_mask = (uint16_t)(1u << (_wgt_prec - 1u));
     }
@@ -32,13 +32,20 @@ namespace core {
 
     template <typename T>
     std::string Loom<T>::filename() {
-        return "_GS" + std::to_string(GROUP_SIZE) + "_PSB" + std::to_string(PE_SERIAL_BITS) +
-               (MINOR_BIT ? "_MB" : "");
+        return "_L" + std::to_string(this->N_LANES) + "_C" + std::to_string(this->N_COLUMNS) +
+               "_R" + std::to_string(this->N_ROWS) + "_T" + std::to_string(this->N_TILES) +
+               "_BP" + std::to_string(this->BITS_PE) + "_GS" + std::to_string(GROUP_SIZE) +
+               "_PSB" + std::to_string(PE_SERIAL_BITS) + (MINOR_BIT ? "_MB" : "");
     }
 
     template <typename T>
     std::string Loom<T>::header() {
-        std::string header = "Number of columns/rows per group: " + std::to_string(GROUP_SIZE) + "\n";
+        std::string header = "Number of lanes/terms per PE: " + std::to_string(this->N_LANES) + "\n";
+        header += "Number of columns/windows in parallel: " + std::to_string(this->N_COLUMNS) + "\n";
+        header += "Number of rows/filters in parallel: " + std::to_string(this->N_ROWS) + "\n";
+        header += "Number of tiles: " + std::to_string(this->N_TILES) + "\n";
+        header += "Size of the PE in bits: " + std::to_string(this->BITS_PE) + "\n";
+        header += "Number of columns/rows per group: " + std::to_string(GROUP_SIZE) + "\n";
         header += "Number of activations processing bits per PE: " + std::to_string(PE_SERIAL_BITS) + "\n";
         header +=  MINOR_BIT ? "Trim bits from the bottom\n" : "";
         return header;

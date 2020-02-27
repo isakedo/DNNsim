@@ -25,6 +25,8 @@ THE SOFTWARE.
 
 #include <base/Network.h>
 #include <core/Simulator.h>
+#include <core/DRAM.h>
+#include <core/GlobalBuffer.h>
 #include <core/DaDianNao.h>
 #include <core/Stripes.h>
 #include <core/ShapeShifter.h>
@@ -129,22 +131,27 @@ int main(int argc, char *argv[]) {
 
             try {
 
-				// Inference traces
-                if (simulate.data_type == "Float32") {
+                // Inference traces
+                if (simulate.data_type == "Float") {
                     auto network = read<float>(simulate, QUIET);
                     for(const auto &experiment : simulate.experiments) {
 
-                        core::BitTactical<float> scheduler(experiment.lookahead_h, experiment.lookaside_d,
-                                experiment.search_shape.c_str()[0]);
+                        auto tracked_data = std::make_shared<std::map<uint64_t, bool>>();
 
-                        std::shared_ptr<core::Control<float>> control =
-                                std::make_shared<core::WindowFirstOutS<float>>(scheduler,
-                                ceil(simulate.network_bits / 8.), experiment.global_buffer_size, 0, 0,
-                                experiment.global_buffer_banks, experiment.global_buffer_bank_width, 0x40000000,
-                                0x20000000);
+                        auto dram = std::make_shared<core::DRAM<float>>(tracked_data, experiment.dram_size,
+                                ceil(simulate.network_bits / 8.), experiment.dram_start_act_address,
+                                experiment.dram_start_wgt_address, "ini/DDR2_micron_16M_8b_x8_sg3E.ini", "system.ini",
+                                network.getName());
 
-                        core::Simulator<float> DNNsim(experiment.n_lanes, experiment.n_columns, experiment.n_rows,
-                                experiment.n_tiles, experiment.bits_pe, FAST_MODE, QUIET, CHECK);
+                        auto gbuffer = std::make_shared<core::GlobalBuffer<float>>(tracked_data,
+                                experiment.global_buffer_size, experiment.global_buffer_act_banks,
+                                experiment.global_buffer_wgt_banks, experiment.global_buffer_bank_width,
+                                experiment.global_buffer_read_delay, experiment.global_buffer_write_delay);
+
+                        auto scheduler = std::make_shared<core::BitTactical<float>>(experiment.lookahead_h,
+                                experiment.lookaside_d, experiment.search_shape.c_str()[0]);
+
+                        core::Simulator<float> DNNsim(FAST_MODE, QUIET, CHECK);
 
                         if (experiment.architecture == "SCNN") {
                             std::shared_ptr<core::Architecture<float>> arch =
@@ -157,14 +164,18 @@ int main(int argc, char *argv[]) {
 
                         } else if (experiment.architecture == "DaDianNao") {
                             std::shared_ptr<core::Architecture<float>> arch =
-                                    std::make_shared<core::DaDianNao<float>>(experiment.tactical);
+                                    std::make_shared<core::DaDianNao<float>>(experiment.n_lanes, experiment.n_columns,
+                                    experiment.n_rows, experiment.n_tiles, experiment.bits_pe, experiment.tactical);
 
-                            if (experiment.task == "Cycles") DNNsim.run(network, arch, control);
+                            std::shared_ptr<core::Control<float>> control =
+                                    std::make_shared<core::WindowFirstOutS<float>>(scheduler, dram, gbuffer, arch);
+
+                            if (experiment.task == "Cycles") DNNsim.run(network, control);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
                         }
                     }
 
-                } else if (simulate.data_type == "FixedPoint") {
+                } else if (simulate.data_type == "Fixed") {
                     base::Network<uint16_t> network;
                     {
                         base::Network<float> tmp_network;
@@ -174,17 +185,22 @@ int main(int argc, char *argv[]) {
 
                     for (const auto &experiment : simulate.experiments) {
 
-                        core::BitTactical<uint16_t> scheduler(experiment.lookahead_h, experiment.lookaside_d,
-                                experiment.search_shape.c_str()[0]);
+                        auto tracked_data = std::make_shared<std::map<uint64_t, bool>>();
 
-                        std::shared_ptr<core::Control<uint16_t>> control =
-                                std::make_shared<core::WindowFirstOutS<uint16_t>>(scheduler,
-                                ceil(simulate.network_bits / 8.), experiment.global_buffer_size, 0, 0,
-                                experiment.global_buffer_banks, experiment.global_buffer_bank_width, 0x40000000,
-                                0x20000000);
+                        auto dram = std::make_shared<core::DRAM<uint16_t>>(tracked_data, experiment.dram_size,
+                                ceil(simulate.network_bits / 8.), experiment.dram_start_act_address,
+                                experiment.dram_start_wgt_address, "ini/DDR2_micron_16M_8b_x8_sg3E.ini", "system.ini",
+                                network.getName());
 
-                        core::Simulator<uint16_t> DNNsim(experiment.n_lanes, experiment.n_columns, experiment.n_rows,
-                                experiment.n_tiles, experiment.bits_pe, FAST_MODE, QUIET, CHECK);
+                        auto gbuffer = std::make_shared<core::GlobalBuffer<uint16_t>>(tracked_data,
+                                experiment.global_buffer_size, experiment.global_buffer_act_banks,
+                                experiment.global_buffer_wgt_banks, experiment.global_buffer_bank_width,
+                                experiment.global_buffer_read_delay, experiment.global_buffer_write_delay);
+
+                        auto scheduler = std::make_shared<core::BitTactical<uint16_t>>(experiment.lookahead_h,
+                                experiment.lookaside_d, experiment.search_shape.c_str()[0]);
+
+                        core::Simulator<uint16_t> DNNsim(FAST_MODE, QUIET, CHECK);
 
                         if (experiment.architecture == "SCNN") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
@@ -197,49 +213,74 @@ int main(int argc, char *argv[]) {
 
                         } else if (experiment.architecture == "DaDianNao") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
-                                    std::make_shared<core::DaDianNao<uint16_t>>(experiment.tactical);
+                                    std::make_shared<core::DaDianNao<uint16_t>>(experiment.n_lanes,
+                                    experiment.n_columns, experiment.n_rows, experiment.n_tiles, experiment.bits_pe,
+                                    experiment.tactical);
 
-                            if (experiment.task == "Cycles") DNNsim.run(network, arch, control);
+                            std::shared_ptr<core::Control<uint16_t>> control =
+                                    std::make_shared<core::WindowFirstOutS<uint16_t>>(scheduler, dram, gbuffer, arch);
+
+                            if (experiment.task == "Cycles") DNNsim.run(network, control);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                         } else if (experiment.architecture == "Stripes") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
-                                    std::make_shared<core::Stripes<uint16_t>>();
+                                    std::make_shared<core::Stripes<uint16_t>>(experiment.n_lanes, experiment.n_columns,
+                                    experiment.n_rows, experiment.n_tiles, experiment.bits_pe);
 
-                            if (experiment.task == "Cycles") DNNsim.run(network, arch, control);
+                            std::shared_ptr<core::Control<uint16_t>> control =
+                                    std::make_shared<core::WindowFirstOutS<uint16_t>>(scheduler, dram, gbuffer, arch);
+
+                            if (experiment.task == "Cycles") DNNsim.run(network, control);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                         } else if (experiment.architecture == "ShapeShifter") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
-                                    std::make_shared<core::ShapeShifter<uint16_t>>(experiment.group_size,
-                                    experiment.column_registers, experiment.minor_bit, experiment.diffy,
-                                    experiment.tactical);
+                                    std::make_shared<core::ShapeShifter<uint16_t>>(experiment.n_lanes,
+                                    experiment.n_columns, experiment.n_rows, experiment.n_tiles, experiment.bits_pe,
+                                    experiment.group_size, experiment.column_registers, experiment.minor_bit,
+                                    experiment.diffy, experiment.tactical);
 
-                            if (experiment.task == "Cycles") DNNsim.run(network, arch, control);
+                            std::shared_ptr<core::Control<uint16_t>> control =
+                                    std::make_shared<core::WindowFirstOutS<uint16_t>>(scheduler, dram, gbuffer, arch);
+
+                            if (experiment.task == "Cycles") DNNsim.run(network, control);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                         } else if (experiment.architecture == "Loom") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
-                                    std::make_shared<core::Loom<uint16_t>>(experiment.group_size,
+                                    std::make_shared<core::Loom<uint16_t>>(experiment.n_lanes, experiment.n_columns,
+                                    experiment.n_rows, experiment.n_tiles, experiment.bits_pe, experiment.group_size,
                                     experiment.pe_serial_bits, experiment.minor_bit, experiment.dynamic_weights);
 
-                            if (experiment.task == "Cycles") DNNsim.run(network, arch, control);
+                            std::shared_ptr<core::Control<uint16_t>> control =
+                                    std::make_shared<core::WindowFirstOutS<uint16_t>>(scheduler, dram, gbuffer, arch);
+
+                            if (experiment.task == "Cycles") DNNsim.run(network, control);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                         } else if (experiment.architecture == "BitPragmatic") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
-                                    std::make_shared<core::BitPragmatic<uint16_t>>(experiment.bits_first_stage,
-                                    experiment.column_registers, experiment.booth, experiment.diffy,
-                                    experiment.tactical);
+                                    std::make_shared<core::BitPragmatic<uint16_t>>(experiment.n_lanes,
+                                    experiment.n_columns, experiment.n_rows, experiment.n_tiles, experiment.bits_pe,
+                                    experiment.bits_first_stage, experiment.column_registers, experiment.booth,
+                                    experiment.diffy, experiment.tactical);
 
-                            if (experiment.task == "Cycles") DNNsim.run(network, arch, control);
+                            std::shared_ptr<core::Control<uint16_t>> control =
+                                    std::make_shared<core::WindowFirstOutS<uint16_t>>(scheduler, dram, gbuffer, arch);
+
+                            if (experiment.task == "Cycles") DNNsim.run(network, control);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                         } else if (experiment.architecture == "Laconic") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
-                                    std::make_shared<core::Laconic<uint16_t>>(experiment.booth);
+                                    std::make_shared<core::Laconic<uint16_t>>(experiment.n_lanes, experiment.n_columns,
+                                    experiment.n_rows, experiment.n_tiles, experiment.bits_pe, experiment.booth);
 
-                            if (experiment.task == "Cycles") DNNsim.run(network, arch, control);
+                            std::shared_ptr<core::Control<uint16_t>> control =
+                                    std::make_shared<core::WindowFirstOutS<uint16_t>>(scheduler, dram, gbuffer, arch);
+
+                            if (experiment.task == "Cycles") DNNsim.run(network, control);
                             else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
 
                         }

@@ -7,8 +7,8 @@ namespace core {
 
     template <typename T>
     void BitPragmatic<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear,
-            uint64_t COLUMNS) {
-        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_bits, _linear, COLUMNS);
+            uint64_t EF_COLUMNS) {
+        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_bits, _linear, EF_COLUMNS);
 
         ready_compute_cycle = 0;
         previous_index = 0;
@@ -36,13 +36,20 @@ namespace core {
 
     template <typename T>
     std::string BitPragmatic<T>::filename() {
-        return "_B" + std::to_string(BITS_FIRST_STAGE) + "_CR" + std::to_string(COLUMN_REGISTERS) +
-               (BOOTH_ENCODING ? "_booth" : "");
+        return "_L" + std::to_string(this->N_LANES) + "_C" + std::to_string(this->N_COLUMNS) +
+               "_R" + std::to_string(this->N_ROWS) + "_T" + std::to_string(this->N_TILES) +
+               "_BP" + std::to_string(this->BITS_PE) + "_B" + std::to_string(BITS_FIRST_STAGE) +
+               "_CR" + std::to_string(COLUMN_REGISTERS) + (BOOTH_ENCODING ? "_booth" : "");
     }
 
     template <typename T>
     std::string BitPragmatic<T>::header() {
-        std::string header = "Number of bits for first stage shifter: " + std::to_string(BITS_FIRST_STAGE) + "\n";
+        std::string header = "Number of lanes/terms per PE: " + std::to_string(this->N_LANES) + "\n";
+        header += "Number of columns/windows in parallel: " + std::to_string(this->N_COLUMNS) + "\n";
+        header += "Number of rows/filters in parallel: " + std::to_string(this->N_ROWS) + "\n";
+        header += "Number of tiles: " + std::to_string(this->N_TILES) + "\n";
+        header += "Size of the PE in bits: " + std::to_string(this->BITS_PE) + "\n";
+        header += "Number of bits for first stage shifter: " + std::to_string(BITS_FIRST_STAGE) + "\n";
         header += "Number of run-ahead input registers per column: " + std::to_string(COLUMN_REGISTERS) + "\n";
         header +=  BOOTH_ENCODING ? "Booth-like Encoding\n" : "";
         return header;

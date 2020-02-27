@@ -22,10 +22,8 @@ namespace core {
         }
 
         // Generate address map
-        auto values_block = 8 / this->data_size;
-
         act_address_map = std::vector<std::vector<std::vector<uint32_t>>>(Ny, std::vector<std::vector<uint32_t>>(Nx,
-                std::vector<uint32_t>(ceil(act_channels / (double)values_block))));
+                std::vector<uint32_t>(ceil(act_channels / (double)this->dram->getValuesPerBlock()))));
 
         // Column third
         for (int y = 0; y < Ny; ++y) {
@@ -34,14 +32,14 @@ namespace core {
             for (int x = 0; x < Nx; ++x) {
 
                 // Store channel-first
-                for (int k = 0; k < act_channels; k += values_block) {
-                    act_address_map[y][x][k/values_block] = this->start_act_address + next_act_address;
+                for (int k = 0; k < act_channels; k += this->dram->getValuesPerBlock()) {
+                    act_address_map[y][x][k/this->dram->getValuesPerBlock()] =
+                            this->dram->getStartActAddress() + next_act_address;
                     next_act_address += 0x40; // Align to 64 bits
                 }
             }
         }
 
-        auto BANKS = this->global_buffer_banks / 2;
         this->act_bank_map = std::vector<std::vector<int>>(Ny, std::vector<int>(Nx));
 
         int bank = 0;
@@ -51,8 +49,8 @@ namespace core {
                 if (y % this->stride == 0 && x == 0)
                     bank = bkp_bank;
                 this->act_bank_map[y][x] = bank;
-                bank = (bank + 1) % BANKS;
-                if (y % this->stride == 0 && x == this->out_x * this->stride - 1)
+                bank = (bank + 1) % this->gbuffer->getActBanks();
+                if (y % this->stride == 0 && x == out_x * this->stride - 1)
                     bkp_bank = bank;
             }
         }
@@ -64,7 +62,7 @@ namespace core {
 
         // Data buffer
         weight_buffer = Buffer<T>(filter_sets, BufferSet<T>(max_buffer_time,
-                BufferRow<T>(this->N_ROWS * this->N_LANES, std::make_tuple(0, 0, 0))));
+                BufferRow<T>(this->EF_ROWS * this->EF_LANES, std::make_tuple(0, 0, 0))));
 
         const std::vector<size_t> &act_shape = this->act->getShape();
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
@@ -81,26 +79,26 @@ namespace core {
         int set_wgt = -1;
         for (int m = 0; m < num_filters; ++m) {
 
-            auto filter_pos = m % this->N_ROWS;
+            auto filter_pos = m % this->EF_ROWS;
             if (filter_pos == 0)
                 set_wgt++;
 
             int buffer_time = 0;
             for (int y = 0; y < Ky; ++y) {
                 for (int x = 0; x < Kx; ++x) {
-                    for (int k = 0; k < wgt_channels; k += this->N_LANES) {
+                    for (int k = 0; k < wgt_channels; k += this->EF_ROWS) {
                         int index = 0;
-                        for (int ch = k; ch < std::min((uint64_t) k + this->N_LANES, wgt_channels); ++ch) {
+                        for (int ch = k; ch < std::min((uint64_t) k + this->EF_LANES, wgt_channels); ++ch) {
 
                             index = depthwise ? filter_pos : index;
                             auto wgt_bits = this->wgt->get(m, ch, x, y);
-                            int pos = filter_pos * this->N_LANES + index;
+                            int pos = filter_pos * this->EF_LANES + index;
                             weight_buffer[set_wgt][buffer_time][pos] = std::make_tuple(wgt_bits, buffer_time, index);
 
                             if (depthwise) continue;
 
                             index++;
-                            if (index == this->N_LANES) {
+                            if (index == this->EF_LANES) {
                                 buffer_time++;
                                 index = 0;
                             }
@@ -114,17 +112,16 @@ namespace core {
         } // Filter sets
 
         // BitTactical schedule
-        if (this->schedule) {
-            this->scheduler.schedule(weight_buffer, this->N_LANES);
+        if (this->arch->schedule()) {
+            this->scheduler->schedule(weight_buffer, this->EF_LANES);
         }
 
         // Addresses buffer
-        auto values_block = 8 / this->data_size;
-        auto addresses_per_row = (uint64_t)ceil(this->N_LANES / (double)values_block) * this->N_ROWS;
+        auto addresses_per_row = (uint64_t)ceil(this->EF_LANES / (double)this->dram->getValuesPerBlock()) * this->EF_ROWS;
         wgt_address_buffer = AddressBuffer(filter_sets, AddressBufferSet(max_buffer_time,
                 AddressBufferRow(addresses_per_row)));
 
-        wgt_address_map.first_address = this->start_wgt_address + next_wgt_address;
+        wgt_address_map.first_address = this->dram->getStartWgtAddress() + next_wgt_address;
 
         // Filter Set third
         for (int m = 0; m < filter_sets; ++m) {
@@ -133,9 +130,9 @@ namespace core {
             int skip_buf = 0;
             for (int y = 0; y < max_buffer_time; ++y) {
 
-                if (this->schedule) {
-                    bool zero_line = this->scheduler.check_zero_line(this->weight_buffer[m][y]);
-                    if (skip_buf < this->scheduler.getLookaheadH() && zero_line) {
+                if (this->arch->schedule()) {
+                    bool zero_line = this->scheduler->check_zero_line(this->weight_buffer[m][y]);
+                    if (skip_buf < this->scheduler->getLookaheadH() && zero_line) {
                         skip_buf++;
                         continue;
                     }
@@ -144,41 +141,43 @@ namespace core {
 
                 // Buffer width first
                 for (int x = 0; x < addresses_per_row; ++x) {
-                    this->wgt_address_buffer[m][y][x] = this->start_wgt_address + next_wgt_address;
+                    this->wgt_address_buffer[m][y][x] = this->dram->getStartWgtAddress() + next_wgt_address;
                     this->next_wgt_address += 0x40; // Align to 64 bits
                 }
             }
         }
 
-        wgt_address_map.last_address = this->start_wgt_address + next_wgt_address - 0x40;
+        wgt_address_map.last_address = this->dram->getStartWgtAddress() + next_wgt_address - 0x40;
 
         // Banks buffer
-        auto BANKS = this->global_buffer_banks / 2;
-        auto accesses_per_filter = (uint64_t)ceil(this->N_LANES * this->data_size /
-                (double)this->global_buffer_bank_width);
+        auto accesses_per_filter = (uint64_t)ceil(this->EF_LANES * this->dram->getDataSize() /
+                (double)this->gbuffer->getBankWidth());
         wgt_bank_buffer = BankBuffer(filter_sets, BankBufferSet(max_buffer_time,
-                BankBufferRow(accesses_per_filter * this->N_ROWS)));
+                BankBufferRow(accesses_per_filter * this->EF_ROWS)));
 
+        int bank = 0;
         for (int m = 0; m < filter_sets; ++m) {
 
-            int skip_buf = 0;
-            for (int y = 0; y < max_buffer_time; ++y) {
+            for (int r = 0; r < this->EF_ROWS; ++r) {
+                for (int f = 0; f < accesses_per_filter; ++f) {
 
-                if (this->schedule) {
-                    bool zero_line = this->scheduler.check_zero_line(this->weight_buffer[m][y]);
-                    if (skip_buf < this->scheduler.getLookaheadH() && zero_line) {
-                        skip_buf++;
-                        continue;
-                    }
-                    skip_buf = 0;
-                }
+                    int skip_buf = 0;
+                    for (int y = 0; y < max_buffer_time; ++y) {
 
-                int bank = 0;
-                for (int r = 0; r < this->N_ROWS; ++r) {
-                    for (int f = 0; f < accesses_per_filter; ++f) {
-                        this->wgt_bank_buffer[m][y][r * accesses_per_filter + f] = BANKS + bank;
-                        bank = (bank + 1) % BANKS;
+                        if (this->arch->schedule()) {
+                            bool zero_line = this->scheduler->check_zero_line(this->weight_buffer[m][y]);
+                            if (skip_buf < this->scheduler->getLookaheadH() && zero_line) {
+                                skip_buf++;
+                                continue;
+                            }
+                            skip_buf = 0;
+                        }
+
+                        this->wgt_bank_buffer[m][y][r * accesses_per_filter + f] = bank;
                     }
+
+                    bank = (bank + 1) % this->gbuffer->getWgtBanks();
+
                 }
             }
         }
@@ -188,24 +187,24 @@ namespace core {
     template <typename T>
     void OutputStationary<T>::fill_window_buffer() {
 
-        auto recurrence = on_chip_graph.front().recurrence;
+        auto recurrence = std::static_pointer_cast<OutputStationary<T>::NodeOutS>
+                (this->on_chip_graph.front())->recurrence;
 
         if (windows.empty()) {
             throw std::runtime_error("Window indices may not be empty");
         }
 
-        auto num_windows = (this->fc || this->lstm) ? this->N_COLUMNS : windows.size();
-        window_buffer = BufferSet<T>(max_buffer_time, BufferRow<T>(num_windows * this->N_LANES,
+        auto num_windows = this->linear ? this->EF_COLUMNS : windows.size();
+        window_buffer = BufferSet<T>(max_buffer_time, BufferRow<T>(num_windows * this->EF_LANES,
                 std::make_tuple(0.0f, 0, 0)));
 
-        auto values_block = 8 / this->data_size;
-        auto addresses_per_row = (uint64_t)ceil(this->N_LANES / (double)values_block) * this->N_COLUMNS;
-        window_address_buffer = AddressBufferSet(windows.size(), AddressBufferRow(addresses_per_row, 0xFFFFFFFF));
+        auto addresses_per_window = (uint64_t)ceil(this->EF_LANES / (double)this->dram->getValuesPerBlock());
+        window_address_buffer = AddressBufferSet(max_buffer_time, AddressBufferRow(addresses_per_window *
+                windows.size(), 0xFFFFFFFF));
 
-        auto BANKS = this->global_buffer_banks / 2;
-        auto accesses_per_window = (uint64_t)ceil(this->N_LANES * this->data_size /
-                (double)this->global_buffer_bank_width);
-        window_bank_buffer = BankBufferSet(windows.size(), BankBufferRow(accesses_per_window * windows.size(), -1));
+        auto accesses_per_window = (uint64_t)ceil(this->EF_LANES * this->dram->getDataSize() /
+                (double)this->gbuffer->getBankWidth());
+        window_bank_buffer = BankBufferSet(max_buffer_time, BankBufferRow(accesses_per_window * windows.size(), -1));
 
         const std::vector<size_t> &act_shape = this->act->getShape();
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
@@ -223,58 +222,66 @@ namespace core {
             int buffer_time = 0;
             for (int y = 0; y < Ky; ++y) {
                 for (int x = 0; x < Kx; ++x) {
-                    for (int k = 0; k < act_channels; k += this->N_LANES) {
+                    for (int k = 0; k < act_channels; k += this->EF_LANES) {
+
                         int index = 0;
-                        for (int ch = k; ch < std::min((uint64_t) k + this->N_LANES, act_channels); ++ch) {
+                        for (int ch = k; ch < std::min((uint64_t) k + this->EF_LANES, act_channels); ++ch) {
 
                             auto act_bits = this->lstm ? this->act->get(recurrence, 0, ch) :
                                     this->act->get(0, ch, x_window + x, y_window + y);
 
-                            if (this->diffy && !this->fc && !this->lstm) {
+                            if (this->arch->diffy() && !this->linear) {
                                 auto prev_act_bits = (x_window - this->stride < 0) ? 0 : this->act->get(0,
                                         ch, x_window + x - this->stride, y_window + y);
                                 act_bits = (short)act_bits - (short)prev_act_bits;
                             }
 
-                            auto column = (this->fc || this->lstm) ? next_column : w;
-                            int pos = column * this->N_LANES + index;
+                            auto column = this->linear ? next_column : w;
+                            int pos = column * this->EF_LANES + index;
                             window_buffer[buffer_time][pos] = std::make_tuple(act_bits, buffer_time, index);
 
+                            int addr_pos = w * addresses_per_window + index / this->dram->getValuesPerBlock();
+                            window_address_buffer[buffer_time][addr_pos] = act_address_map[y_window + y][x_window + x]
+                                    [ch / this->dram->getValuesPerBlock()];
+
+                            int bank_pos = w * accesses_per_window +
+                                    (index * this->dram->getDataSize()) / this->gbuffer->getBankWidth();
+                            window_bank_buffer[buffer_time][bank_pos] = act_bank_map[y_window + y][x_window + x];
+
                             index++;
-                            if (index == this->N_LANES) {
+                            if (index == this->EF_LANES) {
                                 buffer_time++;
                                 index = 0;
                             }
+
                         }
                         if (index != 0) {
                             buffer_time++;
                         }
-                        if (this->fc || this->lstm)
-                            next_column = (next_column + 1) % this->N_COLUMNS;
+                        if (this->linear)
+                            next_column = (next_column + 1) % this->EF_COLUMNS;
+
                     } // Activations channel
                 } // Kernel X
             } // Kernel Y
 
         } // Windows
 
-
-        if (this->fc || this->lstm) windows = std::vector<WindowCoord>(this->N_COLUMNS, std::make_tuple(0, 0));
+        if (this->linear) windows = std::vector<WindowCoord>(this->EF_COLUMNS, std::make_tuple(0, 0));
 
     }
 
     template <typename T>
     void OutputStationary<T>::configure_layer(const std::shared_ptr<base::Array<T>> &_act,
-            const std::shared_ptr<base::Array<T>> &_wgt, bool _diffy, bool _schedule, bool _fc, bool _lstm,
-            int _recurrence, int _out_x, int _out_y, int _stride, uint32_t _N_LANES, uint32_t _N_COLUMNS,
-            uint32_t _N_ROWS, uint32_t _N_TILES) {
+            const std::shared_ptr<base::Array<T>> &_wgt, bool _linear, bool _lstm, int _stride, uint32_t _EF_COLUMNS,
+            uint32_t _EF_ROWS) {
 
-        Control<T>::configure_layer(_act, _wgt, _diffy, _schedule, _fc, _lstm, _recurrence, _out_x, _out_y, _stride,
-                _N_LANES, _N_COLUMNS, _N_ROWS, _N_TILES);
+        Control<T>::configure_layer(_act, _wgt, _linear, _lstm, _stride, _EF_COLUMNS, _EF_ROWS);
 
         window_set_it = 0;
         filter_set_it = 0;
-        time = std::vector<int>(this->N_TILES, 0);
-        skip = std::vector<int>(this->N_TILES, 0);
+        time = std::vector<int>(this->arch->getNTiles(), 0);
+        skip = std::vector<int>(this->arch->getNTiles(), 0);
         window_buffer_filled = false;
         filter_buffer_filled = false;
 
@@ -282,26 +289,25 @@ namespace core {
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
 
         auto act_channels = this->lstm ? act_shape[2] : act_shape[1];
+        auto Nx = this->lstm ? 1 : act_shape[2];
+        auto Ny = this->lstm ? 1 : act_shape[3];
 
         auto num_filters = wgt_shape[0];
         auto wgt_channels = wgt_shape[1];
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
 
-        window_sets = (uint64_t)ceil(this->out_x * this->out_y / (double)this->N_COLUMNS);
-        filter_sets = (uint64_t)ceil(num_filters / (double)this->N_ROWS);
+        out_x = (Nx - Kx) / this->stride + 1;
+        out_y = (Ny - Ky) / this->stride + 1;
+
+        window_sets = (uint64_t)ceil(this->out_x * this->out_y / (double)this->EF_COLUMNS);
+        filter_sets = (uint64_t)ceil(num_filters / (double)this->EF_ROWS);
 
         // Generate weight buffer
-        auto round_wgt_channels = (int)ceil(wgt_channels / (double)this->N_LANES) * this->N_LANES;
-        max_buffer_time = (uint64_t)ceil(round_wgt_channels * Kx * Ky / (double)this->N_LANES);
+        auto round_wgt_channels = (int)ceil(wgt_channels / (double)this->EF_LANES) * this->EF_LANES;
+        max_buffer_time = (uint64_t)ceil(round_wgt_channels * Kx * Ky / (double)this->EF_LANES);
 
         fill_weight_buffer();
-    }
-
-    template <typename T>
-    bool OutputStationary<T>::still_off_chip_data() {
-        on_chip_graph.erase(on_chip_graph.begin());
-        return !on_chip_graph.empty();
     }
 
     INITIALISE_DATA_TYPES(OutputStationary);
