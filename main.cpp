@@ -140,8 +140,7 @@ int main(int argc, char *argv[]) {
 
                         auto dram = std::make_shared<core::DRAM<float>>(tracked_data, experiment.dram_size,
                                 ceil(simulate.network_bits / 8.), experiment.dram_start_act_address,
-                                experiment.dram_start_wgt_address, "ini/DDR2_micron_16M_8b_x8_sg3E.ini", "system.ini",
-                                network.getName());
+                                experiment.dram_start_wgt_address, "ini/DDR4_3200.ini", "system.ini", network.getName());
 
                         auto gbuffer = std::make_shared<core::GlobalBuffer<float>>(tracked_data,
                                 experiment.global_buffer_size, experiment.global_buffer_act_banks,
@@ -189,8 +188,7 @@ int main(int argc, char *argv[]) {
 
                         auto dram = std::make_shared<core::DRAM<uint16_t>>(tracked_data, experiment.dram_size,
                                 ceil(simulate.network_bits / 8.), experiment.dram_start_act_address,
-                                experiment.dram_start_wgt_address, "ini/DDR2_micron_16M_8b_x8_sg3E.ini", "system.ini",
-                                network.getName());
+                                experiment.dram_start_wgt_address, "ini/DDR4_3200.ini", "system.ini", network.getName());
 
                         auto gbuffer = std::make_shared<core::GlobalBuffer<uint16_t>>(tracked_data,
                                 experiment.global_buffer_size, experiment.global_buffer_act_banks,

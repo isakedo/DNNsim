@@ -7,6 +7,8 @@
 
 namespace core {
 
+    const uint64_t NULL_ADDR = UINT64_MAX;
+
     typedef std::vector<std::vector<std::vector<double>>> OutputTensor;
 
     typedef std::tuple<uint16_t, uint16_t> ValueIndex;
@@ -25,17 +27,17 @@ namespace core {
 
     typedef std::tuple<int, int> WindowCoord;
 
-    typedef std::tuple<uint32_t, uint32_t> AddressRange;
+    typedef std::tuple<uint64_t, uint64_t> AddressRange;
 
-    typedef std::vector<std::vector<std::vector<uint32_t>>> AddressMap;
+    typedef std::vector<std::vector<std::vector<uint64_t>>> AddressMap;
 
     typedef std::vector<std::vector<int>> ActBankMap;
 
-    typedef std::vector<std::vector<std::vector<uint32_t>>> AddressBuffer;
+    typedef std::vector<std::vector<std::vector<uint64_t>>> AddressBuffer;
 
-    typedef std::vector<std::vector<uint32_t>> AddressBufferSet;
+    typedef std::vector<std::vector<uint64_t>> AddressBufferSet;
 
-    typedef std::vector<uint32_t> AddressBufferRow;
+    typedef std::vector<uint64_t> AddressBufferRow;
 
     typedef std::vector<std::vector<std::vector<int>>> BankBuffer;
 

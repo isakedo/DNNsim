@@ -416,11 +416,13 @@ namespace core {
                         tiles_data[t].act_row = BufferSet<T>(this->window_buffer.begin() + this->time[t],
                                 std::min(this->window_buffer.begin() + this->time[t] +
                                 num_act_rows, this->window_buffer.end()));
-                        tiles_data[t].act_addresses =
-                                AddressBufferSet(this->window_address_buffer.begin() + this->time[t],
-                                std::min(this->window_address_buffer.begin() + this->time[t] +
-                                num_act_rows, this->window_address_buffer.end()));
-                        if (t == 0) tiles_data[t].act_banks = this->window_bank_buffer[this->time[t]];
+                        if (t == 0) {
+                            tiles_data[t].act_addresses =
+                                    AddressBufferSet(this->window_address_buffer.begin() + this->time[t],
+                                    std::min(this->window_address_buffer.begin() + this->time[t] +
+                                    num_act_rows, this->window_address_buffer.end()));
+                            tiles_data[t].act_banks = this->window_bank_buffer[this->time[t]];
+                        }
 
                         tiles_data[t].wgt_row = this->weight_buffer[filter_set + t][this->time[t]];
                         tiles_data[t].wgt_addresses = this->wgt_address_buffer[filter_set + t][this->time[t]];

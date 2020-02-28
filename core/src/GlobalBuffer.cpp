@@ -34,6 +34,16 @@ namespace core {
     }
 
     template <typename T>
+    void GlobalBuffer<T>::configure_layer() {
+        ready_cycle = 0;
+    }
+
+    template <typename T>
+    bool GlobalBuffer<T>::data_ready() {
+        return ready_cycle <= *this->global_cycle;
+    }
+
+    template <typename T>
     void GlobalBuffer<T>::read_request(const std::vector<TileData<T>> &tiles_data) {
 
         auto start_time = std::max(ready_cycle, *this->global_cycle);
@@ -49,7 +59,7 @@ namespace core {
         auto wgt_delay = *std::max_element(wgt_bank_conflicts.begin(), wgt_bank_conflicts.end()) - 1;
         auto bank_delay = std::max(act_delay, wgt_delay);
 
-        ready_cycle = start_time + bank_delay + READ_DELAY;
+        ready_cycle = start_time + bank_delay + READ_DELAY - 1;
 
     }
 

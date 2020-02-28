@@ -22,8 +22,8 @@ namespace core {
         }
 
         // Generate address map
-        act_address_map = std::vector<std::vector<std::vector<uint32_t>>>(Ny, std::vector<std::vector<uint32_t>>(Nx,
-                std::vector<uint32_t>(ceil(act_channels / (double)this->dram->getValuesPerBlock()))));
+        act_address_map = std::vector<std::vector<std::vector<uint64_t>>>(Ny, std::vector<std::vector<uint64_t>>(Nx,
+                std::vector<uint64_t>(ceil(act_channels / (double)this->dram->getValuesPerBlock()))));
 
         // Column third
         for (int y = 0; y < Ny; ++y) {
@@ -200,7 +200,7 @@ namespace core {
 
         auto addresses_per_window = (uint64_t)ceil(this->EF_LANES / (double)this->dram->getValuesPerBlock());
         window_address_buffer = AddressBufferSet(max_buffer_time, AddressBufferRow(addresses_per_window *
-                windows.size(), 0xFFFFFFFF));
+                windows.size(), NULL_ADDR));
 
         auto accesses_per_window = (uint64_t)ceil(this->EF_LANES * this->dram->getDataSize() /
                 (double)this->gbuffer->getBankWidth());

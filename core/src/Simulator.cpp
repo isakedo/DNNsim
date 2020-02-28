@@ -221,6 +221,8 @@ namespace core {
                 auto COLUMNS = arch->getNColumns() / columns_per_act;
                 auto ROWS = arch->getNRows() / rows_per_wgt;
 
+                dram->configure_layer();
+                gbuffer->configure_layer();
                 arch->configure_layer(act_prec, wgt_prec, network_bits, fc || lstm, COLUMNS);
                 control->configure_layer(act, wgt, fc, lstm, stride, COLUMNS, ROWS);
 
@@ -228,8 +230,8 @@ namespace core {
                         std::vector<double>(Oy, 0)));
 
                 std::shared_ptr<uint64_t>global_cycle = std::make_shared<uint64_t>(0);
-                arch->setGlobalCycle(global_cycle);
                 gbuffer->setGlobalCycle(global_cycle);
+                arch->setGlobalCycle(global_cycle);
 
                 auto tiles_data = std::vector<TileData<T>>(arch->getNTiles(), TileData<T>());
                 do {
@@ -242,17 +244,18 @@ namespace core {
                     while(still_data) {
 
                         // Check if data is on-chip
-                        //while (!dram->data_ready(tiles_data)) {
-                        //    *global_cycle += 1;
-                        //    dram->cycle();
-                        //}
+                        dram->read_request(tiles_data);
+                        while (!dram->data_ready(tiles_data)) {
+                            *global_cycle += 1;
+                            dram->cycle();
+                        }
 
                         // Request data to on-chip buffer
-                        //gbuffer->read_request(tiles_data);
-                        //while (!gbuffer->data_ready()) {
-                        //    *global_cycle += 1;
-                        //    dram->cycle();
-                        //}
+                        gbuffer->read_request(tiles_data);
+                        while (!gbuffer->data_ready()) {
+                            *global_cycle += 1;
+                            dram->cycle();
+                        }
 
                         // Request data to local buffers
 
@@ -267,6 +270,9 @@ namespace core {
 
                         if (this->CHECK) calculate_output(sim_output, tiles_data);
                         still_data = control->still_on_chip_data(tiles_data);
+
+                        *global_cycle += 1;
+                        dram->cycle();
 
                     }
 

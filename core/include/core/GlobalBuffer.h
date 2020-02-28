@@ -46,11 +46,13 @@ namespace core {
 
         const uint32_t getWriteDelay() const;
 
+        void configure_layer();
+
         /**
          * Return true if ready to feed need data
          * @return True if ready to process data
          */
-        bool data_ready() { return ready_cycle <= *this->global_cycle; }
+        bool data_ready();
 
         void read_request(const std::vector<TileData<T>> &tiles_data);
 
