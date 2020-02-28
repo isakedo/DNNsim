@@ -60,6 +60,10 @@ namespace core {
         /** Number of efffective rows */
         uint32_t EF_ROWS = 0;
 
+        bool layer_act_on_chip = false;
+
+        bool next_layer_act_on_chip = false;
+
         virtual void generate_memory_maps() = 0;
 
         virtual void generate_execution_graph() = 0;
@@ -117,6 +121,9 @@ namespace core {
             EF_LANES = arch->getNLanes();
             EF_COLUMNS = _EF_COLUMNS;
             EF_ROWS = _EF_ROWS;
+
+            layer_act_on_chip = next_layer_act_on_chip;
+            next_layer_act_on_chip = false;
         }
 
         const std::vector<AddressRange> &getReadAddresses() {

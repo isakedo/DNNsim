@@ -45,9 +45,11 @@ namespace core {
         // Try to fit whole layer
         auto all_windows = act_channels * Nx * Ny * this->dram->getDataSize();
         auto all_filters = num_filters * wgt_channels * Kx * Ky * this->dram->getDataSize();
+        auto all_output = num_filters * this->out_x * this->out_y * this->dram->getDataSize();
         auto extra_rows = ceil(this->EF_COLUMNS / (double)this->out_x) - 1;
-        if (all_windows + all_filters < this->gbuffer->getSize()) {
+        if (all_windows + all_filters + all_output < this->gbuffer->getSize()) {
 
+            this->next_layer_act_on_chip = true;
             typename OutputStationary<T>::NodeOutS unique_node;
 
             // Fill parameters
@@ -65,19 +67,23 @@ namespace core {
             unique_node.read_addresses = std::vector<AddressRange>(3);
 
             // First read fist row of activations
-            auto first_address = this->act_address_map[0][0][0];
-            auto last_address = this->act_address_map[Ky + extra_rows - 1][Nx - 1][last_act_index];
-            unique_node.read_addresses[0] = std::make_tuple(first_address, last_address);
+            if (!this->layer_act_on_chip) {
+                auto first_address = this->act_address_map[0][0][0];
+                auto last_address = this->act_address_map[Ky + extra_rows - 1][Nx - 1][last_act_index];
+                unique_node.read_addresses[0] = std::make_tuple(first_address, last_address);
+            }
 
             // Then read all filters
-            first_address = this->wgt_address_map.first_address;
-            last_address = this->wgt_address_map.last_address;
+            auto first_address = this->wgt_address_map.first_address;
+            auto last_address = this->wgt_address_map.last_address;
             unique_node.read_addresses[1] = std::make_tuple(first_address, last_address);
 
             // Finally read remaining activations
-            first_address = this->act_address_map[Ky + extra_rows][0][0];
-            last_address = this->act_address_map[Ny - 1][Nx - 1][last_act_index];
-            unique_node.read_addresses[2] = std::make_tuple(first_address, last_address);
+            if (!this->layer_act_on_chip) {
+                first_address = this->act_address_map[Ky + extra_rows][0][0];
+                last_address = this->act_address_map[Ny - 1][Nx - 1][last_act_index];
+                unique_node.read_addresses[2] = std::make_tuple(first_address, last_address);
+            }
 
             this->on_chip_graph.emplace_back(std::make_shared<typename OutputStationary<T>::NodeOutS>(unique_node));
 
