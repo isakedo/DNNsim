@@ -64,7 +64,7 @@ namespace core {
             unique_node.filter_sets = std::vector<int>(this->filter_sets, 0);
             std::iota(unique_node.filter_sets.begin(), unique_node.filter_sets.end(), 0);
 
-            unique_node.read_addresses = std::vector<AddressRange>(3);
+            unique_node.read_addresses = std::vector<AddressRange>(3, std::make_tuple(NULL_ADDR, NULL_ADDR));
 
             // First read fist row of activations
             if (!this->layer_act_on_chip) {

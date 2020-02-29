@@ -5,6 +5,10 @@
 
 namespace core {
 
+    const uint64_t NULL_ADDR = UINT64_MAX;
+
+    const uint64_t BLOCK_SIZE = 0x40; // Align to 64 bits
+
     template <typename T>
     class Memory {
 
@@ -17,7 +21,7 @@ namespace core {
 
     public:
 
-        Memory(const std::shared_ptr<std::map<uint64_t, bool>> &_tracked_data) : tracked_data(_tracked_data) {}
+        explicit Memory(const std::shared_ptr<std::map<uint64_t, bool>> &_tracked_data) : tracked_data(_tracked_data) {}
 
         /**
          * Set shared global cycle

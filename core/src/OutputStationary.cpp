@@ -35,7 +35,7 @@ namespace core {
                 for (int k = 0; k < act_channels; k += this->dram->getValuesPerBlock()) {
                     act_address_map[y][x][k/this->dram->getValuesPerBlock()] =
                             this->dram->getStartActAddress() + next_act_address;
-                    next_act_address += 0x40; // Align to 64 bits
+                    next_act_address += BLOCK_SIZE;
                 }
             }
         }
@@ -142,12 +142,12 @@ namespace core {
                 // Buffer width first
                 for (int x = 0; x < addresses_per_row; ++x) {
                     this->wgt_address_buffer[m][y][x] = this->dram->getStartWgtAddress() + next_wgt_address;
-                    this->next_wgt_address += 0x40; // Align to 64 bits
+                    next_wgt_address += BLOCK_SIZE;
                 }
             }
         }
 
-        wgt_address_map.last_address = this->dram->getStartWgtAddress() + next_wgt_address - 0x40;
+        wgt_address_map.last_address = this->dram->getStartWgtAddress() + next_wgt_address - BLOCK_SIZE;
 
         // Banks buffer
         auto accesses_per_filter = (uint64_t)ceil(this->EF_LANES * this->dram->getDataSize() /

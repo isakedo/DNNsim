@@ -86,7 +86,8 @@ namespace core {
         for (const auto &addr_range : addresses) {
             auto start_addr = std::get<0>(addr_range);
             auto end_addr = std::get<1>(addr_range);
-            for (uint64_t addr = start_addr; addr <= end_addr; addr += 0x40) {
+            if (start_addr == NULL_ADDR) continue;
+            for (uint64_t addr = start_addr; addr <= end_addr; addr += BLOCK_SIZE) {
                 this->tracked_data->insert({addr, false});
                 transaction_request(addr, false);
             }
