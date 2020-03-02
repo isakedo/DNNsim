@@ -195,7 +195,7 @@ namespace core {
     }
 
     template <typename T>
-    void OutputStationary<T>::fill_window_buffer() {
+    void OutputStationary<T>::fill_window_buffer(uint64_t group_idx) {
 
         auto recurrence = std::static_pointer_cast<OutputStationary<T>::NodeOutS>
                 (this->on_chip_graph.front())->recurrence;
@@ -205,16 +205,16 @@ namespace core {
         }
 
         auto num_windows = this->linear ? this->EF_COLUMNS : windows.size();
-        window_buffer = BufferSet<T>(max_buffer_time * groups, BufferRow<T>(num_windows * this->EF_LANES,
+        window_buffer = BufferSet<T>(max_buffer_time, BufferRow<T>(num_windows * this->EF_LANES,
                 std::make_tuple(0.0f, 0, 0)));
 
         auto addresses_per_window = (uint64_t)ceil(this->EF_LANES / (double)this->dram->getValuesPerBlock());
-        window_address_buffer = AddressBufferSet(max_buffer_time * groups, AddressBufferRow(addresses_per_window *
+        window_address_buffer = AddressBufferSet(max_buffer_time, AddressBufferRow(addresses_per_window *
                 windows.size(), NULL_ADDR));
 
         auto accesses_per_window = (uint64_t)ceil(this->EF_LANES * this->dram->getDataSize() /
                 (double)this->gbuffer->getBankWidth());
-        window_bank_buffer = BankBufferSet(max_buffer_time * groups, BankBufferRow(accesses_per_window * windows.size(), -1));
+        window_bank_buffer = BankBufferSet(max_buffer_time, BankBufferRow(accesses_per_window * windows.size(), -1));
 
         const std::vector<size_t> &act_shape = this->act->getShape();
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
@@ -233,60 +233,56 @@ namespace core {
             auto x_window = std::get<0>(windows[w]) * this->stride;
             auto y_window = std::get<1>(windows[w]) * this->stride;
 
+            auto start_group = group_idx * channels;
+
             int buffer_time = 0;
-            for (int g = 0; g < groups; ++g) {
+            for (int y = 0; y < Ky; ++y) {
+                for (int x = 0; x < Kx; ++x) {
+                    for (int k = 0; k < channels; k += this->EF_LANES) {
 
-                auto start_group = g * channels;
+                        int index = 0;
+                        for (int ch = k; ch < std::min((uint64_t) k + this->EF_LANES, channels); ++ch) {
 
-                for (int y = 0; y < Ky; ++y) {
-                    for (int x = 0; x < Kx; ++x) {
-                        for (int k = 0; k < channels; k += this->EF_LANES) {
+                            if ((start_group + ch) >= act_channels)
+                                continue;
 
-                            int index = 0;
-                            for (int ch = k; ch < std::min((uint64_t) k + this->EF_LANES, channels); ++ch) {
+                            auto act_bits = this->lstm ? this->act->get(recurrence, 0, ch) :
+                                    this->act->get(0, start_group + ch, x_window + x, y_window + y);
 
-                                if ((start_group + ch) >= act_channels)
-                                    continue;
-
-                                auto act_bits = this->lstm ? this->act->get(recurrence, 0, ch) :
-                                        this->act->get(0, start_group + ch, x_window + x, y_window + y);
-
-                                if (this->arch->diffy() && !this->linear) {
-                                    auto prev_act_bits = (x_window - this->stride < 0) ? 0 : this->act->get(0, ch,
-                                            x_window + x - this->stride, y_window + y);
-                                    act_bits = (short) act_bits - (short) prev_act_bits;
-                                }
-
-                                auto column = this->linear ? next_column : w;
-                                int pos = column * this->EF_LANES + index;
-                                window_buffer[buffer_time][pos] = std::make_tuple(act_bits, buffer_time, index);
-
-                                int addr_pos = w * addresses_per_window + index / this->dram->getValuesPerBlock();
-                                window_address_buffer[buffer_time][addr_pos] = act_address_map[y_window + y]
-                                        [x_window + x][ch / this->dram->getValuesPerBlock()];
-
-                                int bank_pos = w * accesses_per_window +
-                                        (index * this->dram->getDataSize()) / this->gbuffer->getBankWidth();
-                                window_bank_buffer[buffer_time][bank_pos] = act_bank_map[y_window + y][x_window + x];
-
-                                index++;
-                                if (index == this->EF_LANES) {
-                                    buffer_time++;
-                                    index = 0;
-                                }
-
+                            if (this->arch->diffy() && !this->linear) {
+                                auto prev_act_bits = (x_window - this->stride < 0) ? 0 : this->act->get(0, ch,
+                                        x_window + x - this->stride, y_window + y);
+                                act_bits = (short) act_bits - (short) prev_act_bits;
                             }
-                            if (index != 0) {
+
+                            auto column = this->linear ? next_column : w;
+                            int pos = column * this->EF_LANES + index;
+                            window_buffer[buffer_time][pos] = std::make_tuple(act_bits, buffer_time, index);
+
+                            int addr_pos = w * addresses_per_window + index / this->dram->getValuesPerBlock();
+                            window_address_buffer[buffer_time][addr_pos] = act_address_map[y_window + y]
+                                    [x_window + x][ch / this->dram->getValuesPerBlock()];
+
+                            int bank_pos = w * accesses_per_window +
+                                    (index * this->dram->getDataSize()) / this->gbuffer->getBankWidth();
+                            window_bank_buffer[buffer_time][bank_pos] = act_bank_map[y_window + y][x_window + x];
+
+                            index++;
+                            if (index == this->EF_LANES) {
                                 buffer_time++;
+                                index = 0;
                             }
-                            if (this->linear)
-                                next_column = (next_column + 1) % this->EF_COLUMNS;
+
+                        }
+                        if (index != 0) {
+                            buffer_time++;
+                        }
+                        if (this->linear)
+                            next_column = (next_column + 1) % this->EF_COLUMNS;
 
                         } // Activations channel
                     } // Kernel X
                 } // Kernel Y
-            }// Group
-
         } // Windows
 
     }

@@ -116,7 +116,7 @@ namespace core {
         /**
          * Fill the window buffer with the activations to process
          */
-        void fill_window_buffer();
+        void fill_window_buffer(uint64_t group_idx);
 
         virtual void configure_layer(const std::shared_ptr<base::Array<T>> &_act,
                 const std::shared_ptr<base::Array<T>> &_wgt, bool _linear, bool _lstm, int _stride,

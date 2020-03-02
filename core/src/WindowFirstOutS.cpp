@@ -422,7 +422,7 @@ namespace core {
                         this->windows.emplace_back(std::make_tuple(x_window, y_window));
                     }
 
-                    this->fill_window_buffer();
+                    this->fill_window_buffer(group_idx);
                     this->window_buffer_filled = true;
                 }
 
@@ -460,7 +460,6 @@ namespace core {
 
                         if (this->filters[t].empty()) break;
 
-                        auto start_time = this->max_buffer_time * group_idx;
                         while (this->time[t] < this->max_buffer_time) {
 
                             if (this->arch->schedule()) {
@@ -479,17 +478,17 @@ namespace core {
 
                             auto num_act_rows = 1;
                             if (this->arch->schedule()) num_act_rows += this->scheduler->getLookaheadH();
-                            tiles_data[t].act_row = BufferSet<T>(this->window_buffer.begin() + start_time + this->time[t],
-                                    std::min(this->window_buffer.begin() + start_time + this->time[t] +
+                            tiles_data[t].act_row = BufferSet<T>(this->window_buffer.begin() + this->time[t],
+                                    std::min(this->window_buffer.begin() + this->time[t] +
                                     num_act_rows, this->window_buffer.end()));
                             if (t == 0) {
                                 if (!this->layer_act_on_chip) {
                                     tiles_data[t].act_addresses =
-                                            AddressBufferSet(this->window_address_buffer.begin() + start_time + this->time[t],
-                                            std::min(this->window_address_buffer.begin() + start_time + this->time[t] +
+                                            AddressBufferSet(this->window_address_buffer.begin() + this->time[t],
+                                            std::min(this->window_address_buffer.begin() + this->time[t] +
                                             num_act_rows, this->window_address_buffer.end()));
                                 }
-                                tiles_data[t].act_banks = this->window_bank_buffer[start_time + this->time[t]];
+                                tiles_data[t].act_banks = this->window_bank_buffer[this->time[t]];
                             }
 
                             tiles_data[t].wgt_row = this->weight_buffer
@@ -555,7 +554,7 @@ namespace core {
         // Fill window buffer
         if (!this->window_buffer_filled) {
             this->windows = {std::make_tuple(0, 0)};
-            this->fill_window_buffer();
+            this->fill_window_buffer(0);
             this->window_buffer_filled = true;
         }
 
