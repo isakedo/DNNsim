@@ -802,27 +802,51 @@ namespace base {
 
     template <typename T>
     void Array<T>::get_image(uint64_t image) {
-        auto images = this->shape[0];
-        auto act_channels = this->shape[1];
-        auto Nx = this->shape[2];
-        auto Ny = this->shape[3];
 
-        if (image > (images - 1))
-            throw std::runtime_error("Image required is out of the scope");
+        if (this->getDimensions() == 3) { // LSTMs
+            auto images = this->shape[1];
+            auto recurrences = this->shape[0];
+            auto act_channels = this->shape[2];
 
-        auto tmp_data4D = Array4D(1, Array3D(act_channels, Array2D(Nx, Array1D(Ny, 0))));
+            if (image > (images - 1))
+                throw std::runtime_error("Image required is out of the scope");
 
-        for (int k = 0; k < act_channels; k++) {
-            for (int i = 0; i < Nx; i++) {
-                for(int j = 0; j < Ny; j++) {
-                    tmp_data4D[0][k][i][j] = this->data4D[image][k][i][j];
+            auto tmp_data3D = Array3D(recurrences, Array2D(1, Array1D(act_channels, 0)));
+
+            for (int r = 0; r < recurrences; r++) {
+                for (int k = 0; k < act_channels; k++) {
+                    tmp_data3D[r][0][k] = this->data3D[r][image][k];
                 }
             }
-        }
 
-        this->data4D.clear();
-        this->data4D = tmp_data4D;
-        this->shape[0] = 1;
+            this->data3D.clear();
+            this->data3D = tmp_data3D;
+            this->shape[1] = 1;
+
+        } else if (this->getDimensions() == 4) {
+            auto images = this->shape[0];
+            auto act_channels = this->shape[1];
+            auto Nx = this->shape[2];
+            auto Ny = this->shape[3];
+
+            if (image > (images - 1))
+                throw std::runtime_error("Image required is out of the scope");
+
+            auto tmp_data4D = Array4D(1, Array3D(act_channels, Array2D(Nx, Array1D(Ny, 0))));
+
+            for (int k = 0; k < act_channels; k++) {
+                for (int i = 0; i < Nx; i++) {
+                    for(int j = 0; j < Ny; j++) {
+                        tmp_data4D[0][k][i][j] = this->data4D[image][k][i][j];
+                    }
+                }
+            }
+
+            this->data4D.clear();
+            this->data4D = tmp_data4D;
+            this->shape[0] = 1;
+
+        } else throw std::runtime_error("Array dimensions error");
     }
 
     INITIALISE_DATA_TYPES(Array);

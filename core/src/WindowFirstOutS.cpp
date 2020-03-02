@@ -300,13 +300,11 @@ namespace core {
         if (all_windows + all_filters + all_output < this->gbuffer->getSize()) {
 
             this->next_layer_act_on_chip = true;
-            this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences,
-                    std::make_shared<typename OutputStationary<T>::NodeOutS>());
+            this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences);
 
             for (int r = 0; r < recurrences; ++r) {
 
-                auto &base_node = this->on_chip_graph[r];
-                auto node = std::static_pointer_cast<typename OutputStationary<T>::NodeOutS>(base_node);
+                auto node = std::make_shared<typename OutputStationary<T>::NodeOutS>();;
 
                 // Fill parameters
                 node->start_channel = 0;
@@ -320,16 +318,20 @@ namespace core {
                 node->read_addresses = std::vector<AddressRange>(2, std::make_tuple(NULL_ADDR, NULL_ADDR));
 
                 // First read activations
-                if (!this->layer_act_on_chip) {
-                    auto first_address = this->act_address_map[0][0][0];
-                    auto last_address = this->act_address_map[0][0][last_act_index];
-                    node->read_addresses[0] = std::make_tuple(first_address, last_address);
+                if (r == 0) {
+                    if (!this->layer_act_on_chip) {
+                        auto first_address = this->act_address_map[0][0][0];
+                        auto last_address = this->act_address_map[0][0][last_act_index];
+                        node->read_addresses[0] = std::make_tuple(first_address, last_address);
+                    }
+
+                    // Then read all filters
+                    auto first_address = this->wgt_address_map.first_address;
+                    auto last_address = this->wgt_address_map.last_address;
+                    node->read_addresses[1] = std::make_tuple(first_address, last_address);
                 }
 
-                // Then read all filters
-                auto first_address = this->wgt_address_map.first_address;
-                auto last_address = this->wgt_address_map.last_address;
-                node->read_addresses[1] = std::make_tuple(first_address, last_address);
+                this->on_chip_graph[r] = node;
 
             }
 
@@ -514,6 +516,12 @@ namespace core {
             this->window_set_it++;
         } // Window set
 
+        this->window_set_it = 0;
+        this->filter_set_it = 0;
+        this->time = std::vector<int>(this->arch->getNTiles(), 0);
+        this->skip = std::vector<int>(this->arch->getNTiles(), 0);
+        this->window_buffer_filled = false;
+        this->filter_buffer_filled = false;
         return false;
 
     }
@@ -529,7 +537,7 @@ namespace core {
 
         // Fill window buffer
         if (!this->window_buffer_filled) {
-            this->windows.emplace_back(std::make_tuple(0, 0));
+            this->windows = {std::make_tuple(0, 0)};
             this->fill_window_buffer();
             this->window_buffer_filled = true;
         }
@@ -591,20 +599,18 @@ namespace core {
                             num_act_rows, this->window_buffer.end()));
                     tiles_data[t].wgt_row = this->weight_buffer[filter_set + t][this->time[t]];
 
-                    if (recurrence == 0) {
-                        if (t == 0) {
-                            if (!this->layer_act_on_chip) {
-                                tiles_data[t].act_addresses =
-                                        AddressBufferSet(this->window_address_buffer.begin() + this->time[t],
-                                        std::min(this->window_address_buffer.begin() + this->time[t] +
-                                        num_act_rows, this->window_address_buffer.end()));
+                    if (t == 0) {
+                        if (!this->layer_act_on_chip) {
+                            tiles_data[t].act_addresses =
+                                    AddressBufferSet(this->window_address_buffer.begin() + this->time[t],
+                                    std::min(this->window_address_buffer.begin() + this->time[t] +
+                                    num_act_rows, this->window_address_buffer.end()));
                             }
-                            tiles_data[t].act_banks = this->window_bank_buffer[this->time[t]];
-                        }
-
-                        tiles_data[t].wgt_addresses = this->wgt_address_buffer[filter_set + t][this->time[t]];
-                        tiles_data[t].wgt_banks = this->wgt_bank_buffer[filter_set + t][this->time[t]];
+                        tiles_data[t].act_banks = this->window_bank_buffer[this->time[t]];
                     }
+
+                    tiles_data[t].wgt_addresses = this->wgt_address_buffer[filter_set + t][this->time[t]];
+                    tiles_data[t].wgt_banks = this->wgt_bank_buffer[filter_set + t][this->time[t]];
 
                     tiles_data[t].windows = std::vector<WindowCoord>(this->EF_COLUMNS, std::make_tuple(0, 0));
                     tiles_data[t].filters = this->filters[t];
@@ -629,6 +635,12 @@ namespace core {
             this->filter_set_it += this->arch->getNTiles();
         } // Filter set
 
+        this->window_set_it = 0;
+        this->filter_set_it = 0;
+        this->time = std::vector<int>(this->arch->getNTiles(), 0);
+        this->skip = std::vector<int>(this->arch->getNTiles(), 0);
+        this->window_buffer_filled = false;
+        this->filter_buffer_filled = false;
         return false;
 
     }

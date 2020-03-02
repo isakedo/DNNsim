@@ -155,16 +155,14 @@ namespace core {
         for(auto image = 0; image < images; ++image) {
 
             // Iterate over the layers
-            for (auto layer_it = network.getNumLayers() - 1; layer_it < network.getNumLayers(); ++layer_it) {
+            for (auto layer_it = 8; layer_it < network.getNumLayers(); ++layer_it) {
 
                 const base::Layer<T> &layer = network.getLayers()[layer_it];
                 bool conv = layer.getType() == "Convolution";
                 bool lstm = layer.getType() == "LSTM";
                 bool fc = layer.getType() == "InnerProduct";
 
-                if (!conv) continue;
-
-                if (!QUIET) printf("Simulating image: %d/%lu for layer: %s\n", image, images,
+                if (!QUIET) printf("Simulating image: %d/%lu for layer: %s\n", image + 1, images,
                         layer.getName().c_str());
 
                 auto act = std::make_shared<base::Array<T>>(layer.getActivations());
@@ -191,21 +189,16 @@ namespace core {
                 const std::vector<size_t> &act_shape = act->getShape();
                 const std::vector<size_t> &wgt_shape = wgt->getShape();
 
-                uint64_t act_channels, Nx, Ny, R;
+                uint64_t Nx, Ny;
                 if (lstm) {
-                    R = act_shape[0];
-                    act_channels = act_shape[2];
                     Nx = 1;
                     Ny = 1;
                 } else {
-                    R = 1;
-                    act_channels = act_shape[1];
                     Nx = act_shape[2];
                     Ny = act_shape[3];
                 }
 
                 auto num_filters = wgt_shape[0];
-                auto wgt_channels = wgt_shape[1];
                 auto Kx = wgt_shape[2];
                 auto Ky = wgt_shape[3];
 
