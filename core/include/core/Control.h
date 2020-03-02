@@ -97,7 +97,7 @@ namespace core {
         * Return name for the dataflow
         * @return Name
         */
-        virtual std::string name() = 0;
+        virtual std::string dataflow() = 0;
 
         /**
          * Configure control values for the current layer

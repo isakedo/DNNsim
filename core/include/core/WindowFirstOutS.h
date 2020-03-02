@@ -18,7 +18,7 @@ namespace core {
          * Return name for the dataflow
          * @return Name of the dataflow
          */
-        std::string name() override;
+        std::string dataflow() override;
 
         void generate_execution_graph_conv_layer();
 

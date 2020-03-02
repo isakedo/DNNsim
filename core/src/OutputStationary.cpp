@@ -240,11 +240,9 @@ namespace core {
                             int pos = column * this->EF_LANES + index;
                             window_buffer[buffer_time][pos] = std::make_tuple(act_bits, buffer_time, index);
 
-                            if (!this->layer_act_on_chip) {
-                                int addr_pos = w * addresses_per_window + index / this->dram->getValuesPerBlock();
-                                window_address_buffer[buffer_time][addr_pos] = act_address_map[y_window + y]
-                                        [x_window + x][ch / this->dram->getValuesPerBlock()];
-                            }
+                            int addr_pos = w * addresses_per_window + index / this->dram->getValuesPerBlock();
+                            window_address_buffer[buffer_time][addr_pos] = act_address_map[y_window + y]
+                                    [x_window + x][ch / this->dram->getValuesPerBlock()];
 
                             int bank_pos = w * accesses_per_window +
                                     (index * this->dram->getDataSize()) / this->gbuffer->getBankWidth();
@@ -268,8 +266,6 @@ namespace core {
             } // Kernel Y
 
         } // Windows
-
-        if (this->linear) windows = std::vector<WindowCoord>(this->EF_COLUMNS, std::make_tuple(0, 0));
 
     }
 

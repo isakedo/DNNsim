@@ -6,7 +6,7 @@ namespace core {
     /* CYCLES */
 
     template <typename T>
-    std::string WindowFirstOutS<T>::name() {
+    std::string WindowFirstOutS<T>::dataflow() {
         return "Window First Output Stationary";
     }
 
@@ -24,16 +24,9 @@ namespace core {
         const std::vector<size_t> &act_shape = this->act->getShape();
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
 
-        uint64_t act_channels, Nx, Ny;
-        if (this->lstm) {
-            act_channels = act_shape[2];
-            Nx = 1;
-            Ny = 1;
-        } else {
-            act_channels = act_shape[1];
-            Nx = act_shape[2];
-            Ny = act_shape[3];
-        }
+        auto act_channels = act_shape[1];
+        auto Nx = act_shape[2];
+        auto Ny = act_shape[3];
 
         auto num_filters = wgt_shape[0];
         auto wgt_channels = wgt_shape[1];
@@ -89,6 +82,8 @@ namespace core {
 
             return;
         }
+
+        throw std::runtime_error("TODO");
 
         // Try to fit one row of activations and all filters
         auto act_row = act_channels * Nx * (Ky + extra_rows) * this->dram->getDataSize();
@@ -287,6 +282,60 @@ namespace core {
     template <typename T>
     void WindowFirstOutS<T>::generate_execution_graph_linear_layer() {
 
+        const std::vector<size_t> &act_shape = this->act->getShape();
+        const std::vector<size_t> &wgt_shape = this->wgt->getShape();
+
+        auto recurrences = this->lstm ? act_shape[0] : 1;
+        auto act_channels = this->lstm ? act_shape[2] : act_shape[1];
+
+        auto num_filters = wgt_shape[0];
+        auto wgt_channels = wgt_shape[1];
+
+        auto last_act_index = (int)ceil(act_channels / (double)this->dram->getValuesPerBlock()) - 1;
+
+        // Try to fit whole layer
+        auto all_windows = act_channels * this->dram->getDataSize();
+        auto all_filters = num_filters * wgt_channels * this->dram->getDataSize();
+        auto all_output = num_filters * this->dram->getDataSize();
+        if (all_windows + all_filters + all_output < this->gbuffer->getSize()) {
+
+            this->next_layer_act_on_chip = true;
+            this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences,
+                    std::make_shared<typename OutputStationary<T>::NodeOutS>());
+
+            for (int r = 0; r < recurrences; ++r) {
+
+                auto &base_node = this->on_chip_graph[r];
+                auto node = std::static_pointer_cast<typename OutputStationary<T>::NodeOutS>(base_node);
+
+                // Fill parameters
+                node->start_channel = 0;
+                node->end_channel = act_channels;
+                node->recurrence = r;
+
+                // Fil filters
+                node->filter_sets = std::vector<int>(this->filter_sets, 0);
+                std::iota(node->filter_sets.begin(), node->filter_sets.end(), 0);
+
+                node->read_addresses = std::vector<AddressRange>(2, std::make_tuple(NULL_ADDR, NULL_ADDR));
+
+                // First read activations
+                if (!this->layer_act_on_chip) {
+                    auto first_address = this->act_address_map[0][0][0];
+                    auto last_address = this->act_address_map[0][0][last_act_index];
+                    node->read_addresses[0] = std::make_tuple(first_address, last_address);
+                }
+
+                // Then read all filters
+                auto first_address = this->wgt_address_map.first_address;
+                auto last_address = this->wgt_address_map.last_address;
+                node->read_addresses[1] = std::make_tuple(first_address, last_address);
+
+            }
+
+            return;
+        }
+
         throw std::runtime_error("TODO");
 
         // Try to fit some values on chip
@@ -423,10 +472,12 @@ namespace core {
                                 std::min(this->window_buffer.begin() + this->time[t] +
                                 num_act_rows, this->window_buffer.end()));
                         if (t == 0) {
-                            tiles_data[t].act_addresses =
-                                    AddressBufferSet(this->window_address_buffer.begin() + this->time[t],
-                                    std::min(this->window_address_buffer.begin() + this->time[t] +
-                                    num_act_rows, this->window_address_buffer.end()));
+                            if (!this->layer_act_on_chip) {
+                                tiles_data[t].act_addresses =
+                                        AddressBufferSet(this->window_address_buffer.begin() + this->time[t],
+                                        std::min(this->window_address_buffer.begin() + this->time[t] +
+                                        num_act_rows, this->window_address_buffer.end()));
+                            }
                             tiles_data[t].act_banks = this->window_bank_buffer[this->time[t]];
                         }
 
@@ -469,7 +520,117 @@ namespace core {
 
     template <typename T>
     bool WindowFirstOutS<T>::still_on_chip_data_linear_layer(std::vector<core::TileData<T>> &tiles_data) {
-        throw std::runtime_error("TODO");
+
+        // Select values from current node
+        const auto &current_node = std::static_pointer_cast<typename OutputStationary<T>::NodeOutS>
+                (this->on_chip_graph.front());
+        const auto &recurrence = current_node->recurrence;
+        const auto &filter_tile_sets = current_node->filter_sets;
+
+        // Fill window buffer
+        if (!this->window_buffer_filled) {
+            this->windows.emplace_back(std::make_tuple(0, 0));
+            this->fill_window_buffer();
+            this->window_buffer_filled = true;
+        }
+
+        while (this->filter_set_it < filter_tile_sets.size()) {
+
+            auto filter_set = filter_tile_sets[this->filter_set_it];
+
+            // Filter set
+            if (!this->filter_buffer_filled) {
+
+                this->filters = std::vector<std::vector<int>>(this->arch->getNTiles(), std::vector<int>());
+
+                // Select filter for each tile
+                for (int t = 0; t < this->arch->getNTiles(); ++t) {
+
+                    auto filter_idx = (filter_set + t) * this->EF_ROWS;
+
+                    auto num_filters = this->wgt->getShape()[0];
+                    for (int r = 0; r < this->EF_ROWS; ++r) {
+                        auto filter = filter_idx + r;
+                        if (filter >= num_filters)
+                            continue;
+                        this->filters[t].push_back(filter);
+                    }
+
+                }
+
+                this->filter_buffer_filled = true;
+            }
+
+            bool still_work = false;
+            for (int t = 0; t < this->arch->getNTiles(); ++t) {
+
+                tiles_data[t].valid = false;
+
+                if (this->filters[t].empty()) break;
+
+                while (this->time[t] < this->max_buffer_time) {
+
+                    if (this->arch->schedule()) {
+
+                        // Skip lines of zeroes
+                        bool zero_line = this->scheduler->check_zero_line(this->weight_buffer[filter_set + t]
+                                [this->time[t]]);
+                        if (this->skip[t] < this->scheduler->getLookaheadH() && zero_line) {
+                            this->skip[t]++;
+                            this->time[t]++;
+                            continue;
+                        }
+                        this->skip[t] = 0;
+
+                    }
+
+                    auto num_act_rows = 1;
+                    if (this->arch->schedule()) num_act_rows += this->scheduler->getLookaheadH();
+                    tiles_data[t].act_row = BufferSet<T>(this->window_buffer.begin() + this->time[t],
+                            std::min(this->window_buffer.begin() + this->time[t] +
+                            num_act_rows, this->window_buffer.end()));
+                    tiles_data[t].wgt_row = this->weight_buffer[filter_set + t][this->time[t]];
+
+                    if (recurrence == 0) {
+                        if (t == 0) {
+                            if (!this->layer_act_on_chip) {
+                                tiles_data[t].act_addresses =
+                                        AddressBufferSet(this->window_address_buffer.begin() + this->time[t],
+                                        std::min(this->window_address_buffer.begin() + this->time[t] +
+                                        num_act_rows, this->window_address_buffer.end()));
+                            }
+                            tiles_data[t].act_banks = this->window_bank_buffer[this->time[t]];
+                        }
+
+                        tiles_data[t].wgt_addresses = this->wgt_address_buffer[filter_set + t][this->time[t]];
+                        tiles_data[t].wgt_banks = this->wgt_bank_buffer[filter_set + t][this->time[t]];
+                    }
+
+                    tiles_data[t].windows = std::vector<WindowCoord>(this->EF_COLUMNS, std::make_tuple(0, 0));
+                    tiles_data[t].filters = this->filters[t];
+                    tiles_data[t].time = this->time[t];
+                    tiles_data[t].lanes = this->EF_LANES;
+                    tiles_data[t].valid = true;
+
+                    still_work = true;
+                    this->time[t]++;
+                    break;
+
+                } // Buffer time
+
+            } // Tile
+
+            if (still_work) return true;
+
+            this->time = std::vector<int>(this->arch->getNTiles(), 0);
+            this->skip = std::vector<int>(this->arch->getNTiles(), 0);
+            this->filter_buffer_filled = false;
+            this->filters.clear();
+            this->filter_set_it += this->arch->getNTiles();
+        } // Filter set
+
+        return false;
+
     }
 
     template <typename T>

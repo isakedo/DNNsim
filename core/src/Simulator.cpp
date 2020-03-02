@@ -155,7 +155,7 @@ namespace core {
         for(auto image = 0; image < images; ++image) {
 
             // Iterate over the layers
-            for (auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
+            for (auto layer_it = network.getNumLayers() - 1; layer_it < network.getNumLayers(); ++layer_it) {
 
                 const base::Layer<T> &layer = network.getLayers()[layer_it];
                 bool conv = layer.getType() == "Convolution";
@@ -224,7 +224,7 @@ namespace core {
                 dram->configure_layer();
                 gbuffer->configure_layer();
                 arch->configure_layer(act_prec, wgt_prec, network_bits, fc || lstm, COLUMNS);
-                control->configure_layer(act, wgt, fc, lstm, stride, COLUMNS, ROWS);
+                control->configure_layer(act, wgt, fc || lstm, lstm, stride, COLUMNS, ROWS);
 
                 OutputTensor sim_output = OutputTensor(num_filters, std::vector<std::vector<double>>(Ox,
                         std::vector<double>(Oy, 0)));
@@ -310,7 +310,7 @@ namespace core {
 
         //Dump statistics
         std::string header = arch->name() + " Number of Cycles for " + network.getName() + "\n";
-        header += "Dataflow: " + control->name() + "\n";
+        header += "Dataflow: " + control->dataflow() + "\n";
         // DRAM header
         // Global buffer header
         header += arch->header();
