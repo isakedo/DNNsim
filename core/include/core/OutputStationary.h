@@ -19,6 +19,7 @@ namespace core {
             uint64_t recurrence = 0;
             uint64_t start_channel = 0;
             uint64_t end_channel = 0;
+            std::vector<int> groups;
             std::vector<int> window_sets;
             std::vector<int> filter_sets;
         };
@@ -63,11 +64,17 @@ namespace core {
 
         int out_y = 0;
 
+        /** Number of layer groups */
+        uint64_t groups = 0;
+
         /** Number of window sets */
         uint64_t window_sets = 0;
 
         /** Number of filter sets */
         uint64_t filter_sets = 0;
+
+        /** Number of fitlers per group */
+        uint64_t filters_per_group = 0;
 
         /** Maximum buffer depth */
         uint64_t max_buffer_time = 0;
@@ -77,6 +84,9 @@ namespace core {
 
         /** List of filters per tile */
         std::vector<std::vector<int>> filters;
+
+        /** Group iterator */
+        int group_it = 0;
 
         /** Window iterator */
         int window_set_it = 0;

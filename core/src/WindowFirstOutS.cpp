@@ -49,6 +49,10 @@ namespace core {
             unique_node.start_channel = 0;
             unique_node.end_channel = act_channels;
 
+            // Fill groups
+            unique_node.groups = std::vector<int>(this->groups, 0);
+            std::iota(unique_node.groups.begin(), unique_node.groups.end(), 0);
+
             // Fill windows
             unique_node.window_sets = std::vector<int>(this->window_sets, 0);
             std::iota(unique_node.window_sets.begin(), unique_node.window_sets.end(), 0);
@@ -393,129 +397,142 @@ namespace core {
         // Select values from current node
         const auto &current_node = std::static_pointer_cast<typename OutputStationary<T>::NodeOutS>
                 (this->on_chip_graph.front());
+        const auto &groups = current_node->groups;
         const auto &window_sets = current_node->window_sets;
         const auto &filter_tile_sets = current_node->filter_sets;
 
-        while (this->window_set_it < window_sets.size()) {
+        while (this->group_it < groups.size()) {
+            auto group_idx = groups[this->group_it];
 
-            // Fill window buffer
-            if (!this->window_buffer_filled) {
+            while (this->window_set_it < window_sets.size()) {
 
-                // Select windows
-                auto window_idx = window_sets[this->window_set_it] * this->EF_COLUMNS;
-                for (int c = 0; c < this->EF_COLUMNS; ++c) {
+                // Fill window buffer
+                if (!this->window_buffer_filled) {
 
-                    auto window = window_idx + c;
-                    if (window >= (this->out_x * this->out_y))
-                        continue;
+                    // Select windows
+                    auto window_idx = window_sets[this->window_set_it] * this->EF_COLUMNS;
+                    for (int c = 0; c < this->EF_COLUMNS; ++c) {
 
-                    auto x_window = window % this->out_x;
-                    auto y_window = window / this->out_y;
-                    this->windows.emplace_back(std::make_tuple(x_window, y_window));
-                }
+                        auto window = window_idx + c;
+                        if (window >= (this->out_x * this->out_y))
+                            continue;
 
-                this->fill_window_buffer();
-                this->window_buffer_filled = true;
-            }
-
-            while (this->filter_set_it < filter_tile_sets.size()) {
-
-                auto filter_set = filter_tile_sets[this->filter_set_it];
-
-                // Filter set
-                if (!this->filter_buffer_filled) {
-
-                    this->filters = std::vector<std::vector<int>>(this->arch->getNTiles(), std::vector<int>());
-
-                    // Select filter for each tile
-                    for (int t = 0; t < this->arch->getNTiles(); ++t) {
-
-                        auto filter_idx = (filter_set + t) * this->EF_ROWS;
-
-                        auto num_filters = this->wgt->getShape()[0];
-                        for (int r = 0; r < this->EF_ROWS; ++r) {
-                            auto filter = filter_idx + r;
-                            if (filter >= num_filters)
-                                continue;
-                            this->filters[t].push_back(filter);
-                        }
-
+                        auto x_window = window % this->out_x;
+                        auto y_window = window / this->out_y;
+                        this->windows.emplace_back(std::make_tuple(x_window, y_window));
                     }
 
-                    this->filter_buffer_filled = true;
+                    this->fill_window_buffer();
+                    this->window_buffer_filled = true;
                 }
 
-                bool still_work = false;
-                for (int t = 0; t < this->arch->getNTiles(); ++t) {
+                while (this->filter_set_it < filter_tile_sets.size()) {
 
-                    tiles_data[t].valid = false;
+                    auto filter_set = filter_tile_sets[this->filter_set_it];
 
-                    if (this->filters[t].empty()) break;
+                    // Filter set
+                    if (!this->filter_buffer_filled) {
 
-                    while (this->time[t] < this->max_buffer_time) {
+                        this->filters = std::vector<std::vector<int>>(this->arch->getNTiles(), std::vector<int>());
 
-                        if (this->arch->schedule()) {
+                        // Select filter for each tile
+                        for (int t = 0; t < this->arch->getNTiles(); ++t) {
 
-                            // Skip lines of zeroes
-                            bool zero_line = this->scheduler->check_zero_line(this->weight_buffer
-                                    [filter_set + t][this->time[t]]);
-                            if (this->skip[t] < this->scheduler->getLookaheadH() && zero_line) {
-                                this->skip[t]++;
-                                this->time[t]++;
-                                continue;
+                            auto filter_idx = this->filters_per_group * group_idx + (filter_set + t) * this->EF_ROWS;
+
+                            auto num_filters = this->wgt->getShape()[0];
+                            for (int r = 0; r < this->EF_ROWS; ++r) {
+                                auto filter = filter_idx + r;
+                                if (filter >= (this->filters_per_group * (group_idx + 1)) || filter >= num_filters)
+                                    continue;
+                                this->filters[t].push_back(filter);
                             }
-                            this->skip[t] = 0;
 
                         }
 
-                        auto num_act_rows = 1;
-                        if (this->arch->schedule()) num_act_rows += this->scheduler->getLookaheadH();
-                        tiles_data[t].act_row = BufferSet<T>(this->window_buffer.begin() + this->time[t],
-                                std::min(this->window_buffer.begin() + this->time[t] +
-                                num_act_rows, this->window_buffer.end()));
-                        if (t == 0) {
-                            if (!this->layer_act_on_chip) {
-                                tiles_data[t].act_addresses =
-                                        AddressBufferSet(this->window_address_buffer.begin() + this->time[t],
-                                        std::min(this->window_address_buffer.begin() + this->time[t] +
-                                        num_act_rows, this->window_address_buffer.end()));
+                        this->filter_buffer_filled = true;
+                    }
+
+                    bool still_work = false;
+                    for (int t = 0; t < this->arch->getNTiles(); ++t) {
+
+                        tiles_data[t].valid = false;
+
+                        if (this->filters[t].empty()) break;
+
+                        auto start_time = this->max_buffer_time * group_idx;
+                        while (this->time[t] < this->max_buffer_time) {
+
+                            if (this->arch->schedule()) {
+
+                                // Skip lines of zeroes
+                                bool zero_line = this->scheduler->check_zero_line(this->weight_buffer
+                                        [this->filter_sets * group_idx + filter_set + t][this->time[t]]);
+                                if (this->skip[t] < this->scheduler->getLookaheadH() && zero_line) {
+                                    this->skip[t]++;
+                                    this->time[t]++;
+                                    continue;
+                                }
+                                this->skip[t] = 0;
+
                             }
-                            tiles_data[t].act_banks = this->window_bank_buffer[this->time[t]];
-                        }
 
-                        tiles_data[t].wgt_row = this->weight_buffer[filter_set + t][this->time[t]];
-                        tiles_data[t].wgt_addresses = this->wgt_address_buffer[filter_set + t][this->time[t]];
-                        tiles_data[t].wgt_banks = this->wgt_bank_buffer[filter_set + t][this->time[t]];
+                            auto num_act_rows = 1;
+                            if (this->arch->schedule()) num_act_rows += this->scheduler->getLookaheadH();
+                            tiles_data[t].act_row = BufferSet<T>(this->window_buffer.begin() + start_time + this->time[t],
+                                    std::min(this->window_buffer.begin() + start_time + this->time[t] +
+                                    num_act_rows, this->window_buffer.end()));
+                            if (t == 0) {
+                                if (!this->layer_act_on_chip) {
+                                    tiles_data[t].act_addresses =
+                                            AddressBufferSet(this->window_address_buffer.begin() + start_time + this->time[t],
+                                            std::min(this->window_address_buffer.begin() + start_time + this->time[t] +
+                                            num_act_rows, this->window_address_buffer.end()));
+                                }
+                                tiles_data[t].act_banks = this->window_bank_buffer[start_time + this->time[t]];
+                            }
 
-                        tiles_data[t].windows = this->windows;
-                        tiles_data[t].filters = this->filters[t];
-                        tiles_data[t].time = this->time[t];
-                        tiles_data[t].lanes = this->EF_LANES;
-                        tiles_data[t].valid = true;
+                            tiles_data[t].wgt_row = this->weight_buffer
+                                    [this->filter_sets * group_idx + filter_set + t][this->time[t]];
+                            tiles_data[t].wgt_addresses = this->wgt_address_buffer
+                                    [this->filter_sets * group_idx + filter_set + t][this->time[t]];
+                            tiles_data[t].wgt_banks = this->wgt_bank_buffer
+                                    [this->filter_sets * group_idx + filter_set + t][this->time[t]];
 
-                        still_work = true;
-                        this->time[t]++;
-                        break;
+                            tiles_data[t].windows = this->windows;
+                            tiles_data[t].filters = this->filters[t];
+                            tiles_data[t].time = this->time[t];
+                            tiles_data[t].lanes = this->EF_LANES;
+                            tiles_data[t].valid = true;
 
-                    } // Buffer time
+                            still_work = true;
+                            this->time[t]++;
+                            break;
 
-                } // Tile
+                        } // Buffer time
 
-                if (still_work) return true;
+                    } // Tile
 
-                this->time = std::vector<int>(this->arch->getNTiles(), 0);
-                this->skip = std::vector<int>(this->arch->getNTiles(), 0);
-                this->filter_buffer_filled = false;
-                this->filters.clear();
-                this->filter_set_it += this->arch->getNTiles();
-            } // Filter set
+                    if (still_work) return true;
 
-            this->filter_set_it = 0;
-            this->window_buffer_filled = false;
-            this->windows.clear();
-            this->window_set_it++;
-        } // Window set
+                    this->time = std::vector<int>(this->arch->getNTiles(), 0);
+                    this->skip = std::vector<int>(this->arch->getNTiles(), 0);
+                    this->filter_buffer_filled = false;
+                    this->filters.clear();
+                    this->filter_set_it += this->arch->getNTiles();
+                } // Filter set
 
+                this->filter_set_it = 0;
+                this->window_buffer_filled = false;
+                this->windows.clear();
+                this->window_set_it++;
+            } // Window set
+
+            this->window_set_it = 0;
+            this->group_it++;
+        } // Groups
+
+        this->group_it = 0;
         this->window_set_it = 0;
         this->filter_set_it = 0;
         this->time = std::vector<int>(this->arch->getNTiles(), 0);
@@ -635,6 +652,7 @@ namespace core {
             this->filter_set_it += this->arch->getNTiles();
         } // Filter set
 
+        this->group_it = 0;
         this->window_set_it = 0;
         this->filter_set_it = 0;
         this->time = std::vector<int>(this->arch->getNTiles(), 0);

@@ -155,7 +155,7 @@ namespace core {
         for(auto image = 0; image < images; ++image) {
 
             // Iterate over the layers
-            for (auto layer_it = 8; layer_it < network.getNumLayers(); ++layer_it) {
+            for (auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
                 const base::Layer<T> &layer = network.getLayers()[layer_it];
                 bool conv = layer.getType() == "Convolution";
@@ -257,9 +257,9 @@ namespace core {
                             dram->cycle();
                         }
 
-                        // Calculate global buffer accesses
+                        // Write output values to global buffer (if neccesary)
+
                         arch->process_tiles(tiles_data);
-                        // Calculate global buffer writes
 
                         if (this->CHECK) calculate_output(sim_output, tiles_data);
                         still_data = control->still_on_chip_data(tiles_data);
@@ -275,7 +275,12 @@ namespace core {
                         dram->cycle();
                     }
 
-                    // Write values to DRAM (if necesary)
+                    // Write output values to global buffer (if neccesary)
+
+
+                    // Wait for global buffer to write
+
+                    // Write values to DRAM (if necessary)
 
                 } while(control->still_off_chip_data());
 
