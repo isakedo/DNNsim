@@ -103,28 +103,58 @@ namespace sys {
                 uint64_t dram_size = 0;
 
                 /** DRAM start activations address */
-                uint64_t dram_start_act_address = 0;
+                uint32_t dram_start_act_address = 0;
 
                 /** DRAM start weights address */
-                uint64_t dram_start_wgt_address = 0;
+                uint32_t dram_start_wgt_address = 0;
 
                 /** Global buffer memory size */
-                uint64_t global_buffer_size = 0;
+                uint32_t global_buffer_size = 0;
 
                 /** Global buffer act banks */
-                uint64_t global_buffer_act_banks = 0;
+                uint32_t global_buffer_act_banks = 0;
 
                 /** Global buffer wgt banks */
-                uint64_t global_buffer_wgt_banks = 0;
+                uint32_t global_buffer_wgt_banks = 0;
+
+                /** Global buffer out banks */
+                uint32_t global_buffer_out_banks = 0;
 
                 /** Global buffer bank width */
-                uint64_t global_buffer_bank_width = 0;
+                uint32_t global_buffer_bank_width = 0;
 
                 /** Global buffer read delay */
-                uint64_t global_buffer_read_delay = 0;
+                uint32_t global_buffer_read_delay = 0;
 
                 /** Global buffer write delay */
-                uint64_t global_buffer_write_delay = 0;
+                uint32_t global_buffer_write_delay = 0;
+
+                /** Activation buffer number of memory rows */
+                uint32_t act_buffer_rows = 0;
+
+                /** Activation buffer read delay */
+                uint32_t act_buffer_read_delay = 0;
+
+                /** Activation buffer write delay */
+                uint32_t act_buffer_write_delay = 0;
+
+                /** Weight buffer number of memory rows */
+                uint32_t wgt_buffer_rows = 0;
+
+                /** Weight buffer read delay */
+                uint32_t wgt_buffer_read_delay = 0;
+
+                /** Weight buffer write delay */
+                uint32_t wgt_buffer_write_delay = 0;
+
+                /** Output buffer number of memory rows */
+                uint32_t out_buffer_rows = 0;
+
+                /** Output buffer read delay */
+                uint32_t out_buffer_read_delay = 0;
+
+                /** Output buffer write delay */
+                uint32_t out_buffer_write_delay = 0;
 
             };
 

@@ -52,8 +52,9 @@ namespace core {
     public:
 
         WindowFirstOutS(const std::shared_ptr<BitTactical<T>> &_scheduler, const std::shared_ptr<DRAM<T>> &_dram,
-                const std::shared_ptr<GlobalBuffer<T>> &_gbuffer, const std::shared_ptr<Architecture<T>> &_arch) :
-                OutputStationary<T>(_scheduler, _dram, _gbuffer, _arch) {}
+                const std::shared_ptr<GlobalBuffer<T>> &_gbuffer, const std::shared_ptr<LocalBuffer<T>> &_abuffer,
+                const std::shared_ptr<LocalBuffer<T>> &_wbuffer, const std::shared_ptr<LocalBuffer<T>> &_obuffer) :
+                OutputStationary<T>(_scheduler, _dram, _gbuffer, _abuffer, _wbuffer, _obuffer) {}
 
     };
 

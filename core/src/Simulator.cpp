@@ -123,7 +123,18 @@ namespace core {
         // Get components from control
         auto dram = control->getDram();
         auto gbuffer = control->getGbuffer();
+        auto abuffer = control->getAbuffer();
+        auto wbuffer = control->getWbuffer();
+        auto obuffer = control->getObuffer();
         auto arch = control->getArch();
+
+        std::shared_ptr<uint64_t> global_cycle = std::make_shared<uint64_t>(0);
+        dram->setGlobalCycle(global_cycle);
+        gbuffer->setGlobalCycle(global_cycle);
+        abuffer->setGlobalCycle(global_cycle);
+        wbuffer->setGlobalCycle(global_cycle);
+        obuffer->setGlobalCycle(global_cycle);
+        arch->setGlobalCycle(global_cycle);
 
         if(!QUIET) std::cout << "Starting cycles simulation for architecture " << arch->name() << std::endl;
 
@@ -214,18 +225,13 @@ namespace core {
                 auto COLUMNS = arch->getNColumns() / columns_per_act;
                 auto ROWS = arch->getNRows() / rows_per_wgt;
 
-                dram->configure_layer();
-                gbuffer->configure_layer();
-                arch->configure_layer(act_prec, wgt_prec, network_bits, fc || lstm, COLUMNS);
                 control->configure_layer(act, wgt, fc || lstm, lstm, stride, COLUMNS, ROWS);
+                arch->configure_layer(act_prec, wgt_prec, network_bits, fc || lstm, COLUMNS); // TODO fit into configure layer
 
                 OutputTensor sim_output = OutputTensor(num_filters, std::vector<std::vector<double>>(Ox,
                         std::vector<double>(Oy, 0)));
 
-                std::shared_ptr<uint64_t>global_cycle = std::make_shared<uint64_t>(0);
-                gbuffer->setGlobalCycle(global_cycle);
-                arch->setGlobalCycle(global_cycle);
-
+                *global_cycle = 0;
                 auto tiles_data = std::vector<TileData<T>>(arch->getNTiles(), TileData<T>());
                 do {
 
@@ -238,47 +244,62 @@ namespace core {
 
                         // Check if data is on-chip
                         dram->read_request(tiles_data);
+
+                        // Wait for data to be on-chip
                         while (!dram->data_ready(tiles_data)) {
-                            *global_cycle += 1;
                             dram->cycle();
+                            *global_cycle += 1;
                         }
 
-                        // Request data to on-chip buffer
-                        gbuffer->read_request(tiles_data);
-                        while (!gbuffer->data_ready()) {
-                            *global_cycle += 1;
-                            dram->cycle();
-                        }
+                        // Request data to on-chip global buffer
+                        gbuffer->act_read_request(tiles_data);
+                        gbuffer->wgt_read_request(tiles_data);
 
                         // Request data to local buffers
+                        abuffer->read_request(gbuffer->getActReadReadyCycle());
+                        wbuffer->read_request(gbuffer->getWgtReadReadyCycle());
 
-                        while (!arch->ready()) {
-                            *global_cycle += 1;
+                        // Wait for:
+                        // - global buffer to write before starting new windows
+                        // - activation buffer to have the data ready
+                        // - weight buffer to have the data ready
+                        // - pipeline to be ready
+                        while (!gbuffer->write_done() || !abuffer->data_ready() || !wbuffer->data_ready()
+                                || !arch->ready()) {
                             dram->cycle();
+                            *global_cycle += 1;
                         }
 
-                        // Write output values to global buffer (if neccesary)
-
                         arch->process_tiles(tiles_data);
+
+                        dram->cycle();
+                        *global_cycle += 1;
+
+                        // Check if write the output register back to global buffer
+                        if (control->check_if_write_output(tiles_data)) {
+
+                            // Flush pipeline
+                            while (!arch->flush()) {
+                                dram->cycle();
+                                *global_cycle += 1;
+                            }
+
+                            gbuffer->write_request(tiles_data);
+
+                        }
 
                         if (this->CHECK) calculate_output(sim_output, tiles_data);
                         still_data = control->still_on_chip_data(tiles_data);
 
-                        *global_cycle += 1;
-                        dram->cycle();
-
                     }
 
-                    // Flush pipeline
-                    while (!arch->flush()) {
-                        *global_cycle += 1;
+                    // Wait for:
+                    // - Pipeline is empty
+                    // - All write petitions are fulfilled
+                    while (!arch->flush() || !gbuffer->write_done()) {
                         dram->cycle();
+                        *global_cycle += 1;
                     }
-
-                    // Write output values to global buffer (if neccesary)
-
-
-                    // Wait for global buffer to write
 
                     // Write values to DRAM (if necessary)
 

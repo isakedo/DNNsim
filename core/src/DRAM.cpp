@@ -45,11 +45,11 @@ namespace core {
 
             for (const auto &act_addr_row : tile_data.act_addresses)
                 for (const auto &act_addr : act_addr_row)
-                    if (act_addr != NULL_ADDR && !(*this->tracked_data)[act_addr])
+                    if (act_addr != NULL_ADDR && (*this->tracked_data)[act_addr] == NULL_TIME)
                         waiting_addresses[act_addr] = nullptr;
 
             for (const auto &wgt_addr : tile_data.wgt_addresses)
-                if (wgt_addr != NULL_ADDR && !(*this->tracked_data)[wgt_addr])
+                if (wgt_addr != NULL_ADDR && (*this->tracked_data)[wgt_addr] == NULL_TIME)
                     waiting_addresses[wgt_addr] = nullptr;
 
         }
@@ -68,7 +68,7 @@ namespace core {
     template <typename T>
     void DRAM<T>::read_transaction_done(unsigned id, uint64_t address, uint64_t _clock_cycle) {
 
-        (*this->tracked_data)[address] = true;
+        (*this->tracked_data)[address] = *this->global_cycle;
 
         auto it = waiting_addresses.find(address);
         if(it != waiting_addresses.end())
@@ -88,7 +88,7 @@ namespace core {
             auto end_addr = std::get<1>(addr_range);
             if (start_addr == NULL_ADDR) continue;
             for (uint64_t addr = start_addr; addr <= end_addr; addr += BLOCK_SIZE) {
-                this->tracked_data->insert({addr, false});
+                this->tracked_data->insert({addr, NULL_TIME});
                 transaction_request(addr, false);
             }
         }

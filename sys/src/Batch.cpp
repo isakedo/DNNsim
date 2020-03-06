@@ -101,12 +101,35 @@ namespace sys {
                     experiment_proto.global_buffer_act_banks();
             experiment.global_buffer_wgt_banks = experiment_proto.global_buffer_wgt_banks() < 1 ? 256 :
                     experiment_proto.global_buffer_wgt_banks();
+            experiment.global_buffer_out_banks = experiment_proto.global_buffer_out_banks() < 1 ? 16 :
+                    experiment_proto.global_buffer_out_banks();
             experiment.global_buffer_bank_width = experiment_proto.global_buffer_bank_width() < 1 ? 32 :
                     experiment_proto.global_buffer_bank_width();
-            experiment.global_buffer_read_delay = experiment_proto.global_buffer_read_delay() < 1 ? 1 :
+            experiment.global_buffer_read_delay = experiment_proto.global_buffer_read_delay() < 1 ? 2 :
                     experiment_proto.global_buffer_read_delay();
-            experiment.global_buffer_write_delay = experiment_proto.global_buffer_write_delay() < 1 ? 1 :
+            experiment.global_buffer_write_delay = experiment_proto.global_buffer_write_delay() < 1 ? 2 :
                     experiment_proto.global_buffer_write_delay();
+
+            experiment.act_buffer_rows = experiment_proto.act_buffer_rows() < 1 ? 2 :
+                    experiment_proto.act_buffer_rows();
+            experiment.act_buffer_read_delay = experiment_proto.act_buffer_read_delay() < 1 ? 1 :
+                    experiment_proto.act_buffer_read_delay();
+            experiment.act_buffer_write_delay = experiment_proto.act_buffer_write_delay() < 1 ? 1 :
+                    experiment_proto.act_buffer_write_delay();
+
+            experiment.wgt_buffer_rows = experiment_proto.wgt_buffer_rows() < 1 ? 2 :
+                    experiment_proto.wgt_buffer_rows();
+            experiment.wgt_buffer_read_delay = experiment_proto.wgt_buffer_read_delay() < 1 ? 1 :
+                    experiment_proto.wgt_buffer_read_delay();
+            experiment.wgt_buffer_write_delay = experiment_proto.wgt_buffer_write_delay() < 1 ? 1 :
+                    experiment_proto.wgt_buffer_write_delay();
+
+            experiment.out_buffer_rows = experiment_proto.out_buffer_rows() < 1 ? 2 :
+                    experiment_proto.out_buffer_rows();
+            experiment.out_buffer_read_delay = experiment_proto.out_buffer_read_delay() < 1 ? 1 :
+                    experiment_proto.out_buffer_read_delay();
+            experiment.out_buffer_write_delay = experiment_proto.out_buffer_write_delay() < 1 ? 1 :
+                    experiment_proto.out_buffer_write_delay();
 
             // BitPragmatic-Laconic
             experiment.booth = experiment_proto.booth_encoding();

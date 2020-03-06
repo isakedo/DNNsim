@@ -5,6 +5,7 @@
 #include "BitTactical.h"
 #include "DRAM.h"
 #include "GlobalBuffer.h"
+#include "LocalBuffer.h"
 #include "Architecture.h"
 
 namespace core {
@@ -33,6 +34,16 @@ namespace core {
         std::shared_ptr<DRAM<T>> dram;
 
         std::shared_ptr<GlobalBuffer<T>> gbuffer;
+
+        std::shared_ptr<LocalBuffer<T>> abuffer;
+
+        std::shared_ptr<LocalBuffer<T>> wbuffer;
+
+        std::shared_ptr<LocalBuffer<T>> obuffer;
+
+        // TODO: Composer column
+
+        // TODO: Activation function unit
 
         std::shared_ptr<Architecture<T>> arch;
 
@@ -75,11 +86,15 @@ namespace core {
          * @param _scheduler
          * @param _dram
          * @param _gbuffer
-         * @param _arch
+         * @param _abuffer
+         * @param _wbuffer
+         * @param _obuffer
          */
         Control(const std::shared_ptr<BitTactical<T>> &_scheduler, const std::shared_ptr<DRAM<T>> &_dram,
-                const std::shared_ptr<GlobalBuffer<T>> &_gbuffer, const std::shared_ptr<Architecture<T>> &_arch) :
-                scheduler(_scheduler), dram(_dram), gbuffer(_gbuffer), arch(_arch) {}
+                const std::shared_ptr<GlobalBuffer<T>> &_gbuffer, const std::shared_ptr<LocalBuffer<T>> &_abuffer,
+                const std::shared_ptr<LocalBuffer<T>> &_wbuffer, const std::shared_ptr<LocalBuffer<T>> &_obuffer) :
+                scheduler(_scheduler), dram(_dram), gbuffer(_gbuffer), abuffer(_abuffer), wbuffer(_wbuffer),
+                obuffer(_obuffer) {}
 
         const std::shared_ptr<DRAM<T>> &getDram() const {
             return dram;
@@ -89,8 +104,24 @@ namespace core {
             return gbuffer;
         }
 
+        const std::shared_ptr<LocalBuffer<T>> &getAbuffer() const {
+            return abuffer;
+        }
+
+        const std::shared_ptr<LocalBuffer<T>> &getWbuffer() const {
+            return wbuffer;
+        }
+
+        const std::shared_ptr<LocalBuffer<T>> &getObuffer() const {
+            return obuffer;
+        }
+
         const std::shared_ptr<Architecture<T>> &getArch() const {
             return arch;
+        }
+
+        void setArch(const std::shared_ptr<Architecture<T>> &_arch) {
+            Control::arch = _arch;
         }
 
         /**
@@ -124,6 +155,12 @@ namespace core {
 
             layer_act_on_chip = next_layer_act_on_chip;
             next_layer_act_on_chip = false;
+
+            dram->configure_layer();
+            gbuffer->configure_layer();
+            abuffer->configure_layer();
+            wbuffer->configure_layer();
+            obuffer->configure_layer();
         }
 
         const std::vector<AddressRange> &getReadAddresses() {
@@ -145,6 +182,13 @@ namespace core {
          * @return True if still data to process, False if not
          */
         virtual bool still_on_chip_data(std::vector<TileData<T>> &tiles_data) = 0;
+
+        bool check_if_write_output(std::vector<TileData<T>> &tiles_data) {
+            for (const auto &tile_data : tiles_data)
+                if (!tile_data.out_banks.empty())
+                    return true;
+            return false;
+        }
 
     };
 

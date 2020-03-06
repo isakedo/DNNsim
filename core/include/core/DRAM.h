@@ -34,7 +34,7 @@ namespace core {
 
     public:
 
-        DRAM(const std::shared_ptr<std::map<uint64_t, bool>> &_tracked_data, uint32_t _SIZE, uint32_t _DATA_SIZE,
+        DRAM(const std::shared_ptr<std::map<uint64_t, uint64_t>> &_tracked_data, uint32_t _SIZE, uint32_t _DATA_SIZE,
                 uint32_t _START_ACT_ADDRESS, uint32_t _START_WGT_ADDRESS, const std::string &_dram_conf,
                 const std::string &_system_conf, const std::string &_network) : Memory<T>(_tracked_data),
                 DATA_SIZE(_DATA_SIZE), START_ACT_ADDRESS(_START_ACT_ADDRESS), START_WGT_ADDRESS(_START_WGT_ADDRESS),
@@ -60,7 +60,7 @@ namespace core {
 
         void cycle();
 
-        void configure_layer();
+        void configure_layer() override;
 
         bool data_ready(const std::vector<TileData<T>> &tiles_data);
 

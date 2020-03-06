@@ -54,7 +54,6 @@ namespace core {
 
         AddressBufferSet act_addresses;
         AddressBufferRow wgt_addresses;
-        AddressBufferRow out_addresses;
 
         BankBufferRow act_banks;
         BankBufferRow wgt_banks;
