@@ -299,8 +299,8 @@ namespace core {
         group_it = 0;
         window_set_it = 0;
         filter_set_it = 0;
-        time = std::vector<int>(this->arch->getNTiles(), 0);
-        skip = std::vector<int>(this->arch->getNTiles(), 0);
+        time = std::vector<int>(this->arch->getTiles(), 0);
+        skip = std::vector<int>(this->arch->getTiles(), 0);
         window_buffer_filled = false;
         filter_buffer_filled = false;
 

@@ -31,19 +31,19 @@ namespace sys {
                 std::string dataflow = "";
 
                 /** Number of lanes */
-                uint32_t n_lanes = 0;
+                uint32_t lanes = 0;
 
                 /** Number of columns */
-                uint32_t n_columns = 0;
+                uint32_t columns = 0;
 
                 /** Number of rows */
-                uint32_t n_rows = 0;
+                uint32_t rows = 0;
 
                 /** Number of tiles */
-                uint32_t n_tiles = 0;
+                uint32_t tiles = 0;
 
                 /** Bits per PE */
-                uint32_t bits_pe = 0;
+                uint32_t pe_width = 0;
 
                 /** Column registers */
                 uint32_t column_registers = 0;

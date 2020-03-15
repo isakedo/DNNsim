@@ -148,11 +148,11 @@ namespace core {
         }
 
         // Try to fit one row of activations and one set of filters
-        auto working_set_filters = std::min((uint32_t)num_filters, this->EF_ROWS * this->arch->getNTiles());
+        auto working_set_filters = std::min((uint32_t)num_filters, this->EF_ROWS * this->arch->getTiles());
         auto filter_set = wgt_channels * Kx * Ky * working_set_filters * this->dram->getDataSize();
         if (act_row + filter_set < this->gbuffer->getActSize()) {
 
-            auto tile_filter_sets = (uint64_t)ceil(this->filter_sets / (double)this->arch->getNTiles());
+            auto tile_filter_sets = (uint64_t)ceil(this->filter_sets / (double)this->arch->getTiles());
 
             // Calculate number of activation rows
             std::vector<std::vector<int>> tmp_window_sets;
@@ -201,14 +201,14 @@ namespace core {
 
                     // Read new filters
                     auto last_filter = std::min((f + 1) * this->EF_ROWS, (uint32_t)num_filters);
-                    //auto first_address = this->wgt_address_map[f * this->N_ROWS][0][0][0];
+                    //auto first_address = this->wgt_address_map[f * this->ROWS][0][0][0];
                     //auto last_address = this->wgt_address_map[last_filter - 1][Ky - 1][Kx - 1][last_wgt_index];
                     //this->on_chip_graph[idx].read_addresses.emplace_back(std::make_tuple(first_address, last_address));
 
                     // Clean old filters
                     if (prev_f != -1) {
                         last_filter = std::min((prev_f + 1) * this->EF_ROWS, (uint32_t)num_filters);
-                        //first_address = this->wgt_address_map[prev_f * this->N_ROWS][0][0][0];
+                        //first_address = this->wgt_address_map[prev_f * this->ROWS][0][0][0];
                         //last_address = this->wgt_address_map[last_filter - 1][Ky - 1][Kx - 1][last_wgt_index];
                         //this->on_chip_graph[idx].clean_addresses.emplace_back(std::make_tuple(first_address, last_address));
                     }
@@ -245,15 +245,15 @@ namespace core {
                     this->on_chip_graph[idx].filter_tile_sets.push_back(f);
 
                     // Read new filters
-                    auto last_filter = std::min((f + 1) * this->N_ROWS, (uint32_t)num_filters);
-                    auto first_address = this->wgt_address_map[f * this->N_ROWS][0][0][0];
+                    auto last_filter = std::min((f + 1) * this->ROWS, (uint32_t)num_filters);
+                    auto first_address = this->wgt_address_map[f * this->ROWS][0][0][0];
                     auto last_address = this->wgt_address_map[last_filter - 1][Ky - 1][Kx - 1][wgt_channels - 1];
                     this->on_chip_graph[idx].read_addresses.emplace_back(std::make_tuple(first_address, last_address));
 
                     // Clean old filters
                     if (prev_f != -1) {
-                        last_filter = std::min((prev_f + 1) * this->N_ROWS, (uint32_t)num_filters);
-                        first_address = this->wgt_address_map[prev_f * this->N_ROWS][0][0][0];
+                        last_filter = std::min((prev_f + 1) * this->ROWS, (uint32_t)num_filters);
+                        first_address = this->wgt_address_map[prev_f * this->ROWS][0][0][0];
                         last_address = this->wgt_address_map[last_filter - 1][Ky - 1][Kx - 1][wgt_channels - 1];
                         this->on_chip_graph[idx].clean_addresses.emplace_back(std::make_tuple(first_address, last_address));
                     }
@@ -352,7 +352,7 @@ namespace core {
             act_channels_on_chip = ceil(act_channels_on_chip / 2.);
             wgt_channels_on_chip = ceil(wgt_channels_on_chip / 2.);
 
-            if (act_channels_on_chip < this->N_LANES)
+            if (act_channels_on_chip < this->LANES)
             throw std::runtime_error("Error allocating layer on-chip: Global buffer is too small");
 
             one_window_channel_set = act_channels_on_chip * working_set_windows * this->data_size;
@@ -433,10 +433,10 @@ namespace core {
                     // Filter set
                     if (!this->filter_buffer_filled) {
 
-                        this->filters = std::vector<std::vector<int>>(this->arch->getNTiles(), std::vector<int>());
+                        this->filters = std::vector<std::vector<int>>(this->arch->getTiles(), std::vector<int>());
 
                         // Select filter for each tile
-                        for (int t = 0; t < this->arch->getNTiles(); ++t) {
+                        for (int t = 0; t < this->arch->getTiles(); ++t) {
 
                             auto filter_idx = this->filters_per_group * group_idx + (filter_set + t) * this->EF_ROWS;
 
@@ -454,7 +454,7 @@ namespace core {
                     }
 
                     bool still_work = false;
-                    for (int t = 0; t < this->arch->getNTiles(); ++t) {
+                    for (int t = 0; t < this->arch->getTiles(); ++t) {
 
                         tiles_data[t].valid = false;
 
@@ -514,11 +514,11 @@ namespace core {
 
                     if (still_work) return true;
 
-                    this->time = std::vector<int>(this->arch->getNTiles(), 0);
-                    this->skip = std::vector<int>(this->arch->getNTiles(), 0);
+                    this->time = std::vector<int>(this->arch->getTiles(), 0);
+                    this->skip = std::vector<int>(this->arch->getTiles(), 0);
                     this->filter_buffer_filled = false;
                     this->filters.clear();
-                    this->filter_set_it += this->arch->getNTiles();
+                    this->filter_set_it += this->arch->getTiles();
                 } // Filter set
 
                 this->filter_set_it = 0;
@@ -534,8 +534,8 @@ namespace core {
         this->group_it = 0;
         this->window_set_it = 0;
         this->filter_set_it = 0;
-        this->time = std::vector<int>(this->arch->getNTiles(), 0);
-        this->skip = std::vector<int>(this->arch->getNTiles(), 0);
+        this->time = std::vector<int>(this->arch->getTiles(), 0);
+        this->skip = std::vector<int>(this->arch->getTiles(), 0);
         this->window_buffer_filled = false;
         this->filter_buffer_filled = false;
         return false;
@@ -565,10 +565,10 @@ namespace core {
             // Filter set
             if (!this->filter_buffer_filled) {
 
-                this->filters = std::vector<std::vector<int>>(this->arch->getNTiles(), std::vector<int>());
+                this->filters = std::vector<std::vector<int>>(this->arch->getTiles(), std::vector<int>());
 
                 // Select filter for each tile
-                for (int t = 0; t < this->arch->getNTiles(); ++t) {
+                for (int t = 0; t < this->arch->getTiles(); ++t) {
 
                     auto filter_idx = (filter_set + t) * this->EF_ROWS;
 
@@ -586,7 +586,7 @@ namespace core {
             }
 
             bool still_work = false;
-            for (int t = 0; t < this->arch->getNTiles(); ++t) {
+            for (int t = 0; t < this->arch->getTiles(); ++t) {
 
                 tiles_data[t].valid = false;
 
@@ -644,18 +644,18 @@ namespace core {
 
             if (still_work) return true;
 
-            this->time = std::vector<int>(this->arch->getNTiles(), 0);
-            this->skip = std::vector<int>(this->arch->getNTiles(), 0);
+            this->time = std::vector<int>(this->arch->getTiles(), 0);
+            this->skip = std::vector<int>(this->arch->getTiles(), 0);
             this->filter_buffer_filled = false;
             this->filters.clear();
-            this->filter_set_it += this->arch->getNTiles();
+            this->filter_set_it += this->arch->getTiles();
         } // Filter set
 
         this->group_it = 0;
         this->window_set_it = 0;
         this->filter_set_it = 0;
-        this->time = std::vector<int>(this->arch->getNTiles(), 0);
-        this->skip = std::vector<int>(this->arch->getNTiles(), 0);
+        this->time = std::vector<int>(this->arch->getTiles(), 0);
+        this->skip = std::vector<int>(this->arch->getTiles(), 0);
         this->window_buffer_filled = false;
         this->filter_buffer_filled = false;
         return false;

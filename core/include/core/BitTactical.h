@@ -24,7 +24,7 @@ namespace core {
         const char SEARCH_SHAPE;
 
         /** Number of concurrent multiplications per PE */
-        uint32_t N_LANES;
+        uint32_t LANES;
 
         /** Search space for the scheduler */
         std::vector<std::tuple<int, int>> SEARCH_MAP;
@@ -37,7 +37,7 @@ namespace core {
          * @param _SEARCH_SHAPE     Type of search
          */
         BitTactical(uint32_t _LOOKAHEAD_H, uint32_t _LOOKASIDE_D, const char _SEARCH_SHAPE) : LOOKAHEAD_H(_LOOKAHEAD_H),
-                LOOKASIDE_D(_LOOKASIDE_D), SEARCH_SHAPE(_SEARCH_SHAPE), N_LANES(0) {
+                LOOKASIDE_D(_LOOKASIDE_D), SEARCH_SHAPE(_SEARCH_SHAPE), LANES(0) {
 
             if (SEARCH_SHAPE == 'L') {
 
@@ -112,9 +112,9 @@ namespace core {
         /**
          * Schedule buffer
          * @param buffer Buffer to scheduler (Overwritten)
-         * @param _N_LANES Number of lanes
+         * @param _LANES Number of lanes
          */
-        void schedule(Buffer<T> &buffer, uint32_t _N_LANES);
+        void schedule(Buffer<T> &buffer, uint32_t _LANES);
 
     };
 

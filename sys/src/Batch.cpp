@@ -163,12 +163,12 @@ namespace sys {
                     experiment_proto.out_buffer_write_delay();
 
             // Generic parameters
-            experiment.n_lanes = experiment_proto.lanes() < 1 ? 16 : experiment_proto.lanes();
-            experiment.n_columns = experiment_proto.columns() < 1 ? 16 : experiment_proto.columns();
-            experiment.n_rows = experiment_proto.rows() < 1 ? 16 : experiment_proto.rows();
-            experiment.n_tiles = experiment_proto.tiles() < 1 ? 16 : experiment_proto.tiles();
+            experiment.lanes = experiment_proto.lanes() < 1 ? 16 : experiment_proto.lanes();
+            experiment.columns = experiment_proto.columns() < 1 ? 16 : experiment_proto.columns();
+            experiment.rows = experiment_proto.rows() < 1 ? 16 : experiment_proto.rows();
+            experiment.tiles = experiment_proto.tiles() < 1 ? 16 : experiment_proto.tiles();
             experiment.column_registers = experiment_proto.column_registers();
-            experiment.bits_pe = experiment_proto.pe_width() < 1 ? 16 : experiment_proto.pe_width();
+            experiment.pe_width = experiment_proto.pe_width() < 1 ? 16 : experiment_proto.pe_width();
 
             // BitPragmatic-Laconic
             experiment.booth = experiment_proto.booth_encoding();
@@ -179,7 +179,7 @@ namespace sys {
             experiment.minor_bit = experiment_proto.minor_bit();
 
             if((experiment_proto.architecture() == "ShapeShifter" || experiment_proto.architecture() == "Loon") &&
-                    (experiment.n_columns % experiment.group_size != 0))
+                    (experiment.columns % experiment.group_size != 0))
                 throw std::runtime_error("Group size on network must be divisor of the columns.");
 
             // Loom
@@ -188,7 +188,7 @@ namespace sys {
                     experiment_proto.pe_serial_bits();
 
             if(experiment_proto.architecture() == "Loom" &&
-                    (experiment.n_rows % experiment.group_size != 0))
+                    (experiment.rows % experiment.group_size != 0))
                 throw std::runtime_error("Group size on network must be divisor of the rows.");
 
             // BitTactical

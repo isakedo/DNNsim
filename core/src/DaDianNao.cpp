@@ -14,18 +14,18 @@ namespace core {
 
     template <typename T>
     std::string DaDianNao<T>::filename() {
-        return "_L" + std::to_string(this->N_LANES) + "_C" + std::to_string(this->N_COLUMNS) +
-               "_R" + std::to_string(this->N_ROWS) + "_T" + std::to_string(this->N_TILES) +
-               "_BP" + std::to_string(this->BITS_PE);
+        return "_L" + std::to_string(this->LANES) + "_C" + std::to_string(this->COLUMNS) +
+               "_R" + std::to_string(this->ROWS) + "_T" + std::to_string(this->TILES) +
+               "_BP" + std::to_string(this->PE_WIDTH);
     }
 
     template <typename T>
     std::string DaDianNao<T>::header() {
-        std::string header = "Number of lanes/terms per PE: " + std::to_string(this->N_LANES) + "\n";
-        header += "Number of columns/windows in parallel: " + std::to_string(this->N_COLUMNS) + "\n";
-        header += "Number of rows/filters in parallel: " + std::to_string(this->N_ROWS) + "\n";
-        header += "Number of tiles: " + std::to_string(this->N_TILES) + "\n";
-        header += "Size of the PE in bits: " + std::to_string(this->BITS_PE) + "\n";
+        std::string header = "Number of lanes/terms per PE: " + std::to_string(this->LANES) + "\n";
+        header += "Number of columns/windows in parallel: " + std::to_string(this->COLUMNS) + "\n";
+        header += "Number of rows/filters in parallel: " + std::to_string(this->ROWS) + "\n";
+        header += "Number of tiles: " + std::to_string(this->TILES) + "\n";
+        header += "Size of the PE in bits: " + std::to_string(this->PE_WIDTH) + "\n";
         return header;
     }
 

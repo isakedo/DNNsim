@@ -42,8 +42,8 @@ namespace core {
 
         auto time = std::get<0>(value_idx);
         auto lane = std::get<1>(value_idx);
-        int upper_bound = (lane / N_LANES) * N_LANES;
-        int lower_bound = ((lane / N_LANES) + 1) * N_LANES;
+        int upper_bound = (lane / LANES) * LANES;
+        int lower_bound = ((lane / LANES) + 1) * LANES;
         std::vector<ValueIndex> effectual_candidates;
 
         auto next_time = time + 1;
@@ -55,8 +55,8 @@ namespace core {
             auto time_h = time + std::get<0>(search_space);
             auto lane_d = lane + std::get<1>(search_space);
             if(time_h >= max_time) continue;
-            lane_d = (lane_d) < upper_bound ? N_LANES + lane_d : lane_d; // Wrap around
-            lane_d = (lane_d) >= lower_bound ? lane_d - N_LANES : lane_d; // Wrap around
+            lane_d = (lane_d) < upper_bound ? LANES + lane_d : lane_d; // Wrap around
+            lane_d = (lane_d) >= lower_bound ? lane_d - LANES : lane_d; // Wrap around
             auto value_tuple = buffer[time_h][lane_d];
             auto value_bits = std::get<0>(value_tuple);
             if(value_bits != 0) effectual_candidates.push_back(std::make_tuple(time_h, lane_d));
@@ -69,7 +69,7 @@ namespace core {
     void BitTactical<T>::original_schedule(BufferSet<T> &buffer) {
 
         auto max_time = buffer.size();
-        auto groups = buffer.front().size() / N_LANES;
+        auto groups = buffer.front().size() / LANES;
 
         int skip = 0;
         for (int time = 0; time < max_time; ++time) {
@@ -87,9 +87,9 @@ namespace core {
                 while(overlap > 0) {
 
                     // Get ineffectual values
-                    int init_lane = group * N_LANES;
+                    int init_lane = group * LANES;
                     std::vector<ValueIndex> ineffectual_values;
-                    for(int lane = init_lane; lane < init_lane + N_LANES; lane++) {
+                    for(int lane = init_lane; lane < init_lane + LANES; lane++) {
                         auto value_tuple = buffer[time][lane];
                         auto value_bits = std::get<0>(value_tuple);
                         if(value_bits == 0) ineffectual_values.emplace_back(std::make_tuple(time, lane));
@@ -97,14 +97,14 @@ namespace core {
 
                     // Num of candidates for each ineffectual values
                     overlap = -1;
-                    std::vector<uint16_t> num_candidates (N_LANES, 0);
-                    std::vector<std::vector<ValueIndex>> effectual_candidates (N_LANES, std::vector<ValueIndex>());
+                    std::vector<uint16_t> num_candidates (LANES, 0);
+                    std::vector<std::vector<ValueIndex>> effectual_candidates (LANES, std::vector<ValueIndex>());
                     for(auto inef_idx : ineffectual_values) {
                         auto lane = std::get<1>(inef_idx);
-                        effectual_candidates[lane % N_LANES] = search(buffer, inef_idx, max_time);
-                        if(!effectual_candidates[lane % N_LANES].empty()) {
-                            auto effectual_num_candidates = (uint16_t)effectual_candidates[lane % N_LANES].size();
-                            num_candidates[lane % N_LANES] = effectual_num_candidates;
+                        effectual_candidates[lane % LANES] = search(buffer, inef_idx, max_time);
+                        if(!effectual_candidates[lane % LANES].empty()) {
+                            auto effectual_num_candidates = (uint16_t)effectual_candidates[lane % LANES].size();
+                            num_candidates[lane % LANES] = effectual_num_candidates;
                             if (effectual_num_candidates > overlap) overlap = effectual_num_candidates;
                         }
                     }
@@ -112,9 +112,9 @@ namespace core {
                     // Promote less flexible candidates first
                     for(auto inef_idx : ineffectual_values) {
                         auto lane = std::get<1>(inef_idx);
-                        if(num_candidates[lane % N_LANES] == overlap) {
+                        if(num_candidates[lane % LANES] == overlap) {
                             //Promote value
-                            auto cand_idx = effectual_candidates[lane % N_LANES].front();
+                            auto cand_idx = effectual_candidates[lane % LANES].front();
                             promote(buffer, inef_idx, cand_idx);
                             break;
                         }
@@ -128,8 +128,8 @@ namespace core {
     }
 
     template <typename T>
-    void BitTactical<T>::schedule(Buffer<T> &buffer, uint32_t _N_LANES) {
-        N_LANES = _N_LANES;
+    void BitTactical<T>::schedule(Buffer<T> &buffer, uint32_t _LANES) {
+        LANES = _LANES;
         for (auto &buffer_set : buffer) {
             original_schedule(buffer_set);
         }

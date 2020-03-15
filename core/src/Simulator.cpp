@@ -222,7 +222,7 @@ namespace core {
                         std::vector<double>(Oy, 0)));
 
                 *global_cycle = 0;
-                auto tiles_data = std::vector<TileData<T>>(arch->getNTiles(), TileData<T>());
+                auto tiles_data = std::vector<TileData<T>>(arch->getTiles(), TileData<T>());
                 do {
 
                     // Feed off-chip data
@@ -409,7 +409,7 @@ namespace core {
                     num_filters * wgt_channels * R;
             uint64_t max_bit_counter = max_par_counter * MAX_BITS;
 
-            arch->configure_layer(act_prec, wgt_prec, network_width, fc || lstm, arch->getNColumns());
+            arch->configure_layer(act_prec, wgt_prec, network_width, fc || lstm, arch->getColumns());
 
             for(int n = 0; n < images; ++n) {
 

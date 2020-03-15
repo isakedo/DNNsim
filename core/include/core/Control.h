@@ -150,12 +150,12 @@ namespace core {
 
             stride = _stride;
 
-            ACT_BLKS = (uint32_t) ceil(act_prec / (double) arch->getBitsPe());
-            WGT_BLKS = (uint32_t) ceil(wgt_prec / (double) arch->getBitsPe());
+            ACT_BLKS = (uint32_t) ceil(act_prec / (double) arch->getPeWidth());
+            WGT_BLKS = (uint32_t) ceil(wgt_prec / (double) arch->getPeWidth());
 
-            EF_LANES = arch->getNLanes();
-            EF_COLUMNS = arch->getNColumns() / ACT_BLKS;
-            EF_ROWS = arch->getNRows() / WGT_BLKS;
+            EF_LANES = arch->getLanes();
+            EF_COLUMNS = arch->getColumns() / ACT_BLKS;
+            EF_ROWS = arch->getRows() / WGT_BLKS;
 
             layer_act_on_chip = next_layer_act_on_chip;
             next_layer_act_on_chip = false;

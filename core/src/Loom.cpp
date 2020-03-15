@@ -32,19 +32,19 @@ namespace core {
 
     template <typename T>
     std::string Loom<T>::filename() {
-        return "_L" + std::to_string(this->N_LANES) + "_C" + std::to_string(this->N_COLUMNS) +
-               "_R" + std::to_string(this->N_ROWS) + "_T" + std::to_string(this->N_TILES) +
-               "_BP" + std::to_string(this->BITS_PE) + "_GS" + std::to_string(GROUP_SIZE) +
+        return "_L" + std::to_string(this->LANES) + "_C" + std::to_string(this->COLUMNS) +
+               "_R" + std::to_string(this->ROWS) + "_T" + std::to_string(this->TILES) +
+               "_BP" + std::to_string(this->PE_WIDTH) + "_GS" + std::to_string(GROUP_SIZE) +
                "_PSB" + std::to_string(PE_SERIAL_BITS) + (MINOR_BIT ? "_MB" : "");
     }
 
     template <typename T>
     std::string Loom<T>::header() {
-        std::string header = "Number of lanes/terms per PE: " + std::to_string(this->N_LANES) + "\n";
-        header += "Number of columns/windows in parallel: " + std::to_string(this->N_COLUMNS) + "\n";
-        header += "Number of rows/filters in parallel: " + std::to_string(this->N_ROWS) + "\n";
-        header += "Number of tiles: " + std::to_string(this->N_TILES) + "\n";
-        header += "Size of the PE in bits: " + std::to_string(this->BITS_PE) + "\n";
+        std::string header = "Number of lanes/terms per PE: " + std::to_string(this->LANES) + "\n";
+        header += "Number of columns/windows in parallel: " + std::to_string(this->COLUMNS) + "\n";
+        header += "Number of rows/filters in parallel: " + std::to_string(this->ROWS) + "\n";
+        header += "Number of tiles: " + std::to_string(this->TILES) + "\n";
+        header += "Size of the PE in bits: " + std::to_string(this->PE_WIDTH) + "\n";
         header += "Number of columns/rows per group: " + std::to_string(GROUP_SIZE) + "\n";
         header += "Number of activations processing bits per PE: " + std::to_string(PE_SERIAL_BITS) + "\n";
         header +=  MINOR_BIT ? "Trim bits from the bottom\n" : "";

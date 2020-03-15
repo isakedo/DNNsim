@@ -17,19 +17,19 @@ namespace core {
     protected:
 
         /** Number of concurrent multiplications per PE */
-        const uint32_t N_LANES = 0;
+        const uint32_t LANES = 0;
 
         /** Number of columns */
-        const uint32_t N_COLUMNS = 0;
+        const uint32_t COLUMNS = 0;
 
         /** Number of rows */
-        const uint32_t N_ROWS = 0;
+        const uint32_t ROWS = 0;
 
         /** Number of tiles */
-        const uint32_t N_TILES = 0;
+        const uint32_t TILES = 0;
 
         /** Bits per PE */
-        const uint32_t BITS_PE = 0;
+        const uint32_t PE_WIDTH = 0;
 
         /* SIMULATION PARAMETERS */
 
@@ -86,33 +86,33 @@ namespace core {
 
         /**
          * Constructor
-         * @param _N_LANES    Number of concurrent multiplications per PE
-         * @param _N_COLUMNS  Number of columns
-         * @param _N_ROWS     Number of rows
-         * @param _N_TILES    Number of tiles
-         * @param _BITS_PE    Bits per PE
+         * @param _LANES    Number of concurrent multiplications per PE
+         * @param _COLUMNS  Number of columns
+         * @param _ROWS     Number of rows
+         * @param _TILES    Number of tiles
+         * @param _PE_WIDTH    Bits per PE
          */
-        Architecture(uint32_t _N_LANES, uint32_t _N_COLUMNS, uint32_t _N_ROWS, uint32_t _N_TILES, uint32_t _BITS_PE) :
-                N_LANES(_N_LANES), N_COLUMNS(_N_COLUMNS), N_ROWS(_N_ROWS), N_TILES(_N_TILES), BITS_PE(_BITS_PE) {}
+        Architecture(uint32_t _LANES, uint32_t _COLUMNS, uint32_t _ROWS, uint32_t _TILES, uint32_t _PE_WIDTH) :
+                LANES(_LANES), COLUMNS(_COLUMNS), ROWS(_ROWS), TILES(_TILES), PE_WIDTH(_PE_WIDTH) {}
 
-        const uint32_t getNLanes() const {
-            return N_LANES;
+        const uint32_t getLanes() const {
+            return LANES;
         }
 
-        const uint32_t getNColumns() const {
-            return N_COLUMNS;
+        const uint32_t getColumns() const {
+            return COLUMNS;
         }
 
-        const uint32_t getNRows() const {
-            return N_ROWS;
+        const uint32_t getRows() const {
+            return ROWS;
         }
 
-        const uint32_t getNTiles() const {
-            return N_TILES;
+        const uint32_t getTiles() const {
+            return TILES;
         }
 
-        const uint32_t getBitsPe() const {
-            return BITS_PE;
+        const uint32_t getPeWidth() const {
+            return PE_WIDTH;
         }
 
         /* AUXILIARY FUNCTIONS */
