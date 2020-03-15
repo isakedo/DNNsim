@@ -114,7 +114,7 @@ namespace core {
 
     template <typename T>
     uint16_t Stripes<T>::computeBits(T act, T wgt) {
-        return this->act_prec * this->network_bits;
+        return this->act_prec * this->network_width;
     }
 
     template class Stripes<uint16_t>;

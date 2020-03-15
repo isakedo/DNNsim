@@ -160,8 +160,6 @@ namespace core {
         auto act_precision = stats.register_uint_t("activations precision", 0, sys::Average);
         auto wgt_precision = stats.register_uint_t("weights precision", 0, sys::Average);
 
-        auto network_bits = network.getNetwork_bits();
-
         // Iterate over the images
         for(auto image = 0; image < images; ++image) {
 
@@ -218,15 +216,7 @@ namespace core {
 
                 auto act_prec = layer.getActPrecision();
                 auto wgt_prec = layer.getWgtPrecision();
-
-                auto columns_per_act = (uint32_t) ceil(act_prec / (double) arch->getBitsPe());
-                auto rows_per_wgt = (uint32_t) ceil(wgt_prec / (double) arch->getBitsPe());
-
-                auto COLUMNS = arch->getNColumns() / columns_per_act;
-                auto ROWS = arch->getNRows() / rows_per_wgt;
-
-                control->configure_layer(act, wgt, fc || lstm, lstm, stride, COLUMNS, ROWS);
-                arch->configure_layer(act_prec, wgt_prec, network_bits, fc || lstm, COLUMNS); // TODO fit into configure layer
+                control->configure_layer(act, wgt, act_prec, wgt_prec, fc || lstm, lstm, stride);
 
                 OutputTensor sim_output = OutputTensor(num_filters, std::vector<std::vector<double>>(Ox,
                         std::vector<double>(Oy, 0)));
@@ -356,8 +346,8 @@ namespace core {
         auto act_precision = stats.register_uint_t("activations_precision", 0, sys::Average);
         auto wgt_precision = stats.register_uint_t("weights_precision", 0, sys::Average);
 
-        auto network_bits = network.getNetwork_bits();
-        double MAX_BITS = network_bits * network_bits;
+        auto network_width = network.getNetworkWidth();
+        double MAX_BITS = network_width * network_width;
         for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
@@ -419,7 +409,7 @@ namespace core {
                     num_filters * wgt_channels * R;
             uint64_t max_bit_counter = max_par_counter * MAX_BITS;
 
-            arch->configure_layer(act_prec, wgt_prec, network_bits, fc || lstm, arch->getNColumns());
+            arch->configure_layer(act_prec, wgt_prec, network_width, fc || lstm, arch->getNColumns());
 
             for(int n = 0; n < images; ++n) {
 

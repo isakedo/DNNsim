@@ -4,8 +4,13 @@
 namespace core {
 
     template <typename T>
-    const uint64_t GlobalBuffer<T>::getSize() const {
-        return SIZE;
+    const uint64_t GlobalBuffer<T>::getActSize() const {
+        return ACT_SIZE;
+    }
+
+    template <typename T>
+    const uint64_t GlobalBuffer<T>::getWgtSize() const {
+        return WGT_SIZE;
     }
 
     template <typename T>

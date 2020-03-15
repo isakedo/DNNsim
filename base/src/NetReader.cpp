@@ -139,32 +139,6 @@ namespace base {
     template <typename T>
     void NetReader<T>::read_precision(base::Network<T> &network) {
 
-        if(network.isTensorflow()) {
-            int i = 0;
-            for(base::Layer<T> &layer : network.updateLayers()) {
-                layer.setAct_precision(network.getNetwork_bits(),0,0);
-                layer.setWgt_precision(network.getNetwork_bits(),0,0);
-                i++;
-            }
-
-            if(!QUIET) std::cout << "Precisions set for Tensorflow quantization" << std::endl;
-
-            return;
-        }
-
-        if(network.isIntelINQ()) {
-            int i = 0;
-            for(base::Layer<T> &layer : network.updateLayers()) {
-                layer.setAct_precision(network.getNetwork_bits(),0,0);
-                layer.setWgt_precision(network.getNetwork_bits(),0,0);
-                i++;
-            }
-
-            if(!QUIET) std::cout << "Precisions set for IntelINQ quantization" << std::endl;
-
-            return;
-        }
-
         std::string line;
         std::stringstream ss_line;
         std::vector<int> act_mag;
@@ -207,28 +181,20 @@ namespace base {
                 i++;
             }
 
+            network.setProfiled(true);
             if(!QUIET) std::cout << "Profiled precisions read from file" << std::endl;
 
         } else {
+
             // Generic precision
             int i = 0;
             for(base::Layer<T> &layer : network.updateLayers()) {
-                if (network.getNetwork_bits() == 8) {
-                    layer.setAct_precision(8,6,1);
-                    layer.setWgt_precision(8,0,7);
-                } else if (network.getNetwork_bits() == 16){
-                    layer.setAct_precision(16,13,2);
-                    layer.setWgt_precision(16,0,15);
-                } else if (network.getNetwork_bits() == 32) {
-                    layer.setAct_precision(32,0,0);
-                    layer.setWgt_precision(32,0,0);
-                } else {
-                    throw std::runtime_error("No profiled network generic precisions for the given network bits");
-                }
+                layer.setAct_precision(network.getNetworkWidth(),-1,-1);
+                layer.setWgt_precision(network.getNetworkWidth(),-1,-1);
                 i++;
             }
 
-            if(!QUIET) std::cout << "Generic precisions set" << std::endl;
+            network.setProfiled(false);
 
         }
     }

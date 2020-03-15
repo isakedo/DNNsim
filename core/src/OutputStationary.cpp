@@ -22,6 +22,7 @@ namespace core {
         }
 
         // Generate address map
+        // TODO: auto channel_blks = act_channels * this->ACT_BLKS;
         act_address_map = std::vector<std::vector<std::vector<uint64_t>>>(Ny, std::vector<std::vector<uint64_t>>(Nx,
                 std::vector<uint64_t>(ceil(act_channels / (double)this->dram->getValuesPerBlock()))));
 
@@ -127,7 +128,8 @@ namespace core {
 
         // Addresses buffer
         auto values_per_filter = depthwise ? 1 : this->EF_LANES;
-        auto addresses_per_row = (uint64_t)ceil(values_per_filter * this->EF_ROWS / (double)this->dram->getValuesPerBlock());
+        auto addresses_per_row = (uint64_t)ceil(values_per_filter * this->EF_ROWS * this->WGT_BLKS /
+                (double)this->dram->getValuesPerBlock());
         wgt_address_buffer = AddressBuffer(filter_sets * groups, AddressBufferSet(max_buffer_time,
                 AddressBufferRow(addresses_per_row)));
 
@@ -160,7 +162,7 @@ namespace core {
         wgt_address_map.last_address = this->dram->getStartWgtAddress() + next_wgt_address - BLOCK_SIZE;
 
         // Banks buffer
-        auto accesses_per_filter = (uint64_t)ceil(values_per_filter * this->dram->getDataSize() /
+        auto accesses_per_filter = (uint64_t)ceil(values_per_filter * this->WGT_BLKS * this->dram->getDataSize() /
                 (double)this->gbuffer->getBankWidth());
         wgt_bank_buffer = BankBuffer(filter_sets * groups, BankBufferSet(max_buffer_time,
                 BankBufferRow(accesses_per_filter * this->EF_ROWS)));

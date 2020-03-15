@@ -6,9 +6,9 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    void Loom<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear,
+    void Loom<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _linear,
             uint64_t EF_COLUMNS) {
-        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_bits, _linear, EF_COLUMNS);
+        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_width, _linear, EF_COLUMNS);
         act_mask = (uint16_t)(1u << (_act_prec - 1u));
         wgt_mask = (uint16_t)(1u << (_wgt_prec - 1u));
     }

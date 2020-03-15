@@ -45,8 +45,8 @@ namespace core {
         /** Weights precision */
         int wgt_prec = 0;
 
-        /** Network bits */
-        int network_bits = 0;
+        /** Network width */
+        int network_width = 0;
 
         /** Linear layer */
         bool linear = false;
@@ -119,17 +119,17 @@ namespace core {
 
         /**
          * Initialise layer
-         * @param _act_prec     Activations precision
-         * @param _wgt_prec     Weights precision
-         * @param _network_bits Network bits
-         * @param _linear       Linear layer
-         * @param EF_COLUMNS    Number of effective columns
+         * @param _act_prec      Activations precision
+         * @param _wgt_prec      Weights precision
+         * @param _network_width Network width
+         * @param _linear        Linear layer
+         * @param EF_COLUMNS     Number of effective columns
          */
-        virtual void configure_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear,
+        virtual void configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _linear,
                 uint64_t EF_COLUMNS) {
             act_prec = _act_prec;
             wgt_prec = _wgt_prec;
-            network_bits = _network_bits;
+            network_width = _network_width;
             linear = _linear;
             ready_cycle = 0;
             done_cycle = 0;

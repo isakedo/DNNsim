@@ -40,7 +40,7 @@ namespace core {
         auto all_filters = num_filters * wgt_channels * Kx * Ky * this->dram->getDataSize();
         auto all_output = num_filters * this->out_x * this->out_y * this->dram->getDataSize();
         auto extra_rows = ceil(this->EF_COLUMNS / (double)this->out_x) - 1;
-        if (all_windows + all_filters + all_output < this->gbuffer->getSize()) {
+        if (true) {//all_windows + all_filters + all_output < this->gbuffer->getSize()) {
 
             this->next_layer_act_on_chip = true;
             typename OutputStationary<T>::NodeOutS unique_node;
@@ -91,7 +91,7 @@ namespace core {
 
         // Try to fit one row of activations and all filters
         auto act_row = act_channels * Nx * (Ky + extra_rows) * this->dram->getDataSize();
-        if (act_row + all_filters < this->gbuffer->getSize()) {
+        if (act_row + all_filters < this->gbuffer->getActSize()) {
 
             // Calculate number of activation rows
             std::vector<std::vector<int>> tmp_window_sets;
@@ -150,7 +150,7 @@ namespace core {
         // Try to fit one row of activations and one set of filters
         auto working_set_filters = std::min((uint32_t)num_filters, this->EF_ROWS * this->arch->getNTiles());
         auto filter_set = wgt_channels * Kx * Ky * working_set_filters * this->dram->getDataSize();
-        if (act_row + filter_set < this->gbuffer->getSize()) {
+        if (act_row + filter_set < this->gbuffer->getActSize()) {
 
             auto tile_filter_sets = (uint64_t)ceil(this->filter_sets / (double)this->arch->getNTiles());
 
@@ -225,7 +225,7 @@ namespace core {
         // Try to fit one set of window and one set of filters
         auto working_set_windows = std::min(this->out_x * this->out_y, (int)this->EF_COLUMNS);
         auto worst_case_window_set = act_channels * Kx * Ky * working_set_windows * this->dram->getDataSize();
-        if (worst_case_window_set + filter_set < this->gbuffer->getSize()) {
+        if (worst_case_window_set + filter_set < this->gbuffer->getActSize()) {
 
             int idx = 0, prev_w = -1, prev_f = - 1;
             for (int w = 0; w < this->window_sets; ++w) {
@@ -272,7 +272,7 @@ namespace core {
         // Try to fit one channel of filters and windows
         auto one_window_channel_set = act_channels * working_set_windows * this->dram->getDataSize();
         auto one_filter_channel_set = wgt_channels * working_set_filters * this->dram->getDataSize();
-        if (one_window_channel_set + one_filter_channel_set < this->gbuffer->getSize()) {
+        if (one_window_channel_set + one_filter_channel_set < this->gbuffer->getActSize()) {
 
             throw std::runtime_error("TODO");
 
@@ -301,7 +301,7 @@ namespace core {
         auto all_windows = act_channels * this->dram->getDataSize();
         auto all_filters = num_filters * wgt_channels * this->dram->getDataSize();
         auto all_output = num_filters * this->dram->getDataSize();
-        if (all_windows + all_filters + all_output < this->gbuffer->getSize()) {
+        if (true) {//all_windows + all_filters + all_output < this->gbuffer->getSize()) {
 
             this->next_layer_act_on_chip = true;
             this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences);

@@ -120,20 +120,14 @@ namespace base {
          * @param frac  Fraction
          * @return Fixed point quantized tensor
          */
-        Array<uint16_t> profiled_fixed_point(int mag, int frac) const;
+        Array<uint16_t> profiled_quantization(int mag, int frac) const;
 
         /**
-         * Return a fixed point array for tensorflow 8bits quantization
-         * @param network_bits Network bits
+         * Return a fixed point array for linear quantization
+         * @param data_width Network bits
          * @return Fixed point quantized tensor
          */
-        Array<uint16_t> tensorflow_fixed_point(int network_bits) const;
-
-        /** Return a fixed point array for intel INQ quantization
-         * @param activations True if activations traces
-         * @return Fixed point quantized tensor
-         */
-        Array<uint16_t> intel_inq_fixed_point(bool activations) const;
+        Array<uint16_t> linear_quantization(int data_width) const;
 
         /** Change fixed point representation to sign-magnitude
          * @param prec   Precision: sign + magnitude + fraction

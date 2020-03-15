@@ -83,7 +83,7 @@ namespace core {
             if(wgt == 0) return 0;
         }
 
-        return this->network_bits * this->network_bits;
+        return this->network_width * this->network_width;
     }
 
     INITIALISE_DATA_TYPES(DaDianNao);

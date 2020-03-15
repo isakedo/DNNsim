@@ -10,32 +10,32 @@ message Batch {
         message Experiment {
             string architecture = 1;
             string task = 2;
+            string dataflow = 3;
 
             // For grid accelerators
-            uint32 n_lanes = 3;
-            uint32 n_columns = 4;
-            uint32 n_rows = 5;
-            uint32 n_tiles = 6;
-            uint32 column_registers = 7;
-            uint32 bits_pe = 8;
+            uint32 lanes = 4;
+            uint32 columns = 5;
+            uint32 rows = 6;
+            uint32 tiles = 7;
+            uint32 column_registers = 8;
+            uint32 pe_width = 9;
 
             // For Pragmatic-Laconic
-            bool booth_encoding = 9;
-            uint32 bits_first_stage = 10;
+            bool booth_encoding = 10;
+            uint32 bits_first_stage = 11;
 
             // For ShapeShifter-Loom
-            uint32 group_size = 11;
-            bool minor_bit = 12;
+            uint32 group_size = 12;
+            bool minor_bit = 13;
 
             // For Loom
-            bool dynamic_weights = 13;
-            uint32 pe_serial_bits = 14;
+            bool dynamic_weights = 14;
+            uint32 pe_serial_bits = 15;
 
             // For Tactical
-            uint32 lookahead_h = 15;
-            uint32 lookaside_d = 16;
-            string search_shape = 17;
-            bool read_schedule = 18;
+            uint32 lookahead_h = 16;
+            uint32 lookaside_d = 17;
+            string search_shape = 18;
 
             // SCNN
             uint32 Wt = 19;
@@ -49,30 +49,34 @@ message Batch {
             bool diffy = 25;
             bool tactical = 26;
 
+            // Core parameters
+            string cpu_clock_freq = 27;
+
             // Memory parameters
-            string dram_size = 27;
-            uint32 dram_start_act_address = 28;
-            uint32 dram_start_wgt_address = 29;
+            string dram_size = 28;
+            uint32 dram_start_act_address = 29;
+            uint32 dram_start_wgt_address = 30;
 
-            string global_buffer_size = 30;
-            uint32 global_buffer_act_banks = 31;
-            uint32 global_buffer_wgt_banks = 32;
-            uint32 global_buffer_out_banks = 33;
-            uint32 global_buffer_bank_width = 34;
-            uint32 global_buffer_read_delay = 35;
-            uint32 global_buffer_write_delay = 36;
+            string global_buffer_act_size = 31;
+            string global_buffer_wgt_size = 32;
+            uint32 global_buffer_act_banks = 33;
+            uint32 global_buffer_wgt_banks = 34;
+            uint32 global_buffer_out_banks = 35;
+            uint32 global_buffer_bank_width = 36;
+            uint32 global_buffer_read_delay = 37;
+            uint32 global_buffer_write_delay = 38;
 
-            uint32 act_buffer_rows = 37;
-            uint32 act_buffer_read_delay = 38;
-            uint32 act_buffer_write_delay = 39;
+            uint32 act_buffer_rows = 39;
+            uint32 act_buffer_read_delay = 40;
+            uint32 act_buffer_write_delay = 41;
 
-            uint32 wgt_buffer_rows = 40;
-            uint32 wgt_buffer_read_delay = 41;
-            uint32 wgt_buffer_write_delay = 42;
+            uint32 wgt_buffer_rows = 42;
+            uint32 wgt_buffer_read_delay = 43;
+            uint32 wgt_buffer_write_delay = 44;
 
-            uint32 out_buffer_rows = 43;
-            uint32 out_buffer_read_delay = 44;
-            uint32 out_buffer_write_delay = 45;
+            uint32 out_buffer_rows = 45;
+            uint32 out_buffer_read_delay = 46;
+            uint32 out_buffer_write_delay = 47;
 
         }
 
@@ -80,10 +84,8 @@ message Batch {
         string model = 2;
         string data_type = 3;
         string network = 4;
-        uint32 network_bits = 5;
-        bool tensorflow = 6;
-        bool intel_inq = 7;
-        repeated Experiment experiment = 8;
+        uint32 data_width = 5;
+        repeated Experiment experiment = 6;
     }
 
     repeated Simulate simulate = 1;

@@ -6,9 +6,9 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    void ShapeShifter<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear,
+    void ShapeShifter<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _linear,
             uint64_t EF_COLUMNS) {
-        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_bits, _linear, EF_COLUMNS);
+        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_width, _linear, EF_COLUMNS);
 
         auto GROUPS = ceil(this->column_cycles.size() / (double)GROUP_SIZE);
         this->column_cycles = std::vector<uint64_t>(GROUPS, 0);
@@ -308,7 +308,7 @@ namespace core {
         if (MINOR_BIT) act_width = min_act_bit > max_act_bit ? 0 : max_act_bit - min_act_bit + 1u;
         else act_width = max_act_bit + 1u;
 
-        return act_width * this->network_bits;
+        return act_width * this->network_width;
     }
 
     template class ShapeShifter<uint16_t>;

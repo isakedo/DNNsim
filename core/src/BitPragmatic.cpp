@@ -6,9 +6,9 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    void BitPragmatic<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_bits, bool _linear,
+    void BitPragmatic<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _linear,
             uint64_t EF_COLUMNS) {
-        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_bits, _linear, EF_COLUMNS);
+        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_width, _linear, EF_COLUMNS);
 
         ready_compute_cycle = 0;
         previous_index = 0;
@@ -311,7 +311,7 @@ namespace core {
 
         uint16_t act_bits = act;
         act_bits = BOOTH_ENCODING ? booth_encoding(act_bits) : act_bits;
-        return effectualBits(act_bits) * this->network_bits;
+        return effectualBits(act_bits) * this->network_width;
     }
 
     template class BitPragmatic<uint16_t>;

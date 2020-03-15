@@ -71,6 +71,12 @@ namespace core {
         /** Number of efffective rows */
         uint32_t EF_ROWS = 0;
 
+        /** Number of physical columns per window */
+        uint32_t ACT_BLKS = 0;
+
+        /** Number of physical rows per filter */
+        uint32_t WGT_BLKS = 0;
+
         bool layer_act_on_chip = false;
 
         bool next_layer_act_on_chip = false;
@@ -132,26 +138,24 @@ namespace core {
 
         /**
          * Configure control values for the current layer
-         * @param _act          Activation array
-         * @param _wgt          Weight array
-         * @param _linear       Linear layer
-         * @param _lstm         LSTM
-         * @param _stride       Stride
-         * @param _EF_COLUMNS   Number of effective columns
-         * @param _EF_ROWS      Number of effective rows
          */
         virtual void configure_layer(const std::shared_ptr<base::Array<T>> &_act,
-                const std::shared_ptr<base::Array<T>> &_wgt, bool _linear, bool _lstm, int _stride,
-                uint32_t _EF_COLUMNS, uint32_t _EF_ROWS) {
+                const std::shared_ptr<base::Array<T>> &_wgt, uint32_t act_prec, uint32_t wgt_prec, bool _linear,
+                bool _lstm, int _stride) {
+
             act = _act;
             wgt = _wgt;
             linear = _linear;
             lstm = _lstm;
 
             stride = _stride;
+
+            ACT_BLKS = (uint32_t) ceil(act_prec / (double) arch->getBitsPe());
+            WGT_BLKS = (uint32_t) ceil(wgt_prec / (double) arch->getBitsPe());
+
             EF_LANES = arch->getNLanes();
-            EF_COLUMNS = _EF_COLUMNS;
-            EF_ROWS = _EF_ROWS;
+            EF_COLUMNS = arch->getNColumns() / ACT_BLKS;
+            EF_ROWS = arch->getNRows() / WGT_BLKS;
 
             layer_act_on_chip = next_layer_act_on_chip;
             next_layer_act_on_chip = false;
@@ -161,6 +165,7 @@ namespace core {
             abuffer->configure_layer();
             wbuffer->configure_layer();
             obuffer->configure_layer();
+            arch->configure_layer(act_prec, wgt_prec, -1, _linear, EF_COLUMNS);
         }
 
         const std::vector<AddressRange> &getReadAddresses() {

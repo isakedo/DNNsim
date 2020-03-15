@@ -27,6 +27,9 @@ namespace sys {
                 /** Task name */
                 std::string task = "";
 
+                /** Dataflow name */
+                std::string dataflow = "";
+
                 /** Number of lanes */
                 uint32_t n_lanes = 0;
 
@@ -66,9 +69,6 @@ namespace sys {
                 /** Search shape: Tactical */
                 std::string search_shape = "X";
 
-                /** Read schedule from protobuf: Tactical */
-                bool read_schedule = false;
-
                 /** X Dim PEs: SCNN */
                 uint32_t Wt = 0;
 
@@ -99,6 +99,9 @@ namespace sys {
                 /** Dynamic width precision: Loom */
                 bool dynamic_weights = false;
 
+                /** CPU clock frequency */
+                uint64_t cpu_clock_freq = 0;
+
                 /** Dram size */
                 uint64_t dram_size = 0;
 
@@ -108,8 +111,11 @@ namespace sys {
                 /** DRAM start weights address */
                 uint32_t dram_start_wgt_address = 0;
 
-                /** Global buffer memory size */
-                uint32_t global_buffer_size = 0;
+                /** Global buffer activation memory size */
+                uint32_t global_buffer_act_size = 0;
+
+                /** Global buffer weight memory size */
+                uint32_t global_buffer_wgt_size = 0;
 
                 /** Global buffer act banks */
                 uint32_t global_buffer_act_banks = 0;
@@ -170,14 +176,8 @@ namespace sys {
             /** Network name */
             std::string network = "";
 
-            /** Network bits */
-            uint32_t network_bits = 0;
-
-            /** Tensorflow quantization */
-            bool tensorflow = false;
-
-            /** Intel INQ quantization */
-            bool intel_inq = false;
+            /** Network data width */
+            uint32_t data_width = 0;
 
             /** Array of experiments */
             std::vector<Experiment> experiments;

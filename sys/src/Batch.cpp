@@ -13,6 +13,29 @@ namespace sys {
         return success;
     }
 
+    uint64_t parse_frequency(const std::string &freq) {
+
+        if (std::regex_match(freq, std::regex("0*(GHz|MHz|KHz|Hz)$")))
+            return 0;
+
+        int base, power;
+
+        if (std::regex_match(freq, std::regex("[0-9]+GHz$")))
+            base = 10, power = 9;
+        else if (std::regex_match(freq, std::regex("[0-9]+MHz$")))
+            base = 10, power = 6;
+        else if (std::regex_match(freq, std::regex("[0-9]+KHz$")))
+            base = 10, power = 3;
+        else if (std::regex_match(freq, std::regex("[0-9]+Hz$")))
+            base = 10, power = 0;
+        else
+            throw std::exception();
+
+        auto npos = freq.find_first_of("GMKBi");
+        return std::stoul(freq.substr(0, npos)) * (uint64_t)pow(base, power);
+
+    }
+
     uint64_t parse_memory_size(const std::string &size) {
 
         if (std::regex_match(size, std::regex("0*(GB|GiB|MB|MiB|KB|KiB|B)$")))
@@ -47,8 +70,6 @@ namespace sys {
         Batch::Simulate simulate;
         simulate.network = simulate_proto.network();
         simulate.batch = simulate_proto.batch();
-        simulate.tensorflow = simulate_proto.tensorflow();
-        simulate.intel_inq = simulate_proto.intel_inq();
 
         const auto &model = simulate_proto.model();
         if(model  != "Caffe" && model != "CSV")
@@ -62,21 +83,23 @@ namespace sys {
         else
             simulate.data_type = simulate_proto.data_type();
 
-        if (dtype == "Float") simulate.network_bits = 32;
-        else simulate.network_bits = simulate_proto.network_bits() < 1 ? 16 : simulate_proto.network_bits();
+        if (dtype == "Float") simulate.data_width = 32;
+        else simulate.data_width = simulate_proto.data_width() < 1 ? 16 : simulate_proto.data_width();
 
-        if (simulate.network_bits > 16)
+        if (simulate.data_width > 16)
             throw std::runtime_error("Maximum data width allowed for Fixed data type is 16");
 
         for(const auto &experiment_proto : simulate_proto.experiment()) {
 
             Batch::Simulate::Experiment experiment;
-            experiment.n_lanes = experiment_proto.n_lanes() < 1 ? 16 : experiment_proto.n_lanes();
-            experiment.n_columns = experiment_proto.n_columns() < 1 ? 16 : experiment_proto.n_columns();
-            experiment.n_rows = experiment_proto.n_rows() < 1 ? 16 : experiment_proto.n_rows();
-            experiment.n_tiles = experiment_proto.n_tiles() < 1 ? 16 : experiment_proto.n_tiles();
-            experiment.column_registers = experiment_proto.column_registers();
-            experiment.bits_pe = experiment_proto.bits_pe() < 1 ? 16 : experiment_proto.bits_pe();
+
+            // Core parameters
+            try {
+                if (experiment_proto.cpu_clock_freq().empty()) experiment.cpu_clock_freq = (uint64_t)pow(10, 9);
+                else experiment.cpu_clock_freq = parse_frequency(experiment_proto.cpu_clock_freq());
+            } catch (const std::exception &e) {
+                throw std::runtime_error("Core frequency not recognised.");
+            }
 
             // Memory parameters
             try {
@@ -92,10 +115,18 @@ namespace sys {
                     experiment_proto.dram_start_wgt_address();
 
             try {
-                if (experiment_proto.global_buffer_size().empty()) experiment.global_buffer_size = (uint64_t)pow(10, 9);
-                else experiment.global_buffer_size = parse_memory_size(experiment_proto.global_buffer_size());
+                if (experiment_proto.global_buffer_act_size().empty())
+                    experiment.global_buffer_act_size = (uint64_t)pow(10, 9);
+                else experiment.global_buffer_act_size = parse_memory_size(experiment_proto.global_buffer_act_size());
             } catch (const std::exception &e) {
-                throw std::runtime_error("Global Buffer size not recognised.");
+                throw std::runtime_error("Global Buffer activation size not recognised.");
+            }
+            try {
+                if (experiment_proto.global_buffer_act_size().empty())
+                    experiment.global_buffer_wgt_size = (uint64_t)pow(10, 9);
+                else experiment.global_buffer_wgt_size = parse_memory_size(experiment_proto.global_buffer_wgt_size());
+            } catch (const std::exception &e) {
+                throw std::runtime_error("Global Buffer weights size not recognised.");
             }
             experiment.global_buffer_act_banks = experiment_proto.global_buffer_act_banks() < 1 ? 16 :
                     experiment_proto.global_buffer_act_banks();
@@ -131,6 +162,14 @@ namespace sys {
             experiment.out_buffer_write_delay = experiment_proto.out_buffer_write_delay() < 1 ? 1 :
                     experiment_proto.out_buffer_write_delay();
 
+            // Generic parameters
+            experiment.n_lanes = experiment_proto.lanes() < 1 ? 16 : experiment_proto.lanes();
+            experiment.n_columns = experiment_proto.columns() < 1 ? 16 : experiment_proto.columns();
+            experiment.n_rows = experiment_proto.rows() < 1 ? 16 : experiment_proto.rows();
+            experiment.n_tiles = experiment_proto.tiles() < 1 ? 16 : experiment_proto.tiles();
+            experiment.column_registers = experiment_proto.column_registers();
+            experiment.bits_pe = experiment_proto.pe_width() < 1 ? 16 : experiment_proto.pe_width();
+
             // BitPragmatic-Laconic
             experiment.booth = experiment_proto.booth_encoding();
             experiment.bits_first_stage = experiment_proto.bits_first_stage();
@@ -157,7 +196,6 @@ namespace sys {
             experiment.lookaside_d = experiment_proto.lookaside_d() < 1 ? 5 : experiment_proto.lookaside_d();
             experiment.search_shape = experiment_proto.search_shape().empty() ? "T" :
                     experiment_proto.search_shape();
-            experiment.read_schedule = experiment_proto.read_schedule();
 
             const auto &search_shape = experiment.search_shape;
             if(search_shape != "L" && search_shape != "T")
@@ -185,7 +223,7 @@ namespace sys {
             // Sanity check
             const auto &task = experiment_proto.task();
             if(task  != "Cycles" && task != "Potentials")
-                throw std::runtime_error("Task on network in Fixed must be <Cycles|Potentials>.");
+                throw std::runtime_error("Task must be <Cycles|Potentials>.");
 
             if (task == "Potentials" && experiment.diffy)
                 throw std::runtime_error("Diffy simulation on network is only allowed for <Cycles>.");
@@ -193,24 +231,36 @@ namespace sys {
             const auto &arch = experiment_proto.architecture();
             if (dtype == "Fixed" && arch != "DaDianNao" && arch != "Stripes" && arch != "ShapeShifter" &&
                     arch != "Loom" && arch != "BitPragmatic" && arch != "Laconic" && arch != "SCNN")
-                throw std::runtime_error("Architecture on network " + simulate.network +
-                    " in Fixed must be <DaDianNao|Stripes|ShapeShifter|Loom|BitPragmatic|Laconic|SCNN>.");
+                throw std::runtime_error("Architectures allowed for Fixed are <DaDianNao|Stripes|ShapeShifter|"
+                                         "Loom|BitPragmatic|Laconic|SCNN>.");
             else  if (dtype == "Float" && arch != "DaDianNao" && arch != "SCNN")
-                throw std::runtime_error("Architecture on network in Float must be <DaDianNao|SCNN>.");
+                throw std::runtime_error("Architectures allowed for Float data type are <DaDianNao|SCNN>.");
 
-            if (arch != "DaDianNao" && arch != "ShapeShifter" && arch != "BitPragmatic" && experiment.tactical)
-                throw std::runtime_error("Tactical simulation in Fixed is only allowed for backends "
+            if (dtype == "Fixed" && arch != "DaDianNao" && arch != "ShapeShifter" && arch != "BitPragmatic"
+                    && experiment.tactical)
+                throw std::runtime_error("Tactical simulation for Fixed data type is only allowed for backends "
                                          "<DaDianNao|ShapeShifter|BitPragmatic>");
+            else if (dtype == "Float" && arch != "DaDianNao" && experiment.tactical)
+                throw std::runtime_error("Tactical simulation for Float data type is only allowed for backends "
+                                         "<DaDianNao>");
+
+            if (dtype == "Float" && experiment.diffy)
+                throw std::runtime_error("Diffy simulation is not allowed for Float data type");
 
             if (arch != "ShapeShifter" && arch != "BitPragmatic" && experiment.diffy)
-                throw std::runtime_error("Diffy simulation on network in Fixed is only allowed for backends "
+                throw std::runtime_error("Diffy simulation for Fixed data type is only allowed for backends "
                                          "<ShapeShifter|BitPragmatic>");
 
             if (experiment.tactical && experiment.diffy)
                 throw std::runtime_error("Both Tactical and Diffy simulation are not allowed on the same experiment");
 
+            const auto &dataflow = experiment_proto.dataflow();
+            if (task == "Cycles" && arch != "SCNN" && dataflow != "WindowFirstOutS")
+                throw std::runtime_error("Dataflow on network " + simulate.network + " must be <WindowFirstOutS>.");
+
             experiment.architecture = experiment_proto.architecture();
             experiment.task = experiment_proto.task();
+            experiment.dataflow = experiment_proto.dataflow();
             simulate.experiments.emplace_back(experiment);
         }
 

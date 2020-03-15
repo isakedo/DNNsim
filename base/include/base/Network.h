@@ -22,13 +22,10 @@ namespace base {
         std::vector<Layer<T>> layers;
 
         /** Max number of bits for the network*/
-        uint32_t network_bits;
+        uint32_t data_width = 0;
 
-        /** Tensorflow quantization */
-        bool tensorflow;
-
-        /** Intel INQ quantization */
-        bool intel_inq;
+        /** Profiled quantization */
+        bool profiled = false;
 
     public:
 
@@ -37,26 +34,22 @@ namespace base {
 
         /** Constructor
          * @param _name             The name of the network
-         * @param _network_bits     Max number of bits of the network
-         * @param _tensorflow       Active tensorflow quantization
-         * @param _intel_inq        Active intel INQ
+         * @param _data_width       Max number of bits of the network
+         * @param _profiled         Active profiled quantization
          */
-        explicit Network(const std::string &_name, uint32_t _network_bits = 16, bool _tensorflow = false,
-                bool _intel_inq = false) : network_bits(_network_bits), tensorflow(_tensorflow),
-                intel_inq(_intel_inq) {
+        explicit Network(const std::string &_name, uint32_t _data_width = 16, bool _profiled = false) :
+                data_width(_data_width), profiled(_profiled) {
             name = _name;
         }
 
         /** Constructor
          * @param _name             The name of the network
          * @param _layers           Vector of layers
-         * @param _network_bits     Max number of bits of the network
-         * @param _tensorflow       Active tensorflow quantization
-         * @param _intel_inq        Active intel INQ
+         * @param _data_width       Max number of bits of the network
+         * @param _profiled         Active profiled quantization
          */
-        Network(const std::string &_name, const std::vector<Layer<T>> &_layers, uint32_t _network_bits = 16,
-                bool _tensorflow = false, bool _intel_inq = false) : network_bits(_network_bits),
-                tensorflow(_tensorflow), intel_inq(_intel_inq) {
+        Network(const std::string &_name, const std::vector<Layer<T>> &_layers, uint32_t _data_width = 16,
+                bool _profiled = false) : data_width(_data_width), profiled(_profiled) {
             name = _name; layers = _layers;
         }
 
@@ -73,22 +66,10 @@ namespace base {
         const std::vector<Layer<T>> &getLayers() const { return layers; }
 
         /**
-         * Get the network bits
-         * @return Network bits
+         * Get the network width
+         * @return Network width
          */
-        uint32_t getNetwork_bits() const { return network_bits; }
-
-        /**
-         * Get the tensorflow quantization
-         * @return True if tensorflow quantization
-         */
-        bool isTensorflow() const { return tensorflow; }
-
-        /**
-         * Get the Intel INQ quantization
-         * @return True if Intel INQ quantization
-         */
-        bool isIntelINQ() const { return intel_inq; }
+        uint32_t getNetworkWidth() const { return data_width; }
 
         /**
          * Get number of images in the layer traces
@@ -128,45 +109,37 @@ namespace base {
         std::vector<Layer<T>> &updateLayers() { return layers; }
 
         /**
-         * Set network bits
-         * @param _network_bits Network bits
+         * Set network width
+         * @param _network_width Network width
          */
-        void setNetwork_bits(uint32_t _network_bits) { Network::network_bits = _network_bits; }
+        void setNetworkWidth(uint32_t _network_width) { Network::data_width = _network_width; }
 
         /**
-         * Update tensorflow quantization flag
-         * @param _tensorflow True if tensorflow quantization
+         * Update profiled quantization flag
+         * @param _profiled True if profiled quantization
          */
-        void setTensorflow(bool _tensorflow) { Network::tensorflow = _tensorflow; }
-
-        /**
-         * Update Intel INQ quantization flag
-         * @param _intel_inq True if Intel INQ quantization
-         */
-        void setIntelINQ(bool _intel_inq) { Network::intel_inq = _intel_inq; }
+        void setProfiled(bool _profiled) { Network::profiled = _profiled; }
 
         /** Return a network in fixed point given a floating point network
          * @return   Network in fixed point
          */
         Network<uint16_t> fixed_point() {
-            auto fixed_network = Network<uint16_t>(name, network_bits, tensorflow, intel_inq);
+            auto fixed_network = Network<uint16_t>(name, data_width, profiled);
 
             for(auto &layer : layers) {
                 auto fixed_layer = Layer<uint16_t>(layer.getName(), layer.getType(), layer.getStride(),
                         layer.getPadding(), layer.getActPrecision(), layer.getActMagnitude(), layer.getActFraction(),
                         layer.getWgtPrecision(), layer.getWgtMagnitude(), layer.getWgtFraction());
 
-                if(tensorflow) fixed_layer.setActivations(layer.getActivations().tensorflow_fixed_point(network_bits));
-                else if(intel_inq) fixed_layer.setActivations(layer.getActivations().intel_inq_fixed_point(true));
-                else fixed_layer.setActivations(layer.getActivations().profiled_fixed_point(layer.getActMagnitude(),
+                if (profiled) fixed_layer.setActivations(layer.getActivations().profiled_quantization(layer.getActMagnitude(),
                         layer.getActFraction()));
-                layer.setActivations(Array<T>());
+                else fixed_layer.setActivations(layer.getActivations().linear_quantization(data_width));
+                layer.setActivations(Array<T>()); // Clear
 
-                if(tensorflow) fixed_layer.setWeights(layer.getWeights().tensorflow_fixed_point(network_bits));
-                else if(intel_inq) fixed_layer.setWeights(layer.getWeights().intel_inq_fixed_point(false));
-                else fixed_layer.setWeights(layer.getWeights().profiled_fixed_point(layer.getWgtMagnitude(),
+                if (profiled) fixed_layer.setWeights(layer.getWeights().profiled_quantization(layer.getWgtMagnitude(),
                         layer.getWgtFraction()));
-                layer.setWeights(Array<T>());
+                else fixed_layer.setWeights(layer.getWeights().linear_quantization(data_width));
+                layer.setWeights(Array<T>()); // Clear
 
                 fixed_network.updateLayers().emplace_back(fixed_layer);
             }

@@ -45,18 +45,14 @@ base::Network<T> read(const sys::Batch::Simulate &simulate, bool QUIET) {
     base::NetReader<T> reader = base::NetReader<T>(simulate.network, simulate.batch, 0, QUIET);
     if (simulate.model == "Caffe") {
         network = reader.read_network_caffe();
-        network.setNetwork_bits(simulate.network_bits);
-        network.setTensorflow(simulate.tensorflow);
-        network.setIntelINQ(simulate.intel_inq);
+        network.setNetworkWidth(simulate.data_width);
         reader.read_precision(network);
         reader.read_weights_npy(network);
         reader.read_activations_npy(network);
 
     } else if (simulate.model == "CSV") {
         network = reader.read_network_csv();
-        network.setNetwork_bits(simulate.network_bits);
-        network.setTensorflow(simulate.tensorflow);
-        network.setIntelINQ(simulate.intel_inq);
+        network.setNetworkWidth(simulate.data_width);
         reader.read_precision(network);
         reader.read_weights_npy(network);
         reader.read_activations_npy(network);
@@ -139,14 +135,15 @@ int main(int argc, char *argv[]) {
                         auto tracked_data = std::make_shared<std::map<uint64_t, uint64_t>>();
 
                         auto dram = std::make_shared<core::DRAM<float>>(tracked_data, experiment.dram_size,
-                                ceil(simulate.network_bits / 8.), experiment.dram_start_act_address,
-                                experiment.dram_start_wgt_address, "ini/DDR4_3200.ini", "system.ini", network.getName());
+                                ceil(experiment.bits_pe / 8.), experiment.cpu_clock_freq,
+                                experiment.dram_start_act_address, experiment.dram_start_wgt_address,
+                                "ini/DDR4_3200.ini", "system.ini", network.getName());
 
                         auto gbuffer = std::make_shared<core::GlobalBuffer<float>>(tracked_data,
-                                experiment.global_buffer_size, experiment.global_buffer_act_banks,
-                                experiment.global_buffer_wgt_banks, experiment.global_buffer_out_banks,
-                                experiment.global_buffer_bank_width, experiment.global_buffer_read_delay,
-                                experiment.global_buffer_write_delay);
+                                experiment.global_buffer_act_size, experiment.global_buffer_wgt_size,
+                                experiment.global_buffer_act_banks, experiment.global_buffer_wgt_banks,
+                                experiment.global_buffer_out_banks, experiment.global_buffer_bank_width,
+                                experiment.global_buffer_read_delay, experiment.global_buffer_write_delay);
 
                         auto abuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data,
                                 experiment.act_buffer_rows, experiment.act_buffer_read_delay,
@@ -163,9 +160,10 @@ int main(int argc, char *argv[]) {
                         auto scheduler = std::make_shared<core::BitTactical<float>>(experiment.lookahead_h,
                                 experiment.lookaside_d, experiment.search_shape.c_str()[0]);
 
-                        std::shared_ptr<core::Control<float>> control =
-                                std::make_shared<core::WindowFirstOutS<float>>(scheduler, dram, gbuffer, abuffer,
-                                wbuffer, obuffer);
+                        std::shared_ptr<core::Control<float>> control;
+                        if (experiment.dataflow == "WindowFirstOutS")
+                            control = std::make_shared<core::WindowFirstOutS<float>>(scheduler, dram, gbuffer, abuffer,
+                                    wbuffer, obuffer);
 
                         core::Simulator<float> DNNsim(FAST_MODE, QUIET, CHECK);
 
@@ -181,7 +179,7 @@ int main(int argc, char *argv[]) {
                         } else if (experiment.architecture == "DaDianNao") {
                             std::shared_ptr<core::Architecture<float>> arch =
                                     std::make_shared<core::DaDianNao<float>>(experiment.n_lanes, experiment.n_columns,
-                                    experiment.n_rows, experiment.n_tiles, experiment.bits_pe, experiment.tactical);
+                                    experiment.n_rows, experiment.n_tiles, simulate.data_width, experiment.tactical);
 
                             control->setArch(arch);
                             if (experiment.task == "Cycles") DNNsim.run(network, control);
@@ -202,14 +200,15 @@ int main(int argc, char *argv[]) {
                         auto tracked_data = std::make_shared<std::map<uint64_t, uint64_t>>();
 
                         auto dram = std::make_shared<core::DRAM<uint16_t>>(tracked_data, experiment.dram_size,
-                                ceil(simulate.network_bits / 8.), experiment.dram_start_act_address,
-                                experiment.dram_start_wgt_address, "ini/DDR4_3200.ini", "system.ini", network.getName());
+                                ceil(experiment.bits_pe / 8.), experiment.cpu_clock_freq,
+                                experiment.dram_start_act_address, experiment.dram_start_wgt_address,
+                                "ini/DDR4_3200.ini", "system.ini", network.getName());
 
                         auto gbuffer = std::make_shared<core::GlobalBuffer<uint16_t>>(tracked_data,
-                                experiment.global_buffer_size, experiment.global_buffer_act_banks,
-                                experiment.global_buffer_wgt_banks, experiment.global_buffer_out_banks,
-                                experiment.global_buffer_bank_width, experiment.global_buffer_read_delay,
-                                experiment.global_buffer_write_delay);
+                                experiment.global_buffer_act_size, experiment.global_buffer_wgt_size,
+                                experiment.global_buffer_act_banks, experiment.global_buffer_wgt_banks,
+                                experiment.global_buffer_out_banks, experiment.global_buffer_bank_width,
+                                experiment.global_buffer_read_delay, experiment.global_buffer_write_delay);
 
                         auto abuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data,
                                 experiment.act_buffer_rows, experiment.act_buffer_read_delay,
@@ -226,9 +225,10 @@ int main(int argc, char *argv[]) {
                         auto scheduler = std::make_shared<core::BitTactical<uint16_t>>(experiment.lookahead_h,
                                 experiment.lookaside_d, experiment.search_shape.c_str()[0]);
 
-                        std::shared_ptr<core::Control<uint16_t>> control =
-                                std::make_shared<core::WindowFirstOutS<uint16_t>>(scheduler, dram, gbuffer, abuffer,
-                                wbuffer, obuffer);
+                        std::shared_ptr<core::Control<uint16_t>> control;
+                        if (experiment.dataflow == "WindowFirstOutS")
+                            control = std::make_shared<core::WindowFirstOutS<uint16_t>>(scheduler, dram, gbuffer, abuffer,
+                                    wbuffer, obuffer);
 
                         core::Simulator<uint16_t> DNNsim(FAST_MODE, QUIET, CHECK);
 
@@ -244,7 +244,7 @@ int main(int argc, char *argv[]) {
                         } else if (experiment.architecture == "DaDianNao") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
                                     std::make_shared<core::DaDianNao<uint16_t>>(experiment.n_lanes,
-                                    experiment.n_columns, experiment.n_rows, experiment.n_tiles, experiment.bits_pe,
+                                    experiment.n_columns, experiment.n_rows, experiment.n_tiles, simulate.data_width,
                                     experiment.tactical);
 
                             control->setArch(arch);
@@ -254,7 +254,7 @@ int main(int argc, char *argv[]) {
                         } else if (experiment.architecture == "Stripes") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
                                     std::make_shared<core::Stripes<uint16_t>>(experiment.n_lanes, experiment.n_columns,
-                                    experiment.n_rows, experiment.n_tiles, experiment.bits_pe);
+                                    experiment.n_rows, experiment.n_tiles, simulate.data_width);
 
                             control->setArch(arch);
                             if (experiment.task == "Cycles") DNNsim.run(network, control);
@@ -263,7 +263,7 @@ int main(int argc, char *argv[]) {
                         } else if (experiment.architecture == "ShapeShifter") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
                                     std::make_shared<core::ShapeShifter<uint16_t>>(experiment.n_lanes,
-                                    experiment.n_columns, experiment.n_rows, experiment.n_tiles, experiment.bits_pe,
+                                    experiment.n_columns, experiment.n_rows, experiment.n_tiles, simulate.data_width,
                                     experiment.group_size, experiment.column_registers, experiment.minor_bit,
                                     experiment.diffy, experiment.tactical);
 
@@ -274,7 +274,7 @@ int main(int argc, char *argv[]) {
                         } else if (experiment.architecture == "Loom") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
                                     std::make_shared<core::Loom<uint16_t>>(experiment.n_lanes, experiment.n_columns,
-                                    experiment.n_rows, experiment.n_tiles, experiment.bits_pe, experiment.group_size,
+                                    experiment.n_rows, experiment.n_tiles, simulate.data_width, experiment.group_size,
                                     experiment.pe_serial_bits, experiment.minor_bit, experiment.dynamic_weights);
 
                             control->setArch(arch);
@@ -284,7 +284,7 @@ int main(int argc, char *argv[]) {
                         } else if (experiment.architecture == "BitPragmatic") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
                                     std::make_shared<core::BitPragmatic<uint16_t>>(experiment.n_lanes,
-                                    experiment.n_columns, experiment.n_rows, experiment.n_tiles, experiment.bits_pe,
+                                    experiment.n_columns, experiment.n_rows, experiment.n_tiles, simulate.data_width,
                                     experiment.bits_first_stage, experiment.column_registers, experiment.booth,
                                     experiment.diffy, experiment.tactical);
 
@@ -295,7 +295,7 @@ int main(int argc, char *argv[]) {
                         } else if (experiment.architecture == "Laconic") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
                                     std::make_shared<core::Laconic<uint16_t>>(experiment.n_lanes, experiment.n_columns,
-                                    experiment.n_rows, experiment.n_tiles, experiment.bits_pe, experiment.booth);
+                                    experiment.n_rows, experiment.n_tiles, simulate.data_width, experiment.booth);
 
                             control->setArch(arch);
                             if (experiment.task == "Cycles") DNNsim.run(network, control);

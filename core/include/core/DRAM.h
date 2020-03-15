@@ -35,10 +35,10 @@ namespace core {
     public:
 
         DRAM(const std::shared_ptr<std::map<uint64_t, uint64_t>> &_tracked_data, uint32_t _SIZE, uint32_t _DATA_SIZE,
-                uint32_t _START_ACT_ADDRESS, uint32_t _START_WGT_ADDRESS, const std::string &_dram_conf,
-                const std::string &_system_conf, const std::string &_network) : Memory<T>(_tracked_data),
-                DATA_SIZE(_DATA_SIZE), START_ACT_ADDRESS(_START_ACT_ADDRESS), START_WGT_ADDRESS(_START_WGT_ADDRESS),
-                VALUES_PER_BLOCK(8 / _DATA_SIZE) {
+                uint64_t clock_freq, uint32_t _START_ACT_ADDRESS, uint32_t _START_WGT_ADDRESS,
+                const std::string &_dram_conf, const std::string &_system_conf, const std::string &_network) :
+                Memory<T>(_tracked_data), DATA_SIZE(_DATA_SIZE), START_ACT_ADDRESS(_START_ACT_ADDRESS),
+                START_WGT_ADDRESS(_START_WGT_ADDRESS), VALUES_PER_BLOCK(8 / _DATA_SIZE) {
 
             dram_interface = DRAMSim::getMemorySystemInstance(_dram_conf, _system_conf, "./DRAMSim2/",
                     "DNNsim_" + _network, _SIZE);
@@ -48,6 +48,7 @@ namespace core {
 
             dram_interface->RegisterCallbacks(read_cb, nullptr, nullptr);
 
+            dram_interface->setCPUClockSpeed(clock_freq);
         }
 
         const uint32_t getStartActAddress() const;

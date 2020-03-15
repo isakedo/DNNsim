@@ -404,7 +404,7 @@ namespace core {
     uint16_t SCNN<T>::computeBits(T act, T wgt) {
         if(wgt == 0) return 0;
         else if(act == 0) return 0;
-        else return this->network_bits * this->network_bits;
+        else return this->network_width * this->network_width;
     }
 
     INITIALISE_DATA_TYPES(SCNN);
