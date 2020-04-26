@@ -109,9 +109,9 @@ namespace sys {
                 throw std::runtime_error("DRAM size not recognised.");
             }
 
-            experiment.dram_start_act_address = experiment_proto.dram_start_act_address() < 1 ? 0x4000000 :
+            experiment.dram_start_act_address = experiment_proto.dram_start_act_address() < 1 ? 0x40000000 :
                     experiment_proto.dram_start_act_address();
-            experiment.dram_start_wgt_address = experiment_proto.dram_start_wgt_address() < 1 ? 0x0000000 :
+            experiment.dram_start_wgt_address = experiment_proto.dram_start_wgt_address() < 1 ? 0x00000000 :
                     experiment_proto.dram_start_wgt_address();
 
             try {
@@ -122,7 +122,7 @@ namespace sys {
                 throw std::runtime_error("Global Buffer activation size not recognised.");
             }
             try {
-                if (experiment_proto.global_buffer_act_size().empty())
+                if (experiment_proto.global_buffer_wgt_size().empty())
                     experiment.global_buffer_wgt_size = (uint64_t)pow(10, 9);
                 else experiment.global_buffer_wgt_size = parse_memory_size(experiment_proto.global_buffer_wgt_size());
             } catch (const std::exception &e) {

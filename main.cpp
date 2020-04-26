@@ -22,8 +22,8 @@ THE SOFTWARE.
 #include <sys/Batch.h>
 
 #include <base/NetReader.h>
-
 #include <base/Network.h>
+
 #include <core/Simulator.h>
 #include <core/DRAM.h>
 #include <core/GlobalBuffer.h>
@@ -133,28 +133,30 @@ int main(int argc, char *argv[]) {
                     for(const auto &experiment : simulate.experiments) {
 
                         auto tracked_data = std::make_shared<std::map<uint64_t, uint64_t>>();
+                        auto act_addresses = std::make_shared<core::AddressRange>();
+                        auto wgt_addresses = std::make_shared<core::AddressRange>();
 
-                        auto dram = std::make_shared<core::DRAM<float>>(tracked_data, experiment.dram_size,
-                                ceil(experiment.pe_width / 8.), experiment.cpu_clock_freq,
+                        auto dram = std::make_shared<core::DRAM<float>>(tracked_data, act_addresses, wgt_addresses,
+                                experiment.dram_size, ceil(experiment.pe_width / 8.), experiment.cpu_clock_freq,
                                 experiment.dram_start_act_address, experiment.dram_start_wgt_address,
                                 "ini/DDR4_3200.ini", "system.ini", network.getName());
 
-                        auto gbuffer = std::make_shared<core::GlobalBuffer<float>>(tracked_data,
-                                experiment.global_buffer_act_size, experiment.global_buffer_wgt_size,
+                        auto gbuffer = std::make_shared<core::GlobalBuffer<float>>(tracked_data, act_addresses,
+                                wgt_addresses, experiment.global_buffer_act_size, experiment.global_buffer_wgt_size,
                                 experiment.global_buffer_act_banks, experiment.global_buffer_wgt_banks,
                                 experiment.global_buffer_out_banks, experiment.global_buffer_bank_width,
                                 experiment.global_buffer_read_delay, experiment.global_buffer_write_delay);
 
-                        auto abuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data,
-                                experiment.act_buffer_rows, experiment.act_buffer_read_delay,
+                        auto abuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data, act_addresses,
+                                wgt_addresses, experiment.act_buffer_rows, experiment.act_buffer_read_delay,
                                 experiment.act_buffer_write_delay);
 
-                        auto wbuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data,
-                                experiment.wgt_buffer_rows, experiment.wgt_buffer_read_delay,
+                        auto wbuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data, act_addresses,
+                                wgt_addresses, experiment.wgt_buffer_rows, experiment.wgt_buffer_read_delay,
                                 experiment.wgt_buffer_write_delay);
 
-                        auto obuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data,
-                                experiment.out_buffer_rows, experiment.out_buffer_read_delay,
+                        auto obuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data, act_addresses,
+                                wgt_addresses, experiment.out_buffer_rows, experiment.out_buffer_read_delay,
                                 experiment.out_buffer_write_delay);
 
                         auto scheduler = std::make_shared<core::BitTactical<float>>(experiment.lookahead_h,
@@ -198,28 +200,30 @@ int main(int argc, char *argv[]) {
                     for (const auto &experiment : simulate.experiments) {
 
                         auto tracked_data = std::make_shared<std::map<uint64_t, uint64_t>>();
+                        auto act_addresses = std::make_shared<core::AddressRange>();
+                        auto wgt_addresses = std::make_shared<core::AddressRange>();
 
-                        auto dram = std::make_shared<core::DRAM<uint16_t>>(tracked_data, experiment.dram_size,
-                                ceil(experiment.pe_width / 8.), experiment.cpu_clock_freq,
+                        auto dram = std::make_shared<core::DRAM<uint16_t>>(tracked_data, act_addresses, wgt_addresses,
+                                experiment.dram_size, ceil(experiment.pe_width / 8.), experiment.cpu_clock_freq,
                                 experiment.dram_start_act_address, experiment.dram_start_wgt_address,
                                 "ini/DDR4_3200.ini", "system.ini", network.getName());
 
-                        auto gbuffer = std::make_shared<core::GlobalBuffer<uint16_t>>(tracked_data,
-                                experiment.global_buffer_act_size, experiment.global_buffer_wgt_size,
+                        auto gbuffer = std::make_shared<core::GlobalBuffer<uint16_t>>(tracked_data, act_addresses,
+                                wgt_addresses, experiment.global_buffer_act_size, experiment.global_buffer_wgt_size,
                                 experiment.global_buffer_act_banks, experiment.global_buffer_wgt_banks,
                                 experiment.global_buffer_out_banks, experiment.global_buffer_bank_width,
                                 experiment.global_buffer_read_delay, experiment.global_buffer_write_delay);
 
-                        auto abuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data,
-                                experiment.act_buffer_rows, experiment.act_buffer_read_delay,
+                        auto abuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data, act_addresses,
+                                wgt_addresses, experiment.act_buffer_rows, experiment.act_buffer_read_delay,
                                 experiment.act_buffer_write_delay);
 
-                        auto wbuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data,
-                                experiment.wgt_buffer_rows, experiment.wgt_buffer_read_delay,
+                        auto wbuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data, act_addresses,
+                                wgt_addresses, experiment.wgt_buffer_rows, experiment.wgt_buffer_read_delay,
                                 experiment.wgt_buffer_write_delay);
 
-                        auto obuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data,
-                                experiment.out_buffer_rows, experiment.out_buffer_read_delay,
+                        auto obuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data, act_addresses,
+                                wgt_addresses, experiment.out_buffer_rows, experiment.out_buffer_read_delay,
                                 experiment.out_buffer_write_delay);
 
                         auto scheduler = std::make_shared<core::BitTactical<uint16_t>>(experiment.lookahead_h,

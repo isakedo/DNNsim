@@ -4,17 +4,17 @@
 namespace core {
 
     template <typename T>
-    const uint32_t LocalBuffer<T>::getRows() const {
+    uint32_t LocalBuffer<T>::getRows() const {
         return ROWS;
     }
 
     template <typename T>
-    const uint32_t LocalBuffer<T>::getReadDelay() const {
+    uint32_t LocalBuffer<T>::getReadDelay() const {
         return READ_DELAY;
     }
 
     template <typename T>
-    const uint32_t LocalBuffer<T>::getWriteDelay() const {
+    uint32_t LocalBuffer<T>::getWriteDelay() const {
         return WRITE_DELAY;
     }
 

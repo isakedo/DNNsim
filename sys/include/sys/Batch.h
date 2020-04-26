@@ -106,10 +106,10 @@ namespace sys {
                 uint64_t dram_size = 0;
 
                 /** DRAM start activations address */
-                uint32_t dram_start_act_address = 0;
+                uint64_t dram_start_act_address = 0;
 
                 /** DRAM start weights address */
-                uint32_t dram_start_wgt_address = 0;
+                uint64_t dram_start_wgt_address = 0;
 
                 /** Global buffer activation memory size */
                 uint32_t global_buffer_act_size = 0;

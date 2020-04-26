@@ -164,7 +164,7 @@ namespace core {
         for(auto image = 0; image < images; ++image) {
 
             // Iterate over the layers
-            for (auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
+            for (auto layer_it = network.getNumLayers() - 1; layer_it < network.getNumLayers(); ++layer_it) {
 
                 const base::Layer<T> &layer = network.getLayers()[layer_it];
                 bool conv = layer.getType() == "Convolution";
@@ -173,6 +173,8 @@ namespace core {
 
                 if (!QUIET) printf("Simulating image: %d/%lu for layer: %s\n", image + 1, images,
                         layer.getName().c_str());
+
+                if (conv) continue;
 
                 auto act = std::make_shared<base::Array<T>>(layer.getActivations());
                 arch->dataConversion(*act, layer.getActPrecision());
@@ -226,8 +228,8 @@ namespace core {
                 do {
 
                     // Feed off-chip data
-                    gbuffer->evict_data(control->getEvictAddresses());
-                    dram->read_data(control->getReadAddresses());
+                    gbuffer->evict_data(control->getIfEvictAct(), control->getIfEvictWgt());
+                    dram->read_data(control->getReadActAddresses(), control->getReadWgtAddresses());
 
                     bool still_data = control->still_on_chip_data(tiles_data);
                     while(still_data) {

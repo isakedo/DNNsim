@@ -14,10 +14,10 @@ add_custom_target(
 # Create library
 add_library(
         ${PROJECT_NAME}
-        include/core/Control.h
         include/core/Memory.h
         include/core/Architecture.h
         src/Utils.cpp
+        src/Control.cpp
         src/OutputStationary.cpp
         src/WindowFirstOutS.cpp
         src/DRAM.cpp

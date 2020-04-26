@@ -54,8 +54,8 @@ message Batch {
 
             // Memory parameters
             string dram_size = 28;
-            uint32 dram_start_act_address = 29;
-            uint32 dram_start_wgt_address = 30;
+            uint64 dram_start_act_address = 29;
+            uint64 dram_start_wgt_address = 30;
 
             string global_buffer_act_size = 31;
             string global_buffer_wgt_size = 32;

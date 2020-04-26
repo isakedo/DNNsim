@@ -21,8 +21,10 @@ namespace core {
 
         class Node {
         public:
-            std::vector<AddressRange> read_addresses;
-            std::vector<AddressRange> evict_addresses;
+            bool evict_act = false;
+            bool evict_wgt = false;
+            std::vector<AddressRange> read_act_addresses;
+            std::vector<AddressRange> read_wgt_addresses;
             std::vector<AddressRange> write_addresses;
         };
 
@@ -102,33 +104,19 @@ namespace core {
                 scheduler(_scheduler), dram(_dram), gbuffer(_gbuffer), abuffer(_abuffer), wbuffer(_wbuffer),
                 obuffer(_obuffer) {}
 
-        const std::shared_ptr<DRAM<T>> &getDram() const {
-            return dram;
-        }
+        const std::shared_ptr<DRAM<T>> &getDram() const;
 
-        const std::shared_ptr<GlobalBuffer<T>> &getGbuffer() const {
-            return gbuffer;
-        }
+        const std::shared_ptr<GlobalBuffer<T>> &getGbuffer() const;
 
-        const std::shared_ptr<LocalBuffer<T>> &getAbuffer() const {
-            return abuffer;
-        }
+        const std::shared_ptr<LocalBuffer<T>> &getAbuffer() const;
 
-        const std::shared_ptr<LocalBuffer<T>> &getWbuffer() const {
-            return wbuffer;
-        }
+        const std::shared_ptr<LocalBuffer<T>> &getWbuffer() const;
 
-        const std::shared_ptr<LocalBuffer<T>> &getObuffer() const {
-            return obuffer;
-        }
+        const std::shared_ptr<LocalBuffer<T>> &getObuffer() const;
 
-        const std::shared_ptr<Architecture<T>> &getArch() const {
-            return arch;
-        }
+        const std::shared_ptr<Architecture<T>> &getArch() const;
 
-        void setArch(const std::shared_ptr<Architecture<T>> &_arch) {
-            Control::arch = _arch;
-        }
+        void setArch(const std::shared_ptr<Architecture<T>> &_arch);
 
         /**
         * Return name for the dataflow
@@ -141,45 +129,17 @@ namespace core {
          */
         virtual void configure_layer(const std::shared_ptr<base::Array<T>> &_act,
                 const std::shared_ptr<base::Array<T>> &_wgt, uint32_t act_prec, uint32_t wgt_prec, bool _linear,
-                bool _lstm, int _stride) {
+                bool _lstm, int _stride);
 
-            act = _act;
-            wgt = _wgt;
-            linear = _linear;
-            lstm = _lstm;
+        const std::vector<AddressRange> &getReadActAddresses() const;
 
-            stride = _stride;
+        const std::vector<AddressRange> &getReadWgtAddresses() const;
 
-            ACT_BLKS = (uint32_t) ceil(act_prec / (double) arch->getPeWidth());
-            WGT_BLKS = (uint32_t) ceil(wgt_prec / (double) arch->getPeWidth());
+        bool getIfEvictAct() const;
 
-            EF_LANES = arch->getLanes();
-            EF_COLUMNS = arch->getColumns() / ACT_BLKS;
-            EF_ROWS = arch->getRows() / WGT_BLKS;
+        bool getIfEvictWgt() const;
 
-            layer_act_on_chip = next_layer_act_on_chip;
-            next_layer_act_on_chip = false;
-
-            dram->configure_layer();
-            gbuffer->configure_layer();
-            abuffer->configure_layer();
-            wbuffer->configure_layer();
-            obuffer->configure_layer();
-            arch->configure_layer(act_prec, wgt_prec, -1, _linear, EF_COLUMNS);
-        }
-
-        const std::vector<AddressRange> &getReadAddresses() {
-            return on_chip_graph.front()->read_addresses;
-        }
-
-        const std::vector<AddressRange> &getEvictAddresses() {
-            return on_chip_graph.front()->evict_addresses;
-        }
-
-        bool still_off_chip_data() {
-            on_chip_graph.erase(on_chip_graph.begin());
-            return !on_chip_graph.empty();
-        }
+        bool still_off_chip_data();
 
         /**
          * Return if still data to process
@@ -188,12 +148,7 @@ namespace core {
          */
         virtual bool still_on_chip_data(std::vector<TileData<T>> &tiles_data) = 0;
 
-        bool check_if_write_output(std::vector<TileData<T>> &tiles_data) {
-            for (const auto &tile_data : tiles_data)
-                if (!tile_data.out_banks.empty())
-                    return true;
-            return false;
-        }
+        bool check_if_write_output(std::vector<TileData<T>> &tiles_data);
 
     };
 

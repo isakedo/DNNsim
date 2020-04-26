@@ -18,13 +18,18 @@ namespace core {
 
         std::shared_ptr<std::map<uint64_t, uint64_t>> tracked_data;
 
+        std::shared_ptr<AddressRange> act_addresses;
+
+        std::shared_ptr<AddressRange> wgt_addresses;
+
         /** Global cycle */
         std::shared_ptr<uint64_t> global_cycle;
 
     public:
 
-        explicit Memory(const std::shared_ptr<std::map<uint64_t, uint64_t>> &_tracked_data) :
-                tracked_data(_tracked_data) {}
+        Memory(const std::shared_ptr<std::map<uint64_t, uint64_t>> &_tracked_data,
+                const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_wgt_addresses)
+                : tracked_data(_tracked_data), act_addresses(_act_addresses), wgt_addresses(_wgt_addresses) {}
 
         /**
          * Set shared global cycle

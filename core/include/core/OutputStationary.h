@@ -17,16 +17,10 @@ namespace core {
         class NodeOutS : public Control<T>::Node {
         public:
             uint64_t recurrence = 0;
-            uint64_t start_channel = 0;
-            uint64_t end_channel = 0;
-            std::vector<int> groups;
+            uint64_t time_step = 0;
+            uint64_t max_time = 0;
             std::vector<int> window_sets;
             std::vector<int> filter_sets;
-        };
-
-        struct BufferAddresses {
-            uint64_t first_address = 0;
-            uint64_t last_address = 0;
         };
 
         /** Weight buffer */
@@ -36,7 +30,7 @@ namespace core {
         AddressBuffer wgt_address_buffer;
 
         /** Weight Addresses map */
-        BufferAddresses wgt_address_map;
+        std::vector<AddressRange> wgt_address_map;
 
         /** Weight banks buffer */
         BankBuffer wgt_bank_buffer;
@@ -64,17 +58,11 @@ namespace core {
 
         int out_y = 0;
 
-        /** Number of layer groups */
-        uint64_t groups = 0;
-
         /** Number of window sets */
         uint64_t window_sets = 0;
 
         /** Number of filter sets */
         uint64_t filter_sets = 0;
-
-        /** Number of fitlers per group */
-        uint64_t filters_per_group = 0;
 
         /** Maximum buffer depth */
         uint64_t max_buffer_time = 0;
@@ -84,9 +72,6 @@ namespace core {
 
         /** List of filters per tile */
         std::vector<std::vector<int>> filters;
-
-        /** Group iterator */
-        int group_it = 0;
 
         /** Window iterator */
         int window_set_it = 0;
@@ -116,11 +101,11 @@ namespace core {
         /**
          * Fill the window buffer with the activations to process
          */
-        void fill_window_buffer(uint64_t group_idx);
+        void fill_window_buffer();
 
         virtual void configure_layer(const std::shared_ptr<base::Array<T>> &_act,
-                const std::shared_ptr<base::Array<T>> &_wgt, bool _linear, bool _lstm, int _stride,
-                uint32_t _EF_COLUMNS, uint32_t _EF_ROWS);
+                const std::shared_ptr<base::Array<T>> &_wgt, uint32_t act_prec, uint32_t wgt_prec, bool _linear,
+                bool _lstm, int _stride);
 
     public:
 
