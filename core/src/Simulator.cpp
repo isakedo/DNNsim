@@ -164,7 +164,7 @@ namespace core {
         for(auto image = 0; image < images; ++image) {
 
             // Iterate over the layers
-            for (auto layer_it = network.getNumLayers() - 1; layer_it < network.getNumLayers(); ++layer_it) {
+            for (auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
                 const base::Layer<T> &layer = network.getLayers()[layer_it];
                 bool conv = layer.getType() == "Convolution";

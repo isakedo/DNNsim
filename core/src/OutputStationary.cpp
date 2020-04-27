@@ -114,7 +114,7 @@ namespace core {
         // Addresses buffer
         auto addresses_per_row = (uint64_t)ceil(this->EF_LANES / (double)this->dram->getValuesPerBlock()) * this->EF_ROWS;
         wgt_address_buffer = AddressBuffer(filter_sets, AddressBufferSet(max_buffer_time,
-                AddressBufferRow(addresses_per_row)));
+                AddressBufferRow(addresses_per_row, NULL_ADDR)));
 
         wgt_address_map = std::vector<AddressRange>(filter_sets, AddressRange());
 
@@ -241,7 +241,7 @@ namespace core {
 
                             int addr_pos = w * addresses_per_window + index / this->dram->getValuesPerBlock();
                             window_address_buffer[buffer_time][addr_pos] = act_address_map[y_window + y]
-                            [x_window + x][ch / this->dram->getValuesPerBlock()];
+                                    [x_window + x][ch / this->dram->getValuesPerBlock()];
 
                             int bank_pos = w * accesses_per_window +
                                     (index * this->dram->getDataSize()) / this->gbuffer->getBankWidth();

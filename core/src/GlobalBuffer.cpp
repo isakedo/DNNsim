@@ -75,6 +75,9 @@ namespace core {
 
             for (const auto &tile_data : tiles_data) {
 
+                if (!tile_data.valid)
+                    continue;
+
                 // Update start time
                 for (const auto &act_addr_row : tile_data.act_addresses)
                     for (const auto &act_addr : act_addr_row)
@@ -107,6 +110,9 @@ namespace core {
             auto bank_conflicts = std::vector<int>(WGT_BANKS, 0);
 
             for (const auto &tile_data : tiles_data) {
+
+                if (!tile_data.valid)
+                    continue;
 
                 // Start time
                 for (const auto &wgt_addr : tile_data.wgt_addresses)

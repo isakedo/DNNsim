@@ -21,6 +21,7 @@ namespace core {
             uint64_t max_time = 0;
             std::vector<int> window_sets;
             std::vector<int> filter_sets;
+            bool use_prev_buffer = false;
         };
 
         /** Weight buffer */

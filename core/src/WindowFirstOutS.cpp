@@ -188,7 +188,6 @@ namespace core {
             // Check if all activations fit on-chip
             if (all_input_size + all_output_size < this->gbuffer->getActSize()) {
 
-                // TODO Fix this for fc8
                 auto filter_sets_per_step = this->gbuffer->getWgtSize() / filter_set_size;
                 auto total_filter_sets = ceil(num_filters / (double)working_set_filters);
                 auto filter_steps = ceil(total_filter_sets / (double)filter_sets_per_step);
@@ -224,8 +223,10 @@ namespace core {
                         auto last_address = std::get<1>(this->wgt_address_map[start_filter_set + last_filter_set - 1]);
                         node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
 
-                        if (r != 0 || fstep != 0)
+                        if (r != 0 || fstep != 0) {
                             node->evict_wgt = true;
+                            node->use_prev_buffer = true;
+                        }
 
                         this->on_chip_graph[r * filter_steps + fstep] = node;
 
@@ -287,7 +288,6 @@ namespace core {
                                     this->max_buffer_time) - 1;
 
                             uint64_t first_address = NULL_ADDR, last_address = NULL_ADDR;
-                            // TODO Fix tactical
                             if (this->arch->schedule()) {
                                 for (int tmp = start_time; tmp <= end_time; ++tmp) {
                                     if (this->wgt_address_buffer[start_filter_set][tmp].front() != NULL_ADDR) {
@@ -313,8 +313,10 @@ namespace core {
 
                             node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
 
-                            if (r != 0 || fstep != 0 || tstep != 0)
+                            if (r != 0 || fstep != 0 || tstep != 0) {
                                 node->evict_wgt = true;
+                                node->use_prev_buffer = true;
+                            }
 
                             this->on_chip_graph[r * filter_steps * time_steps + fstep * time_steps + tstep] = node;
 
@@ -364,11 +366,12 @@ namespace core {
         const auto &filter_tile_sets = current_node->filter_sets;
         const auto &time_step = current_node->time_step;
         const auto &max_time = current_node->max_time;
+        const auto &use_prev_buffer = current_node->use_prev_buffer;
 
         while (this->window_set_it < window_sets.size()) {
 
             // Fill window buffer
-            if (!this->window_buffer_filled) {
+            if (!use_prev_buffer && !this->window_buffer_filled) {
 
                 // Select windows
                 auto window_idx = window_sets[this->window_set_it] * this->EF_COLUMNS;
@@ -509,9 +512,10 @@ namespace core {
         const auto &filter_tile_sets = current_node->filter_sets;
         const auto &time_step = current_node->time_step;
         const auto &max_time = current_node->max_time;
+        const auto &use_prev_buffer = current_node->use_prev_buffer;
 
         // Fill window buffer
-        if (!this->window_buffer_filled) { // Avoid filling the buffer for subset of channels
+        if (!use_prev_buffer && !this->window_buffer_filled) {
             this->windows = {std::make_tuple(0, 0)};
             this->fill_window_buffer();
             this->window_buffer_filled = true;

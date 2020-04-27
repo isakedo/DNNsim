@@ -45,6 +45,9 @@ namespace core {
         try {
             for (const auto &tile_data : tiles_data) {
 
+                if (!tile_data.valid)
+                    continue;
+
                 for (const auto &act_addr_row : tile_data.act_addresses)
                     for (const auto &act_addr : act_addr_row)
                         if (act_addr != NULL_ADDR && (*this->tracked_data).at(act_addr) == NULL_TIME)
