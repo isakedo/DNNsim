@@ -25,7 +25,6 @@ namespace core {
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
 
-        auto last_act_index = (int)ceil(act_channels / (double)this->dram->getValuesPerBlock()) - 1;
 
         // Try to fit whole layer
         auto all_input = act_channels * Nx * Ny * this->dram->getDataSize();
@@ -124,7 +123,7 @@ namespace core {
         auto num_filters = wgt_shape[0];
         auto wgt_channels = wgt_shape[1];
 
-        auto last_act_index = (int)ceil(act_channels / (double)this->dram->getValuesPerBlock()) - 1;
+        auto last_act_blk = (uint64_t)ceil(act_channels / (double)this->dram->getValuesPerBlock());
 
         auto all_input_size = act_channels * this->dram->getDataSize();
         auto all_output_size = num_filters * this->dram->getDataSize();
@@ -133,6 +132,7 @@ namespace core {
 
         auto working_set_filters = std::min((uint32_t)num_filters, this->EF_ROWS * this->arch->getTiles());
         auto filter_set_size = wgt_channels * working_set_filters * this->dram->getDataSize();
+        auto working_set_output = working_set_filters * this->dram->getDataSize();
 
         // Check if all filters fit on-chip
         if (all_filters_size < this->gbuffer->getWgtSize()) {
@@ -156,11 +156,10 @@ namespace core {
                     node->filter_sets = std::vector<int>(this->filter_sets, 0);
                     std::iota(node->filter_sets.begin(), node->filter_sets.end(), 0);
 
-                    // First read activations
                     if (r == 0) {
                         if (!this->layer_act_on_chip) {
                             auto first_address = this->act_address_map[0][0][0];
-                            auto last_address = this->act_address_map[0][0][last_act_index];
+                            auto last_address = this->act_address_map[0][0][last_act_blk - 1];
                             node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
                         }
 
@@ -175,12 +174,133 @@ namespace core {
 
             } // all activations fit on-chip
 
+            // Check if all activations and at least output fit on-chip
+            else if (all_input_size + working_set_output < this->gbuffer->getActSize()) {
+
+                auto output_left_size = this->gbuffer->getActSize() - all_input_size;
+                auto filter_sets_per_step = output_left_size / working_set_output;
+                auto total_filter_sets = ceil(num_filters / (double)working_set_filters);
+                auto filter_steps = ceil(total_filter_sets / (double)filter_sets_per_step);
+                assert(filter_steps != 1);
+
+                this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences * filter_steps);
+
+                for (int r = 0; r < recurrences; ++r) {
+                    for (int fstep = 0; fstep < filter_steps; ++fstep) {
+
+                        auto node = std::make_shared<typename OutputStationary<T>::NodeOutS>();
+
+                        // Fill parameters
+                        node->time_step = 0;
+                        node->max_time = this->max_buffer_time;
+                        node->recurrence = r;
+
+                        // Fil filters
+                        auto start_filter_set = fstep * filter_sets_per_step * this->arch->getTiles();
+                        auto last_filter_set = std::min(filter_sets_per_step * this->arch->getTiles(),
+                                this->filter_sets - start_filter_set);
+                        node->filter_sets = std::vector<int>(last_filter_set, 0);
+                        std::iota(node->filter_sets.begin(), node->filter_sets.end(),  start_filter_set);
+
+                        if (fstep == 0 && ((!this->layer_act_on_chip && r == 0) || r != 0)) {
+                            auto first_address = this->act_address_map[0][0][0];
+                            auto last_address = this->act_address_map[0][0][last_act_blk - 1];
+                            node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
+                        }
+
+                        if (r == 0) {
+                            auto first_address = std::get<0>(this->wgt_address_map[start_filter_set]);
+                            auto last_address = std::get<1>(this->wgt_address_map[start_filter_set + last_filter_set - 1]);
+                            node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
+                        }
+
+                        //TODO Write addresses
+
+                        if (r != 0 && fstep == 0)
+                            node->evict_act = true;
+
+                        if (fstep != 0)
+                            node->use_prev_buffer = true;
+
+                        this->on_chip_graph[r * filter_steps + fstep] = node;
+
+                    }
+                }
+
+            } // Check if all activations and at least output fit on-chip
+
             // Check if a subset of channels fit on-chip
             else {
-                throw std::runtime_error("TODO");
-            }
 
-        }
+                assert(!this->layer_act_on_chip);
+
+                auto input_left_size = this->gbuffer->getActSize() - working_set_output;
+                assert(input_left_size < this->gbuffer->getActSize());
+
+                auto time_steps = (uint64_t)ceil(all_input_size / (double)input_left_size);
+                auto max_time_per_step = ceil(this->max_buffer_time / (double)time_steps);
+                auto blocks_per_time = ceil(last_act_blk / (double)this->max_buffer_time);
+                auto blocks_per_step = max_time_per_step * blocks_per_time;
+                assert(time_steps != 1);
+
+                auto filter_steps = ceil(num_filters / (double)working_set_filters);
+
+                this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences * filter_steps
+                        * time_steps);
+
+                for (int r = 0; r < recurrences; ++r) {
+                    for (int fstep = 0; fstep < filter_steps; ++fstep) {
+
+                        auto start_filter_set = fstep * this->arch->getTiles();
+                        auto last_filter_set = std::min(this->arch->getTiles(),
+                                (uint32_t)(this->filter_sets - start_filter_set));
+
+                        for (int tstep = 0; tstep < time_steps; ++tstep) {
+
+                            auto node = std::make_shared<typename OutputStationary<T>::NodeOutS>();
+
+                            node->time_step = tstep;
+                            node->max_time = max_time_per_step;
+                            node->recurrence = r;
+
+                            // Fil filters
+                            node->filter_sets = std::vector<int>(last_filter_set, 0);
+                            std::iota(node->filter_sets.begin(), node->filter_sets.end(), start_filter_set);
+
+                            auto start_act_blk = tstep * blocks_per_step;
+                            auto end_act_blk = std::min((uint64_t) ((tstep + 1) * blocks_per_step), last_act_blk);
+
+                            if (this->arch->schedule()) {
+                                end_act_blk += this->scheduler->getLookaheadH() * blocks_per_time;
+                                end_act_blk = std::min(end_act_blk, last_act_blk);
+                            }
+
+                            auto first_address = this->act_address_map[0][0][start_act_blk];
+                            auto last_address = this->act_address_map[0][0][end_act_blk - 1];
+                            node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
+
+                            if (r == 0 && tstep == 0) {
+                                first_address = std::get<0>(this->wgt_address_map[start_filter_set]);
+                                last_address = std::get<1>(this->wgt_address_map[start_filter_set + last_filter_set - 1]);
+                                node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
+                            }
+
+                            //TODO Write addresses
+
+                            if (fstep != 0 || tstep != 0) {
+                                node->evict_act = true;
+                                node->use_prev_buffer = true;
+                            }
+
+                            this->on_chip_graph[r * filter_steps * time_steps + fstep * time_steps + tstep] = node;
+
+                        }
+                    }
+                }
+
+            } // Check if a subset of channels fit on-chip
+
+        } // Check if all filters fit on-chip
 
         // Check if a set of filters fit on-chip
         else if (filter_set_size < this->gbuffer->getWgtSize()) {
@@ -215,7 +335,7 @@ namespace core {
                         // First read activations
                         if (r == 0 && fstep == 0 && !this->layer_act_on_chip) {
                             auto first_address = this->act_address_map[0][0][0];
-                            auto last_address = this->act_address_map[0][0][last_act_index];
+                            auto last_address = this->act_address_map[0][0][last_act_blk - 1];
                             node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
                         }
 
@@ -237,12 +357,17 @@ namespace core {
 
             } // all activations fit on-chip
 
+            // Check if all activations and at least output fit on-chip
+            else if (all_input_size + working_set_output < this->gbuffer->getActSize()) {
+                throw std::runtime_error("TODO");
+            } // Check if all activations and at least output fit on-chip
+
             // Check if a subset of channels fit on-chip
             else {
                 throw std::runtime_error("TODO");
             }
 
-        }
+        } // Check if a set of filters fit on-chip
 
         // Check if a subset of channels fit on-chip
         else {
@@ -261,6 +386,12 @@ namespace core {
 
                 for (int r = 0; r < recurrences; ++r) {
                     for (int fstep = 0; fstep < filter_steps; ++fstep) {
+
+                        auto start_filter_set = fstep * this->arch->getTiles();
+                        auto last_filter_set = std::min((uint64_t)this->arch->getTiles(),
+                                this->filter_sets - start_filter_set);
+                        auto end_filter_set = start_filter_set + last_filter_set - 1;
+
                         for (int tstep = 0; tstep < time_steps; ++tstep) {
 
                             auto node = std::make_shared<typename OutputStationary<T>::NodeOutS>();
@@ -270,17 +401,13 @@ namespace core {
                             node->recurrence = r;
 
                             // Fil filters
-                            auto start_filter_set = fstep * this->arch->getTiles();
-                            auto last_filter_set = std::min((uint64_t)this->arch->getTiles(),
-                                    this->filter_sets - start_filter_set);
-                            auto end_filter_set = start_filter_set + last_filter_set - 1;
                             node->filter_sets = std::vector<int>(last_filter_set, 0);
                             std::iota(node->filter_sets.begin(), node->filter_sets.end(),  start_filter_set);
 
                             // First read activations
                             if (r == 0 && fstep == 0 && tstep == 0 && !this->layer_act_on_chip) {
                                 auto first_address = this->act_address_map[0][0][0];
-                                auto last_address = this->act_address_map[0][0][last_act_index];
+                                auto last_address = this->act_address_map[0][0][last_act_blk - 1];
                                 node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
                             }
 
@@ -328,12 +455,17 @@ namespace core {
 
             } // all activations fit on-chip
 
+                // Check if all activations and at least output fit on-chip
+            else if (all_input_size + working_set_output < this->gbuffer->getActSize()) {
+                throw std::runtime_error("TODO");
+            } // Check if all activations and at least output fit on-chip
+
             // Check if a subset of channels fit on-chip
             else {
                 throw std::runtime_error("TODO");
             }
 
-        }
+        } // Check if a subset of channels fit on-chip
 
     }
 
@@ -559,8 +691,8 @@ namespace core {
                 while (this->time[t] < max_time) {
                     auto set_time = time_step * max_time + this->time[t];
 
-                    if (set_time > this->max_buffer_time)
-                        continue;
+                    if (set_time >= this->max_buffer_time)
+                        break;
 
                     if (this->arch->schedule()) {
 
