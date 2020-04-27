@@ -223,10 +223,11 @@ namespace core {
                         auto last_address = std::get<1>(this->wgt_address_map[start_filter_set + last_filter_set - 1]);
                         node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
 
-                        if (r != 0 || fstep != 0) {
+                        if (r != 0 || fstep != 0)
                             node->evict_wgt = true;
+
+                        if (fstep != 0)
                             node->use_prev_buffer = true;
-                        }
 
                         this->on_chip_graph[r * filter_steps + fstep] = node;
 
@@ -313,10 +314,11 @@ namespace core {
 
                             node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
 
-                            if (r != 0 || fstep != 0 || tstep != 0) {
+                            if (r != 0 || fstep != 0 || tstep != 0)
                                 node->evict_wgt = true;
+
+                            if (fstep != 0 || tstep != 0)
                                 node->use_prev_buffer = true;
-                            }
 
                             this->on_chip_graph[r * filter_steps * time_steps + fstep * time_steps + tstep] = node;
 
@@ -508,7 +510,6 @@ namespace core {
         // Select values from current node
         const auto &current_node = std::static_pointer_cast<typename OutputStationary<T>::NodeOutS>
                 (this->on_chip_graph.front());
-        const auto &recurrence = current_node->recurrence;
         const auto &filter_tile_sets = current_node->filter_sets;
         const auto &time_step = current_node->time_step;
         const auto &max_time = current_node->max_time;
