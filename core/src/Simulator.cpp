@@ -6,7 +6,7 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    void check_result_channel_first(const OutputTensor &sim_output, const std::shared_ptr<base::Array<T>> &act,
+    void check_result(const OutputTensor &sim_output, const std::shared_ptr<base::Array<T>> &act,
             const std::shared_ptr<base::Array<T>> &wgt, uint64_t Ox, uint64_t Oy, int stride, bool lstm) {
 
         const std::vector<size_t> &act_shape = act->getShape();
@@ -297,7 +297,7 @@ namespace core {
 
                 } while(control->still_off_chip_data());
 
-                if (CHECK) check_result_channel_first(sim_output, act, wgt, Ox, Oy, stride, lstm);
+                if (CHECK) check_result(sim_output, act, wgt, Ox, Oy, stride, lstm);
 
                 // Dump stats
                 cycles->value[layer_it][image] = *global_cycle;
