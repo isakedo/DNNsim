@@ -5,6 +5,8 @@
 
 namespace core {
 
+    enum MemPolicy { ALL, SET, SUBSET };
+
     /**
      * Generic Output Stationary dataflow
      * @tparam T Data type values

@@ -134,644 +134,177 @@ namespace core {
         auto filter_set_size = wgt_channels * working_set_filters * this->dram->getDataSize();
         auto working_set_output = working_set_filters * this->dram->getDataSize();
 
-        // Check if all filters fit on-chip
-        if (all_filters_size < this->gbuffer->getWgtSize()) {
+        MemPolicy act_policy;
+        if (all_input_size + all_output_size < this->gbuffer->getActSize()) act_policy = ALL;
+        else if (all_input_size + working_set_output < this->gbuffer->getActSize()) act_policy = SET;
+        else act_policy = SUBSET;
 
-            // Check if all activations fit on-chip
-            if (all_input_size + all_output_size < this->gbuffer->getActSize()) {
+        MemPolicy wgt_policy;
+        if (all_filters_size < this->gbuffer->getWgtSize()) wgt_policy = ALL;
+        else if (filter_set_size < this->gbuffer->getWgtSize()) wgt_policy = SET;
+        else wgt_policy = SUBSET;
 
-                this->next_layer_act_on_chip = true;
-                this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences);
+        uint32_t time_steps_act = 1, time_steps_wgt = 1;
+        auto total_filter_sets = (uint32_t)ceil(num_filters / (double)working_set_filters);
+        auto filter_sets_per_step_act = total_filter_sets, filter_sets_per_step_wgt = total_filter_sets;
 
-                for (int r = 0; r < recurrences; ++r) {
+        if (act_policy == ALL) {
+            this->next_layer_act_on_chip = true;
+        } else if (act_policy == SET) {
+            auto output_left_size = this->gbuffer->getActSize() - all_input_size;
+            filter_sets_per_step_act = output_left_size / working_set_output;
+            assert(filter_sets_per_step_act != this->filter_sets);
+        } else {
+            auto input_left_size = this->gbuffer->getActSize() - working_set_output;
+            assert(input_left_size < this->gbuffer->getActSize());
+
+            filter_sets_per_step_act = 1;
+            time_steps_act = (uint64_t)ceil(all_input_size / (double)input_left_size);
+            assert(time_steps_act != 1);
+
+            assert(!this->layer_act_on_chip);
+        }
+
+        if (wgt_policy == ALL) {
+            // None
+        } else if (wgt_policy == SET) {
+            filter_sets_per_step_wgt = this->gbuffer->getWgtSize() / filter_set_size;
+            assert(filter_sets_per_step_wgt != this->filter_sets);
+        } else {
+            filter_sets_per_step_wgt = 1;
+            time_steps_wgt = (uint64_t)ceil(filter_set_size / (double)this->gbuffer->getWgtSize());
+            assert(time_steps_wgt != 1);
+        }
+
+        uint32_t filter_sets_per_step = std::min(filter_sets_per_step_act, filter_sets_per_step_wgt);
+        uint32_t filter_steps = ceil(total_filter_sets / (double)filter_sets_per_step);
+
+        auto time_steps = std::max(time_steps_act, time_steps_wgt);
+        auto max_time_per_step = (uint32_t)ceil(this->max_buffer_time / (double)time_steps);
+        auto blocks_per_time = (uint32_t)ceil(last_act_blk / (double)this->max_buffer_time);
+        auto blocks_per_step = max_time_per_step * blocks_per_time;
+
+        this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences * filter_steps
+                * time_steps);
+
+        for (int r = 0; r < recurrences; ++r) {
+            for (int fstep = 0; fstep < filter_steps; ++fstep) {
+
+                auto start_filter_set = fstep * filter_sets_per_step * this->arch->getTiles();
+                auto last_filter_set = std::min((uint64_t)filter_sets_per_step * this->arch->getTiles(),
+                        this->filter_sets - start_filter_set);
+                auto end_filter_set = start_filter_set + last_filter_set;
+
+                for (int tstep = 0; tstep < time_steps; ++tstep) {
 
                     auto node = std::make_shared<typename OutputStationary<T>::NodeOutS>();
 
-                    // Fill parameters
-                    node->time_step = 0;
-                    node->max_time = this->max_buffer_time;
+                    node->time_step = tstep;
+                    node->max_time = max_time_per_step;
                     node->recurrence = r;
 
+                    // Fil activations
+                    if (act_policy == ALL) {
+                        if (r == 0 && fstep == 0 && tstep == 0 && !this->layer_act_on_chip) {
+                            auto first_address = this->act_address_map[0][0][0];
+                            auto last_address = this->act_address_map[0][0][last_act_blk - 1];
+                            node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
+                        }
+
+                        if (fstep != 0 || tstep != 0)
+                            node->use_prev_buffer = true;
+
+                    } else if (act_policy == SET) {
+                        if (fstep == 0 && ((!this->layer_act_on_chip && r == 0) || r != 0)) {
+                            auto first_address = this->act_address_map[0][0][0];
+                            auto last_address = this->act_address_map[0][0][last_act_blk - 1];
+                            node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
+                            node->evict_act = true;
+                        }
+
+                        // TODO Write addresses
+
+                        if (fstep != 0)
+                            node->use_prev_buffer = true;
+
+                    } else {
+                        auto start_act_blk = tstep * blocks_per_step;
+                        auto end_act_blk = std::min((uint64_t) ((tstep + 1) * blocks_per_step), last_act_blk);
+
+                        if (this->arch->schedule()) {
+                            end_act_blk += this->scheduler->getLookaheadH() * blocks_per_time;
+                            end_act_blk = std::min(end_act_blk, last_act_blk);
+                        }
+
+                        auto first_address = this->act_address_map[0][0][start_act_blk];
+                        auto last_address = this->act_address_map[0][0][end_act_blk - 1];
+                        node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
+                        node->evict_act = true;
+
+                        // TODO Write addresses
+
+                        if (fstep != 0 || tstep != 0)
+                            node->use_prev_buffer = true;
+
+                    }
+
                     // Fil filters
-                    node->filter_sets = std::vector<int>(this->filter_sets, 0);
-                    std::iota(node->filter_sets.begin(), node->filter_sets.end(), 0);
+                    node->filter_sets = std::vector<int>(last_filter_set, 0);
+                    std::iota(node->filter_sets.begin(), node->filter_sets.end(), start_filter_set);
 
-                    if (r == 0) {
-                        if (!this->layer_act_on_chip) {
-                            auto first_address = this->act_address_map[0][0][0];
-                            auto last_address = this->act_address_map[0][0][last_act_blk - 1];
-                            node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
-                        }
-
-                        auto first_address = std::get<0>(this->wgt_address_map.front());
-                        auto last_address = std::get<1>(this->wgt_address_map.back());
-                        node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
-                    }
-
-                    this->on_chip_graph[r] = node;
-
-                }
-
-            } // all activations fit on-chip
-
-            // Check if all activations and at least output fit on-chip
-            else if (all_input_size + working_set_output < this->gbuffer->getActSize()) {
-
-                auto output_left_size = this->gbuffer->getActSize() - all_input_size;
-                auto filter_sets_per_step = output_left_size / working_set_output;
-                auto total_filter_sets = ceil(num_filters / (double)working_set_filters);
-                auto filter_steps = ceil(total_filter_sets / (double)filter_sets_per_step);
-                assert(filter_steps != 1);
-
-                this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences * filter_steps);
-
-                for (int r = 0; r < recurrences; ++r) {
-                    for (int fstep = 0; fstep < filter_steps; ++fstep) {
-
-                        auto node = std::make_shared<typename OutputStationary<T>::NodeOutS>();
-
-                        // Fill parameters
-                        node->time_step = 0;
-                        node->max_time = this->max_buffer_time;
-                        node->recurrence = r;
-
-                        // Fil filters
-                        auto start_filter_set = fstep * filter_sets_per_step * this->arch->getTiles();
-                        auto last_filter_set = std::min(filter_sets_per_step * this->arch->getTiles(),
-                                this->filter_sets - start_filter_set);
-                        node->filter_sets = std::vector<int>(last_filter_set, 0);
-                        std::iota(node->filter_sets.begin(), node->filter_sets.end(),  start_filter_set);
-
-                        if (fstep == 0 && ((!this->layer_act_on_chip && r == 0) || r != 0)) {
-                            auto first_address = this->act_address_map[0][0][0];
-                            auto last_address = this->act_address_map[0][0][last_act_blk - 1];
-                            node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
-                        }
-
-                        if (r == 0) {
+                    if (wgt_policy == ALL) {
+                        if (r == 0 && tstep == 0) {
                             auto first_address = std::get<0>(this->wgt_address_map[start_filter_set]);
-                            auto last_address = std::get<1>(this->wgt_address_map[start_filter_set + last_filter_set - 1]);
+                            auto last_address = std::get<1>(this->wgt_address_map[end_filter_set - 1]);
                             node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
                         }
 
-                        //TODO Write addresses
-
-                        if (r != 0 && fstep == 0)
-                            node->evict_act = true;
-
-                        if (fstep != 0)
-                            node->use_prev_buffer = true;
-
-                        this->on_chip_graph[r * filter_steps + fstep] = node;
-
-                    }
-                }
-
-            } // Check if all activations and at least output fit on-chip
-
-            // Check if a subset of channels fit on-chip
-            else {
-
-                assert(!this->layer_act_on_chip);
-
-                auto input_left_size = this->gbuffer->getActSize() - working_set_output;
-                assert(input_left_size < this->gbuffer->getActSize());
-
-                auto time_steps = (uint64_t)ceil(all_input_size / (double)input_left_size);
-                auto max_time_per_step = ceil(this->max_buffer_time / (double)time_steps);
-                auto blocks_per_time = ceil(last_act_blk / (double)this->max_buffer_time);
-                auto blocks_per_step = max_time_per_step * blocks_per_time;
-                assert(time_steps != 1);
-
-                auto filter_steps = ceil(num_filters / (double)working_set_filters);
-
-                this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences * filter_steps
-                        * time_steps);
-
-                for (int r = 0; r < recurrences; ++r) {
-                    for (int fstep = 0; fstep < filter_steps; ++fstep) {
-
-                        auto start_filter_set = fstep * this->arch->getTiles();
-                        auto last_filter_set = std::min(this->arch->getTiles(),
-                                (uint32_t)(this->filter_sets - start_filter_set));
-
-                        for (int tstep = 0; tstep < time_steps; ++tstep) {
-
-                            auto node = std::make_shared<typename OutputStationary<T>::NodeOutS>();
-
-                            node->time_step = tstep;
-                            node->max_time = max_time_per_step;
-                            node->recurrence = r;
-
-                            // Fil filters
-                            node->filter_sets = std::vector<int>(last_filter_set, 0);
-                            std::iota(node->filter_sets.begin(), node->filter_sets.end(), start_filter_set);
-
-                            auto start_act_blk = tstep * blocks_per_step;
-                            auto end_act_blk = std::min((uint64_t) ((tstep + 1) * blocks_per_step), last_act_blk);
-
-                            if (this->arch->schedule()) {
-                                end_act_blk += this->scheduler->getLookaheadH() * blocks_per_time;
-                                end_act_blk = std::min(end_act_blk, last_act_blk);
-                            }
-
-                            auto first_address = this->act_address_map[0][0][start_act_blk];
-                            auto last_address = this->act_address_map[0][0][end_act_blk - 1];
-                            node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
-
-                            if (r == 0 && tstep == 0) {
-                                first_address = std::get<0>(this->wgt_address_map[start_filter_set]);
-                                last_address = std::get<1>(this->wgt_address_map[start_filter_set + last_filter_set - 1]);
-                                node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
-                            }
-
-                            //TODO Write addresses
-
-                            if (fstep != 0 || tstep != 0) {
-                                node->evict_act = true;
-                                node->use_prev_buffer = true;
-                            }
-
-                            this->on_chip_graph[r * filter_steps * time_steps + fstep * time_steps + tstep] = node;
-
-                        }
-                    }
-                }
-
-            } // Check if a subset of channels fit on-chip
-
-        } // Check if all filters fit on-chip
-
-        // Check if a set of filters fit on-chip
-        else if (filter_set_size < this->gbuffer->getWgtSize()) {
-
-            // Check if all activations fit on-chip
-            if (all_input_size + all_output_size < this->gbuffer->getActSize()) {
-
-                auto filter_sets_per_step = this->gbuffer->getWgtSize() / filter_set_size;
-                auto total_filter_sets = ceil(num_filters / (double)working_set_filters);
-                auto filter_steps = ceil(total_filter_sets / (double)filter_sets_per_step);
-                assert(filter_steps != 1);
-
-                this->next_layer_act_on_chip = true;
-                this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences * filter_steps);
-
-                for (int r = 0; r < recurrences; ++r) {
-                    for (int fstep = 0; fstep < filter_steps; ++fstep) {
-
-                        auto node = std::make_shared<typename OutputStationary<T>::NodeOutS>();
-
-                        node->time_step = 0;
-                        node->max_time = this->max_buffer_time;
-                        node->recurrence = r;
-
-                        // Fil filters
-                        auto start_filter_set = fstep * filter_sets_per_step * this->arch->getTiles();
-                        auto last_filter_set = std::min(filter_sets_per_step * this->arch->getTiles(),
-                                this->filter_sets - start_filter_set);
-                        node->filter_sets = std::vector<int>(last_filter_set, 0);
-                        std::iota(node->filter_sets.begin(), node->filter_sets.end(),  start_filter_set);
-
-                        // First read activations
-                        if (r == 0 && fstep == 0 && !this->layer_act_on_chip) {
-                            auto first_address = this->act_address_map[0][0][0];
-                            auto last_address = this->act_address_map[0][0][last_act_blk - 1];
-                            node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
-                        }
-
-                        auto first_address = std::get<0>(this->wgt_address_map[start_filter_set]);
-                        auto last_address = std::get<1>(this->wgt_address_map[start_filter_set + last_filter_set - 1]);
-                        node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
-
-                        if (r != 0 || fstep != 0)
+                    } else if (wgt_policy == SET) {
+                        if (tstep == 0) {
+                            auto first_address = std::get<0>(this->wgt_address_map[start_filter_set]);
+                            auto last_address = std::get<1>(this->wgt_address_map[end_filter_set - 1]);
+                            node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
                             node->evict_wgt = true;
-
-                        if (fstep != 0)
-                            node->use_prev_buffer = true;
-
-                        this->on_chip_graph[r * filter_steps + fstep] = node;
-
-                    }
-                }
-
-
-            } // all activations fit on-chip
-
-            // Check if all activations and at least output fit on-chip
-            else if (all_input_size + working_set_output < this->gbuffer->getActSize()) {
-
-                auto output_left_size = this->gbuffer->getActSize() - all_input_size;
-                auto filter_sets_per_step_act_limit = output_left_size / working_set_output;
-                auto filter_sets_per_step_wgt_limit = this->gbuffer->getWgtSize() / filter_set_size;
-                auto filter_sets_per_step = std::max(filter_sets_per_step_act_limit, filter_sets_per_step_wgt_limit);
-
-                auto total_filter_sets = ceil(num_filters / (double)working_set_filters);
-                auto filter_steps = ceil(total_filter_sets / (double)filter_sets_per_step);
-                assert(filter_steps != 1);
-
-                this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences * filter_steps);
-
-                for (int r = 0; r < recurrences; ++r) {
-                    for (int fstep = 0; fstep < filter_steps; ++fstep) {
-
-                        auto node = std::make_shared<typename OutputStationary<T>::NodeOutS>();
-
-                        // Fill parameters
-                        node->time_step = 0;
-                        node->max_time = this->max_buffer_time;
-                        node->recurrence = r;
-
-                        // Fil filters
-                        auto start_filter_set = fstep * filter_sets_per_step * this->arch->getTiles();
-                        auto last_filter_set = std::min(filter_sets_per_step * this->arch->getTiles(),
-                                this->filter_sets - start_filter_set);
-                        node->filter_sets = std::vector<int>(last_filter_set, 0);
-                        std::iota(node->filter_sets.begin(), node->filter_sets.end(),  start_filter_set);
-
-                        if (fstep == 0 && ((!this->layer_act_on_chip && r == 0) || r != 0)) {
-                            auto first_address = this->act_address_map[0][0][0];
-                            auto last_address = this->act_address_map[0][0][last_act_blk - 1];
-                            node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
                         }
 
-                        auto first_address = std::get<0>(this->wgt_address_map[start_filter_set]);
-                        auto last_address = std::get<1>(this->wgt_address_map[start_filter_set + last_filter_set - 1]);
+                    } else {
+                        auto start_time = tstep * max_time_per_step;
+                        auto end_time = std::min((tstep + 1) * max_time_per_step, (uint32_t)this->max_buffer_time) - 1;
+
+                        uint64_t first_address = NULL_ADDR, last_address = NULL_ADDR;
+                        if (this->arch->schedule()) {
+                            for (int tmp = start_time; tmp <= end_time; ++tmp) {
+                                if (this->wgt_address_buffer[start_filter_set][tmp].front() != NULL_ADDR) {
+                                    first_address = this->wgt_address_buffer[start_filter_set][tmp].front();
+                                    break;
+                                }
+                            }
+
+                            for (int tmp = end_time; tmp >= start_time ; --tmp) {
+                                if (this->wgt_address_buffer[end_filter_set - 1][tmp].back() != NULL_ADDR) {
+                                    last_address = this->wgt_address_buffer[end_filter_set - 1][tmp].back();
+                                    break;
+                                }
+                            }
+
+                        } else {
+                            first_address = this->wgt_address_buffer[start_filter_set][start_time].front();
+                            last_address = this->wgt_address_buffer[end_filter_set - 1][end_time].back();
+                        }
+
+                        assert(first_address != NULL_ADDR);
+                        assert(last_address != NULL_ADDR);
+
                         node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
-
-                        //TODO Write addresses
-
-                        if (r != 0 && fstep == 0)
-                            node->evict_act = true;
-
-                        if (r != 0 || fstep != 0)
-                            node->evict_wgt = true;
-
-                        if (fstep != 0)
-                            node->use_prev_buffer = true;
-
-                        this->on_chip_graph[r * filter_steps + fstep] = node;
+                        node->evict_wgt = true;
 
                     }
-                }
 
-            } // Check if all activations and at least output fit on-chip
+                    this->on_chip_graph[r * filter_steps * time_steps + fstep * time_steps + tstep] = node;
 
-            // Check if a subset of channels fit on-chip
-            else {
-
-                assert(!this->layer_act_on_chip);
-
-                auto input_left_size = this->gbuffer->getActSize() - working_set_output;
-                assert(input_left_size < this->gbuffer->getActSize());
-
-                auto time_steps = (uint64_t)ceil(all_input_size / (double)input_left_size);
-                auto max_time_per_step = ceil(this->max_buffer_time / (double)time_steps);
-                auto blocks_per_time = ceil(last_act_blk / (double)this->max_buffer_time);
-                auto blocks_per_step = max_time_per_step * blocks_per_time;
-                assert(time_steps != 1);
-
-                auto filter_steps = ceil(num_filters / (double)working_set_filters);
-
-                this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences * filter_steps
-                        * time_steps);
-
-                for (int r = 0; r < recurrences; ++r) {
-                    for (int fstep = 0; fstep < filter_steps; ++fstep) {
-
-                        auto start_filter_set = fstep * this->arch->getTiles();
-                        auto last_filter_set = std::min(this->arch->getTiles(),
-                                (uint32_t)(this->filter_sets - start_filter_set));
-
-                        for (int tstep = 0; tstep < time_steps; ++tstep) {
-
-                            auto node = std::make_shared<typename OutputStationary<T>::NodeOutS>();
-
-                            node->time_step = tstep;
-                            node->max_time = max_time_per_step;
-                            node->recurrence = r;
-
-                            // Fil filters
-                            node->filter_sets = std::vector<int>(last_filter_set, 0);
-                            std::iota(node->filter_sets.begin(), node->filter_sets.end(), start_filter_set);
-
-                            auto start_act_blk = tstep * blocks_per_step;
-                            auto end_act_blk = std::min((uint64_t) ((tstep + 1) * blocks_per_step), last_act_blk);
-
-                            if (this->arch->schedule()) {
-                                end_act_blk += this->scheduler->getLookaheadH() * blocks_per_time;
-                                end_act_blk = std::min(end_act_blk, last_act_blk);
-                            }
-
-                            auto first_address = this->act_address_map[0][0][start_act_blk];
-                            auto last_address = this->act_address_map[0][0][end_act_blk - 1];
-                            node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
-
-                            if (tstep == 0) {
-                                first_address = std::get<0>(this->wgt_address_map[start_filter_set]);
-                                last_address = std::get<1>(this->wgt_address_map[start_filter_set + last_filter_set - 1]);
-                                node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
-                            }
-
-                            //TODO Write addresses
-
-                            if (fstep != 0 || tstep != 0) {
-                                node->evict_act = true;
-                                node->use_prev_buffer = true;
-                            }
-
-                            if (tstep == 0 && (r != 0 || fstep != 0))
-                                node->evict_wgt = true;
-
-                            this->on_chip_graph[r * filter_steps * time_steps + fstep * time_steps + tstep] = node;
-
-                        }
-                    }
-                }
-
-            } // Check if a subset of channels fit on-chip
-
-        } // Check if a set of filters fit on-chip
-
-        // Check if a subset of channels fit on-chip
-        else {
-
-            // Check if all activations fit on-chip
-            if (all_input_size + all_output_size < this->gbuffer->getActSize()) {
-
-                auto time_steps = (uint64_t)ceil(filter_set_size / (double)this->gbuffer->getWgtSize());
-                auto filter_steps = (uint64_t)ceil(num_filters / (double)working_set_filters);
-                auto max_time_per_step = this->max_buffer_time / time_steps;
-                assert(time_steps != 1);
-
-                this->next_layer_act_on_chip = true;
-                this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences * filter_steps
-                        * time_steps);
-
-                for (int r = 0; r < recurrences; ++r) {
-                    for (int fstep = 0; fstep < filter_steps; ++fstep) {
-
-                        auto start_filter_set = fstep * this->arch->getTiles();
-                        auto last_filter_set = std::min((uint64_t)this->arch->getTiles(),
-                                this->filter_sets - start_filter_set);
-                        auto end_filter_set = start_filter_set + last_filter_set - 1;
-
-                        for (int tstep = 0; tstep < time_steps; ++tstep) {
-
-                            auto node = std::make_shared<typename OutputStationary<T>::NodeOutS>();
-
-                            node->time_step = tstep;
-                            node->max_time = max_time_per_step;
-                            node->recurrence = r;
-
-                            // Fil filters
-                            node->filter_sets = std::vector<int>(last_filter_set, 0);
-                            std::iota(node->filter_sets.begin(), node->filter_sets.end(),  start_filter_set);
-
-                            // First read activations
-                            if (r == 0 && fstep == 0 && tstep == 0 && !this->layer_act_on_chip) {
-                                auto first_address = this->act_address_map[0][0][0];
-                                auto last_address = this->act_address_map[0][0][last_act_blk - 1];
-                                node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
-                            }
-
-                            auto start_time = tstep * max_time_per_step;
-                            auto end_time = std::min((uint64_t)((tstep + 1) * max_time_per_step),
-                                    this->max_buffer_time) - 1;
-
-                            uint64_t first_address = NULL_ADDR, last_address = NULL_ADDR;
-                            if (this->arch->schedule()) {
-                                for (int tmp = start_time; tmp <= end_time; ++tmp) {
-                                    if (this->wgt_address_buffer[start_filter_set][tmp].front() != NULL_ADDR) {
-                                        first_address = this->wgt_address_buffer[start_filter_set][tmp].front();
-                                        break;
-                                    }
-                                }
-
-                                for (int tmp = end_time; tmp >= start_time ; --tmp) {
-                                    if (this->wgt_address_buffer[end_filter_set][tmp].back() != NULL_ADDR) {
-                                        last_address = this->wgt_address_buffer[end_filter_set] [tmp].back();
-                                        break;
-                                    }
-                                }
-
-                            } else {
-                                first_address = this->wgt_address_buffer[start_filter_set][start_time].front();
-                                last_address = this->wgt_address_buffer[end_filter_set][end_time].back();
-                            }
-
-                            assert(first_address != NULL_ADDR);
-                            assert(last_address != NULL_ADDR);
-
-                            node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
-
-                            if (r != 0 || fstep != 0 || tstep != 0)
-                                node->evict_wgt = true;
-
-                            if (fstep != 0 || tstep != 0)
-                                node->use_prev_buffer = true;
-
-                            this->on_chip_graph[r * filter_steps * time_steps + fstep * time_steps + tstep] = node;
-
-                        }
-                    }
-                }
-
-            } // all activations fit on-chip
-
-            // Check if all activations and at least output fit on-chip
-            else if (all_input_size + working_set_output < this->gbuffer->getActSize()) {
-
-                auto time_steps = (uint64_t)ceil(filter_set_size / (double)this->gbuffer->getWgtSize());
-                auto filter_steps = (uint64_t)ceil(num_filters / (double)working_set_filters);
-                auto max_time_per_step = this->max_buffer_time / time_steps;
-                assert(time_steps != 1);
-
-                this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences * filter_steps
-                        * time_steps);
-
-                for (int r = 0; r < recurrences; ++r) {
-                    for (int fstep = 0; fstep < filter_steps; ++fstep) {
-
-                        auto start_filter_set = fstep * this->arch->getTiles();
-                        auto last_filter_set = std::min((uint64_t)this->arch->getTiles(),
-                                this->filter_sets - start_filter_set);
-                        auto end_filter_set = start_filter_set + last_filter_set - 1;
-
-                        for (int tstep = 0; tstep < time_steps; ++tstep) {
-
-                            auto node = std::make_shared<typename OutputStationary<T>::NodeOutS>();
-
-                            node->time_step = tstep;
-                            node->max_time = max_time_per_step;
-                            node->recurrence = r;
-
-                            // Fil filters
-                            node->filter_sets = std::vector<int>(last_filter_set, 0);
-                            std::iota(node->filter_sets.begin(), node->filter_sets.end(),  start_filter_set);
-
-                            // First read activations
-                            if (fstep == 0 && ((!this->layer_act_on_chip && r == 0) || r != 0)) {
-                                auto first_address = this->act_address_map[0][0][0];
-                                auto last_address = this->act_address_map[0][0][last_act_blk - 1];
-                                node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
-                            }
-
-                            auto start_time = tstep * max_time_per_step;
-                            auto end_time = std::min((uint64_t)((tstep + 1) * max_time_per_step),
-                                    this->max_buffer_time) - 1;
-
-                            uint64_t first_address = NULL_ADDR, last_address = NULL_ADDR;
-                            if (this->arch->schedule()) {
-                                for (int tmp = start_time; tmp <= end_time; ++tmp) {
-                                    if (this->wgt_address_buffer[start_filter_set][tmp].front() != NULL_ADDR) {
-                                        first_address = this->wgt_address_buffer[start_filter_set][tmp].front();
-                                        break;
-                                    }
-                                }
-
-                                for (int tmp = end_time; tmp >= start_time ; --tmp) {
-                                    if (this->wgt_address_buffer[end_filter_set][tmp].back() != NULL_ADDR) {
-                                        last_address = this->wgt_address_buffer[end_filter_set] [tmp].back();
-                                        break;
-                                    }
-                                }
-
-                            } else {
-                                first_address = this->wgt_address_buffer[start_filter_set][start_time].front();
-                                last_address = this->wgt_address_buffer[end_filter_set][end_time].back();
-                            }
-
-                            assert(first_address != NULL_ADDR);
-                            assert(last_address != NULL_ADDR);
-
-                            node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
-
-                            //TODO Write addresses
-
-                            if (r != 0 && fstep == 0)
-                                node->evict_act = true;
-
-                            if (r != 0 || fstep != 0 || tstep != 0)
-                                node->evict_wgt = true;
-
-                            if (fstep != 0 || tstep != 0)
-                                node->use_prev_buffer = true;
-
-                            this->on_chip_graph[r * filter_steps * time_steps + fstep * time_steps + tstep] = node;
-
-                        }
-                    }
-                }
-
-            } // Check if all activations and at least output fit on-chip
-
-            // Check if a subset of channels fit on-chip
-            else {
-
-                assert(!this->layer_act_on_chip);
-
-                auto input_left_size = this->gbuffer->getActSize() - working_set_output;
-                assert(input_left_size < this->gbuffer->getActSize());
-
-                auto time_steps_act_limit = (uint64_t)ceil(all_input_size / (double)input_left_size);
-                auto time_steps_wgt_limit = (uint64_t)ceil(filter_set_size / (double)this->gbuffer->getWgtSize());
-                auto time_steps = std::max(time_steps_act_limit, time_steps_wgt_limit);
-                assert(time_steps != 1);
-
-                auto filter_steps = ceil(num_filters / (double)working_set_filters);
-                auto max_time_per_step = this->max_buffer_time / time_steps;
-                auto blocks_per_time = ceil(last_act_blk / (double)this->max_buffer_time);
-                auto blocks_per_step = max_time_per_step * blocks_per_time;
-
-                this->next_layer_act_on_chip = true;
-                this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences * filter_steps
-                        * time_steps);
-
-                for (int r = 0; r < recurrences; ++r) {
-                    for (int fstep = 0; fstep < filter_steps; ++fstep) {
-
-                        auto start_filter_set = fstep * this->arch->getTiles();
-                        auto last_filter_set = std::min((uint64_t)this->arch->getTiles(),
-                                this->filter_sets - start_filter_set);
-                        auto end_filter_set = start_filter_set + last_filter_set - 1;
-
-                        for (int tstep = 0; tstep < time_steps; ++tstep) {
-
-                            auto node = std::make_shared<typename OutputStationary<T>::NodeOutS>();
-
-                            node->time_step = tstep;
-                            node->max_time = max_time_per_step;
-                            node->recurrence = r;
-
-                            // Fil filters
-                            node->filter_sets = std::vector<int>(last_filter_set, 0);
-                            std::iota(node->filter_sets.begin(), node->filter_sets.end(),  start_filter_set);
-
-                            auto start_act_blk = tstep * blocks_per_step;
-                            auto end_act_blk = std::min((uint64_t) ((tstep + 1) * blocks_per_step), last_act_blk);
-
-                            if (this->arch->schedule()) {
-                                end_act_blk += this->scheduler->getLookaheadH() * blocks_per_time;
-                                end_act_blk = std::min(end_act_blk, last_act_blk);
-                            }
-
-                            auto first_address = this->act_address_map[0][0][start_act_blk];
-                            auto last_address = this->act_address_map[0][0][end_act_blk - 1];
-                            node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
-
-                            auto start_time = tstep * max_time_per_step;
-                            auto end_time = std::min((uint64_t)((tstep + 1) * max_time_per_step),
-                                    this->max_buffer_time) - 1;
-
-                            first_address = NULL_ADDR;
-                            last_address = NULL_ADDR;
-                            if (this->arch->schedule()) {
-                                for (int tmp = start_time; tmp <= end_time; ++tmp) {
-                                    if (this->wgt_address_buffer[start_filter_set][tmp].front() != NULL_ADDR) {
-                                        first_address = this->wgt_address_buffer[start_filter_set][tmp].front();
-                                        break;
-                                    }
-                                }
-
-                                for (int tmp = end_time; tmp >= start_time ; --tmp) {
-                                    if (this->wgt_address_buffer[end_filter_set][tmp].back() != NULL_ADDR) {
-                                        last_address = this->wgt_address_buffer[end_filter_set] [tmp].back();
-                                        break;
-                                    }
-                                }
-
-                            } else {
-                                first_address = this->wgt_address_buffer[start_filter_set][start_time].front();
-                                last_address = this->wgt_address_buffer[end_filter_set][end_time].back();
-                            }
-
-                            assert(first_address != NULL_ADDR);
-                            assert(last_address != NULL_ADDR);
-
-                            node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
-
-                            // TODO Write address
-
-                            if (fstep != 0 || tstep != 0) {
-                                node->evict_act = true;
-                                node->use_prev_buffer = true;
-                            }
-
-                            if (r != 0 || fstep != 0 || tstep != 0)
-                                node->evict_wgt = true;
-
-                            if (fstep != 0 || tstep != 0)
-                                node->use_prev_buffer = true;
-
-                            this->on_chip_graph[r * filter_steps * time_steps + fstep * time_steps + tstep] = node;
-
-                        }
-                    }
-                }
-
-            }
-
-        } // Check if a subset of channels fit on-chip
+                } // Time step
+            } // Filter step
+        } // Recurrence
 
     }
 
