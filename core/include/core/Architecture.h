@@ -95,23 +95,23 @@ namespace core {
         Architecture(uint32_t _LANES, uint32_t _COLUMNS, uint32_t _ROWS, uint32_t _TILES, uint32_t _PE_WIDTH) :
                 LANES(_LANES), COLUMNS(_COLUMNS), ROWS(_ROWS), TILES(_TILES), PE_WIDTH(_PE_WIDTH) {}
 
-        const uint32_t getLanes() const {
+        uint32_t getLanes() const {
             return LANES;
         }
 
-        const uint32_t getColumns() const {
+        uint32_t getColumns() const {
             return COLUMNS;
         }
 
-        const uint32_t getRows() const {
+        uint32_t getRows() const {
             return ROWS;
         }
 
-        const uint32_t getTiles() const {
+        uint32_t getTiles() const {
             return TILES;
         }
 
-        const uint32_t getPeWidth() const {
+        uint32_t getPeWidth() const {
             return PE_WIDTH;
         }
 

@@ -108,7 +108,7 @@ namespace core {
 
         virtual void configure_layer(const std::shared_ptr<base::Array<T>> &_act,
                 const std::shared_ptr<base::Array<T>> &_wgt, uint32_t act_prec, uint32_t wgt_prec, bool _linear,
-                bool _lstm, int _stride);
+                bool __3dim, int _stride);
 
     public:
 

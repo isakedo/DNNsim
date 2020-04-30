@@ -11,7 +11,7 @@ namespace core {
         const std::vector<size_t> &act_shape = this->act->getShape();
 
         uint64_t act_channels, Nx, Ny;
-        if (this->lstm) {
+        if (this->_3dim) {
             act_channels = act_shape[2];
             Nx = 1;
             Ny = 1;
@@ -208,7 +208,7 @@ namespace core {
         const std::vector<size_t> &act_shape = this->act->getShape();
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
 
-        auto act_channels = this->lstm ? act_shape[2] : act_shape[1];
+        auto act_channels = this->_3dim ? act_shape[2] : act_shape[1];
 
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
@@ -226,7 +226,7 @@ namespace core {
                         int index = 0;
                         for (int ch = k; ch < std::min((uint64_t) k + this->EF_LANES, act_channels); ++ch) {
 
-                            auto act_bits = this->lstm ? this->act->get(recurrence, 0, ch) :
+                            auto act_bits = this->_3dim ? this->act->get(0, recurrence, ch) :
                                     this->act->get(0, ch, x_window + x, y_window + y);
 
                             if (this->arch->diffy() && !this->linear) {
@@ -271,9 +271,9 @@ namespace core {
     template <typename T>
     void OutputStationary<T>::configure_layer(const std::shared_ptr<base::Array<T>> &_act,
             const std::shared_ptr<base::Array<T>> &_wgt, uint32_t act_prec, uint32_t wgt_prec, bool _linear,
-            bool _lstm, int _stride) {
+            bool _rnn, int _stride) {
 
-        Control<T>::configure_layer(_act, _wgt, act_prec, wgt_prec, _linear, _lstm, _stride);
+        Control<T>::configure_layer(_act, _wgt, act_prec, wgt_prec, _linear, _rnn, _stride);
 
         window_set_it = 0;
         filter_set_it = 0;
@@ -285,9 +285,9 @@ namespace core {
         const std::vector<size_t> &act_shape = this->act->getShape();
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
 
-        auto act_channels = this->lstm ? act_shape[2] : act_shape[1];
-        auto Nx = this->lstm ? 1 : act_shape[2];
-        auto Ny = this->lstm ? 1 : act_shape[3];
+        auto act_channels = this->_3dim ? act_shape[2] : act_shape[1];
+        auto Nx = this->_3dim ? 1 : act_shape[2];
+        auto Ny = this->_3dim ? 1 : act_shape[3];
 
         auto num_filters = wgt_shape[0];
         auto wgt_channels = wgt_shape[1];

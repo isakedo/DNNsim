@@ -78,8 +78,7 @@ namespace base {
         uint64_t getImages() const {
             uint64_t max_images = 0;
             for (const auto &layer : this->layers) {
-                uint64_t images = layer.getType() == "LSTM" ? layer.getActivations().getShape()[1] :
-                        layer.getActivations().getShape()[0];
+                uint64_t images = layer.getActivations().getShape()[0];
                 if (images > max_images)
                     max_images = images;
             }

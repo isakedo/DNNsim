@@ -7,14 +7,14 @@ namespace core {
 
     template <typename T>
     void check_result(const OutputTensor &sim_output, const std::shared_ptr<base::Array<T>> &act,
-            const std::shared_ptr<base::Array<T>> &wgt, uint64_t Ox, uint64_t Oy, int stride, bool lstm) {
+            const std::shared_ptr<base::Array<T>> &wgt, uint64_t Ox, uint64_t Oy, int stride, bool _3dim) {
 
         const std::vector<size_t> &act_shape = act->getShape();
         const std::vector<size_t> &wgt_shape = wgt->getShape();
 
         // Activations
-        auto R = lstm ? act_shape[0] : 1;
-        auto act_channels = lstm ? act_shape[2] : act_shape[1];
+        auto R = _3dim ? act_shape[1] : 1;
+        auto act_channels = _3dim ? act_shape[2] : act_shape[1];
 
         // Weights
         auto num_filters = wgt_shape[0];
@@ -52,7 +52,7 @@ namespace core {
                         for (int j = 0; j < Ky; ++j) {
                             for (int i = 0; i < Kx; ++i) {
                                 for (int k = 0; k < wgt_channels; ++k) {
-                                    auto act_bits = lstm ? act->get(r, 0, k) :
+                                    auto act_bits = _3dim ? act->get(0, r, k) :
                                             act->get(0, start_group + k, stride * x + i, stride * y + j);
                                     sum += act_bits * wgt->get(m, k, i, j);
                                 }
@@ -151,11 +151,20 @@ namespace core {
         auto scheduled_pe = stats.register_uint_t("scheduled PEs", 0, sys::AverageTotal);
         auto idle_pe = stats.register_uint_t("idle PEs", 0, sys::AverageTotal);
 
-        // Dataflow stats
-        auto act_buff_reads = stats.register_uint_t("activation buffer reads", 0, sys::AverageTotal);
-        auto wgt_buff_reads = stats.register_uint_t("weight buffer reads", 0, sys::AverageTotal);
-        auto acc_updates = stats.register_uint_t("accumulator_updates", 0, sys::AverageTotal);
-        auto out_buffer_writes = stats.register_uint_t("output buffer writes", 0, sys::AverageTotal);
+        // DRAM stats
+        auto dram_act_reads = stats.register_uint_t("dram_act_reads", 0, sys::AverageTotal);
+        auto dram_wgt_reads = stats.register_uint_t("dram_wgt_reads", 0, sys::AverageTotal);
+        auto dram_out_writes = stats.register_uint_t("dram_out_writes", 0, sys::AverageTotal);
+        auto dram_stall_cycles = stats.register_uint_t("dram_stall_cycles", 0, sys::AverageTotal);
+
+        // Global Buffer stats
+        auto gbuffer_act_reads = stats.register_uint_t("gbuffer_act_reads", 0, sys::AverageTotal);
+        auto gbuffer_wgt_reads = stats.register_uint_t("gbuffer_wgt_reads", 0, sys::AverageTotal);
+        auto gbuffer_out_writes = stats.register_uint_t("gbuffer_out_writes", 0, sys::AverageTotal);
+        auto gbuffer_act_bank_conflicts = stats.register_uint_t("gbuffer_act_bank_conflicts", 0, sys::AverageTotal);
+        auto gbuffer_wgt_bank_conflicts = stats.register_uint_t("gbuffer_wgt_bank_conflicts", 0, sys::AverageTotal);
+        auto gbuffer_out_bank_conflicts = stats.register_uint_t("gbuffer_out_bank_conflicts", 0, sys::AverageTotal);
+        auto gbuffer_stall_cycles = stats.register_uint_t("gbuffer_stall_cycles", 0, sys::AverageTotal);
 
         auto act_precision = stats.register_uint_t("activations precision", 0, sys::Average);
         auto wgt_precision = stats.register_uint_t("weights precision", 0, sys::Average);
@@ -168,7 +177,7 @@ namespace core {
 
                 const base::Layer<T> &layer = network.getLayers()[layer_it];
                 bool conv = layer.getType() == "Convolution";
-                bool lstm = layer.getType() == "LSTM";
+                bool rnn = layer.getType() == "RNN";
                 bool fc = layer.getType() == "InnerProduct";
 
                 if (!QUIET) printf("Simulating image: %d/%lu for layer: %s\n", image + 1, images,
@@ -201,7 +210,7 @@ namespace core {
                 const std::vector<size_t> &wgt_shape = wgt->getShape();
 
                 uint64_t Nx, Ny;
-                if (lstm) {
+                if (rnn) {
                     Nx = 1;
                     Ny = 1;
                 } else {
@@ -218,7 +227,7 @@ namespace core {
 
                 auto act_prec = layer.getActPrecision();
                 auto wgt_prec = layer.getWgtPrecision();
-                control->configure_layer(act, wgt, act_prec, wgt_prec, fc || lstm, lstm, stride);
+                control->configure_layer(act, wgt, act_prec, wgt_prec, fc || rnn, rnn, stride);
 
                 OutputTensor sim_output = OutputTensor(num_filters, std::vector<std::vector<double>>(Ox,
                         std::vector<double>(Oy, 0)));
@@ -252,7 +261,7 @@ namespace core {
                         wbuffer->read_request(gbuffer->getWgtReadReadyCycle());
 
                         // Wait for:
-                        // - global buffer to write before starting new windows
+                        // - global buffer to write before starting new windows (psum registers are empty)
                         // - activation buffer to have the data ready
                         // - weight buffer to have the data ready
                         // - pipeline to be ready
@@ -297,7 +306,7 @@ namespace core {
 
                 } while(control->still_off_chip_data());
 
-                if (CHECK) check_result(sim_output, act, wgt, Ox, Oy, stride, lstm);
+                if (CHECK) check_result(sim_output, act, wgt, Ox, Oy, stride, rnn);
 
                 // Dump stats
                 cycles->value[layer_it][image] = *global_cycle;
@@ -307,10 +316,10 @@ namespace core {
                 scheduled_pe->value[layer_it][image] = arch->getScheduledPe();
                 idle_pe->value[layer_it][image] = arch->getIdlePe();
 
-                //act_buff_reads->value[layer_it][image] = control->getActBuffReads();
-                //wgt_buff_reads->value[layer_it][image] = control->getWgtBuffReads();
-                //acc_updates->value[layer_it][image] = control->getAccUpdates();
-                //out_buffer_writes->value[layer_it][image] = control->getOutBufferWrites();
+                dram_act_reads->value[layer_it][image] = dram->getActReads();
+                dram_wgt_reads->value[layer_it][image] = dram->getWgtReads();
+                dram_out_writes->value[layer_it][image] = dram->getOutWrites();
+                dram_stall_cycles->value[layer_it][image] = dram->getStallCycles();
 
                 act_precision->value[layer_it][image] = act_prec;
                 wgt_precision->value[layer_it][image] = wgt_prec;
@@ -354,7 +363,7 @@ namespace core {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
             bool conv = layer.getType() == "Convolution";
-            bool lstm = layer.getType() == "LSTM";
+            bool rnn = layer.getType() == "RNN";
             bool fc = layer.getType() == "InnerProduct";
 
             if (!QUIET) std::cout << "Simulating layer: " << layer.getName() << std::endl;
@@ -377,15 +386,14 @@ namespace core {
             const std::vector<size_t> &wgt_shape = wgt.getShape();
 
             uint64_t images, act_channels, Nx, Ny, R;
-            if (lstm) {
-                R = act_shape[0];
-                images = act_shape[1];
+            images = act_shape[0];
+            if (rnn) {
+                R = act_shape[1];
                 act_channels = act_shape[2];
                 Nx = 1;
                 Ny = 1;
             } else {
                 R = 1;
-                images = act_shape[0];
                 act_channels = act_shape[1];
                 Nx = act_shape[2];
                 Ny = act_shape[3];
@@ -411,7 +419,7 @@ namespace core {
                     num_filters * wgt_channels * R;
             uint64_t max_bit_counter = max_par_counter * MAX_BITS;
 
-            arch->configure_layer(act_prec, wgt_prec, network_width, fc || lstm, arch->getColumns());
+            arch->configure_layer(act_prec, wgt_prec, network_width, fc || rnn, arch->getColumns());
 
             for(int n = 0; n < images; ++n) {
 
@@ -451,7 +459,7 @@ namespace core {
                     for (int r = 0; r < R; ++r) {
                         for (int m = 0; m < num_filters; ++m) {
                             for (int k = 0; k < wgt_channels; ++k) {
-                                T act_bits = lstm ? act.get(r, n, k) : act.get(n, k);
+                                T act_bits = rnn ? act.get(n, r, k) : act.get(n, k);
                                 T wgt_bits = wgt.get(m, k);
                                 bit_counter += arch->computeBits(act_bits, wgt_bits);
                             }

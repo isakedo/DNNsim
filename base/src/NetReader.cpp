@@ -34,9 +34,9 @@ namespace base {
         std::string layer_name = layer_caffe.name();
         std::replace( layer_name.begin(), layer_name.end(), '/', '-'); // Sanitize name
         std::string type = (layer_name.find("fc") != std::string::npos) ? "InnerProduct" : layer_caffe.type();
-        type = (layer_name.find("lstm") != std::string::npos) ? "LSTM" : type;
-        type = (layer_name.find("forward") != std::string::npos) ? "LSTM" : type;
-        type = (layer_name.find("backward") != std::string::npos) ? "LSTM" : type;
+        type = (layer_name.find("lstm") != std::string::npos) ? "RNN" : type;
+        type = (layer_name.find("forward") != std::string::npos) ? "RNN" : type;
+        type = (layer_name.find("backward") != std::string::npos) ? "RNN" : type;
         return base::Layer<T>(layer_name, type, stride, padding);
     }
 
@@ -91,8 +91,8 @@ namespace base {
                     type = "Convolution";
                 else if (words[1] == "fc")
                     type = "InnerProduct";
-                else if (words[1] == "lstm")
-                    type = "LSTM";
+                else if (words[1] == "rnn")
+                    type = "RNN";
                 else
                     throw std::runtime_error("Failed to read model.csv: Unknown layer type");
 

@@ -14,6 +14,8 @@ namespace core {
 
     private:
 
+        /* SIMULATION PARAMETERS */
+
         const uint64_t START_ACT_ADDRESS;
 
         const uint64_t START_WGT_ADDRESS;
@@ -29,6 +31,16 @@ namespace core {
         std::queue<std::tuple<uint64_t, bool>> request_queue;
 
         std::map<uint64_t, nullptr_t> waiting_addresses;
+
+        /* STATISTICS */
+
+        uint64_t act_reads = 0;
+
+        uint64_t wgt_reads = 0;
+
+        uint64_t out_writes = 0;
+
+        uint64_t stall_cycles = 0;
 
         void transaction_request(uint64_t address, bool isWrite);
 
@@ -52,6 +64,14 @@ namespace core {
 
             dram_interface->setCPUClockSpeed(clock_freq);
         }
+
+        uint64_t getActReads() const;
+
+        uint64_t getWgtReads() const;
+
+        uint64_t getOutWrites() const;
+
+        uint64_t getStallCycles() const;
 
         uint64_t getStartActAddress() const;
 

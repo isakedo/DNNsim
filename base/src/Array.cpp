@@ -724,19 +724,19 @@ namespace base {
     template <typename T>
     void Array<T>::get_image(uint64_t image) {
 
-        if (this->getDimensions() == 3) { // LSTMs
-            auto images = this->shape[1];
-            auto recurrences = this->shape[0];
+        if (this->getDimensions() == 3) { // RNNs
+            auto images = this->shape[0];
+            auto recurrences = this->shape[1];
             auto act_channels = this->shape[2];
 
             if (image > (images - 1))
                 throw std::runtime_error("Image required is out of the scope");
 
-            auto tmp_data3D = Array3D(recurrences, Array2D(1, Array1D(act_channels, 0)));
+            auto tmp_data3D = Array3D(1, Array2D(recurrences, Array1D(act_channels, 0)));
 
             for (int r = 0; r < recurrences; r++) {
                 for (int k = 0; k < act_channels; k++) {
-                    tmp_data3D[r][0][k] = this->data3D[r][image][k];
+                    tmp_data3D[0][r][k] = this->data3D[image][r][k];
                 }
             }
 

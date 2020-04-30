@@ -3,6 +3,26 @@
 
 namespace core {
 
+    template<typename T>
+    uint64_t DRAM<T>::getActReads() const {
+        return act_reads;
+    }
+
+    template<typename T>
+    uint64_t DRAM<T>::getWgtReads() const {
+        return wgt_reads;
+    }
+
+    template<typename T>
+    uint64_t DRAM<T>::getOutWrites() const {
+        return out_writes;
+    }
+
+    template<typename T>
+    uint64_t DRAM<T>::getStallCycles() const {
+        return stall_cycles;
+    }
+
     template <typename T>
     uint64_t DRAM<T>::getStartActAddress() const {
         return START_ACT_ADDRESS;
@@ -25,9 +45,13 @@ namespace core {
 
     template <typename T>
     void DRAM<T>::configure_layer() {
-        this->tracked_data->clear();
         *this->act_addresses = std::make_tuple(NULL_ADDR, 0);
         *this->wgt_addresses = std::make_tuple(NULL_ADDR, 0);
+        this->tracked_data->clear();
+        act_reads = 0;
+        wgt_reads = 0;
+        out_writes = 0;
+        stall_cycles = 0;
     }
 
     template <typename T>
@@ -75,7 +99,6 @@ namespace core {
 
     template <typename T>
     void DRAM<T>::read_transaction_done(unsigned id, uint64_t address, uint64_t _clock_cycle) {
-
         try {
             (*this->tracked_data).at(address) = *this->global_cycle;
 
@@ -97,38 +120,112 @@ namespace core {
     void DRAM<T>::read_data(const std::vector<AddressRange> &act_addresses,
             const std::vector<AddressRange> &wgt_addresses) {
 
-        for (const auto &addr_range : act_addresses) {
-            auto start_addr = std::get<0>(addr_range);
-            auto end_addr = std::get<1>(addr_range);
-            if (start_addr == NULL_ADDR) continue;
+        uint32_t OVERLAP = 16;
+        uint32_t act_addr_idx = 0;
+        uint64_t act_start_addr = NULL_ADDR;
+        uint64_t act_end_addr = 0;
+        bool act_first = true;
 
-            auto &min_addr = std::get<0>(*this->act_addresses);
-            auto &max_addr = std::get<1>(*this->act_addresses);
+        uint64_t wgt_addr_idx = 0;
+        uint64_t wgt_start_addr = NULL_ADDR;
+        uint64_t wgt_end_addr = 0;
+        bool wgt_first = true;
 
-            if (start_addr < min_addr) min_addr = start_addr;
-            if (end_addr > max_addr) max_addr = end_addr;
+        int count = 0;
+        bool still_data = true;
+        while (still_data) {
 
-            for (uint64_t addr = start_addr; addr <= end_addr; addr += BLOCK_SIZE) {
-                this->tracked_data->insert({addr, NULL_TIME});
-                transaction_request(addr, false);
+            still_data = false;
+
+            count = 0;
+            while (act_addr_idx < act_addresses.size()) {
+
+                if (act_first) {
+                    const auto &addr_range = act_addresses[act_addr_idx];
+                    act_start_addr = std::get<0>(addr_range);
+                    act_end_addr = std::get<1>(addr_range);
+                    if (act_start_addr == NULL_ADDR) {
+                        act_addr_idx++;
+                        act_first = true;
+                        continue;
+                    }
+
+                    auto &min_addr = std::get<0>(*this->act_addresses);
+                    auto &max_addr = std::get<1>(*this->act_addresses);
+
+                    if (act_start_addr < min_addr) min_addr = act_start_addr;
+                    if (act_end_addr > max_addr) max_addr = act_end_addr;
+
+                    act_first = false;
+                }
+
+
+                while (act_start_addr <= act_end_addr) {
+                    if (count == OVERLAP)
+                        break;
+
+                    this->tracked_data->insert({act_start_addr, NULL_TIME});
+                    transaction_request(act_start_addr, false);
+                    still_data = true;
+                    act_reads++;
+
+                    act_start_addr += BLOCK_SIZE;
+                    count++;
+                }
+
+                if (act_start_addr > act_end_addr) {
+                    act_first = true;
+                    act_addr_idx++;
+                }
+
+                break;
             }
-        }
 
-        for (const auto &addr_range : wgt_addresses) {
-            auto start_addr = std::get<0>(addr_range);
-            auto end_addr = std::get<1>(addr_range);
-            if (start_addr == NULL_ADDR) continue;
+            count = 0;
+            while (wgt_addr_idx < wgt_addresses.size()) {
 
-            auto &min_addr = std::get<0>(*this->wgt_addresses);
-            auto &max_addr = std::get<1>(*this->wgt_addresses);
+                if (wgt_first) {
+                    const auto &addr_range = wgt_addresses[wgt_addr_idx];
+                    wgt_start_addr = std::get<0>(addr_range);
+                    wgt_end_addr = std::get<1>(addr_range);
+                    if (wgt_start_addr == NULL_ADDR) {
+                        wgt_addr_idx++;
+                        wgt_first = true;
+                        continue;
+                    }
 
-            if (start_addr < min_addr) min_addr = start_addr;
-            if (end_addr > max_addr) max_addr = end_addr;
+                    auto &min_addr = std::get<0>(*this->wgt_addresses);
+                    auto &max_addr = std::get<1>(*this->wgt_addresses);
 
-            for (uint64_t addr = start_addr; addr <= end_addr; addr += BLOCK_SIZE) {
-                this->tracked_data->insert({addr, NULL_TIME});
-                transaction_request(addr, false);
+                    if (wgt_start_addr < min_addr) min_addr = wgt_start_addr;
+                    if (wgt_end_addr > max_addr) max_addr = wgt_end_addr;
+
+                    wgt_first = false;
+                }
+
+
+                while (wgt_start_addr <= wgt_end_addr) {
+
+                    if (count == OVERLAP)
+                        break;
+
+                    this->tracked_data->insert({wgt_start_addr, NULL_TIME});
+                    transaction_request(wgt_start_addr, false);
+                    still_data = true;
+                    wgt_reads++;
+
+                    wgt_start_addr += BLOCK_SIZE;
+                    count++;
+                }
+
+                if (wgt_start_addr > wgt_end_addr) {
+                    wgt_first = true;
+                    wgt_addr_idx++;
+                }
+
+                break;
             }
+
         }
 
     }

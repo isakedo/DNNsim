@@ -117,8 +117,8 @@ namespace core {
         const std::vector<size_t> &act_shape = this->act->getShape();
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
 
-        auto recurrences = this->lstm ? act_shape[0] : 1;
-        auto act_channels = this->lstm ? act_shape[2] : act_shape[1];
+        auto recurrences = this->_3dim ? act_shape[1] : 1;
+        auto act_channels = this->_3dim ? act_shape[2] : act_shape[1];
 
         auto num_filters = wgt_shape[0];
         auto wgt_channels = wgt_shape[1];
@@ -317,9 +317,9 @@ namespace core {
     template <typename T>
     void WindowFirstOutS<T>::configure_layer(const std::shared_ptr<base::Array<T>> &_act,
             const std::shared_ptr<base::Array<T>> &_wgt, uint32_t act_prec, uint32_t wgt_prec, bool _linear,
-            bool _lstm, int _stride) {
+            bool __3dim, int _stride) {
 
-        OutputStationary<T>::configure_layer(_act, _wgt, act_prec, wgt_prec, _linear, _lstm, _stride);
+        OutputStationary<T>::configure_layer(_act, _wgt, act_prec, wgt_prec, _linear, __3dim, _stride);
 
         // Generate off-chip addresses and bank mapping
         this->generate_memory_maps();

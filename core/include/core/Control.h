@@ -58,8 +58,8 @@ namespace core {
         /** Indicate if linear layer (alternate fashion window buffer) */
         bool linear = false;
 
-        /** Indicate if LSTM layer (different dimensions order) */
-        bool lstm = false;
+        /** Indicate if RNN layer (different dimensions) */
+        bool _3dim = false;
 
         /** Stride of the layer */
         int stride = 0;
@@ -129,7 +129,7 @@ namespace core {
          */
         virtual void configure_layer(const std::shared_ptr<base::Array<T>> &_act,
                 const std::shared_ptr<base::Array<T>> &_wgt, uint32_t act_prec, uint32_t wgt_prec, bool _linear,
-                bool _lstm, int _stride);
+                bool __3dim, int _stride);
 
         const std::vector<AddressRange> &getReadActAddresses() const;
 

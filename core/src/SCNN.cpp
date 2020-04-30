@@ -213,10 +213,10 @@ namespace core {
         for(auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
             const base::Layer<T> &layer = network.getLayers()[layer_it];
-            bool lstm = layer.getType() == "LSTM";
+            bool rnn = layer.getType() == "RNN";
             bool fc = layer.getType() == "InnerProduct";
 
-            if (lstm) continue;
+            if (rnn) continue;
 
             if (!QUIET) std::cout << "Simulating layer: " << layer.getName() << std::endl;
 

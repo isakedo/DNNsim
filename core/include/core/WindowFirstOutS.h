@@ -27,7 +27,7 @@ namespace core {
         void generate_execution_graph() override;
 
         void configure_layer(const std::shared_ptr<base::Array<T>> &_act, const std::shared_ptr<base::Array<T>> &_wgt,
-                uint32_t act_prec, uint32_t wgt_prec, bool _linear, bool _lstm, int _stride) override;
+                uint32_t act_prec, uint32_t wgt_prec, bool _linear, bool __3dim, int _stride) override;
         /**
          * Return if still data to process for convolutional layers
          * @param tiles_data Tile data to process

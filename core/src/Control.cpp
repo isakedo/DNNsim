@@ -41,12 +41,12 @@ namespace core {
     template <typename T>
     void Control<T>::configure_layer(const std::shared_ptr<base::Array<T>> &_act,
             const std::shared_ptr<base::Array<T>> &_wgt, uint32_t act_prec, uint32_t wgt_prec, bool _linear,
-            bool _lstm, int _stride) {
+            bool __3dim, int _stride) {
 
         act = _act;
         wgt = _wgt;
         linear = _linear;
-        lstm = _lstm;
+        _3dim = __3dim;
 
         stride = _stride;
 
