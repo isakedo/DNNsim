@@ -109,7 +109,7 @@ namespace sys {
                 throw std::runtime_error("DRAM size not recognised.");
             }
 
-            experiment.dram_start_act_address = experiment_proto.dram_start_act_address() < 1 ? 0x40000000 :
+            experiment.dram_start_act_address = experiment_proto.dram_start_act_address() < 1 ? 0x80000000 :
                     experiment_proto.dram_start_act_address();
             experiment.dram_start_wgt_address = experiment_proto.dram_start_wgt_address() < 1 ? 0x00000000 :
                     experiment_proto.dram_start_wgt_address();

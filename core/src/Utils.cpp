@@ -70,7 +70,7 @@ namespace core {
 
     std::vector<std::tuple<uint8_t,uint8_t>> generateMinMaxTable(const int MAX_VALUES = 32768) {
         std::vector<std::tuple<uint8_t,uint8_t>> min_max_table ((unsigned)MAX_VALUES, std::tuple<uint8_t,uint8_t>());
-        min_max_table[0] = std::make_tuple(16,0);
+        min_max_table[0] = {16,0};
         for(int n = 1; n < MAX_VALUES; n++) {
 
             auto tmp_n = n;
@@ -86,7 +86,7 @@ namespace core {
             auto min_act_bit = offsets[0];
             auto max_act_bit = offsets[offsets.size()-1];
 
-            min_max_table[n] = std::make_tuple(min_act_bit, max_act_bit);
+            min_max_table[n] = {min_act_bit, max_act_bit};
         }
         return min_max_table;
     }

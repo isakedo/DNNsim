@@ -19,13 +19,11 @@ namespace core {
 
         const uint32_t WRITE_DELAY = 0;
 
-        uint32_t ready_idx = 0;
+        uint32_t idx = 0;
 
-        std::vector<uint64_t> read_ready_cycle;
+        std::vector<uint64_t> ready_cycle;
 
-        uint32_t write_idx = 0;
-
-        std::vector<uint64_t> write_ready_cycle;
+        std::vector<uint64_t> done_cycle;
 
     public:
 
@@ -44,7 +42,13 @@ namespace core {
 
         bool data_ready();
 
+        uint64_t getFifoReadyCycle();
+
         void read_request(uint64_t global_buffer_ready_cycle);
+
+        void evict_data();
+
+        void update_fifo();
 
     };
 

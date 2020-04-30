@@ -66,11 +66,11 @@ namespace core {
     }
 
     template <typename T>
-    void GlobalBuffer<T>::act_read_request(const std::vector<TileData<T>> &tiles_data) {
+    void GlobalBuffer<T>::act_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle) {
 
         try {
 
-            uint64_t start_time = act_read_ready_cycle;
+            uint64_t start_time = std::max(act_read_ready_cycle, fifo_ready_cycle);
             auto bank_conflicts = std::vector<int>(ACT_BANKS, 0);
 
             for (const auto &tile_data : tiles_data) {
@@ -96,17 +96,17 @@ namespace core {
             act_read_ready_cycle = start_time + bank_delay * READ_DELAY;
 
         } catch (std::exception &exception) {
-            throw std::runtime_error("Global Buffer error: Waiting for a memory address not requested.");
+            throw std::runtime_error("Global Buffer waiting for a memory address not requested.");
         }
 
     }
 
     template <typename T>
-    void GlobalBuffer<T>::wgt_read_request(const std::vector<TileData<T>> &tiles_data) {
+    void GlobalBuffer<T>::wgt_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle) {
 
         try {
 
-            uint64_t start_time = wgt_read_ready_cycle;
+            uint64_t start_time = std::max(wgt_read_ready_cycle, fifo_ready_cycle);
             auto bank_conflicts = std::vector<int>(WGT_BANKS, 0);
 
             for (const auto &tile_data : tiles_data) {
@@ -131,7 +131,7 @@ namespace core {
             wgt_read_ready_cycle = start_time + bank_delay * READ_DELAY;
 
         } catch (std::exception &exception) {
-            throw std::runtime_error("Global Buffer error: Waiting for a memory address not requested.");
+            throw std::runtime_error("Global Buffer waiting for a memory address not requested.");
         }
 
     }
@@ -163,7 +163,7 @@ namespace core {
                 auto it2 = this->tracked_data->find(max_addr);
                 this->tracked_data->erase(it, it2);
                 this->tracked_data->erase(max_addr);
-                *this->act_addresses = std::make_tuple(NULL_ADDR, 0);
+                *this->act_addresses = {NULL_ADDR, 0};
             }
 
         }
@@ -178,7 +178,7 @@ namespace core {
                 auto it2 = this->tracked_data->find(max_addr);
                 this->tracked_data->erase(it, it2);
                 this->tracked_data->erase(max_addr);
-                *this->wgt_addresses = std::make_tuple(NULL_ADDR, 0);
+                *this->wgt_addresses = {NULL_ADDR, 0};
             }
 
         }

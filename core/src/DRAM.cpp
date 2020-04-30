@@ -45,8 +45,8 @@ namespace core {
 
     template <typename T>
     void DRAM<T>::configure_layer() {
-        *this->act_addresses = std::make_tuple(NULL_ADDR, 0);
-        *this->wgt_addresses = std::make_tuple(NULL_ADDR, 0);
+        *this->act_addresses = {NULL_ADDR, 0};
+        *this->wgt_addresses = {NULL_ADDR, 0};
         this->tracked_data->clear();
         act_reads = 0;
         wgt_reads = 0;
@@ -61,6 +61,7 @@ namespace core {
 
     template <typename T>
     bool DRAM<T>::data_ready(const std::vector<TileData<T>> &tiles_data) {
+        if (!waiting_addresses.empty()) stall_cycles++;
         return waiting_addresses.empty();
     }
 
@@ -83,7 +84,7 @@ namespace core {
 
             }
         } catch (std::exception &exception) {
-            throw std::runtime_error("DRAM error: Waiting for a memory address not requested.");
+            throw std::runtime_error("DRAM waiting for a memory address not requested.");
         }
     }
 
@@ -93,7 +94,7 @@ namespace core {
         if (dram_interface->willAcceptTransaction()) {
             dram_interface->addTransaction(isWrite, address);
         } else {
-            request_queue.push(std::make_tuple(address, isWrite));
+            request_queue.push({address, isWrite});
         }
     }
 
@@ -112,7 +113,7 @@ namespace core {
                 request_queue.pop();
             }
         } catch (std::exception &exception) {
-            throw std::runtime_error("DRAM error: Waiting for a memory address not requested.");
+            throw std::runtime_error("DRAM waiting for a memory address not requested.");
         }
     }
 
@@ -159,7 +160,6 @@ namespace core {
                     act_first = false;
                 }
 
-
                 while (act_start_addr <= act_end_addr) {
                     if (count == OVERLAP)
                         break;
@@ -202,7 +202,6 @@ namespace core {
 
                     wgt_first = false;
                 }
-
 
                 while (wgt_start_addr <= wgt_end_addr) {
 

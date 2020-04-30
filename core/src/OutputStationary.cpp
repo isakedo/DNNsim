@@ -63,7 +63,7 @@ namespace core {
 
         // Data buffer
         weight_buffer = Buffer<T>(filter_sets, BufferSet<T>(max_buffer_time,
-                BufferRow<T>(this->EF_ROWS * this->EF_LANES, std::make_tuple(0, 0, 0))));
+                BufferRow<T>(this->EF_ROWS * this->EF_LANES, {0, 0, 0})));
 
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
 
@@ -88,7 +88,7 @@ namespace core {
 
                             auto wgt_bits = this->wgt->get(m, ch, x, y);
                             int pos = filter_pos * this->EF_LANES + index;
-                            weight_buffer[set_wgt][buffer_time][pos] = std::make_tuple(wgt_bits, buffer_time, index);
+                            weight_buffer[set_wgt][buffer_time][pos] = {wgt_bits, buffer_time, index};
 
                             index++;
                             if (index == this->EF_LANES) {
@@ -116,34 +116,43 @@ namespace core {
         wgt_address_buffer = AddressBuffer(filter_sets, AddressBufferSet(max_buffer_time,
                 AddressBufferRow(addresses_per_row, NULL_ADDR)));
 
-        wgt_address_map = std::vector<AddressRange>(filter_sets, AddressRange());
+        auto tiles = this->arch->getTiles();
+        wgt_address_map = std::vector<AddressRange>(ceil(filter_sets / (double)tiles), AddressRange());
 
         // Filter Set third
-        for (int m = 0; m < filter_sets; ++m) {
+        for (int m = 0; m < filter_sets; m += tiles) {
 
-            std::get<0>(wgt_address_map[m]) = this->dram->getStartWgtAddress() + next_wgt_address;
+            std::get<0>(wgt_address_map[m/tiles]) = this->dram->getStartWgtAddress() + next_wgt_address;
 
             // Buffer depth second
-            int skip_buf = 0;
+            auto skip_buf = std::vector<int>(tiles, 0);
             for (int y = 0; y < max_buffer_time; ++y) {
 
-                if (this->arch->schedule()) {
-                    bool zero_line = this->scheduler->check_zero_line(this->weight_buffer[m][y]);
-                    if (skip_buf < this->scheduler->getLookaheadH() && zero_line) {
-                        skip_buf++;
-                        continue;
-                    }
-                    skip_buf = 0;
-                }
+                for (int t = 0; t < tiles; ++t) {
 
-                // Buffer width first
-                for (int x = 0; x < addresses_per_row; ++x) {
-                    this->wgt_address_buffer[m][y][x] = this->dram->getStartWgtAddress() + next_wgt_address;
-                    next_wgt_address += BLOCK_SIZE;
+                    auto mm = m + t;
+                    if (mm >= this->filter_sets)
+                        continue;
+
+                    if (this->arch->schedule()) {
+                        bool zero_line = this->scheduler->check_zero_line(this->weight_buffer[mm][y]);
+                        if (skip_buf[t] < this->scheduler->getLookaheadH() && zero_line) {
+                            skip_buf[t]++;
+                            continue;
+                        }
+                        skip_buf[t] = 0;
+                    }
+
+                    // Buffer width first
+                    for (int x = 0; x < addresses_per_row; ++x) {
+                        this->wgt_address_buffer[mm][y][x] = this->dram->getStartWgtAddress() + next_wgt_address;
+                        next_wgt_address += BLOCK_SIZE;
+                    }
+
                 }
             }
 
-            std::get<1>(wgt_address_map[m]) = this->dram->getStartWgtAddress() + next_wgt_address - BLOCK_SIZE;
+            std::get<1>(wgt_address_map[m/tiles]) = this->dram->getStartWgtAddress() + next_wgt_address - BLOCK_SIZE;
 
         }
 
@@ -194,8 +203,7 @@ namespace core {
         }
 
         auto num_windows = this->linear ? this->EF_COLUMNS : windows.size();
-        window_buffer = BufferSet<T>(max_buffer_time, BufferRow<T>(num_windows * this->EF_LANES,
-                std::make_tuple(0.0f, 0, 0)));
+        window_buffer = BufferSet<T>(max_buffer_time, BufferRow<T>(num_windows * this->EF_LANES, {0.0f, 0, 0}));
 
         auto addresses_per_window = (uint64_t)ceil(this->EF_LANES / (double)this->dram->getValuesPerBlock());
         window_address_buffer = AddressBufferSet(max_buffer_time, AddressBufferRow(addresses_per_window *
@@ -237,7 +245,7 @@ namespace core {
 
                             auto column = this->linear ? next_column : w;
                             int pos = column * this->EF_LANES + index;
-                            window_buffer[buffer_time][pos] = std::make_tuple(act_bits, buffer_time, index);
+                            window_buffer[buffer_time][pos] = {act_bits, buffer_time, index};
 
                             int addr_pos = w * addresses_per_window + index / this->dram->getValuesPerBlock();
                             window_address_buffer[buffer_time][addr_pos] = act_address_map[y_window + y]

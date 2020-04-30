@@ -190,10 +190,14 @@ namespace core {
         for (int r = 0; r < recurrences; ++r) {
             for (int fstep = 0; fstep < filter_steps; ++fstep) {
 
-                auto start_filter_set = fstep * filter_sets_per_step * this->arch->getTiles();
-                auto last_filter_set = std::min((uint64_t)filter_sets_per_step * this->arch->getTiles(),
-                        this->filter_sets - start_filter_set);
+                auto start_filter_set = fstep * filter_sets_per_step;
+                auto last_filter_set = std::min((uint32_t)filter_sets_per_step, total_filter_sets - start_filter_set);
                 auto end_filter_set = start_filter_set + last_filter_set;
+
+                auto start_filter_subset = fstep * filter_sets_per_step * this->arch->getTiles();
+                auto last_filter_subset = std::min((uint64_t)filter_sets_per_step * this->arch->getTiles(),
+                        this->filter_sets - start_filter_set);
+                auto end_filter_subset = start_filter_subset + last_filter_subset;
 
                 for (int tstep = 0; tstep < time_steps; ++tstep) {
 
@@ -249,8 +253,8 @@ namespace core {
                     }
 
                     // Fil filters
-                    node->filter_sets = std::vector<int>(last_filter_set, 0);
-                    std::iota(node->filter_sets.begin(), node->filter_sets.end(), start_filter_set);
+                    node->filter_sets = std::vector<int>(last_filter_subset, 0);
+                    std::iota(node->filter_sets.begin(), node->filter_sets.end(), start_filter_subset);
 
                     if (wgt_policy == ALL) {
                         if (r == 0 && tstep == 0) {
@@ -274,22 +278,36 @@ namespace core {
                         uint64_t first_address = NULL_ADDR, last_address = NULL_ADDR;
                         if (this->arch->schedule()) {
                             for (int tmp = start_time; tmp <= end_time; ++tmp) {
-                                if (this->wgt_address_buffer[start_filter_set][tmp].front() != NULL_ADDR) {
-                                    first_address = this->wgt_address_buffer[start_filter_set][tmp].front();
-                                    break;
+
+                                for (int subset = start_filter_subset; subset < end_filter_subset; ++subset) {
+                                    if (subset > this->filter_sets) continue;
+                                    if (this->wgt_address_buffer[subset][tmp].front() != NULL_ADDR) {
+                                        first_address = this->wgt_address_buffer[subset][tmp].front();
+                                        break;
+                                    }
                                 }
+
+                                if (first_address != NULL_ADDR)
+                                    break;
                             }
 
                             for (int tmp = end_time; tmp >= start_time ; --tmp) {
-                                if (this->wgt_address_buffer[end_filter_set - 1][tmp].back() != NULL_ADDR) {
-                                    last_address = this->wgt_address_buffer[end_filter_set - 1][tmp].back();
-                                    break;
+                                for (int subset = end_filter_subset; subset > start_filter_subset; --subset) {
+                                    if (subset > this->filter_sets) continue;
+                                    if (this->wgt_address_buffer[subset - 1][tmp].back() != NULL_ADDR) {
+                                        last_address = this->wgt_address_buffer[subset - 1][tmp].back();
+                                        break;
+                                    }
                                 }
+
+                                if (last_address != NULL_ADDR)
+                                    break;
+
                             }
 
                         } else {
-                            first_address = this->wgt_address_buffer[start_filter_set][start_time].front();
-                            last_address = this->wgt_address_buffer[end_filter_set - 1][end_time].back();
+                            first_address = this->wgt_address_buffer[start_filter_subset][start_time].front();
+                            last_address = this->wgt_address_buffer[end_filter_subset - 1][end_time].back();
                         }
 
                         assert(first_address != NULL_ADDR);
@@ -488,7 +506,7 @@ namespace core {
 
         // Fill window buffer
         if (!use_prev_buffer && !this->window_buffer_filled) {
-            this->windows = {std::make_tuple(0, 0)};
+            this->windows = {{0, 0}};
             this->fill_window_buffer();
             this->window_buffer_filled = true;
         }
@@ -565,7 +583,7 @@ namespace core {
                     tiles_data[t].wgt_addresses = this->wgt_address_buffer[filter_set + t][set_time];
                     tiles_data[t].wgt_banks = this->wgt_bank_buffer[filter_set + t][set_time];
 
-                    tiles_data[t].windows = std::vector<WindowCoord>(this->EF_COLUMNS, std::make_tuple(0, 0));
+                    tiles_data[t].windows = std::vector<WindowCoord>(this->EF_COLUMNS, {0, 0});
                     tiles_data[t].filters = this->filters[t];
                     tiles_data[t].time = set_time;
                     tiles_data[t].lanes = this->EF_LANES;

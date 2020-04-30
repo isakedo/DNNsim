@@ -73,7 +73,7 @@ namespace core {
                     auto sim_value = sim_output[ch][x][y];
                     auto error = (actual_value - sim_value) / sim_value;
                     if (abs(error) > 1e-10)
-                        throw std::runtime_error("Simulation wrong value.");
+                        throw std::runtime_error("Wrong value.");
                 }
             }
         }
@@ -164,7 +164,9 @@ namespace core {
         auto gbuffer_act_bank_conflicts = stats.register_uint_t("gbuffer_act_bank_conflicts", 0, sys::AverageTotal);
         auto gbuffer_wgt_bank_conflicts = stats.register_uint_t("gbuffer_wgt_bank_conflicts", 0, sys::AverageTotal);
         auto gbuffer_out_bank_conflicts = stats.register_uint_t("gbuffer_out_bank_conflicts", 0, sys::AverageTotal);
-        auto gbuffer_stall_cycles = stats.register_uint_t("gbuffer_stall_cycles", 0, sys::AverageTotal);
+
+        // Local buffers
+        auto on_chip_stall_cycles = stats.register_uint_t("on_chip_stall_cycles", 0, sys::AverageTotal);
 
         auto act_precision = stats.register_uint_t("activations precision", 0, sys::Average);
         auto wgt_precision = stats.register_uint_t("weights precision", 0, sys::Average);
@@ -253,8 +255,8 @@ namespace core {
                         }
 
                         // Request data to on-chip global buffer
-                        gbuffer->act_read_request(tiles_data);
-                        gbuffer->wgt_read_request(tiles_data);
+                        gbuffer->act_read_request(tiles_data, abuffer->getFifoReadyCycle());
+                        gbuffer->wgt_read_request(tiles_data, wbuffer->getFifoReadyCycle());
 
                         // Request data to local buffers
                         abuffer->read_request(gbuffer->getActReadReadyCycle());
@@ -273,8 +275,14 @@ namespace core {
 
                         arch->process_tiles(tiles_data);
 
+                        abuffer->evict_data();
+                        wbuffer->evict_data();
+
                         dram->cycle();
                         *global_cycle += 1;
+
+                        abuffer->update_fifo();
+                        wbuffer->update_fifo();
 
                         // Check if write the output register back to global buffer
                         if (control->check_if_write_output(tiles_data)) {

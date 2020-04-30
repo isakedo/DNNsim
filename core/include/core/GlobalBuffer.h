@@ -69,9 +69,9 @@ namespace core {
 
         bool write_done();
 
-        void act_read_request(const std::vector<TileData<T>> &tiles_data);
+        void act_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle);
 
-        void wgt_read_request(const std::vector<TileData<T>> &tiles_data);
+        void wgt_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle);
 
         void write_request(const std::vector<TileData<T>> &tiles_data);
 

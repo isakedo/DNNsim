@@ -59,7 +59,7 @@ namespace core {
             lane_d = (lane_d) >= lower_bound ? lane_d - LANES : lane_d; // Wrap around
             auto value_tuple = buffer[time_h][lane_d];
             auto value_bits = std::get<0>(value_tuple);
-            if(value_bits != 0) effectual_candidates.push_back(std::make_tuple(time_h, lane_d));
+            if(value_bits != 0) effectual_candidates.push_back({time_h, lane_d});
         }
 
         return effectual_candidates;
