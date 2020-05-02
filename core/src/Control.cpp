@@ -96,9 +96,11 @@ namespace core {
 
     template <typename T>
     bool Control<T>::check_if_write_output(std::vector<TileData<T>> &tiles_data) {
-        for (const auto &tile_data : tiles_data)
+        for (const auto &tile_data : tiles_data) {
+            if (!tile_data.valid) continue;
             if (!tile_data.out_banks.empty())
                 return true;
+        }
         return false;
     }
 

@@ -48,6 +48,7 @@ namespace core {
         *this->act_addresses = {NULL_ADDR, 0};
         *this->wgt_addresses = {NULL_ADDR, 0};
         this->tracked_data->clear();
+
         act_reads = 0;
         wgt_reads = 0;
         out_writes = 0;

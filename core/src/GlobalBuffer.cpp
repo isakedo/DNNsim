@@ -83,6 +83,13 @@ namespace core {
         act_read_ready_cycle = 0;
         wgt_read_ready_cycle = 0;
         write_ready_cycle = 0;
+
+        act_reads = 0;
+        wgt_reads = 0;
+        out_writes = 0;
+        act_bank_conflicts = 0;
+        wgt_bank_conflicts = 0;
+        out_bank_conflicts = 0;
     }
 
     template<typename T>
