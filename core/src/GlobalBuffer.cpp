@@ -182,7 +182,7 @@ namespace core {
         auto bank_conflicts = std::vector<int>(OUT_BANKS, 0);
         for (const auto &tile_data : tiles_data) {
 
-            if (!tile_data.valid)
+            if (!tile_data.write)
                 continue;
 
             // Bank conflicts

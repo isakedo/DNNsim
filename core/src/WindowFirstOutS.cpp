@@ -196,7 +196,7 @@ namespace core {
 
                 auto start_filter_subset = fstep * filter_sets_per_step * this->arch->getTiles();
                 auto last_filter_subset = std::min((uint64_t)filter_sets_per_step * this->arch->getTiles(),
-                        this->filter_sets - start_filter_set);
+                        this->filter_sets - start_filter_subset);
                 auto end_filter_subset = start_filter_subset + last_filter_subset;
 
                 for (int tstep = 0; tstep < time_steps; ++tstep) {
@@ -539,9 +539,11 @@ namespace core {
             }
 
             auto out_bank_idx = 0;
+            bool first = true;
             bool still_work = false;
             for (int t = 0; t < this->arch->getTiles(); ++t) {
 
+                tiles_data[t].write = false;
                 tiles_data[t].valid = false;
 
                 if (this->filters[t].empty()) break;
@@ -570,21 +572,23 @@ namespace core {
                     tiles_data[t].act_row = BufferSet<T>(this->window_buffer.begin() + set_time,
                             std::min(this->window_buffer.begin() + set_time +
                             num_act_rows, this->window_buffer.end()));
-                    if (t == 0) {
+                    if (first) {
                         if (!this->layer_act_on_chip) {
                             tiles_data[t].act_addresses =
                                     AddressBufferSet(this->window_address_buffer.begin() + set_time,
                                     std::min(this->window_address_buffer.begin() + set_time +
                                     num_act_rows, this->window_address_buffer.end()));
-                            }
+                        }
                         tiles_data[t].act_banks = this->window_bank_buffer[set_time];
+                        first = false;
+                    } else {
+                        tiles_data[t].act_addresses.clear();
+                        tiles_data[t].act_banks.clear();
                     }
 
                     tiles_data[t].wgt_row = this->weight_buffer[filter_set + t][set_time];
                     tiles_data[t].wgt_addresses = this->wgt_address_buffer[filter_set + t][set_time];
                     tiles_data[t].wgt_banks = this->wgt_bank_buffer[filter_set + t][set_time];
-
-                    tiles_data[t].out_banks = BankBufferRow();
 
                     tiles_data[t].windows = std::vector<WindowCoord>(this->EF_COLUMNS, {0, 0});
                     tiles_data[t].filters = this->filters[t];
@@ -593,6 +597,7 @@ namespace core {
                     tiles_data[t].valid = true;
 
                     still_work = true;
+                    this->write[t] = true;
                     this->time[t]++;
                     break;
 
@@ -607,14 +612,16 @@ namespace core {
                 for (int t = 0; t < this->arch->getTiles() && tiles_done; ++t) {
                     if (!tiles_data[t].valid) continue;
                     auto set_time = time_step * max_time + this->time[t];
-                    if (set_time < this->max_buffer_time)
+                    if (set_time <= this->wgt_end_time[filter_set + t])
                         tiles_done = false;
                 }
 
                 if (tiles_done) {
                     for (int t = 0; t < this->arch->getTiles(); ++t) {
-                        if (!tiles_data[t].valid) continue;
+                        if (!this->write[t]) continue;
                         tiles_data[t].out_banks = BankBufferRow(this->filters.size(), 0);
+                        tiles_data[t].write = true;
+
                         for (int ob = 0; ob < this->filters.size(); ++ob) {
                             tiles_data[t].out_banks[ob] = out_bank_idx;
                             out_bank_idx = (out_bank_idx + 1) % this->gbuffer->getOutBanks();
@@ -625,6 +632,7 @@ namespace core {
                 return true;
             }
 
+            this->write = std::vector<bool>(this->arch->getTiles(), false);
             this->time = std::vector<int>(this->arch->getTiles(), 0);
             this->skip = std::vector<int>(this->arch->getTiles(), 0);
             this->filter_buffer_filled = false;
@@ -634,10 +642,7 @@ namespace core {
 
         this->window_set_it = 0;
         this->filter_set_it = 0;
-        this->time = std::vector<int>(this->arch->getTiles(), 0);
-        this->skip = std::vector<int>(this->arch->getTiles(), 0);
         this->window_buffer_filled = false;
-        this->filter_buffer_filled = false;
         return false;
 
     }

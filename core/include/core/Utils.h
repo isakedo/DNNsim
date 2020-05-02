@@ -62,6 +62,7 @@ namespace core {
         int time = 0;
         int lanes = 0;
 
+        bool write = false;
         bool valid = false;
     };
 

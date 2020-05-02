@@ -742,7 +742,7 @@ namespace base {
 
             this->data3D.clear();
             this->data3D = tmp_data3D;
-            this->shape[1] = 1;
+            this->shape[0] = 1;
 
         } else if (this->getDimensions() == 4) {
             auto images = this->shape[0];

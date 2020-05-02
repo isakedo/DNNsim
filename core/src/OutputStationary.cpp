@@ -162,6 +162,7 @@ namespace core {
                 (double)this->gbuffer->getBankWidth());
         wgt_bank_buffer = BankBuffer(filter_sets, BankBufferSet(max_buffer_time,
                 BankBufferRow(accesses_per_filter * this->EF_ROWS)));
+        wgt_end_time = std::vector<uint64_t>(filter_sets, 0);
 
         int bank = 0;
         for (int m = 0; m < filter_sets; ++m) {
@@ -181,6 +182,8 @@ namespace core {
                             skip_buf = 0;
                         }
 
+                        if (y > wgt_end_time[m])
+                            wgt_end_time[m] = y;
                         this->wgt_bank_buffer[m][y][r * accesses_per_filter + f] = bank;
                     }
 
@@ -285,6 +288,7 @@ namespace core {
 
         window_set_it = 0;
         filter_set_it = 0;
+        write = std::vector<bool>(this->arch->getTiles(), false);
         time = std::vector<int>(this->arch->getTiles(), 0);
         skip = std::vector<int>(this->arch->getTiles(), 0);
         window_buffer_filled = false;

@@ -38,6 +38,9 @@ namespace core {
         /** Weight banks buffer */
         BankBuffer wgt_bank_buffer;
 
+        /** Weight End time */
+        std::vector<uint64_t> wgt_end_time;
+
         /** Window buffer */
         BufferSet<T> window_buffer;
 
@@ -81,6 +84,9 @@ namespace core {
 
         /** Filter iterator */
         int filter_set_it = 0;
+
+        /** Write */
+        std::vector<bool> write;
 
         /** Time counter */
         std::vector<int> time;
