@@ -538,6 +538,7 @@ namespace core {
                 this->filter_buffer_filled = true;
             }
 
+            auto out_bank_idx = 0;
             bool still_work = false;
             for (int t = 0; t < this->arch->getTiles(); ++t) {
 
@@ -583,6 +584,8 @@ namespace core {
                     tiles_data[t].wgt_addresses = this->wgt_address_buffer[filter_set + t][set_time];
                     tiles_data[t].wgt_banks = this->wgt_bank_buffer[filter_set + t][set_time];
 
+                    tiles_data[t].out_banks = BankBufferRow();
+
                     tiles_data[t].windows = std::vector<WindowCoord>(this->EF_COLUMNS, {0, 0});
                     tiles_data[t].filters = this->filters[t];
                     tiles_data[t].time = set_time;
@@ -597,7 +600,30 @@ namespace core {
 
             } // Tile
 
-            if (still_work) return true;
+            if (still_work) {
+
+                // Check if all tiles are done
+                bool tiles_done = true;
+                for (int t = 0; t < this->arch->getTiles() && tiles_done; ++t) {
+                    if (!tiles_data[t].valid) continue;
+                    auto set_time = time_step * max_time + this->time[t];
+                    if (set_time < this->max_buffer_time)
+                        tiles_done = false;
+                }
+
+                if (tiles_done) {
+                    for (int t = 0; t < this->arch->getTiles(); ++t) {
+                        if (!tiles_data[t].valid) continue;
+                        tiles_data[t].out_banks = BankBufferRow(this->filters.size(), 0);
+                        for (int ob = 0; ob < this->filters.size(); ++ob) {
+                            tiles_data[t].out_banks[ob] = out_bank_idx;
+                            out_bank_idx = (out_bank_idx + 1) % this->gbuffer->getOutBanks();
+                        }
+                    }
+                }
+
+                return true;
+            }
 
             this->time = std::vector<int>(this->arch->getTiles(), 0);
             this->skip = std::vector<int>(this->arch->getTiles(), 0);

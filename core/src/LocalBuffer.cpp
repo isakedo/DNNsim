@@ -4,25 +4,25 @@
 namespace core {
 
     template <typename T>
-    uint32_t LocalBuffer<T>::getRows() const {
-        return ROWS;
-    }
-
-    template <typename T>
-    uint32_t LocalBuffer<T>::getReadDelay() const {
-        return READ_DELAY;
-    }
-
-    template <typename T>
-    uint32_t LocalBuffer<T>::getWriteDelay() const {
-        return WRITE_DELAY;
-    }
-
-    template <typename T>
     void LocalBuffer<T>::configure_layer() {
         idx = 0;
         ready_cycle = std::vector<uint64_t>(ROWS, 0);
         done_cycle = std::vector<uint64_t>(ROWS, 0);
+    }
+
+    template <typename T>
+    uint64_t LocalBuffer<T>::getFifoReadyCycle() const {
+        return ready_cycle[idx];
+    }
+
+    template <typename T>
+    uint64_t LocalBuffer<T>::getFifoDoneCycle() const {
+        return done_cycle[idx];
+    }
+
+    template <typename T>
+    void LocalBuffer<T>::update_fifo() {
+        idx = (idx + 1) % ROWS;
     }
 
     template <typename T>
@@ -31,13 +31,8 @@ namespace core {
     }
 
     template <typename T>
-    uint64_t LocalBuffer<T>::getFifoReadyCycle() {
-        return done_cycle[idx];
-    }
-
-    template <typename T>
     void LocalBuffer<T>::read_request(uint64_t global_buffer_ready_cycle) {
-        ready_cycle[idx] = global_buffer_ready_cycle + READ_DELAY;
+        ready_cycle[idx] = global_buffer_ready_cycle + READ_DELAY - 1;
     }
 
     template <typename T>
@@ -46,9 +41,20 @@ namespace core {
     }
 
     template <typename T>
-    void LocalBuffer<T>::update_fifo() {
-        idx = (idx + 1) % ROWS;
+    bool LocalBuffer<T>::write_ready() {
+        return done_cycle[idx] <= *this->global_cycle;
     }
+
+    template <typename T>
+    void LocalBuffer<T>::write_request() {
+        ready_cycle[idx] = *this->global_cycle + WRITE_DELAY - 1;
+    }
+
+    template <typename T>
+    void LocalBuffer<T>::update_done_cycle(uint64_t global_buffer_ready_cycle) {
+        done_cycle[idx] = global_buffer_ready_cycle;
+    }
+
 
     INITIALISE_DATA_TYPES(LocalBuffer);
 

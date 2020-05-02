@@ -13,6 +13,8 @@ namespace core {
 
     private:
 
+        /* SIMULATION PARAMETERS */
+
         const uint64_t ACT_SIZE = 0;
 
         const uint64_t WGT_SIZE = 0;
@@ -35,6 +37,20 @@ namespace core {
 
         uint64_t write_ready_cycle = 0;
 
+        /* STATISTICS */
+
+        uint64_t act_reads = 0;
+
+        uint64_t wgt_reads = 0;
+
+        uint64_t out_writes = 0;
+
+        uint64_t act_bank_conflicts = 0;
+
+        uint64_t wgt_bank_conflicts = 0;
+
+        uint64_t out_bank_conflicts = 0;
+
     public:
 
         GlobalBuffer(const std::shared_ptr<std::map<uint64_t, uint64_t>> &_tracked_data,
@@ -44,6 +60,18 @@ namespace core {
                 _act_addresses, _wgt_addresses), ACT_SIZE(_ACT_SIZE), WGT_SIZE(_WGT_SIZE), ACT_BANKS(_ACT_BANKS),
                 WGT_BANKS(_WGT_BANKS), OUT_BANKS(_OUT_BANKS), BANK_WIDTH(_BANK_WIDTH), READ_DELAY(_READ_DELAY),
                 WRITE_DELAY(_WRITE_DELAY) {}
+
+        uint64_t getActReads() const;
+
+        uint64_t getWgtReads() const;
+
+        uint64_t getOutWrites() const;
+
+        uint64_t getActBankConflicts() const;
+
+        uint64_t getWgtBankConflicts() const;
+
+        uint64_t getOutBankConflicts() const;
 
         uint64_t getActSize() const;
 
@@ -55,15 +83,13 @@ namespace core {
 
         uint32_t getBankWidth() const;
 
-        uint32_t getReadDelay() const;
-
-        uint32_t getWriteDelay() const;
-
         uint32_t getOutBanks() const;
 
         uint64_t getActReadReadyCycle() const;
 
         uint64_t getWgtReadReadyCycle() const;
+
+        uint64_t getWriteReadyCycle() const;
 
         void configure_layer() override;
 
@@ -73,7 +99,7 @@ namespace core {
 
         void wgt_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle);
 
-        void write_request(const std::vector<TileData<T>> &tiles_data);
+        void write_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle);
 
         void evict_data(bool evict_act, bool evict_wgt);
 

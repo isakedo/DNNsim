@@ -166,7 +166,6 @@ namespace core {
         auto gbuffer_out_bank_conflicts = stats.register_uint_t("gbuffer_out_bank_conflicts", 0, sys::AverageTotal);
 
         // Local buffers
-        auto on_chip_stall_cycles = stats.register_uint_t("on_chip_stall_cycles", 0, sys::AverageTotal);
 
         auto act_precision = stats.register_uint_t("activations precision", 0, sys::Average);
         auto wgt_precision = stats.register_uint_t("weights precision", 0, sys::Average);
@@ -255,20 +254,18 @@ namespace core {
                         }
 
                         // Request data to on-chip global buffer
-                        gbuffer->act_read_request(tiles_data, abuffer->getFifoReadyCycle());
-                        gbuffer->wgt_read_request(tiles_data, wbuffer->getFifoReadyCycle());
+                        gbuffer->act_read_request(tiles_data, abuffer->getFifoDoneCycle());
+                        gbuffer->wgt_read_request(tiles_data, wbuffer->getFifoDoneCycle());
 
                         // Request data to local buffers
                         abuffer->read_request(gbuffer->getActReadReadyCycle());
                         wbuffer->read_request(gbuffer->getWgtReadReadyCycle());
 
                         // Wait for:
-                        // - global buffer to write before starting new windows (psum registers are empty)
                         // - activation buffer to have the data ready
                         // - weight buffer to have the data ready
                         // - pipeline to be ready
-                        while (!gbuffer->write_done() || !abuffer->data_ready() || !wbuffer->data_ready()
-                                || !arch->ready()) {
+                        while (!abuffer->data_ready() || !wbuffer->data_ready() || !arch->ready()) {
                             dram->cycle();
                             *global_cycle += 1;
                         }
@@ -287,13 +284,18 @@ namespace core {
                         // Check if write the output register back to global buffer
                         if (control->check_if_write_output(tiles_data)) {
 
-                            // Flush pipeline
-                            while (!arch->flush()) {
+                            // Wair for:
+                            // - Pipeline is empty
+                            // - Space in output buffer before starting new windows
+                            if (!arch->flush() || !obuffer->write_ready()) {
                                 dram->cycle();
                                 *global_cycle += 1;
                             }
 
-                            gbuffer->write_request(tiles_data);
+                            obuffer->write_request();
+                            gbuffer->write_request(tiles_data, obuffer->getFifoReadyCycle());
+                            obuffer->update_done_cycle(gbuffer->getWriteReadyCycle());
+                            obuffer->update_fifo();
 
                         }
 
@@ -328,6 +330,13 @@ namespace core {
                 dram_wgt_reads->value[layer_it][image] = dram->getWgtReads();
                 dram_out_writes->value[layer_it][image] = dram->getOutWrites();
                 dram_stall_cycles->value[layer_it][image] = dram->getStallCycles();
+
+                gbuffer_act_reads->value[layer_it][image] = gbuffer->getActReads();
+                gbuffer_wgt_reads->value[layer_it][image] = gbuffer->getWgtReads();
+                gbuffer_out_writes->value[layer_it][image] = gbuffer->getOutWrites();
+                gbuffer_act_bank_conflicts->value[layer_it][image] = gbuffer->getActBankConflicts();
+                gbuffer_wgt_bank_conflicts->value[layer_it][image] = gbuffer->getWgtBankConflicts();
+                gbuffer_out_bank_conflicts->value[layer_it][image] = gbuffer->getOutBankConflicts();
 
                 act_precision->value[layer_it][image] = act_prec;
                 wgt_precision->value[layer_it][image] = wgt_prec;

@@ -3,6 +3,36 @@
 
 namespace core {
 
+    template<typename T>
+    uint64_t GlobalBuffer<T>::getActReads() const {
+        return act_reads;
+    }
+
+    template<typename T>
+    uint64_t GlobalBuffer<T>::getWgtReads() const {
+        return wgt_reads;
+    }
+
+    template<typename T>
+    uint64_t GlobalBuffer<T>::getOutWrites() const {
+        return out_writes;
+    }
+
+    template<typename T>
+    uint64_t GlobalBuffer<T>::getActBankConflicts() const {
+        return act_bank_conflicts;
+    }
+
+    template<typename T>
+    uint64_t GlobalBuffer<T>::getWgtBankConflicts() const {
+        return wgt_bank_conflicts;
+    }
+
+    template<typename T>
+    uint64_t GlobalBuffer<T>::getOutBankConflicts() const {
+        return out_bank_conflicts;
+    }
+
     template <typename T>
     uint64_t GlobalBuffer<T>::getActSize() const {
         return ACT_SIZE;
@@ -33,16 +63,6 @@ namespace core {
         return BANK_WIDTH;
     }
 
-    template <typename T>
-    uint32_t GlobalBuffer<T>::getReadDelay() const {
-        return READ_DELAY;
-    }
-
-    template <typename T>
-    uint32_t GlobalBuffer<T>::getWriteDelay() const {
-        return WRITE_DELAY;
-    }
-
     template<typename T>
     uint64_t GlobalBuffer<T>::getActReadReadyCycle() const {
         return act_read_ready_cycle;
@@ -51,6 +71,11 @@ namespace core {
     template<typename T>
     uint64_t GlobalBuffer<T>::getWgtReadReadyCycle() const {
         return wgt_read_ready_cycle;
+    }
+
+    template<typename T>
+    uint64_t GlobalBuffer<T>::getWriteReadyCycle() const {
+        return write_ready_cycle;
     }
 
     template <typename T>
@@ -89,11 +114,14 @@ namespace core {
                 for (const auto &act_bank : tile_data.act_banks)
                     bank_conflicts[act_bank]++;
 
+                if (!tile_data.act_banks.empty())
+                    act_reads++;
+
             }
 
             auto bank_delay = *std::max_element(bank_conflicts.begin(), bank_conflicts.end());
-
-            act_read_ready_cycle = start_time + bank_delay * READ_DELAY;
+            act_read_ready_cycle = start_time + bank_delay * READ_DELAY - 1;
+            act_bank_conflicts += bank_delay - 1;
 
         } catch (std::exception &exception) {
             throw std::runtime_error("Global Buffer waiting for a memory address not requested.");
@@ -124,11 +152,14 @@ namespace core {
                 for (const auto &wgt_bank : tile_data.wgt_banks)
                     bank_conflicts[wgt_bank]++;
 
+                if (!tile_data.wgt_banks.empty())
+                    wgt_reads++;
+
             }
 
             auto bank_delay = *std::max_element(bank_conflicts.begin(), bank_conflicts.end());
-
-            wgt_read_ready_cycle = start_time + bank_delay * READ_DELAY;
+            wgt_read_ready_cycle = start_time + bank_delay * READ_DELAY - 1;
+            wgt_bank_conflicts += bank_delay - 1;
 
         } catch (std::exception &exception) {
             throw std::runtime_error("Global Buffer waiting for a memory address not requested.");
@@ -137,17 +168,28 @@ namespace core {
     }
 
     template <typename T>
-    void GlobalBuffer<T>::write_request(const std::vector<TileData<T>> &tiles_data) {
+    void GlobalBuffer<T>::write_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle) {
 
-        auto start_time = std::max(write_ready_cycle, *this->global_cycle);
+        auto start_time = std::max(write_ready_cycle, fifo_ready_cycle);
 
-        auto out_bank_conflicts = std::vector<int>(OUT_BANKS, 0);
+        auto bank_conflicts = std::vector<int>(OUT_BANKS, 0);
         for (const auto &tile_data : tiles_data) {
+
+            if (!tile_data.valid)
+                continue;
+
+            // Bank conflicts
             for (const auto &out_bank : tile_data.out_banks)
-                out_bank_conflicts[out_bank]++;
+                bank_conflicts[out_bank]++;
+
+            if (!tile_data.out_banks.empty())
+                out_writes++;
+
         }
-        auto out_delay = *std::max_element(out_bank_conflicts.begin(), out_bank_conflicts.end()) - 1;
-        write_ready_cycle = start_time + out_delay * WRITE_DELAY;
+
+        auto bank_delay = *std::max_element(bank_conflicts.begin(), bank_conflicts.end());
+        write_ready_cycle = start_time + bank_delay * WRITE_DELAY - 1;
+        out_bank_conflicts += bank_delay - 1;
 
     }
 

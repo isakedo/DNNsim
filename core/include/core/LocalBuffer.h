@@ -32,23 +32,31 @@ namespace core {
                 uint32_t _ROWS, uint32_t _READ_DELAY, uint32_t _WRITE_DELAY) : Memory<T>(_tracked_data, _act_addresses,
                 _wgt_addresses), ROWS(_ROWS), READ_DELAY(_READ_DELAY), WRITE_DELAY(_WRITE_DELAY) {}
 
-        uint32_t getRows() const;
-
-        uint32_t getReadDelay() const;
-
-        uint32_t getWriteDelay() const;
+        // GENERAL
 
         void configure_layer() override;
 
-        bool data_ready();
+        uint64_t getFifoReadyCycle() const;
 
-        uint64_t getFifoReadyCycle();
+        uint64_t getFifoDoneCycle() const;
+
+        void update_fifo();
+
+        // READ
+
+        bool data_ready();
 
         void read_request(uint64_t global_buffer_ready_cycle);
 
         void evict_data();
 
-        void update_fifo();
+        // WRITE
+
+        bool write_ready();
+
+        void write_request();
+
+        void update_done_cycle(uint64_t global_buffer_ready_cycle);
 
     };
 
