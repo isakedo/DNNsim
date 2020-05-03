@@ -51,6 +51,8 @@ namespace core {
 
         uint64_t out_bank_conflicts = 0;
 
+        uint64_t stall_cycles = 0;
+
     public:
 
         GlobalBuffer(const std::shared_ptr<std::map<uint64_t, uint64_t>> &_tracked_data,
@@ -84,6 +86,8 @@ namespace core {
         uint32_t getBankWidth() const;
 
         uint32_t getOutBanks() const;
+
+        uint64_t getStallCycles() const;
 
         uint64_t getActReadReadyCycle() const;
 

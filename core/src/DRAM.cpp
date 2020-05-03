@@ -34,17 +34,38 @@ namespace core {
     }
 
     template <typename T>
-    uint32_t DRAM<T>::getValuesPerBlock() const {
-        return VALUES_PER_BLOCK;
+    uint32_t DRAM<T>::getBaseDataSize() const {
+        return BASE_DATA_SIZE;
     }
 
     template <typename T>
-    uint32_t DRAM<T>::getDataSize() const {
-        return DATA_SIZE;
+    uint32_t DRAM<T>::getActValuesPerBlock() const {
+        return ACT_VALUES_PER_BLOCK;
     }
 
     template <typename T>
-    void DRAM<T>::configure_layer() {
+    uint32_t DRAM<T>::getActDataSize() const {
+        return ACT_DATA_SIZE;
+    }
+
+    template <typename T>
+    uint32_t DRAM<T>::getWgtValuesPerBlock() const {
+        return WGT_VALUES_PER_BLOCK;
+    }
+
+    template <typename T>
+    uint32_t DRAM<T>::getWgtDataSize() const {
+        return WGT_DATA_SIZE;
+    }
+
+    template <typename T>
+    void DRAM<T>::configure_layer(uint32_t _ACT_DATA_SIZE, uint32_t _WGT_DATA_SIZE) {
+        ACT_DATA_SIZE = _ACT_DATA_SIZE;
+        ACT_VALUES_PER_BLOCK = BLOCK_SIZE / _ACT_DATA_SIZE;
+
+        WGT_DATA_SIZE = _WGT_DATA_SIZE;
+        WGT_VALUES_PER_BLOCK = BLOCK_SIZE / _WGT_DATA_SIZE;
+
         *this->act_addresses = {NULL_ADDR, 0};
         *this->wgt_addresses = {NULL_ADDR, 0};
         this->tracked_data->clear();

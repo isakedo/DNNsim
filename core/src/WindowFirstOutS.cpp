@@ -25,90 +25,6 @@ namespace core {
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
 
-
-        // Try to fit whole layer
-        auto all_input = act_channels * Nx * Ny * this->dram->getDataSize();
-        auto all_output = num_filters * this->out_x * this->out_y * this->dram->getDataSize();
-        auto extra_rows = ceil(this->EF_COLUMNS / (double)this->out_x) - 1;
-
-        auto working_set_windows = std::min(this->out_x * this->out_y, (int)this->EF_COLUMNS);
-        auto worst_case_window_set = act_channels * Kx * Ky * working_set_windows * this->dram->getDataSize();
-
-        auto all_filters = num_filters * wgt_channels * Kx * Ky * this->dram->getDataSize();
-
-        auto working_set_filters = std::min((uint32_t)num_filters, this->EF_ROWS * this->arch->getTiles());
-        auto filter_set = wgt_channels * Kx * Ky * working_set_filters * this->dram->getDataSize();
-
-        // Check if all filters fit on-chip
-        if (all_filters < this->gbuffer->getWgtSize()) {
-
-            auto window_set_output = num_filters * this->dram->getDataSize();
-
-            // Check if all activations fit on-chip
-            if (all_input + all_output < this->gbuffer->getActSize()) {
-
-            }
-
-            // Check if set of windows fit on-chip
-            else if (worst_case_window_set + window_set_output < this->gbuffer->getActSize()) {
-
-            }
-
-            // Check if a subset of channels fit on-chip
-            else {
-
-            }
-
-        }
-
-        // Check if a set of filters fit on-chip
-        else if (filter_set < this->gbuffer->getWgtSize()) {
-
-            auto window_set_output = working_set_filters * this->dram->getDataSize();
-
-            // Check if all activations fit on-chip
-            if (all_input + all_output < this->gbuffer->getActSize()) {
-
-            }
-
-            // Check if set of windows fit on-chip
-            else if (worst_case_window_set + window_set_output < this->gbuffer->getActSize()) {
-
-            }
-
-            // Check if a subset of channels fit on-chip
-            else {
-
-            }
-
-        }
-
-        // Check if a subset of channels fit on-chip
-        else {
-
-            auto window_set_output = working_set_filters * this->dram->getDataSize();
-
-            auto total_time_size = this->max_buffer_time * this->EF_LANES * this->dram->getDataSize();
-            auto time_steps = (uint64_t)ceil(total_time_size / (double)this->gbuffer->getWgtSize());
-            assert(time_steps != 1);
-
-            // Check if all activations fit on-chip
-            if (all_input + all_output < this->gbuffer->getActSize()) {
-
-            }
-
-            // Check if set of windows fit on-chip
-            else if (worst_case_window_set + window_set_output < this->gbuffer->getActSize()) {
-
-            }
-
-            // Check if a subset of channels fit on-chip
-            else {
-
-            }
-
-        }
-
     }
 
     template <typename T>
@@ -123,16 +39,16 @@ namespace core {
         auto num_filters = wgt_shape[0];
         auto wgt_channels = wgt_shape[1];
 
-        auto last_act_blk = (uint64_t)ceil(act_channels / (double)this->dram->getValuesPerBlock());
+        auto last_act_blk = (uint64_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
 
-        auto all_input_size = act_channels * this->dram->getDataSize();
-        auto all_output_size = num_filters * this->dram->getDataSize();
+        auto all_input_size = (uint32_t)ceil(act_channels * this->dram->getActDataSize() / 8.);
+        auto all_output_size = (uint32_t)ceil(num_filters * this->dram->getBaseDataSize() / 8.);
 
-        auto all_filters_size = num_filters * wgt_channels * this->dram->getDataSize();
+        auto all_filters_size = (uint32_t)ceil(num_filters * wgt_channels * this->dram->getWgtDataSize() / 8.);
 
         auto working_set_filters = std::min((uint32_t)num_filters, this->EF_ROWS * this->arch->getTiles());
-        auto filter_set_size = wgt_channels * working_set_filters * this->dram->getDataSize();
-        auto working_set_output = working_set_filters * this->dram->getDataSize();
+        auto filter_set_size = (uint32_t)ceil(wgt_channels * working_set_filters * this->dram->getWgtDataSize() / 8.);
+        auto working_set_output = (uint32_t)ceil(working_set_filters * this->dram->getWgtDataSize() / 8.);
 
         MemPolicy act_policy;
         if (all_input_size + all_output_size < this->gbuffer->getActSize()) act_policy = ALL;

@@ -3,36 +3,6 @@
 
 namespace core {
 
-    template<typename T>
-    uint64_t GlobalBuffer<T>::getActReads() const {
-        return act_reads;
-    }
-
-    template<typename T>
-    uint64_t GlobalBuffer<T>::getWgtReads() const {
-        return wgt_reads;
-    }
-
-    template<typename T>
-    uint64_t GlobalBuffer<T>::getOutWrites() const {
-        return out_writes;
-    }
-
-    template<typename T>
-    uint64_t GlobalBuffer<T>::getActBankConflicts() const {
-        return act_bank_conflicts;
-    }
-
-    template<typename T>
-    uint64_t GlobalBuffer<T>::getWgtBankConflicts() const {
-        return wgt_bank_conflicts;
-    }
-
-    template<typename T>
-    uint64_t GlobalBuffer<T>::getOutBankConflicts() const {
-        return out_bank_conflicts;
-    }
-
     template <typename T>
     uint64_t GlobalBuffer<T>::getActSize() const {
         return ACT_SIZE;
@@ -64,6 +34,41 @@ namespace core {
     }
 
     template<typename T>
+    uint64_t GlobalBuffer<T>::getActReads() const {
+        return act_reads;
+    }
+
+    template<typename T>
+    uint64_t GlobalBuffer<T>::getWgtReads() const {
+        return wgt_reads;
+    }
+
+    template<typename T>
+    uint64_t GlobalBuffer<T>::getOutWrites() const {
+        return out_writes;
+    }
+
+    template<typename T>
+    uint64_t GlobalBuffer<T>::getActBankConflicts() const {
+        return act_bank_conflicts;
+    }
+
+    template<typename T>
+    uint64_t GlobalBuffer<T>::getWgtBankConflicts() const {
+        return wgt_bank_conflicts;
+    }
+
+    template<typename T>
+    uint64_t GlobalBuffer<T>::getOutBankConflicts() const {
+        return out_bank_conflicts;
+    }
+
+    template<typename T>
+    uint64_t GlobalBuffer<T>::getStallCycles() const {
+        return stall_cycles;
+    }
+
+    template<typename T>
     uint64_t GlobalBuffer<T>::getActReadReadyCycle() const {
         return act_read_ready_cycle;
     }
@@ -90,10 +95,12 @@ namespace core {
         act_bank_conflicts = 0;
         wgt_bank_conflicts = 0;
         out_bank_conflicts = 0;
+        stall_cycles = 0;
     }
 
     template<typename T>
     bool GlobalBuffer<T>::write_done() {
+        if (write_ready_cycle > *this->global_cycle) stall_cycles++;
         return write_ready_cycle <= *this->global_cycle;
     }
 

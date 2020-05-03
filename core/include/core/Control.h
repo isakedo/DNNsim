@@ -104,6 +104,10 @@ namespace core {
                 scheduler(_scheduler), dram(_dram), gbuffer(_gbuffer), abuffer(_abuffer), wbuffer(_wbuffer),
                 obuffer(_obuffer) {}
 
+        uint32_t getActBlks() const;
+
+        uint32_t getWgtBlks() const;
+
         const std::shared_ptr<DRAM<T>> &getDram() const;
 
         const std::shared_ptr<GlobalBuffer<T>> &getGbuffer() const;

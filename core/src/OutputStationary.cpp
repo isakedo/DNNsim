@@ -22,9 +22,8 @@ namespace core {
         }
 
         // Generate address map
-        // TODO: auto channel_blks = act_channels * this->ACT_BLKS;
         act_address_map = std::vector<std::vector<std::vector<uint64_t>>>(Ny, std::vector<std::vector<uint64_t>>(Nx,
-                std::vector<uint64_t>(ceil(act_channels / (double)this->dram->getValuesPerBlock()))));
+                std::vector<uint64_t>(ceil(act_channels / (double)this->dram->getActValuesPerBlock()))));
 
         // Column third
         for (int y = 0; y < Ny; ++y) {
@@ -33,15 +32,15 @@ namespace core {
             for (int x = 0; x < Nx; ++x) {
 
                 // Store channel-first
-                for (int k = 0; k < act_channels; k += this->dram->getValuesPerBlock()) {
-                    act_address_map[y][x][k/this->dram->getValuesPerBlock()] =
+                for (int k = 0; k < act_channels; k += this->dram->getActValuesPerBlock()) {
+                    act_address_map[y][x][k/this->dram->getActValuesPerBlock()] =
                             this->dram->getStartActAddress() + next_act_address;
                     next_act_address += BLOCK_SIZE;
                 }
             }
         }
 
-        this->act_bank_map = std::vector<std::vector<int>>(Ny, std::vector<int>(Nx));
+        act_bank_map = ActBankMap(Ny, std::vector<std::vector<int>>(Nx, std::vector<int>(this->ACT_BLKS)));
 
         int bank = 0;
         int bkp_bank = 0;
@@ -49,8 +48,12 @@ namespace core {
             for (int x = 0; x < Nx; ++x) {
                 if (y % this->stride == 0 && x == 0)
                     bank = bkp_bank;
-                this->act_bank_map[y][x] = bank;
-                bank = (bank + 1) % this->gbuffer->getActBanks();
+
+                for (int b = 0; b < this->ACT_BLKS; ++b) {
+                    act_bank_map[y][x][b] = bank;
+                    bank = (bank + 1) % this->gbuffer->getActBanks();
+                }
+
                 if (y % this->stride == 0 && x == out_x * this->stride - 1)
                     bkp_bank = bank;
             }
@@ -82,7 +85,7 @@ namespace core {
             int buffer_time = 0;
             for (int y = 0; y < Ky; ++y) {
                 for (int x = 0; x < Kx; ++x) {
-                    for (int k = 0; k < wgt_channels; k += this->EF_ROWS) {
+                    for (int k = 0; k < wgt_channels; k += this->EF_LANES) {
                         int index = 0;
                         for (int ch = k; ch < std::min((uint64_t) k + this->EF_LANES, wgt_channels); ++ch) {
 
@@ -112,7 +115,8 @@ namespace core {
         }
 
         // Addresses buffer
-        auto addresses_per_row = (uint64_t)ceil(this->EF_LANES / (double)this->dram->getValuesPerBlock()) * this->EF_ROWS;
+        auto addresses_per_row = (uint64_t)ceil(this->EF_LANES / (double)this->dram->getWgtValuesPerBlock())
+                * this->EF_ROWS;
         wgt_address_buffer = AddressBuffer(filter_sets, AddressBufferSet(max_buffer_time,
                 AddressBufferRow(addresses_per_row, NULL_ADDR)));
 
@@ -158,8 +162,10 @@ namespace core {
 
 
         // Banks buffer
-        auto accesses_per_filter = (uint64_t)ceil(this->EF_LANES * this->dram->getDataSize() /
-                (double)this->gbuffer->getBankWidth());
+        auto required_width = this->EF_LANES * this->arch->getPeWidth();
+        auto accesses_per_filter = (uint64_t)ceil(required_width / (double)this->gbuffer->getBankWidth());
+        accesses_per_filter *= this->WGT_BLKS;
+
         wgt_bank_buffer = BankBuffer(filter_sets, BankBufferSet(max_buffer_time,
                 BankBufferRow(accesses_per_filter * this->EF_ROWS)));
         wgt_end_time = std::vector<uint64_t>(filter_sets, 0);
@@ -208,12 +214,14 @@ namespace core {
         auto num_windows = this->linear ? this->EF_COLUMNS : windows.size();
         window_buffer = BufferSet<T>(max_buffer_time, BufferRow<T>(num_windows * this->EF_LANES, {0.0f, 0, 0}));
 
-        auto addresses_per_window = (uint64_t)ceil(this->EF_LANES / (double)this->dram->getValuesPerBlock());
+        auto addresses_per_window = (uint64_t)ceil(this->EF_LANES / (double)this->dram->getActValuesPerBlock());
         window_address_buffer = AddressBufferSet(max_buffer_time, AddressBufferRow(addresses_per_window *
                 windows.size(), NULL_ADDR));
 
-        auto accesses_per_window = (uint64_t)ceil(this->EF_LANES * this->dram->getDataSize() /
-                (double)this->gbuffer->getBankWidth());
+        auto required_width = this->EF_LANES * this->arch->getPeWidth();
+        auto accesses_per_window = (uint64_t)ceil(required_width / (double)this->gbuffer->getBankWidth());
+        accesses_per_window *= this->ACT_BLKS;
+
         window_bank_buffer = BankBufferSet(max_buffer_time, BankBufferRow(accesses_per_window * windows.size(), -1));
 
         const std::vector<size_t> &act_shape = this->act->getShape();
@@ -235,6 +243,7 @@ namespace core {
                     for (int k = 0; k < act_channels; k += this->EF_LANES) {
 
                         int index = 0;
+                        int bank_index = 0;
                         for (int ch = k; ch < std::min((uint64_t) k + this->EF_LANES, act_channels); ++ch) {
 
                             auto act_bits = this->_3dim ? this->act->get(0, recurrence, ch) :
@@ -250,24 +259,32 @@ namespace core {
                             int pos = column * this->EF_LANES + index;
                             window_buffer[buffer_time][pos] = {act_bits, buffer_time, index};
 
-                            int addr_pos = w * addresses_per_window + index / this->dram->getValuesPerBlock();
+                            int addr_pos = w * addresses_per_window + index / this->dram->getActValuesPerBlock();
                             window_address_buffer[buffer_time][addr_pos] = act_address_map[y_window + y]
-                                    [x_window + x][ch / this->dram->getValuesPerBlock()];
+                                    [x_window + x][ch / this->dram->getActValuesPerBlock()];
 
-                            int bank_pos = w * accesses_per_window +
-                                    (index * this->dram->getDataSize()) / this->gbuffer->getBankWidth();
-                            window_bank_buffer[buffer_time][bank_pos] = act_bank_map[y_window + y][x_window + x];
+                            for (int b = 0; b < this->ACT_BLKS; ++b) {
+                                int bank_pos = w * accesses_per_window + bank_index;
+                                window_bank_buffer[buffer_time][bank_pos] = act_bank_map[y_window + y][x_window + x][b];
+
+                                bank_index++;
+                                if (bank_index == accesses_per_window)
+                                    bank_index = 0;
+                            }
 
                             index++;
                             if (index == this->EF_LANES) {
                                 buffer_time++;
+                                bank_index = 0;
                                 index = 0;
                             }
 
                         }
+
                         if (index != 0) {
                             buffer_time++;
                         }
+
                         if (this->linear)
                             next_column = (next_column + 1) % this->EF_COLUMNS;
 

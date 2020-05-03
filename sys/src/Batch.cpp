@@ -134,7 +134,7 @@ namespace sys {
                     experiment_proto.global_buffer_wgt_banks();
             experiment.global_buffer_out_banks = experiment_proto.global_buffer_out_banks() < 1 ? 16 :
                     experiment_proto.global_buffer_out_banks();
-            experiment.global_buffer_bank_width = experiment_proto.global_buffer_bank_width() < 1 ? 32 :
+            experiment.global_buffer_bank_width = experiment_proto.global_buffer_bank_width() < 1 ? 256 :
                     experiment_proto.global_buffer_bank_width();
             experiment.global_buffer_read_delay = experiment_proto.global_buffer_read_delay() < 1 ? 1 :
                     experiment_proto.global_buffer_read_delay();

@@ -144,10 +144,17 @@ namespace core {
         auto images = this->FAST_MODE ? 1 : network.getImages();
         sys::Stats stats = sys::Stats(network.getNumLayers(), images, filename);
 
-        // Architecture stats
+        // Time stats
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
         auto compute_cycles = stats.register_uint_t("compute_cycles", 0, sys::AverageTotal);
         auto compute_stall_cycles = stats.register_uint_t("compute stall cycles", 0, sys::AverageTotal);
+        auto dram_stall_cycles = stats.register_uint_t("dram_stall_cycles", 0, sys::AverageTotal);
+        auto gbuffer_write_stall_cycles  = stats.register_uint_t("gbuffer_write_stall_cycles", 0, sys::AverageTotal);
+        auto abuffer_stall_cycles  = stats.register_uint_t("abuffer_stall_cycles", 0, sys::AverageTotal);
+        auto wbuffer_stall_cycles  = stats.register_uint_t("wbuffer_stall_cycles", 0, sys::AverageTotal);
+        auto obuffer_stall_cycles  = stats.register_uint_t("obuffer_stall_cycles", 0, sys::AverageTotal);
+
+        // Architecture stats
         auto scheduled_pe = stats.register_uint_t("scheduled PEs", 0, sys::AverageTotal);
         auto idle_pe = stats.register_uint_t("idle PEs", 0, sys::AverageTotal);
 
@@ -155,7 +162,6 @@ namespace core {
         auto dram_act_reads = stats.register_uint_t("dram_act_reads", 0, sys::AverageTotal);
         auto dram_wgt_reads = stats.register_uint_t("dram_wgt_reads", 0, sys::AverageTotal);
         auto dram_out_writes = stats.register_uint_t("dram_out_writes", 0, sys::AverageTotal);
-        auto dram_stall_cycles = stats.register_uint_t("dram_stall_cycles", 0, sys::AverageTotal);
 
         // Global Buffer stats
         auto gbuffer_act_reads = stats.register_uint_t("gbuffer_act_reads", 0, sys::AverageTotal);
@@ -164,8 +170,6 @@ namespace core {
         auto gbuffer_act_bank_conflicts = stats.register_uint_t("gbuffer_act_bank_conflicts", 0, sys::AverageTotal);
         auto gbuffer_wgt_bank_conflicts = stats.register_uint_t("gbuffer_wgt_bank_conflicts", 0, sys::AverageTotal);
         auto gbuffer_out_bank_conflicts = stats.register_uint_t("gbuffer_out_bank_conflicts", 0, sys::AverageTotal);
-
-        // Local buffers
 
         auto act_precision = stats.register_uint_t("activations precision", 0, sys::Average);
         auto wgt_precision = stats.register_uint_t("weights precision", 0, sys::Average);
@@ -284,7 +288,7 @@ namespace core {
                         // Check if write the output register back to global buffer
                         if (control->check_if_write_output(tiles_data)) {
 
-                            // Wair for:
+                            // Wait for:
                             // - Pipeline is empty
                             // - Space in output buffer before starting new windows
                             if (!arch->flush() || !obuffer->write_ready()) {
@@ -320,19 +324,23 @@ namespace core {
 
                 // Dump stats
                 cycles->value[layer_it][image] = *global_cycle;
-
                 compute_cycles->value[layer_it][image] = arch->getCycles();
                 compute_stall_cycles->value[layer_it][image] = arch->getStallCycles();
+                dram_stall_cycles->value[layer_it][image] = dram->getStallCycles();
+                gbuffer_write_stall_cycles->value[layer_it][image] = gbuffer->getStallCycles();
+                abuffer_stall_cycles->value[layer_it][image] = abuffer->getStallCycles();
+                wbuffer_stall_cycles->value[layer_it][image] = wbuffer->getStallCycles();
+                obuffer_stall_cycles->value[layer_it][image] = obuffer->getStallCycles();
+
                 scheduled_pe->value[layer_it][image] = arch->getScheduledPe();
                 idle_pe->value[layer_it][image] = arch->getIdlePe();
 
                 dram_act_reads->value[layer_it][image] = dram->getActReads();
                 dram_wgt_reads->value[layer_it][image] = dram->getWgtReads();
                 dram_out_writes->value[layer_it][image] = dram->getOutWrites();
-                dram_stall_cycles->value[layer_it][image] = dram->getStallCycles();
 
-                gbuffer_act_reads->value[layer_it][image] = gbuffer->getActReads();
-                gbuffer_wgt_reads->value[layer_it][image] = gbuffer->getWgtReads();
+                gbuffer_act_reads->value[layer_it][image] = gbuffer->getActReads() * control->getActBlks();
+                gbuffer_wgt_reads->value[layer_it][image] = gbuffer->getWgtReads() * control->getWgtBlks();
                 gbuffer_out_writes->value[layer_it][image] = gbuffer->getOutWrites();
                 gbuffer_act_bank_conflicts->value[layer_it][image] = gbuffer->getActBankConflicts();
                 gbuffer_wgt_bank_conflicts->value[layer_it][image] = gbuffer->getWgtBankConflicts();

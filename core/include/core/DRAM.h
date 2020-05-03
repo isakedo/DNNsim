@@ -20,9 +20,15 @@ namespace core {
 
         const uint64_t START_WGT_ADDRESS;
 
-        const uint32_t VALUES_PER_BLOCK;
+        uint32_t BASE_DATA_SIZE;
 
-        const uint32_t DATA_SIZE;
+        uint32_t ACT_VALUES_PER_BLOCK;
+
+        uint32_t ACT_DATA_SIZE;
+
+        uint32_t WGT_VALUES_PER_BLOCK;
+
+        uint32_t WGT_DATA_SIZE;
 
         /** Memory system */
         DRAMSim::MultiChannelMemorySystem *dram_interface;
@@ -48,11 +54,12 @@ namespace core {
 
         DRAM(const std::shared_ptr<std::map<uint64_t, uint64_t>> &_tracked_data,
                 const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_wgt_addresses,
-                uint32_t _SIZE, uint32_t _DATA_SIZE, uint64_t clock_freq, uint64_t _START_ACT_ADDRESS,
+                uint32_t _SIZE, uint32_t _BASE_DATA_SIZE, uint64_t clock_freq, uint64_t _START_ACT_ADDRESS,
                 uint64_t _START_WGT_ADDRESS, const std::string &_dram_conf, const std::string &_system_conf,
                 const std::string &_network) : Memory<T>(_tracked_data, _act_addresses, _wgt_addresses),
-                DATA_SIZE(_DATA_SIZE), START_ACT_ADDRESS(_START_ACT_ADDRESS), START_WGT_ADDRESS(_START_WGT_ADDRESS),
-                VALUES_PER_BLOCK(8 / _DATA_SIZE) {
+                START_ACT_ADDRESS(_START_ACT_ADDRESS), START_WGT_ADDRESS(_START_WGT_ADDRESS),
+                BASE_DATA_SIZE(_BASE_DATA_SIZE), ACT_VALUES_PER_BLOCK(0), ACT_DATA_SIZE(0), WGT_VALUES_PER_BLOCK(0),
+                WGT_DATA_SIZE(0) {
 
             dram_interface = DRAMSim::getMemorySystemInstance(_dram_conf, _system_conf, "./DRAMSim2/",
                     "DNNsim_" + _network, _SIZE);
@@ -77,13 +84,21 @@ namespace core {
 
         uint64_t getStartWgtAddress() const;
 
-        uint32_t getValuesPerBlock() const;
+        uint32_t getBaseDataSize() const;
 
-        uint32_t getDataSize() const;
+        uint32_t getActValuesPerBlock() const;
+
+        uint32_t getActDataSize() const;
+
+        uint32_t getWgtValuesPerBlock() const;
+
+        uint32_t getWgtDataSize() const;
 
         void cycle();
 
-        void configure_layer() override;
+        void configure_layer() override {}; // Unused
+
+        void configure_layer(uint32_t _ACT_DATA_SIZE, uint32_t _WGT_DATA_SIZE);
 
         bool data_ready(const std::vector<TileData<T>> &tiles_data);
 

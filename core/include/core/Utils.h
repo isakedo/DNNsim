@@ -29,7 +29,7 @@ namespace core {
 
     typedef std::vector<std::vector<std::vector<uint64_t>>> AddressMap;
 
-    typedef std::vector<std::vector<int>> ActBankMap;
+    typedef std::vector<std::vector<std::vector<int>>> ActBankMap;
 
     typedef std::vector<std::vector<std::vector<uint64_t>>> AddressBuffer;
 

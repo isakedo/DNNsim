@@ -3,6 +3,16 @@
 
 namespace core {
 
+    template<typename T>
+    uint32_t Control<T>::getActBlks() const {
+        return ACT_BLKS;
+    }
+
+    template<typename T>
+    uint32_t Control<T>::getWgtBlks() const {
+        return WGT_BLKS;
+    }
+
     template <typename T>
     const std::shared_ptr<DRAM<T>> &Control<T>::getDram() const {
         return dram;
@@ -50,6 +60,9 @@ namespace core {
 
         stride = _stride;
 
+        layer_act_on_chip = next_layer_act_on_chip;
+        next_layer_act_on_chip = false;
+
         ACT_BLKS = (uint32_t) ceil(act_prec / (double) arch->getPeWidth());
         WGT_BLKS = (uint32_t) ceil(wgt_prec / (double) arch->getPeWidth());
 
@@ -57,10 +70,10 @@ namespace core {
         EF_COLUMNS = arch->getColumns() / ACT_BLKS;
         EF_ROWS = arch->getRows() / WGT_BLKS;
 
-        layer_act_on_chip = next_layer_act_on_chip;
-        next_layer_act_on_chip = false;
+        auto act_dram_width = std::max(dram->getBaseDataSize(), (uint32_t)pow(2, ceil(log2(act_prec))));
+        auto wgt_dram_width = std::max(dram->getBaseDataSize(), (uint32_t)pow(2, ceil(log2(wgt_prec))));
 
-        dram->configure_layer();
+        dram->configure_layer(act_dram_width, wgt_dram_width);
         gbuffer->configure_layer();
         abuffer->configure_layer();
         wbuffer->configure_layer();
