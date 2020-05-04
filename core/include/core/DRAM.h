@@ -22,6 +22,8 @@ namespace core {
 
         uint32_t BASE_DATA_SIZE;
 
+        uint32_t BASE_VALUES_PER_BLOCK;
+
         uint32_t ACT_VALUES_PER_BLOCK;
 
         uint32_t ACT_DATA_SIZE;
@@ -58,8 +60,8 @@ namespace core {
                 uint64_t _START_WGT_ADDRESS, const std::string &_dram_conf, const std::string &_system_conf,
                 const std::string &_network) : Memory<T>(_tracked_data, _act_addresses, _wgt_addresses),
                 START_ACT_ADDRESS(_START_ACT_ADDRESS), START_WGT_ADDRESS(_START_WGT_ADDRESS),
-                BASE_DATA_SIZE(_BASE_DATA_SIZE), ACT_VALUES_PER_BLOCK(0), ACT_DATA_SIZE(0), WGT_VALUES_PER_BLOCK(0),
-                WGT_DATA_SIZE(0) {
+                BASE_VALUES_PER_BLOCK(64 / _BASE_DATA_SIZE), BASE_DATA_SIZE(_BASE_DATA_SIZE), ACT_VALUES_PER_BLOCK(0),
+                ACT_DATA_SIZE(0), WGT_VALUES_PER_BLOCK(0), WGT_DATA_SIZE(0) {
 
             dram_interface = DRAMSim::getMemorySystemInstance(_dram_conf, _system_conf, "./DRAMSim2/",
                     "DNNsim_" + _network, _SIZE);
@@ -67,7 +69,10 @@ namespace core {
             DRAMSim::TransactionCompleteCB *read_cb =
                     new DRAMSim::Callback<DRAM, void, unsigned, uint64_t, uint64_t>(this, &DRAM::read_transaction_done);
 
-            dram_interface->RegisterCallbacks(read_cb, nullptr, nullptr);
+            DRAMSim::TransactionCompleteCB *write_cb =
+                    new DRAMSim::Callback<DRAM, void, unsigned, uint64_t, uint64_t>(this, &DRAM::write_transaction_done);
+
+            dram_interface->RegisterCallbacks(read_cb, write_cb, nullptr);
 
             dram_interface->setCPUClockSpeed(clock_freq);
         }
@@ -83,6 +88,8 @@ namespace core {
         uint64_t getStartActAddress() const;
 
         uint64_t getStartWgtAddress() const;
+
+        uint32_t getBaseValuesPerBlock() const;
 
         uint32_t getBaseDataSize() const;
 
@@ -107,6 +114,10 @@ namespace core {
         void read_transaction_done(unsigned id, uint64_t address, uint64_t _clock_cycle);
 
         void read_data(const std::vector<AddressRange> &act_addresses, const std::vector<AddressRange> &wgt_addresses);
+
+        void write_transaction_done(unsigned id, uint64_t address, uint64_t _clock_cycle);
+
+        void write_data(const std::vector<AddressRange> &write_addresses);
 
     };
 

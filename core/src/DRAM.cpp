@@ -34,6 +34,11 @@ namespace core {
     }
 
     template <typename T>
+    uint32_t DRAM<T>::getBaseValuesPerBlock() const {
+        return BASE_VALUES_PER_BLOCK;
+    }
+
+    template <typename T>
     uint32_t DRAM<T>::getBaseDataSize() const {
         return BASE_DATA_SIZE;
     }
@@ -250,6 +255,30 @@ namespace core {
         }
 
     }
+
+    template <typename T>
+    void DRAM<T>::write_transaction_done(unsigned id, uint64_t address, uint64_t _clock_cycle) {
+        if (!request_queue.empty()) {
+            auto tuple = request_queue.front();
+            transaction_request(std::get<0>(tuple), std::get<1>(tuple));
+            request_queue.pop();
+        }
+    }
+
+    template <typename T>
+    void DRAM<T>::write_data(const std::vector<AddressRange> &write_addresses) {
+        for (const auto &addr_range : write_addresses) {
+            auto start_addr = std::get<0>(addr_range);
+            auto end_addr = std::get<1>(addr_range);
+            if (start_addr == NULL_ADDR) continue;
+
+            for (uint64_t addr = start_addr; addr <= end_addr; addr += BLOCK_SIZE) {
+                transaction_request(addr, true);
+                out_writes++;
+            }
+        }
+    }
+
 
     INITIALISE_DATA_TYPES(DRAM);
 

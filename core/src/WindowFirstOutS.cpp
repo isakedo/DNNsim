@@ -100,20 +100,25 @@ namespace core {
         auto blocks_per_time = (uint32_t)ceil(last_act_blk / (double)this->max_buffer_time);
         auto blocks_per_step = max_time_per_step * blocks_per_time;
 
+        auto out_blks = (uint32_t)ceil(working_set_filters / (double)this->dram->getBaseValuesPerBlock());
+
         this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences * filter_steps
                 * time_steps);
 
         for (int r = 0; r < recurrences; ++r) {
+
+            auto next_out_address = this->next_act_address;
+
             for (int fstep = 0; fstep < filter_steps; ++fstep) {
 
                 auto start_filter_set = fstep * filter_sets_per_step;
-                auto last_filter_set = std::min((uint32_t)filter_sets_per_step, total_filter_sets - start_filter_set);
-                auto end_filter_set = start_filter_set + last_filter_set;
+                auto filter_per_set = std::min((uint32_t)filter_sets_per_step, total_filter_sets - start_filter_set);
+                auto end_filter_set = start_filter_set + filter_per_set;
 
                 auto start_filter_subset = fstep * filter_sets_per_step * this->arch->getTiles();
-                auto last_filter_subset = std::min((uint64_t)filter_sets_per_step * this->arch->getTiles(),
+                auto filter_per_subset = std::min((uint64_t)filter_sets_per_step * this->arch->getTiles(),
                         this->filter_sets - start_filter_subset);
-                auto end_filter_subset = start_filter_subset + last_filter_subset;
+                auto end_filter_subset = start_filter_subset + filter_per_subset;
 
                 for (int tstep = 0; tstep < time_steps; ++tstep) {
 
@@ -142,8 +147,6 @@ namespace core {
                             node->evict_act = true;
                         }
 
-                        // TODO Write addresses
-
                         if (fstep != 0)
                             node->use_prev_buffer = true;
 
@@ -161,15 +164,13 @@ namespace core {
                         node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
                         node->evict_act = true;
 
-                        // TODO Write addresses
-
                         if (fstep != 0 || tstep != 0)
                             node->use_prev_buffer = true;
 
                     }
 
                     // Fil filters
-                    node->filter_sets = std::vector<int>(last_filter_subset, 0);
+                    node->filter_sets = std::vector<int>(filter_per_subset, 0);
                     std::iota(node->filter_sets.begin(), node->filter_sets.end(), start_filter_subset);
 
                     if (wgt_policy == ALL) {
@@ -232,6 +233,14 @@ namespace core {
                         node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
                         node->evict_wgt = true;
 
+                    }
+
+                    // Fil write addresses
+                    if (!this->next_layer_act_on_chip && tstep == time_steps - 1) {
+                        auto first_address = this->dram->getStartActAddress() + next_out_address;
+                        next_out_address += filter_per_set * out_blks * BLOCK_SIZE;
+                        auto last_address = this->dram->getStartActAddress() + next_out_address - BLOCK_SIZE;
+                        node->write_addresses.emplace_back(first_address, last_address);
                     }
 
                     this->on_chip_graph[r * filter_steps * time_steps + fstep * time_steps + tstep] = node;

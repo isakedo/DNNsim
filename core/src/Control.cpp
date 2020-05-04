@@ -92,6 +92,11 @@ namespace core {
     }
 
     template <typename T>
+    const std::vector<AddressRange> &Control<T>::getWriteAddresses() const {
+        return on_chip_graph.front()->write_addresses;
+    }
+
+    template <typename T>
     bool Control<T>::getIfEvictAct() const {
         return on_chip_graph.front()->evict_act;
     }

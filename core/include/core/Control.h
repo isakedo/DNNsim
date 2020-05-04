@@ -139,6 +139,8 @@ namespace core {
 
         const std::vector<AddressRange> &getReadWgtAddresses() const;
 
+        const std::vector<AddressRange> &getWriteAddresses() const;
+
         bool getIfEvictAct() const;
 
         bool getIfEvictWgt() const;

@@ -316,7 +316,8 @@ namespace core {
                         *global_cycle += 1;
                     }
 
-                    // Write values to DRAM (if necessary)
+                    // Write values to DRAM
+                    dram->write_data(control->getWriteAddresses());
 
                 } while(control->still_off_chip_data());
 
