@@ -3,9 +3,14 @@
 
 #include "Utils.h"
 #include "BitTactical.h"
+
 #include "DRAM.h"
 #include "GlobalBuffer.h"
 #include "LocalBuffer.h"
+
+#include "Composer.h"
+#include "PPU.h"
+
 #include "Architecture.h"
 
 namespace core {
@@ -43,9 +48,9 @@ namespace core {
 
         std::shared_ptr<LocalBuffer<T>> obuffer;
 
-        // TODO: Composer column
+        std::shared_ptr<Composer<T>> composer;
 
-        // TODO: Activation function unit
+        std::shared_ptr<PPU<T>> ppu;
 
         std::shared_ptr<Architecture<T>> arch;
 
@@ -70,7 +75,7 @@ namespace core {
         /** Number of effective columns */
         uint32_t EF_COLUMNS = 0;
 
-        /** Number of efffective rows */
+        /** Number of effective rows */
         uint32_t EF_ROWS = 0;
 
         /** Number of physical columns per window */
@@ -97,12 +102,15 @@ namespace core {
          * @param _abuffer
          * @param _wbuffer
          * @param _obuffer
+         * @param _composer
+         * @param _ppu
          */
         Control(const std::shared_ptr<BitTactical<T>> &_scheduler, const std::shared_ptr<DRAM<T>> &_dram,
                 const std::shared_ptr<GlobalBuffer<T>> &_gbuffer, const std::shared_ptr<LocalBuffer<T>> &_abuffer,
-                const std::shared_ptr<LocalBuffer<T>> &_wbuffer, const std::shared_ptr<LocalBuffer<T>> &_obuffer) :
+                const std::shared_ptr<LocalBuffer<T>> &_wbuffer, const std::shared_ptr<LocalBuffer<T>> &_obuffer,
+                const std::shared_ptr<Composer<T>> &_composer, const std::shared_ptr<PPU<T>> &_ppu) :
                 scheduler(_scheduler), dram(_dram), gbuffer(_gbuffer), abuffer(_abuffer), wbuffer(_wbuffer),
-                obuffer(_obuffer) {}
+                obuffer(_obuffer), composer(_composer), ppu(_ppu) {}
 
         uint32_t getActBlks() const;
 
@@ -117,6 +125,10 @@ namespace core {
         const std::shared_ptr<LocalBuffer<T>> &getWbuffer() const;
 
         const std::shared_ptr<LocalBuffer<T>> &getObuffer() const;
+
+        const std::shared_ptr<Composer<T>> &getComposer() const;
+
+        const std::shared_ptr<PPU<T>> &getPPU() const;
 
         const std::shared_ptr<Architecture<T>> &getArch() const;
 

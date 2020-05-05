@@ -162,6 +162,14 @@ namespace sys {
                 /** Output buffer write delay */
                 uint32_t out_buffer_write_delay = 0;
 
+                uint32_t composer_inputs = 0;
+
+                uint32_t composer_delay = 0;
+
+                uint32_t ppu_inputs = 0;
+
+                uint32_t ppu_delay = 0;
+
             };
 
             /** Batch number of the traces */

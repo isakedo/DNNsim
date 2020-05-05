@@ -78,6 +78,12 @@ message Batch {
             uint32 out_buffer_read_delay = 46;
             uint32 out_buffer_write_delay = 47;
 
+            // Other modules
+            uint32 composer_inputs = 48;
+            uint32 composer_delay = 49;
+            uint32 ppu_inputs = 50;
+            uint32 ppu_delay = 51;
+
         }
 
         uint32 batch = 1;

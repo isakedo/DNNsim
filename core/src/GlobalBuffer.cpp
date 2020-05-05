@@ -133,9 +133,9 @@ namespace core {
 
             }
 
-            auto bank_delay = *std::max_element(bank_conflicts.begin(), bank_conflicts.end());
-            act_read_ready_cycle = start_time + bank_delay * READ_DELAY - 1;
-            act_bank_conflicts += bank_delay - 1;
+            auto bank_steps = *std::max_element(bank_conflicts.begin(), bank_conflicts.end());
+            act_read_ready_cycle = start_time + bank_steps * READ_DELAY;
+            act_bank_conflicts += bank_steps - 1;
 
         } catch (std::exception &exception) {
             throw std::runtime_error("Global Buffer waiting for a memory address not requested.");
@@ -171,9 +171,9 @@ namespace core {
 
             }
 
-            auto bank_delay = *std::max_element(bank_conflicts.begin(), bank_conflicts.end());
-            wgt_read_ready_cycle = start_time + bank_delay * READ_DELAY - 1;
-            wgt_bank_conflicts += bank_delay - 1;
+            auto bank_steps = *std::max_element(bank_conflicts.begin(), bank_conflicts.end());
+            wgt_read_ready_cycle = start_time + bank_steps * READ_DELAY;
+            wgt_bank_conflicts += bank_steps - 1;
 
         } catch (std::exception &exception) {
             throw std::runtime_error("Global Buffer waiting for a memory address not requested.");
@@ -182,7 +182,8 @@ namespace core {
     }
 
     template <typename T>
-    void GlobalBuffer<T>::write_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle) {
+    void GlobalBuffer<T>::write_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle,
+            uint64_t ppu_delay) {
 
         auto start_time = std::max(write_ready_cycle, fifo_ready_cycle);
 
@@ -201,9 +202,17 @@ namespace core {
 
         }
 
-        auto bank_delay = *std::max_element(bank_conflicts.begin(), bank_conflicts.end());
-        write_ready_cycle = start_time + bank_delay * WRITE_DELAY - 1;
-        out_bank_conflicts += bank_delay - 1;
+        auto bank_steps = *std::max_element(bank_conflicts.begin(), bank_conflicts.end());
+        auto write_delay = bank_steps * WRITE_DELAY;
+
+        // Pipeline
+        if (write_delay > ppu_delay) {
+            write_ready_cycle = start_time + write_delay;
+        } else {
+            write_ready_cycle = start_time + ppu_delay + WRITE_DELAY;
+        }
+
+        out_bank_conflicts += bank_steps - 1;
 
     }
 

@@ -126,6 +126,8 @@ namespace core {
         auto abuffer = control->getAbuffer();
         auto wbuffer = control->getWbuffer();
         auto obuffer = control->getObuffer();
+        auto composer = control->getComposer();
+        auto ppu = control->getPPU();
         auto arch = control->getArch();
 
         std::shared_ptr<uint64_t> global_cycle = std::make_shared<uint64_t>(0);
@@ -296,8 +298,9 @@ namespace core {
                                 *global_cycle += 1;
                             }
 
-                            obuffer->write_request();
-                            gbuffer->write_request(tiles_data, obuffer->getFifoReadyCycle());
+                            obuffer->write_request(composer->calculate_delay(tiles_data));
+                            gbuffer->write_request(tiles_data, obuffer->getFifoReadyCycle(),
+                                    ppu->calculate_delay(tiles_data));
                             obuffer->update_done_cycle(gbuffer->getWriteReadyCycle());
                             obuffer->update_fifo();
 

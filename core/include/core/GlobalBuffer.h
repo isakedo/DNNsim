@@ -103,7 +103,8 @@ namespace core {
 
         void wgt_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle);
 
-        void write_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle);
+        void write_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle,
+                uint64_t ppu_delay);
 
         void evict_data(bool evict_act, bool evict_wgt);
 

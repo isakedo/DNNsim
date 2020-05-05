@@ -31,6 +31,8 @@ add_library(
         src/Laconic.cpp
         src/BitTactical.cpp
         src/SCNN.cpp
+        src/Composer.cpp
+        src/PPU.cpp
         src/Simulator.cpp
 )
 

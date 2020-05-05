@@ -463,7 +463,6 @@ namespace core {
                 this->filter_buffer_filled = true;
             }
 
-            auto out_bank_idx = 0;
             bool first = true;
             bool still_work = false;
             for (int t = 0; t < this->arch->getTiles(); ++t) {
@@ -542,6 +541,7 @@ namespace core {
                 }
 
                 if (tiles_done) {
+                    auto out_bank_idx = 0;
                     for (int t = 0; t < this->arch->getTiles(); ++t) {
                         if (!this->write[t]) continue;
                         tiles_data[t].out_banks = BankBufferRow(this->filters.size(), 0);

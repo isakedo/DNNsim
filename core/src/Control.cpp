@@ -39,6 +39,16 @@ namespace core {
     }
 
     template <typename T>
+    const std::shared_ptr<Composer<T>> &Control<T>::getComposer() const {
+        return composer;
+    }
+
+    template <typename T>
+    const std::shared_ptr<PPU<T>> &Control<T>::getPPU() const {
+        return ppu;
+    }
+
+    template <typename T>
     const std::shared_ptr<Architecture<T>> &Control<T>::getArch() const {
         return arch;
     }

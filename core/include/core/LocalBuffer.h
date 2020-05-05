@@ -60,7 +60,7 @@ namespace core {
 
         bool write_ready();
 
-        void write_request();
+        void write_request(uint64_t extra_delay);
 
         void update_done_cycle(uint64_t global_buffer_ready_cycle);
 

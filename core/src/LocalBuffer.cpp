@@ -40,7 +40,7 @@ namespace core {
 
     template <typename T>
     void LocalBuffer<T>::read_request(uint64_t global_buffer_ready_cycle) {
-        ready_cycle[idx] = global_buffer_ready_cycle + READ_DELAY - 1;
+        ready_cycle[idx] = global_buffer_ready_cycle + READ_DELAY;
     }
 
     template <typename T>
@@ -55,8 +55,8 @@ namespace core {
     }
 
     template <typename T>
-    void LocalBuffer<T>::write_request() {
-        ready_cycle[idx] = *this->global_cycle + WRITE_DELAY - 1;
+    void LocalBuffer<T>::write_request(uint64_t extra_delay) {
+        ready_cycle[idx] = *this->global_cycle + WRITE_DELAY + extra_delay;
     }
 
     template <typename T>

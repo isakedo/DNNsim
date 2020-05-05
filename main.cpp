@@ -158,13 +158,18 @@ int main(int argc, char *argv[]) {
                                 wgt_addresses, experiment.out_buffer_rows, experiment.out_buffer_read_delay,
                                 experiment.out_buffer_write_delay);
 
+                        auto composer = std::make_shared<core::Composer<float>>(experiment.composer_inputs,
+                                experiment.composer_delay);
+
+                        auto ppu = std::make_shared<core::PPU<float>>(experiment.ppu_inputs, experiment.ppu_delay);
+
                         auto scheduler = std::make_shared<core::BitTactical<float>>(experiment.lookahead_h,
                                 experiment.lookaside_d, experiment.search_shape.c_str()[0]);
 
                         std::shared_ptr<core::Control<float>> control;
                         if (experiment.dataflow == "WindowFirstOutS")
                             control = std::make_shared<core::WindowFirstOutS<float>>(scheduler, dram, gbuffer, abuffer,
-                                    wbuffer, obuffer);
+                                    wbuffer, obuffer, composer, ppu);
 
                         core::Simulator<float> DNNsim(FAST_MODE, QUIET, CHECK);
 
@@ -225,13 +230,18 @@ int main(int argc, char *argv[]) {
                                 wgt_addresses, experiment.out_buffer_rows, experiment.out_buffer_read_delay,
                                 experiment.out_buffer_write_delay);
 
+                        auto composer = std::make_shared<core::Composer<uint16_t>>(experiment.composer_inputs,
+                                experiment.composer_delay);
+
+                        auto ppu = std::make_shared<core::PPU<uint16_t>>(experiment.ppu_inputs, experiment.ppu_delay);
+
                         auto scheduler = std::make_shared<core::BitTactical<uint16_t>>(experiment.lookahead_h,
                                 experiment.lookaside_d, experiment.search_shape.c_str()[0]);
 
                         std::shared_ptr<core::Control<uint16_t>> control;
                         if (experiment.dataflow == "WindowFirstOutS")
                             control = std::make_shared<core::WindowFirstOutS<uint16_t>>(scheduler, dram, gbuffer,
-                                    abuffer, wbuffer, obuffer);
+                                    abuffer, wbuffer, obuffer, composer, ppu);
 
                         core::Simulator<uint16_t> DNNsim(FAST_MODE, QUIET, CHECK);
 
