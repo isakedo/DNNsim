@@ -25,6 +25,190 @@ namespace core {
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
 
+        auto last_act_blk = (uint64_t) ceil(act_channels / (double) this->dram->getActValuesPerBlock());
+
+        auto all_input_size = (uint32_t) ceil(act_channels * Nx * Ny * this->dram->getActDataSize() / 8.);
+        auto all_output_size = (uint32_t) ceil(num_filters * this->out_x * this->out_y
+                * this->dram->getBaseDataSize() / 8.);
+
+        auto all_filters_size = (uint32_t) ceil(num_filters * wgt_channels * Kx * Ky
+                * this->dram->getWgtDataSize() / 8.);
+
+        auto working_set_filters = std::min((uint32_t)num_filters, this->EF_ROWS * this->arch->getTiles());
+        auto filter_set_size = (uint32_t) ceil(working_set_filters * wgt_channels * Kx * Ky
+                * this->dram->getWgtDataSize() / 8.);
+
+        MemPolicy act_policy = ALL;
+        //if (all_input_size + all_output_size < this->gbuffer->getActSize()) act_policy = ALL;
+        //else if (all_input_size + working_set_output < this->gbuffer->getActSize()) act_policy = SET;
+        //else act_policy = SUBSET;
+
+        MemPolicy wgt_policy;
+        if (all_filters_size <= this->gbuffer->getWgtSize()) wgt_policy = ALL;
+        else if (filter_set_size <= this->gbuffer->getWgtSize()) wgt_policy = SET;
+        else wgt_policy = SUBSET;
+
+        uint32_t time_steps_act = 1, time_steps_wgt = 1;
+        auto total_filter_sets = (uint32_t) ceil(num_filters / (double) working_set_filters);
+        auto filter_sets_per_step_act = total_filter_sets, filter_sets_per_step_wgt = total_filter_sets;
+
+        if (wgt_policy == ALL) {
+            // None
+        } else if (wgt_policy == SET) {
+            filter_sets_per_step_wgt = this->gbuffer->getWgtSize() / filter_set_size;
+            assert(filter_sets_per_step_wgt != this->filter_sets);
+        } else {
+            filter_sets_per_step_wgt = 1;
+            time_steps_wgt = (uint64_t) ceil(filter_set_size / (double) this->gbuffer->getWgtSize());
+            assert(time_steps_wgt != 1);
+        }
+
+        std::vector<std::vector<int>> window_steps;
+        if (act_policy == ALL) {
+            this->next_layer_act_on_chip = true;
+            if (wgt_policy == SUBSET) {
+                for (int w = 0; w < this->window_sets; ++w) {
+                    window_steps.emplace_back(std::vector<int>(1, w));
+                }
+            } else {
+                window_steps.emplace_back(std::vector<int>(this->window_sets, 0));
+                std::iota(window_steps.front().begin(), window_steps.front().end(), 0);
+            }
+        }
+
+        uint32_t filter_sets_per_step = std::min(filter_sets_per_step_act, filter_sets_per_step_wgt);
+        uint32_t filter_steps = ceil(total_filter_sets / (double) filter_sets_per_step);
+
+        auto time_steps = std::max(time_steps_act, time_steps_wgt);
+        auto max_time_per_step = (uint32_t) ceil(this->max_buffer_time / (double) time_steps);
+        assert(this->max_buffer_time > time_steps);
+
+        auto next_out_address = this->next_act_address;
+
+        this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(window_steps.size()
+                * filter_steps * time_steps);
+
+        for (int wstep = 0; wstep < window_steps.size(); ++wstep) {
+
+            auto start_window = window_steps[wstep].front() * this->EF_COLUMNS;
+            auto total_windows = std::min(window_steps[wstep].size() * this->EF_COLUMNS,
+                    (uint64_t)(this->out_x * this->out_y - start_window));
+
+            for(int fstep = 0; fstep < filter_steps; ++fstep) {
+
+                auto start_filter_set = fstep * filter_sets_per_step;
+                auto filter_per_set = std::min((uint32_t) filter_sets_per_step, total_filter_sets - start_filter_set);
+                auto end_filter_set = start_filter_set + filter_per_set;
+
+                auto start_filter_subset = fstep * filter_sets_per_step * this->arch->getTiles();
+                auto filter_per_subset = std::min((uint64_t)filter_sets_per_step * this->arch->getTiles(),
+                        this->filter_sets - start_filter_subset);
+                auto end_filter_subset = start_filter_subset + filter_per_subset;
+
+                auto start_filter = fstep * filter_sets_per_step * this->arch->getTiles() * this->EF_ROWS;
+                auto total_filters = std::min(filter_sets_per_step * this->arch->getTiles() * this->EF_ROWS,
+                        (uint32_t)(num_filters - start_filter));
+
+                for (int tstep = 0; tstep < time_steps; ++tstep) {
+
+                    auto node = std::make_shared<typename OutputStationary<T>::NodeOutS>();
+
+                    node->time_step = tstep;
+                    node->max_time = max_time_per_step;
+
+                    // Fil activations
+                    node->window_sets = window_steps[wstep];
+
+                    if (act_policy == ALL) {
+                        if (wstep == 0 && fstep == 0 && tstep == 0 && !this->layer_act_on_chip) {
+                            auto first_address = this->act_address_map[0][0][0];
+                            auto last_address = this->act_address_map[Ny - 1][Nx - 1][last_act_blk - 1];
+                            node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
+                        }
+                    }
+
+                    // Fil filters
+                    node->filter_sets = std::vector<int>(filter_per_subset, 0);
+                    std::iota(node->filter_sets.begin(), node->filter_sets.end(), start_filter_subset);
+
+                    if (wgt_policy == ALL) {
+                        if (wstep == 0 && tstep == 0) {
+                            auto first_address = std::get<0>(this->wgt_address_map[start_filter_set]);
+                            auto last_address = std::get<1>(this->wgt_address_map[end_filter_set - 1]);
+                            node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
+                        }
+
+                    } else if (wgt_policy == SET) {
+                        if (tstep == 0) {
+                            auto first_address = std::get<0>(this->wgt_address_map[start_filter_set]);
+                            auto last_address = std::get<1>(this->wgt_address_map[end_filter_set - 1]);
+                            node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
+                            node->evict_wgt = true;
+                        }
+
+                    } else {
+                        auto start_time = tstep * max_time_per_step;
+                        auto end_time = std::min((tstep + 1) * max_time_per_step, (uint32_t) this->max_buffer_time) - 1;
+
+                        uint64_t first_address = NULL_ADDR, last_address = NULL_ADDR;
+                        if (this->arch->schedule()) {
+                            for (int tmp = start_time; tmp <= end_time; ++tmp) {
+
+                                for (int subset = start_filter_subset; subset < end_filter_subset; ++subset) {
+                                    if (subset > this->filter_sets) continue;
+                                    if (this->wgt_address_buffer[subset][tmp].front() != NULL_ADDR) {
+                                        first_address = this->wgt_address_buffer[subset][tmp].front();
+                                        break;
+                                    }
+                                }
+
+                                if (first_address != NULL_ADDR)
+                                    break;
+                            }
+
+                            for (int tmp = end_time; tmp >= start_time; --tmp) {
+                                for (int subset = end_filter_subset; subset > start_filter_subset; --subset) {
+                                    if (subset > this->filter_sets) continue;
+                                    if (this->wgt_address_buffer[subset - 1][tmp].back() != NULL_ADDR) {
+                                        last_address = this->wgt_address_buffer[subset - 1][tmp].back();
+                                        break;
+                                    }
+                                }
+
+                                if (last_address != NULL_ADDR)
+                                    break;
+
+                            }
+
+                        } else {
+                            first_address = this->wgt_address_buffer[start_filter_subset][start_time].front();
+                            last_address = this->wgt_address_buffer[end_filter_subset - 1][end_time].back();
+                        }
+
+                        assert(first_address != NULL_ADDR);
+                        assert(last_address != NULL_ADDR);
+
+                        node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
+                        node->evict_wgt = true;
+
+                    }
+
+                    // Fil write addresses
+                    if (!this->next_layer_act_on_chip && tstep == time_steps - 1) {
+                        auto first_address = this->dram->getStartActAddress() + next_out_address;
+                        auto out_blks = ceil(total_filters * total_windows /
+                                (double)this->dram->getBaseValuesPerBlock());
+                        next_out_address += out_blks * BLOCK_SIZE;
+                        auto last_address = this->dram->getStartActAddress() + next_out_address - BLOCK_SIZE;
+                        node->write_addresses.emplace_back(first_address, last_address);
+                    }
+
+                    this->on_chip_graph[wstep * filter_steps * time_steps + fstep * time_steps + tstep] = node;
+
+                } // Time step
+            } // Filter step
+        } // Window step
+
     }
 
     template <typename T>
@@ -47,17 +231,17 @@ namespace core {
         auto all_filters_size = (uint32_t)ceil(num_filters * wgt_channels * this->dram->getWgtDataSize() / 8.);
 
         auto working_set_filters = std::min((uint32_t)num_filters, this->EF_ROWS * this->arch->getTiles());
-        auto filter_set_size = (uint32_t)ceil(wgt_channels * working_set_filters * this->dram->getWgtDataSize() / 8.);
+        auto filter_set_size = (uint32_t)ceil(working_set_filters * wgt_channels * this->dram->getWgtDataSize() / 8.);
         auto working_set_output = (uint32_t)ceil(working_set_filters * this->dram->getWgtDataSize() / 8.);
 
         MemPolicy act_policy;
-        if (all_input_size + all_output_size < this->gbuffer->getActSize()) act_policy = ALL;
-        else if (all_input_size + working_set_output < this->gbuffer->getActSize()) act_policy = SET;
+        if (all_input_size + all_output_size <= this->gbuffer->getActSize()) act_policy = ALL;
+        else if (all_input_size + working_set_output <= this->gbuffer->getActSize()) act_policy = INPUTS;
         else act_policy = SUBSET;
 
         MemPolicy wgt_policy;
-        if (all_filters_size < this->gbuffer->getWgtSize()) wgt_policy = ALL;
-        else if (filter_set_size < this->gbuffer->getWgtSize()) wgt_policy = SET;
+        if (all_filters_size <= this->gbuffer->getWgtSize()) wgt_policy = ALL;
+        else if (filter_set_size <= this->gbuffer->getWgtSize()) wgt_policy = SET;
         else wgt_policy = SUBSET;
 
         uint32_t time_steps_act = 1, time_steps_wgt = 1;
@@ -66,7 +250,7 @@ namespace core {
 
         if (act_policy == ALL) {
             this->next_layer_act_on_chip = true;
-        } else if (act_policy == SET) {
+        } else if (act_policy == INPUTS) {
             auto output_left_size = this->gbuffer->getActSize() - all_input_size;
             filter_sets_per_step_act = output_left_size / working_set_output;
             assert(filter_sets_per_step_act != this->filter_sets);
@@ -97,10 +281,10 @@ namespace core {
 
         auto time_steps = std::max(time_steps_act, time_steps_wgt);
         auto max_time_per_step = (uint32_t)ceil(this->max_buffer_time / (double)time_steps);
+        assert(this->max_buffer_time > time_steps);
+
         auto blocks_per_time = (uint32_t)ceil(last_act_blk / (double)this->max_buffer_time);
         auto blocks_per_step = max_time_per_step * blocks_per_time;
-
-        auto out_blks = (uint32_t)ceil(working_set_filters / (double)this->dram->getBaseValuesPerBlock());
 
         this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences * filter_steps
                 * time_steps);
@@ -119,6 +303,10 @@ namespace core {
                 auto filter_per_subset = std::min((uint64_t)filter_sets_per_step * this->arch->getTiles(),
                         this->filter_sets - start_filter_subset);
                 auto end_filter_subset = start_filter_subset + filter_per_subset;
+
+                auto start_filter = fstep * filter_sets_per_step * this->arch->getTiles() * this->EF_ROWS;
+                auto total_filters = std::min(filter_sets_per_step * this->arch->getTiles() * this->EF_ROWS,
+                        (uint32_t)(num_filters - start_filter));
 
                 for (int tstep = 0; tstep < time_steps; ++tstep) {
 
@@ -139,7 +327,7 @@ namespace core {
                         if (fstep != 0 || tstep != 0)
                             node->use_prev_buffer = true;
 
-                    } else if (act_policy == SET) {
+                    } else if (act_policy == INPUTS) {
                         if (fstep == 0 && ((!this->layer_act_on_chip && r == 0) || r != 0)) {
                             auto first_address = this->act_address_map[0][0][0];
                             auto last_address = this->act_address_map[0][0][last_act_blk - 1];
@@ -238,7 +426,8 @@ namespace core {
                     // Fil write addresses
                     if (!this->next_layer_act_on_chip && tstep == time_steps - 1) {
                         auto first_address = this->dram->getStartActAddress() + next_out_address;
-                        next_out_address += filter_per_set * out_blks * BLOCK_SIZE;
+                        auto out_blks = ceil(total_filters / (double)this->dram->getBaseValuesPerBlock());
+                        next_out_address += out_blks * BLOCK_SIZE;
                         auto last_address = this->dram->getStartActAddress() + next_out_address - BLOCK_SIZE;
                         node->write_addresses.emplace_back(first_address, last_address);
                     }
@@ -333,9 +522,11 @@ namespace core {
                     this->filter_buffer_filled = true;
                 }
 
+                bool first = true;
                 bool still_work = false;
                 for (int t = 0; t < this->arch->getTiles(); ++t) {
 
+                    tiles_data[t].write = false;
                     tiles_data[t].valid = false;
 
                     if (this->filters[t].empty()) break;
@@ -343,8 +534,8 @@ namespace core {
                     while (this->time[t] < max_time) {
                         auto set_time = time_step * max_time + this->time[t];
 
-                        if (set_time > this->max_buffer_time)
-                            continue;
+                        if (set_time >= this->max_buffer_time)
+                            break;
 
                         if (this->arch->schedule()) {
 
@@ -365,7 +556,7 @@ namespace core {
                         tiles_data[t].act_row = BufferSet<T>(this->window_buffer.begin() + set_time,
                                 std::min(this->window_buffer.begin() + set_time +
                                 num_act_rows, this->window_buffer.end()));
-                        if (t == 0) {
+                        if (first) {
                             if (!this->layer_act_on_chip) {
                                 tiles_data[t].act_addresses =
                                         AddressBufferSet(this->window_address_buffer.begin() + set_time,
@@ -373,6 +564,10 @@ namespace core {
                                         num_act_rows, this->window_address_buffer.end()));
                             }
                             tiles_data[t].act_banks = this->window_bank_buffer[set_time];
+                            first = false;
+                        } else {
+                            tiles_data[t].act_addresses.clear();
+                            tiles_data[t].act_banks.clear();
                         }
 
                         tiles_data[t].wgt_row = this->weight_buffer[filter_set + t][set_time];
@@ -386,6 +581,7 @@ namespace core {
                         tiles_data[t].valid = true;
 
                         still_work = true;
+                        this->write[t] = true;
                         this->time[t]++;
                         break;
 
@@ -393,8 +589,36 @@ namespace core {
 
                 } // Tile
 
-                if (still_work) return true;
+                if (still_work) {
 
+                    // Check if all tiles are done
+                    bool tiles_done = true;
+                    for (int t = 0; t < this->arch->getTiles() && tiles_done; ++t) {
+                        if (!tiles_data[t].valid) continue;
+                        auto set_time = time_step * max_time + this->time[t];
+                        if (set_time <= this->wgt_end_time[filter_set + t])
+                            tiles_done = false;
+                    }
+
+                    if (tiles_done) {
+                        auto out_bank_idx = 0;
+                        for (int t = 0; t < this->arch->getTiles(); ++t) {
+                            if (!this->write[t]) continue;
+                            auto outputs = this->windows.size() * this->filters[t].size();
+                            tiles_data[t].out_banks = BankBufferRow(outputs, 0);
+                            tiles_data[t].write = true;
+
+                            for (int ob = 0; ob < outputs; ++ob) {
+                                tiles_data[t].out_banks[ob] = out_bank_idx;
+                                out_bank_idx = (out_bank_idx + 1) % this->gbuffer->getOutBanks();
+                            }
+                        }
+                    }
+
+                    return true;
+                }
+
+                this->write = std::vector<bool>(this->arch->getTiles(), false);
                 this->time = std::vector<int>(this->arch->getTiles(), 0);
                 this->skip = std::vector<int>(this->arch->getTiles(), 0);
                 this->filter_buffer_filled = false;
@@ -409,11 +633,6 @@ namespace core {
         } // Window set
 
         this->window_set_it = 0;
-        this->filter_set_it = 0;
-        this->time = std::vector<int>(this->arch->getTiles(), 0);
-        this->skip = std::vector<int>(this->arch->getTiles(), 0);
-        this->window_buffer_filled = false;
-        this->filter_buffer_filled = false;
         return false;
 
     }
@@ -547,7 +766,7 @@ namespace core {
                         tiles_data[t].out_banks = BankBufferRow(this->filters.size(), 0);
                         tiles_data[t].write = true;
 
-                        for (int ob = 0; ob < this->filters.size(); ++ob) {
+                        for (int ob = 0; ob < this->filters[t].size(); ++ob) {
                             tiles_data[t].out_banks[ob] = out_bank_idx;
                             out_bank_idx = (out_bank_idx + 1) % this->gbuffer->getOutBanks();
                         }

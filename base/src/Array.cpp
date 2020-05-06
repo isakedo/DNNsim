@@ -207,15 +207,6 @@ namespace base {
         return shape;
     }
 
-    template <typename T>
-    unsigned long long Array<T>::getMax_index() const {
-        if (this->getDimensions() == 1) return this->shape[0];
-        else if (this->getDimensions() == 2) return this->shape[0]*this->shape[1];
-        else if (this->getDimensions() == 3) return this->shape[0]*this->shape[1]*this->shape[2];
-        else if (this->getDimensions() == 4) return this->shape[0]*this->shape[1]*this->shape[2]*this->shape[3];
-        else throw std::runtime_error("Array dimensions error");
-    }
-
     /* DATA TRANSFORMATION */
 
     /* Return value in two complement */
@@ -273,36 +264,25 @@ namespace base {
         return fixed_point_array;
     }
 
-    /*static inline
-    uint16_t linear_value(float num, double scale, float min_value, int max_fixed, int min_fixed) {
-        auto sign_mag = (int)(round(num * scale) - round(min_value * scale) + min_fixed);
-        sign_mag = std::max(sign_mag, min_fixed);
-        sign_mag = std::min(sign_mag, max_fixed);
-        return (uint16_t)sign_mag;
-    }*/
-
     static inline
     uint16_t linear_value(float num, double scale, int max_fixed, int min_fixed) {
-        auto sign_mag = (int)round(num * scale);
-        sign_mag = std::max(sign_mag, min_fixed);
-        sign_mag = std::min(sign_mag, max_fixed);
-    return (uint16_t)sign_mag;
+        auto two_comp = (int)round(num * scale);
+        two_comp = std::max(two_comp, min_fixed);
+        two_comp = std::min(two_comp, max_fixed);
+    return (uint16_t)two_comp;
 }
 
     template <typename T>
     Array<uint16_t> Array<T>::linear_quantization(int data_width) const {
-        //const int NUM_BITS = 8;
         int max_fixed = (int)pow(2, data_width - 1) - 1;
-        int min_fixed = (int)(pow(2, data_width - 1) - 1) * -1;
-        //const int num_discrete_values = 1u << NUM_BITS;
-        //const auto range_adjust = num_discrete_values / (num_discrete_values - 1.0);
+        int min_fixed = (int)(pow(2, data_width - 1) - 1) * -1 - 1;
 
         std::vector<uint16_t> fixed_point_vector;
         if (this->getDimensions() == 1) {
 
             auto min_value = min_1D(this->data1D);
             auto max_value = max_1D(this->data1D);
-            auto m = std::max(abs(max_value), abs(min_value));
+            auto m = std::max(fabsf(max_value), fabsf(min_value));
             float scale;
             if (min_value == 0) {
                 min_fixed = 0;
@@ -311,19 +291,16 @@ namespace base {
             } else {
                 scale = (max_fixed - min_fixed) / (2 * m);
             }
-            //auto range = (max_value - min_value) * range_adjust;
-            //auto scale = num_discrete_values / range;
 
             for(int i = 0; i < this->shape[0]; i++) {
                 auto float_value = this->data1D[i];
-                //fixed_point_vector.push_back(linear_value(float_value,scale,min_value,max_fixed,min_fixed));
                 fixed_point_vector.push_back(linear_value(float_value,scale,max_fixed,min_fixed));
             }
         } else if(this->getDimensions() == 2){
 
             auto min_value = min_2D(this->data2D);
             auto max_value = max_2D(this->data2D);
-            auto m = std::max(abs(max_value), abs(min_value));
+            auto m = std::max(fabsf(max_value), fabsf(min_value));
             float scale;
             if (min_value == 0) {
                 min_fixed = 0;
@@ -332,13 +309,10 @@ namespace base {
             } else {
                 scale = (max_fixed - min_fixed) / (2 * m);
             }
-            //auto range = (max_value - min_value) * range_adjust;
-            //auto scale = num_discrete_values / range;
 
             for(int i = 0; i < this->shape[0]; i++) {
                 for(int j = 0; j < this->shape[1]; j++) {
                     auto float_value = this->data2D[i][j];
-                    //fixed_point_vector.push_back(linear_value(float_value,scale,min_value,max_fixed,min_fixed));
                     fixed_point_vector.push_back(linear_value(float_value,scale,max_fixed,min_fixed));
                 }
             }
@@ -346,7 +320,7 @@ namespace base {
 
             auto min_value = min_3D(this->data3D);
             auto max_value = max_3D(this->data3D);
-            auto m = std::max(abs(max_value), abs(min_value));
+            auto m = std::max(fabsf(max_value), fabsf(min_value));
             float scale;
             if (min_value == 0) {
                 min_fixed = 0;
@@ -355,14 +329,11 @@ namespace base {
             } else {
                 scale = (max_fixed - min_fixed) / (2 * m);
             }
-            //auto range = (max_value - min_value) * range_adjust;
-            //auto scale = num_discrete_values / range;
 
             for(int i = 0; i < this->shape[0]; i++) {
                 for(int j = 0; j < this->shape[1]; j++) {
                     for(int k = 0; k < this->shape[2]; k++) {
                         auto float_value = this->data3D[i][j][k];
-                        //fixed_point_vector.push_back(linear_value(float_value,scale,min_value,max_fixed,min_fixed));
                         fixed_point_vector.push_back(linear_value(float_value,scale,max_fixed,min_fixed));
                     }
                 }
@@ -371,7 +342,7 @@ namespace base {
 
             auto min_value = min_4D(this->data4D);
             auto max_value = max_4D(this->data4D);
-            auto m = std::max(abs(max_value), abs(min_value));
+            auto m = std::max(fabsf(max_value), fabsf(min_value));
             float scale;
             if (min_value == 0) {
                 min_fixed = 0;
@@ -380,16 +351,12 @@ namespace base {
             } else {
                 scale = (max_fixed - min_fixed) / (2 * m);
             }
-            //auto range = (max_value - min_value) * range_adjust;
-            //auto scale = num_discrete_values / range;
 
             for(int i = 0; i < this->shape[0]; i++) {
                 for(int j = 0; j < this->shape[1]; j++) {
                     for(int k = 0; k < this->shape[2]; k++) {
                         for(int l = 0; l < this->shape[3]; l++) {
                             auto float_value = this->data4D[i][j][k][l];
-                            //fixed_point_vector.push_back(linear_value(float_value,scale,min_value,max_fixed,
-                            //        min_fixed));
                             fixed_point_vector.push_back(linear_value(float_value,scale,max_fixed,min_fixed));
                         }
                     }

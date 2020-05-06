@@ -111,10 +111,6 @@ namespace base {
          */
         const std::vector<size_t> &getShape() const;
 
-        /** Get Maximum index
-         */
-        unsigned long long getMax_index() const;
-
         /** Return a fixed point array given profiled precisions
          * @param mag   Magnitude (without sign bit)
          * @param frac  Fraction

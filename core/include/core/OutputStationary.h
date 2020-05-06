@@ -5,7 +5,7 @@
 
 namespace core {
 
-    enum MemPolicy { ALL, SET, SUBSET };
+    enum MemPolicy { ALL, INPUTS, SET, SUBSET };
 
     /**
      * Generic Output Stationary dataflow

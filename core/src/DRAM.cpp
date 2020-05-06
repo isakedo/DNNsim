@@ -94,6 +94,7 @@ namespace core {
 
     template <typename T>
     void DRAM<T>::read_request(const std::vector<TileData<T>> &tiles_data) {
+        uint64_t address = 0;
         try {
             for (const auto &tile_data : tiles_data) {
 
@@ -101,13 +102,17 @@ namespace core {
                     continue;
 
                 for (const auto &act_addr_row : tile_data.act_addresses)
-                    for (const auto &act_addr : act_addr_row)
+                    for (const auto &act_addr : act_addr_row) {
+                        address = act_addr;
                         if (act_addr != NULL_ADDR && (*this->tracked_data).at(act_addr) == NULL_TIME)
                             waiting_addresses[act_addr] = nullptr;
+                    }
 
-                for (const auto &wgt_addr : tile_data.wgt_addresses)
+                for (const auto &wgt_addr : tile_data.wgt_addresses) {
+                    address = wgt_addr;
                     if (wgt_addr != NULL_ADDR && (*this->tracked_data).at(wgt_addr) == NULL_TIME)
                         waiting_addresses[wgt_addr] = nullptr;
+                }
 
             }
         } catch (std::exception &exception) {

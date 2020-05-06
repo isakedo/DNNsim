@@ -190,8 +190,6 @@ namespace core {
                 if (!QUIET) printf("Simulating image: %d/%lu for layer: %s\n", image + 1, images,
                         layer.getName().c_str());
 
-                if (conv) continue;
-
                 auto act = std::make_shared<base::Array<T>>(layer.getActivations());
                 arch->dataConversion(*act, layer.getActPrecision());
                 if (fc && act->getDimensions() == 4) act->reshape_to_2D();
