@@ -82,6 +82,33 @@ namespace core {
     }
 
     template <typename T>
+    std::vector<AddressRange> DRAM<T>::compress_addresses(const std::vector<uint64_t> &addresses) {
+        auto tmp_addresses = addresses;
+        std::sort(tmp_addresses.begin(), tmp_addresses.end());
+        auto last = std::unique(tmp_addresses.begin(), tmp_addresses.end());
+        tmp_addresses.erase(last, tmp_addresses.end());
+
+        uint64_t prev_addr = tmp_addresses.front();
+        auto addr_tuple = std::make_tuple(prev_addr, NULL_ADDR);
+        auto compressed_addresses = std::vector<AddressRange>();
+
+        for (int i = 1; i < tmp_addresses.size(); ++i) {
+            const auto &addr = tmp_addresses[i];
+            if (addr - prev_addr - BLOCK_SIZE != 0) {
+                std::get<1>(addr_tuple) = prev_addr;
+                compressed_addresses.emplace_back(addr_tuple);
+                std::get<0>(addr_tuple) = addr;
+            }
+            prev_addr = addr;
+        }
+        std::get<1>(addr_tuple) = prev_addr;
+        compressed_addresses.emplace_back(addr_tuple);
+
+        return compressed_addresses;
+    }
+
+
+    template <typename T>
     void DRAM<T>::cycle() {
         dram_interface->update();
     }
@@ -94,7 +121,6 @@ namespace core {
 
     template <typename T>
     void DRAM<T>::read_request(const std::vector<TileData<T>> &tiles_data) {
-        uint64_t address = 0;
         try {
             for (const auto &tile_data : tiles_data) {
 
@@ -102,17 +128,13 @@ namespace core {
                     continue;
 
                 for (const auto &act_addr_row : tile_data.act_addresses)
-                    for (const auto &act_addr : act_addr_row) {
-                        address = act_addr;
+                    for (const auto &act_addr : act_addr_row)
                         if (act_addr != NULL_ADDR && (*this->tracked_data).at(act_addr) == NULL_TIME)
                             waiting_addresses[act_addr] = nullptr;
-                    }
 
-                for (const auto &wgt_addr : tile_data.wgt_addresses) {
-                    address = wgt_addr;
+                for (const auto &wgt_addr : tile_data.wgt_addresses)
                     if (wgt_addr != NULL_ADDR && (*this->tracked_data).at(wgt_addr) == NULL_TIME)
                         waiting_addresses[wgt_addr] = nullptr;
-                }
 
             }
         } catch (std::exception &exception) {

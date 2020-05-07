@@ -107,6 +107,8 @@ namespace core {
 
         void configure_layer(uint32_t _ACT_DATA_SIZE, uint32_t _WGT_DATA_SIZE);
 
+        std::vector<AddressRange> compress_addresses(const std::vector<uint64_t> &addresses);
+
         bool data_ready(const std::vector<TileData<T>> &tiles_data);
 
         void read_request(const std::vector<TileData<T>> &tiles_data);

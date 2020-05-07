@@ -5,7 +5,7 @@
 
 namespace core {
 
-    enum MemPolicy { ALL, INPUTS, SET, SUBSET };
+    enum MemPolicy { ALL, INPUTS, SET, SUBSET, CHANNELS };
 
     /**
      * Generic Output Stationary dataflow
@@ -99,6 +99,9 @@ namespace core {
 
         /** Indicate if filter buffer already filled */
         bool filter_buffer_filled = false;
+
+        std::vector<AddressRange> generate_addresses(uint32_t start_act_blk, uint32_t end_act_blk,
+                uint32_t last_act_blk, uint32_t start_window, uint32_t end_window);
 
         void generate_memory_maps() override;
 

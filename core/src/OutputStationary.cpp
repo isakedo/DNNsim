@@ -5,6 +5,50 @@ namespace core {
 
     /* CYCLES */
 
+
+    template <typename T>
+    std::vector<AddressRange> OutputStationary<T>::generate_addresses(uint32_t start_act_blk, uint32_t end_act_blk,
+            uint32_t last_act_blk, uint32_t start_window, uint32_t end_window) {
+
+        auto Kx = this->wgt->getShape()[2];
+        auto Ky = this->wgt->getShape()[3];
+
+        auto start_y = start_act_blk / (Kx * last_act_blk);
+        auto start_rem = start_act_blk % (Kx * last_act_blk);
+        auto start_x = start_rem / last_act_blk;
+        auto start_ch = start_rem % last_act_blk;
+
+        auto window_blks = end_act_blk - start_act_blk;
+        auto total_windows = end_window - start_window;
+        auto read_addresses = std::vector<uint64_t>(total_windows * window_blks, NULL_ADDR);
+        for (int w = 0; w < total_windows; ++w) {
+            auto window = start_window + w;
+            auto x_window = (window % out_x) * this->stride;
+            auto y_window = (window / out_x) * this->stride;
+
+            auto y = start_y;
+            auto x = start_x;
+            auto ch = start_ch;
+
+            int idx = 0;
+            while (y < Ky && idx != window_blks) {
+                while (x < Kx && idx != window_blks) {
+                    while (ch < last_act_blk && idx != window_blks) {
+                        read_addresses[w * window_blks + idx] = act_address_map[y_window + y][x_window + x][ch];
+                        idx++;
+                        ch++;
+                    }
+                    ch = 0;
+                    x++;
+                }
+                x = 0;
+                y++;
+            }
+        }
+
+        return this->dram->compress_addresses(read_addresses);
+    }
+
     template <typename T>
     void OutputStationary<T>::generate_memory_maps() {
 

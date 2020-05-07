@@ -25,63 +25,91 @@ namespace core {
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
 
-        auto last_act_blk = (uint64_t) ceil(act_channels / (double) this->dram->getActValuesPerBlock());
+        auto num_windows = this->out_x * this->out_y;
 
-        auto all_input_size = (uint32_t) ceil(act_channels * Nx * Ny * this->dram->getActDataSize() / 8.);
-        auto all_output_size = (uint32_t) ceil(num_filters * this->out_x * this->out_y
+        auto all_input_size = (uint32_t)ceil(act_channels * Nx * Ny * this->dram->getActDataSize() / 8.);
+        auto subset_windows = std::min((uint32_t)num_windows, this->EF_COLUMNS);
+
+        auto all_filters_size = (uint32_t)ceil(num_filters * wgt_channels * Kx * Ky
+                * this->dram->getWgtDataSize() / 8.);
+        auto subset_filters = std::min((uint32_t)num_filters, this->EF_ROWS * this->arch->getTiles());
+        auto subset_filters_size = (uint32_t)ceil(subset_filters * wgt_channels * Kx * Ky
+                * this->dram->getWgtDataSize() / 8.);
+
+        auto all_output_size = (uint32_t)ceil(num_filters * num_windows * this->dram->getBaseDataSize() / 8.);
+        auto subset_filters_output_size = (uint32_t)ceil(subset_filters * num_windows
                 * this->dram->getBaseDataSize() / 8.);
+        auto subset_windows_output_size = (uint32_t)ceil(num_filters * subset_windows
+                * this->dram->getBaseDataSize() / 8.);
+        auto subsets_output_size = (uint32_t)ceil(subset_filters * subset_windows * this->dram->getBaseDataSize() / 8.);
 
-        auto all_filters_size = (uint32_t) ceil(num_filters * wgt_channels * Kx * Ky
-                * this->dram->getWgtDataSize() / 8.);
-
-        auto working_set_filters = std::min((uint32_t)num_filters, this->EF_ROWS * this->arch->getTiles());
-        auto filter_set_size = (uint32_t) ceil(working_set_filters * wgt_channels * Kx * Ky
-                * this->dram->getWgtDataSize() / 8.);
-
-        MemPolicy act_policy = ALL;
-        //if (all_input_size + all_output_size < this->gbuffer->getActSize()) act_policy = ALL;
-        //else if (all_input_size + working_set_output < this->gbuffer->getActSize()) act_policy = SET;
-        //else act_policy = SUBSET;
+        MemPolicy act_policy;
+        if (all_input_size + all_output_size < this->gbuffer->getActSize()) act_policy = ALL;
+        else if (all_input_size + subset_filters_output_size < this->gbuffer->getActSize()) act_policy = INPUTS;
+        //else if (subset_windows_size + subset_windows_output_size < this->gbuffer->getActSize()) act_policy = SET;
+        //else if (subset_windows_size + subsets_output_size < this->gbuffer->getActSize()) act_policy = SUBSET;
+        else act_policy = CHANNELS;
 
         MemPolicy wgt_policy;
         if (all_filters_size <= this->gbuffer->getWgtSize()) wgt_policy = ALL;
-        else if (filter_set_size <= this->gbuffer->getWgtSize()) wgt_policy = SET;
-        else wgt_policy = SUBSET;
+        else if (subset_filters_size <= this->gbuffer->getWgtSize()) wgt_policy = SET;
+        else wgt_policy = CHANNELS;
 
         uint32_t time_steps_act = 1, time_steps_wgt = 1;
-        auto total_filter_sets = (uint32_t) ceil(num_filters / (double) working_set_filters);
+        auto total_filter_sets = (uint32_t)ceil(num_filters / (double)subset_filters);
         auto filter_sets_per_step_act = total_filter_sets, filter_sets_per_step_wgt = total_filter_sets;
 
         if (wgt_policy == ALL) {
             // None
         } else if (wgt_policy == SET) {
-            filter_sets_per_step_wgt = this->gbuffer->getWgtSize() / filter_set_size;
+            filter_sets_per_step_wgt = this->gbuffer->getWgtSize() / subset_filters_size;
             assert(filter_sets_per_step_wgt != this->filter_sets);
         } else {
             filter_sets_per_step_wgt = 1;
-            time_steps_wgt = (uint64_t) ceil(filter_set_size / (double) this->gbuffer->getWgtSize());
+            time_steps_wgt = (uint64_t)ceil(subset_filters_size / (double)this->gbuffer->getWgtSize());
             assert(time_steps_wgt != 1);
         }
 
-        std::vector<std::vector<int>> window_steps;
         if (act_policy == ALL) {
             this->next_layer_act_on_chip = true;
-            if (wgt_policy == SUBSET) {
-                for (int w = 0; w < this->window_sets; ++w) {
-                    window_steps.emplace_back(std::vector<int>(1, w));
-                }
-            } else {
-                window_steps.emplace_back(std::vector<int>(this->window_sets, 0));
-                std::iota(window_steps.front().begin(), window_steps.front().end(), 0);
+        } else if (act_policy == INPUTS) {
+            auto output_left_size = this->gbuffer->getActSize() - all_input_size;
+            filter_sets_per_step_act = output_left_size / subset_filters_output_size;
+            assert(filter_sets_per_step_act != total_filter_sets);
+        } else {
+            auto input_left_size = this->gbuffer->getActSize() - subsets_output_size;
+            assert(input_left_size < this->gbuffer->getActSize());
+
+            filter_sets_per_step_act = 1;
+            time_steps_act = (uint64_t)ceil(all_input_size / (double)input_left_size);
+            assert(time_steps_act != 1);
+
+            assert(!this->layer_act_on_chip);
+        }
+
+        std::vector<std::vector<int>> window_steps;
+        if (wgt_policy == CHANNELS || act_policy == CHANNELS) {
+            for (int w = 0; w < this->window_sets; ++w) {
+                window_steps.emplace_back(std::vector<int>(1, w));
             }
+        } else if (act_policy == ALL || act_policy == INPUTS){
+            window_steps.emplace_back(std::vector<int>(this->window_sets, 0));
+            std::iota(window_steps.front().begin(), window_steps.front().end(), 0);
+        } else {
+
         }
 
         uint32_t filter_sets_per_step = std::min(filter_sets_per_step_act, filter_sets_per_step_wgt);
-        uint32_t filter_steps = ceil(total_filter_sets / (double) filter_sets_per_step);
+        uint32_t filter_steps = ceil(total_filter_sets / (double)filter_sets_per_step);
 
         auto time_steps = std::max(time_steps_act, time_steps_wgt);
-        auto max_time_per_step = (uint32_t) ceil(this->max_buffer_time / (double) time_steps);
+        auto max_time_per_step = (uint32_t)ceil(this->max_buffer_time /(double)time_steps);
         assert(this->max_buffer_time > time_steps);
+
+        auto last_act_blk = (uint64_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
+        auto blks_per_window = (uint64_t)ceil(Ky * Kx * act_channels / (double)this->dram->getActValuesPerBlock());
+        auto blocks_per_time = (uint32_t)ceil(blks_per_window / (double)this->max_buffer_time);
+        auto blocks_per_step = max_time_per_step * blocks_per_time;
 
         auto next_out_address = this->next_act_address;
 
@@ -92,12 +120,13 @@ namespace core {
 
             auto start_window = window_steps[wstep].front() * this->EF_COLUMNS;
             auto total_windows = std::min(window_steps[wstep].size() * this->EF_COLUMNS,
-                    (uint64_t)(this->out_x * this->out_y - start_window));
+                    (uint64_t)(num_windows - start_window));
+            auto end_window = start_window + total_windows;
 
             for(int fstep = 0; fstep < filter_steps; ++fstep) {
 
                 auto start_filter_set = fstep * filter_sets_per_step;
-                auto filter_per_set = std::min((uint32_t) filter_sets_per_step, total_filter_sets - start_filter_set);
+                auto filter_per_set = std::min((uint32_t)filter_sets_per_step, total_filter_sets - start_filter_set);
                 auto end_filter_set = start_filter_set + filter_per_set;
 
                 auto start_filter_subset = fstep * filter_sets_per_step * this->arch->getTiles();
@@ -119,12 +148,29 @@ namespace core {
                     // Fil activations
                     node->window_sets = window_steps[wstep];
 
-                    if (act_policy == ALL) {
+                    if (act_policy == ALL || act_policy == INPUTS) {
                         if (wstep == 0 && fstep == 0 && tstep == 0 && !this->layer_act_on_chip) {
                             auto first_address = this->act_address_map[0][0][0];
                             auto last_address = this->act_address_map[Ny - 1][Nx - 1][last_act_blk - 1];
                             node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
                         }
+
+                    } else {
+                        auto start_act_blk = tstep * blocks_per_step;
+                        auto end_act_blk = std::min((uint64_t)((tstep + 1) * blocks_per_step), blks_per_window);
+
+                        if (this->arch->schedule()) {
+                            end_act_blk += this->scheduler->getLookaheadH() * blocks_per_time;
+                            end_act_blk = std::min(end_act_blk, blks_per_window);
+                        }
+
+                        node->read_act_addresses = this->generate_addresses(start_act_blk, end_act_blk, last_act_blk,
+                                start_window, end_window);
+                        node->evict_act = true;
+
+                        if (fstep != 0 || tstep != 0)
+                            node->use_prev_buffer = true;
+
                     }
 
                     // Fil filters
@@ -148,7 +194,7 @@ namespace core {
 
                     } else {
                         auto start_time = tstep * max_time_per_step;
-                        auto end_time = std::min((tstep + 1) * max_time_per_step, (uint32_t) this->max_buffer_time) - 1;
+                        auto end_time = std::min((tstep + 1) * max_time_per_step, (uint32_t)this->max_buffer_time) - 1;
 
                         uint64_t first_address = NULL_ADDR, last_address = NULL_ADDR;
                         if (this->arch->schedule()) {
@@ -223,39 +269,37 @@ namespace core {
         auto num_filters = wgt_shape[0];
         auto wgt_channels = wgt_shape[1];
 
-        auto last_act_blk = (uint64_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
-
         auto all_input_size = (uint32_t)ceil(act_channels * this->dram->getActDataSize() / 8.);
-        auto all_output_size = (uint32_t)ceil(num_filters * this->dram->getBaseDataSize() / 8.);
 
         auto all_filters_size = (uint32_t)ceil(num_filters * wgt_channels * this->dram->getWgtDataSize() / 8.);
+        auto subset_filters = std::min((uint32_t)num_filters, this->EF_ROWS * this->arch->getTiles());
+        auto subset_filters_size = (uint32_t)ceil(subset_filters * wgt_channels * this->dram->getWgtDataSize() / 8.);
 
-        auto working_set_filters = std::min((uint32_t)num_filters, this->EF_ROWS * this->arch->getTiles());
-        auto filter_set_size = (uint32_t)ceil(working_set_filters * wgt_channels * this->dram->getWgtDataSize() / 8.);
-        auto working_set_output = (uint32_t)ceil(working_set_filters * this->dram->getWgtDataSize() / 8.);
+        auto all_output_size = (uint32_t)ceil(num_filters * this->dram->getBaseDataSize() / 8.);
+        auto subset_filters_output_size = (uint32_t)ceil(subset_filters * this->dram->getBaseDataSize() / 8.);
 
         MemPolicy act_policy;
         if (all_input_size + all_output_size <= this->gbuffer->getActSize()) act_policy = ALL;
-        else if (all_input_size + working_set_output <= this->gbuffer->getActSize()) act_policy = INPUTS;
-        else act_policy = SUBSET;
+        else if (all_input_size + subset_filters_output_size <= this->gbuffer->getActSize()) act_policy = INPUTS;
+        else act_policy = CHANNELS;
 
         MemPolicy wgt_policy;
         if (all_filters_size <= this->gbuffer->getWgtSize()) wgt_policy = ALL;
-        else if (filter_set_size <= this->gbuffer->getWgtSize()) wgt_policy = SET;
-        else wgt_policy = SUBSET;
+        else if (subset_filters_size <= this->gbuffer->getWgtSize()) wgt_policy = SET;
+        else wgt_policy = CHANNELS;
 
         uint32_t time_steps_act = 1, time_steps_wgt = 1;
-        auto total_filter_sets = (uint32_t)ceil(num_filters / (double)working_set_filters);
+        auto total_filter_sets = (uint32_t)ceil(num_filters / (double)subset_filters);
         auto filter_sets_per_step_act = total_filter_sets, filter_sets_per_step_wgt = total_filter_sets;
 
         if (act_policy == ALL) {
             this->next_layer_act_on_chip = true;
         } else if (act_policy == INPUTS) {
             auto output_left_size = this->gbuffer->getActSize() - all_input_size;
-            filter_sets_per_step_act = output_left_size / working_set_output;
-            assert(filter_sets_per_step_act != this->filter_sets);
+            filter_sets_per_step_act = output_left_size / subset_filters_output_size;
+            assert(filter_sets_per_step_act != total_filter_sets);
         } else {
-            auto input_left_size = this->gbuffer->getActSize() - working_set_output;
+            auto input_left_size = this->gbuffer->getActSize() - subset_filters_output_size;
             assert(input_left_size < this->gbuffer->getActSize());
 
             filter_sets_per_step_act = 1;
@@ -268,11 +312,11 @@ namespace core {
         if (wgt_policy == ALL) {
             // None
         } else if (wgt_policy == SET) {
-            filter_sets_per_step_wgt = this->gbuffer->getWgtSize() / filter_set_size;
+            filter_sets_per_step_wgt = this->gbuffer->getWgtSize() / subset_filters_size;
             assert(filter_sets_per_step_wgt != this->filter_sets);
         } else {
             filter_sets_per_step_wgt = 1;
-            time_steps_wgt = (uint64_t)ceil(filter_set_size / (double)this->gbuffer->getWgtSize());
+            time_steps_wgt = (uint64_t)ceil(subset_filters_size / (double)this->gbuffer->getWgtSize());
             assert(time_steps_wgt != 1);
         }
 
@@ -283,6 +327,7 @@ namespace core {
         auto max_time_per_step = (uint32_t)ceil(this->max_buffer_time / (double)time_steps);
         assert(this->max_buffer_time > time_steps);
 
+        auto last_act_blk = (uint64_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
         auto blocks_per_time = (uint32_t)ceil(last_act_blk / (double)this->max_buffer_time);
         auto blocks_per_step = max_time_per_step * blocks_per_time;
 
@@ -340,7 +385,7 @@ namespace core {
 
                     } else {
                         auto start_act_blk = tstep * blocks_per_step;
-                        auto end_act_blk = std::min((uint64_t) ((tstep + 1) * blocks_per_step), last_act_blk);
+                        auto end_act_blk = std::min((uint64_t)((tstep + 1) * blocks_per_step), last_act_blk);
 
                         if (this->arch->schedule()) {
                             end_act_blk += this->scheduler->getLookaheadH() * blocks_per_time;
@@ -476,7 +521,7 @@ namespace core {
         while (this->window_set_it < window_sets.size()) {
 
             // Fill window buffer
-            if (!use_prev_buffer && !this->window_buffer_filled) {
+            if (!this->window_buffer_filled) {
 
                 // Select windows
                 auto window_idx = window_sets[this->window_set_it] * this->EF_COLUMNS;
@@ -491,7 +536,8 @@ namespace core {
                     this->windows.emplace_back(std::make_tuple(x_window, y_window));
                 }
 
-                this->fill_window_buffer();
+                if (!use_prev_buffer)
+                    this->fill_window_buffer();
                 this->window_buffer_filled = true;
             }
 
