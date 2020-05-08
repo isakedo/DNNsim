@@ -179,7 +179,7 @@ namespace core {
     void OutputStationary<T>::fill_weight_buffer() {
 
         // Data buffer
-        weight_buffer = Buffer<T>(filter_sets, BufferSet<T>(max_buffer_time,
+        weight_buffer = Buffer<T>(filter_sets * groups, BufferSet<T>(max_buffer_time,
                 BufferRow<T>(this->EF_ROWS * this->EF_LANES, {0, 0, 0})));
 
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
@@ -190,38 +190,47 @@ namespace core {
         auto Ky = wgt_shape[3];
 
         int set_wgt = -1;
-        for (int m = 0; m < num_filters; ++m) {
+        for (int g = 0; g < groups; ++g) {
 
-            auto filter_pos = m % this->EF_ROWS;
-            if (filter_pos == 0)
-                set_wgt++;
+            for (int m = 0; m < filters_per_group; ++m) {
 
-            int buffer_time = 0;
-            for (int y = 0; y < Ky; ++y) {
-                for (int x = 0; x < Kx; ++x) {
-                    for (int k = 0; k < wgt_channels; k += this->EF_LANES) {
-                        int index = 0;
-                        for (int ch = k; ch < std::min((uint64_t) k + this->EF_LANES, wgt_channels); ++ch) {
+                auto start_group = filters_per_group * g;
 
-                            auto wgt_bits = this->wgt->get(m, ch, x, y);
-                            int pos = filter_pos * this->EF_LANES + index;
-                            weight_buffer[set_wgt][buffer_time][pos] = {wgt_bits, buffer_time, index};
+                if ((start_group + m) >= num_filters)
+                    continue;
 
-                            index++;
-                            if (index == this->EF_LANES) {
+                auto filter_pos = m % this->EF_ROWS;
+                if (filter_pos == 0)
+                    set_wgt++;
+
+                int buffer_time = 0;
+                for (int y = 0; y < Ky; ++y) {
+                    for (int x = 0; x < Kx; ++x) {
+                        for (int k = 0; k < wgt_channels; k += this->EF_LANES) {
+                            int index = 0;
+                            for (int ch = k; ch < std::min((uint64_t) k + this->EF_LANES, wgt_channels); ++ch) {
+
+                                index = depthwise ? filter_pos : index;
+                                auto wgt_bits = this->wgt->get(start_group + m, ch, x, y);
+                                int pos = filter_pos * this->EF_LANES + index;
+                                weight_buffer[set_wgt][buffer_time][pos] = {wgt_bits, buffer_time, index};
+
+                                index++;
+                                if (index == this->EF_LANES) {
+                                    buffer_time++;
+                                    index = 0;
+                                }
+                            } // Channels
+
+                            if (index != 0)
                                 buffer_time++;
-                                index = 0;
-                            }
-                        } // Channels
 
-                        if (index != 0)
-                            buffer_time++;
+                        } // Channel sets
+                    } // Kernel Width
+                } // Kernel Height
 
-                    } // Channel sets
-                } // Kernel Width
-            } // Kernel Height
-
-        } // Filter sets
+            } // Filter sets
+        } // Groups
 
         // BitTactical schedule
         if (this->arch->schedule()) {
@@ -231,47 +240,54 @@ namespace core {
         // Addresses buffer
         auto addresses_per_row = (uint64_t)ceil(this->EF_LANES / (double)this->dram->getWgtValuesPerBlock())
                 * this->EF_ROWS;
-        wgt_address_buffer = AddressBuffer(filter_sets, AddressBufferSet(max_buffer_time,
+        wgt_address_buffer = AddressBuffer(filter_sets * groups, AddressBufferSet(max_buffer_time,
                 AddressBufferRow(addresses_per_row, NULL_ADDR)));
 
         auto tiles = this->arch->getTiles();
-        wgt_address_map = std::vector<AddressRange>(ceil(filter_sets / (double)tiles), AddressRange());
+        auto filter_sets_per_set = ceil(filter_sets / (double)tiles);
+        wgt_address_map = std::vector<AddressRange>(filter_sets_per_set * groups, AddressRange());
 
         // Filter Set third
-        for (int m = 0; m < filter_sets; m += tiles) {
+        for (int g = 0; g < groups; ++g) {
 
-            std::get<0>(wgt_address_map[m/tiles]) = this->dram->getStartWgtAddress() + next_wgt_address;
+            for (int m = 0; m < filter_sets; m += tiles) {
 
-            // Buffer depth second
-            auto skip_buf = std::vector<int>(tiles, 0);
-            for (int y = 0; y < max_buffer_time; ++y) {
+                std::get<0>(wgt_address_map[g * filter_sets_per_set + m / tiles]) =
+                        this->dram->getStartWgtAddress() + next_wgt_address;
 
-                for (int t = 0; t < tiles; ++t) {
+                // Buffer depth second
+                auto skip_buf = std::vector<int>(tiles, 0);
+                for (int y = 0; y < max_buffer_time; ++y) {
 
-                    auto mm = m + t;
-                    if (mm >= this->filter_sets)
-                        continue;
+                    for (int t = 0; t < tiles; ++t) {
 
-                    if (this->arch->schedule()) {
-                        bool zero_line = this->scheduler->check_zero_line(this->weight_buffer[mm][y]);
-                        if (skip_buf[t] < this->scheduler->getLookaheadH() && zero_line) {
-                            skip_buf[t]++;
+                        auto mm = g * filter_sets  + m + t;
+
+                        if (mm >= filter_sets * (g + 1))
                             continue;
+
+                        if (this->arch->schedule()) {
+                            bool zero_line = this->scheduler->check_zero_line(this->weight_buffer[mm][y]);
+                            if (skip_buf[t] < this->scheduler->getLookaheadH() && zero_line) {
+                                skip_buf[t]++;
+                                continue;
+                            }
+                            skip_buf[t] = 0;
                         }
-                        skip_buf[t] = 0;
-                    }
 
-                    // Buffer width first
-                    for (int x = 0; x < addresses_per_row; ++x) {
-                        this->wgt_address_buffer[mm][y][x] = this->dram->getStartWgtAddress() + next_wgt_address;
-                        next_wgt_address += BLOCK_SIZE;
-                    }
+                        // Buffer width first
+                        for (int x = 0; x < addresses_per_row; ++x) {
+                            this->wgt_address_buffer[mm][y][x] = this->dram->getStartWgtAddress() + next_wgt_address;
+                            next_wgt_address += BLOCK_SIZE;
+                        }
 
+                    }
                 }
+
+                std::get<1>(wgt_address_map[g * filter_sets_per_set + m / tiles]) =
+                        this->dram->getStartWgtAddress() + next_wgt_address - BLOCK_SIZE;
+
             }
-
-            std::get<1>(wgt_address_map[m/tiles]) = this->dram->getStartWgtAddress() + next_wgt_address - BLOCK_SIZE;
-
         }
 
 
@@ -280,12 +296,12 @@ namespace core {
         auto accesses_per_filter = (uint64_t)ceil(required_width / (double)this->gbuffer->getBankWidth());
         accesses_per_filter *= this->WGT_BLKS;
 
-        wgt_bank_buffer = BankBuffer(filter_sets, BankBufferSet(max_buffer_time,
+        wgt_bank_buffer = BankBuffer(filter_sets * groups, BankBufferSet(max_buffer_time,
                 BankBufferRow(accesses_per_filter * this->EF_ROWS)));
-        wgt_end_time = std::vector<uint64_t>(filter_sets, 0);
+        wgt_end_time = std::vector<uint64_t>(filter_sets * groups, 0);
 
         int bank = 0;
-        for (int m = 0; m < filter_sets; ++m) {
+        for (int m = 0; m < filter_sets * groups; ++m) {
 
             for (int r = 0; r < this->EF_ROWS; ++r) {
                 for (int f = 0; f < accesses_per_filter; ++f) {
@@ -316,7 +332,7 @@ namespace core {
     }
 
     template <typename T>
-    void OutputStationary<T>::fill_window_buffer() {
+    void OutputStationary<T>::fill_window_buffer(uint32_t group_idx) {
 
         auto recurrence = std::static_pointer_cast<OutputStationary<T>::NodeOutS>
                 (this->on_chip_graph.front())->recurrence;
@@ -343,29 +359,37 @@ namespace core {
 
         auto act_channels = this->_3dim ? act_shape[2] : act_shape[1];
 
+        auto wgt_channels = wgt_shape[1];
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
+
+        auto channels = depthwise ? filters_per_group : wgt_channels;
 
         int next_column = 0;
         for (int w = 0; w < windows.size(); ++w) {
             auto x_window = std::get<0>(windows[w]) * this->stride;
             auto y_window = std::get<1>(windows[w]) * this->stride;
 
+            auto start_group = group_idx * channels;
+
             int buffer_time = 0;
             for (int y = 0; y < Ky; ++y) {
                 for (int x = 0; x < Kx; ++x) {
-                    for (int k = 0; k < act_channels; k += this->EF_LANES) {
+                    for (int k = 0; k < channels; k += this->EF_LANES) {
 
                         int index = 0;
                         int bank_index = 0;
-                        for (int ch = k; ch < std::min((uint64_t) k + this->EF_LANES, act_channels); ++ch) {
+                        for (int ch = k; ch < std::min((uint64_t) k + this->EF_LANES, channels); ++ch) {
+
+                            if ((start_group + ch) >= act_channels)
+                                continue;
 
                             auto act_bits = this->_3dim ? this->act->get(0, recurrence, ch) :
-                                    this->act->get(0, ch, x_window + x, y_window + y);
+                                    this->act->get(0, start_group + ch, x_window + x, y_window + y);
 
                             if (this->arch->diffy() && !this->linear) {
-                                auto prev_act_bits = (x_window - this->stride < 0) ? 0 : this->act->get(0,
-                                        ch, x_window + x - this->stride, y_window + y);
+                                auto prev_act_bits = (x_window - this->stride < 0) ? 0 :
+                                        this->act->get(0, start_group + ch, x_window + x - this->stride, y_window + y);
                                 act_bits = (short)act_bits - (short)prev_act_bits;
                             }
 
@@ -417,6 +441,7 @@ namespace core {
 
         Control<T>::configure_layer(_act, _wgt, act_prec, wgt_prec, _linear, _rnn, _stride);
 
+        group_it = 0;
         window_set_it = 0;
         filter_set_it = 0;
         write = std::vector<bool>(this->arch->getTiles(), false);
@@ -441,8 +466,22 @@ namespace core {
         out_x = (Nx - Kx) / this->stride + 1;
         out_y = (Ny - Ky) / this->stride + 1;
 
+        depthwise = wgt_channels == 1 && act_channels != 1;
+
+        if (depthwise) {
+            auto MIN_DIM = std::min(this->EF_LANES, this->EF_ROWS);
+            this->EF_LANES = MIN_DIM;
+            this->EF_ROWS = MIN_DIM;
+
+            groups = (uint64_t)ceil(num_filters / (double)MIN_DIM);
+            filters_per_group = MIN_DIM;
+        } else {
+            groups = act_channels / wgt_channels == 2 ? 2 : 1;
+            filters_per_group = (uint64_t)ceil(num_filters / (double)groups);
+        }
+
         window_sets = (uint64_t)ceil(out_x * out_y / (double)this->EF_COLUMNS);
-        filter_sets = (uint64_t)ceil(num_filters / (double)this->EF_ROWS);
+        filter_sets = (uint64_t)ceil(filters_per_group / (double)this->EF_ROWS);
 
         // Generate weight buffer
         auto round_wgt_channels = (int)ceil(wgt_channels / (double)this->EF_LANES) * this->EF_LANES;

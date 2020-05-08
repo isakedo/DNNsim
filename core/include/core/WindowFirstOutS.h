@@ -22,6 +22,8 @@ namespace core {
 
         void generate_execution_graph_conv_layer();
 
+        void generate_execution_graph_grouped_layer();
+
         void generate_execution_graph_linear_layer();
 
         void generate_execution_graph() override;

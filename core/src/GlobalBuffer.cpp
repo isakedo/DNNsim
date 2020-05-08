@@ -144,7 +144,8 @@ namespace core {
 
                 // Bank conflicts
                 for (const auto &act_bank : tile_data.act_banks)
-                    bank_conflicts[act_bank]++;
+                    if (act_bank != -1)
+                        bank_conflicts[act_bank]++;
 
                 if (!tile_data.act_banks.empty())
                     act_reads++;
@@ -182,7 +183,8 @@ namespace core {
 
                 // Bank conflicts
                 for (const auto &wgt_bank : tile_data.wgt_banks)
-                    bank_conflicts[wgt_bank]++;
+                    if (wgt_bank != -1)
+                        bank_conflicts[wgt_bank]++;
 
                 if (!tile_data.wgt_banks.empty())
                     wgt_reads++;
@@ -213,7 +215,8 @@ namespace core {
 
             // Bank conflicts
             for (const auto &out_bank : tile_data.out_banks)
-                bank_conflicts[out_bank]++;
+                if (out_bank != -1)
+                    bank_conflicts[out_bank]++;
 
             if (!tile_data.out_banks.empty())
                 out_writes++;
