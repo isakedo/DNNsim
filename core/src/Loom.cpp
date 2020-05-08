@@ -99,8 +99,6 @@ namespace core {
             if (!tile_data.valid)
                 continue;
 
-            auto ROWS = tile_data.wgt_row.size() / tile_data.lanes;
-
             auto max_act_bit = 0;
             auto min_act_bit = INT_MAX;
 
@@ -114,7 +112,7 @@ namespace core {
 
             if (DYNAMIC_WEIGHTS) {
 
-                auto ROW_GROUPS = ceil(ROWS / (double)GROUP_SIZE);
+                auto ROW_GROUPS = ceil(this->ROWS / (double)GROUP_SIZE);
                 auto filter_cycles = std::vector<int>(ROW_GROUPS, 0);
 
                 auto group = 0;
@@ -163,7 +161,7 @@ namespace core {
             if (max_tile_cycles < column_cycles) max_tile_cycles = column_cycles;
 
             this->scheduled_pe += tile_data.filters.size();
-            this->idle_pe += ROWS - tile_data.filters.size();
+            this->idle_pe += this->ROWS - tile_data.filters.size();
 
         }
 
@@ -192,10 +190,7 @@ namespace core {
             if (!tile_data.valid)
                 continue;
 
-            auto ROWS = tile_data.wgt_row.size() / tile_data.lanes;
-            auto COLUMNS = tile_data.act_row.front().size() / tile_data.lanes;
-
-            auto COLUMN_GROUPS = ceil(COLUMNS / (double)GROUP_SIZE);
+            auto COLUMN_GROUPS = ceil(this->COLUMNS / (double)GROUP_SIZE);
             auto window_cycles = std::vector<int>(COLUMN_GROUPS, 0);
 
             auto group = 0;
@@ -225,7 +220,7 @@ namespace core {
 
             if (DYNAMIC_WEIGHTS) {
 
-                auto ROW_GROUPS = ceil(ROWS / (double)GROUP_SIZE);
+                auto ROW_GROUPS = ceil(this->ROWS / (double)GROUP_SIZE);
                 auto filter_cycles = std::vector<int>(ROW_GROUPS, 0);
 
                 group = 0;
@@ -276,7 +271,7 @@ namespace core {
             }
 
             this->scheduled_pe += tile_data.windows.size() * tile_data.filters.size();
-            this->idle_pe += (COLUMNS * ROWS - tile_data.windows.size() * tile_data.filters.size());
+            this->idle_pe += (this->COLUMNS * this->ROWS - tile_data.windows.size() * tile_data.filters.size());
 
         }
 

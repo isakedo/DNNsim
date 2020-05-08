@@ -441,7 +441,7 @@ namespace core {
         out_x = (Nx - Kx) / this->stride + 1;
         out_y = (Ny - Ky) / this->stride + 1;
 
-        window_sets = (uint64_t)ceil(this->out_x * this->out_y / (double)this->EF_COLUMNS);
+        window_sets = (uint64_t)ceil(out_x * out_y / (double)this->EF_COLUMNS);
         filter_sets = (uint64_t)ceil(num_filters / (double)this->EF_ROWS);
 
         // Generate weight buffer

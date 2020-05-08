@@ -51,14 +51,12 @@ namespace core {
             if (!tile_data.valid)
                 continue;
 
-            auto ROWS = tile_data.wgt_row.size() / tile_data.lanes;
-            auto COLUMNS = tile_data.act_row.front().size() / tile_data.lanes;
             if (this->linear) {
                 this->scheduled_pe += tile_data.filters.size();
-                this->idle_pe += ROWS - tile_data.filters.size();
+                this->idle_pe += this->ROWS - tile_data.filters.size();
             } else {
                 this->scheduled_pe += tile_data.windows.size() * tile_data.filters.size();
-                this->idle_pe += (COLUMNS * ROWS - tile_data.windows.size() * tile_data.filters.size());
+                this->idle_pe += (this->COLUMNS * this->ROWS - tile_data.windows.size() * tile_data.filters.size());
             }
         }
 

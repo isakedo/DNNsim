@@ -116,8 +116,6 @@ namespace core {
             if (!tile_data.valid)
                 continue;
 
-            auto ROWS = tiles_data[t].wgt_row.size() / tiles_data[t].lanes;
-
             auto max_act_bit = 0;
             auto min_act_bit = INT_MAX;
 
@@ -143,7 +141,7 @@ namespace core {
             if (max_tile_cycles < column_cycles) max_tile_cycles = column_cycles;
 
             this->scheduled_pe += tiles_data[t].filters.size();
-            this->idle_pe += ROWS - tiles_data[t].filters.size();
+            this->idle_pe += this->ROWS - tiles_data[t].filters.size();
 
         }
 
@@ -172,9 +170,6 @@ namespace core {
 
             if (!tile_data.valid)
                 continue;
-
-            auto ROWS = tile_data.wgt_row.size() / tile_data.lanes;
-            auto COLUMNS = tile_data.act_row.front().size() / tile_data.lanes;
 
             auto group = 0;
             auto group_count = 0;
@@ -219,7 +214,7 @@ namespace core {
             }
 
             this->scheduled_pe += tile_data.windows.size() * tile_data.filters.size();
-            this->idle_pe += (COLUMNS * ROWS - tile_data.windows.size() * tile_data.filters.size());
+            this->idle_pe += (this->COLUMNS * this->ROWS - tile_data.windows.size() * tile_data.filters.size());
 
         }
 
