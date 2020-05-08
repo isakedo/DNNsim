@@ -9,6 +9,14 @@ namespace core {
     }
 
     template <typename T>
+    std::string LocalBuffer<T>::header() {
+        std::string header = "Number of memory rows: " + std::to_string(ROWS) + "\n";
+        if (READ_DELAY != NULL_DELAY) header += "Read delay: " + std::to_string(READ_DELAY) + "\n";
+        if (WRITE_DELAY != NULL_DELAY) header += "Write delay: " + std::to_string(WRITE_DELAY) + "\n";
+        return header;
+    }
+
+    template <typename T>
     void LocalBuffer<T>::configure_layer() {
         idx = 0;
         ready_cycle = std::vector<uint64_t>(ROWS, 0);

@@ -203,13 +203,23 @@ namespace core {
          * Return stats filename for the architecture in the cycles function
          * @return Filename
          */
-        virtual std::string filename() = 0;
+        virtual std::string filename() {
+            return "_L" + std::to_string(LANES) + "_C" + std::to_string(COLUMNS) + "_R" + std::to_string(ROWS) +
+                    "_T" + std::to_string(TILES) + "_BP" + std::to_string(PE_WIDTH);
+        }
 
         /**
          * Return stats header for the architecture in the cycles function
          * @return Header
          */
-        virtual std::string header() = 0;
+        virtual std::string header() {
+            std::string header = "Number of lanes/terms per PE: " + std::to_string(LANES) + "\n";
+            header += "Number of columns/windows in parallel: " + std::to_string(COLUMNS) + "\n";
+            header += "Number of rows/filters in parallel: " + std::to_string(ROWS) + "\n";
+            header += "Number of tiles: " + std::to_string(TILES) + "\n";
+            header += "PE input bit-width: " + std::to_string(PE_WIDTH) + "\n";
+            return header;
+        }
 
         /**
          * Return if calculate deltas for the window buffer

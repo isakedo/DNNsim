@@ -36,6 +36,12 @@ namespace core {
                 uint32_t _ROWS, uint32_t _READ_DELAY, uint32_t _WRITE_DELAY) : Memory<T>(_tracked_data, _act_addresses,
                 _wgt_addresses), ROWS(_ROWS), READ_DELAY(_READ_DELAY), WRITE_DELAY(_WRITE_DELAY) {}
 
+        /**
+         * Return stats header for the Local Buffer
+         * @return Header
+         */
+        std::string header() override;
+
         uint64_t getStallCycles() const;
 
         // GENERAL

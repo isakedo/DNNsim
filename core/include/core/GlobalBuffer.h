@@ -95,6 +95,14 @@ namespace core {
 
         uint64_t getWriteReadyCycle() const;
 
+        std::string filename();
+
+        /**
+         * Return stats header for the Global Buffer
+         * @return Header
+         */
+        std::string header() override;
+
         void configure_layer() override;
 
         bool write_done();

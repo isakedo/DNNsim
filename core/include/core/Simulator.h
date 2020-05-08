@@ -27,7 +27,7 @@ namespace core {
 
     private:
 
-        /** Enable fast mode: only one image */
+        /** Enable fast mode: only one sample */
         const bool FAST_MODE = false;
 
         /** Avoid std::out messages */
@@ -39,7 +39,7 @@ namespace core {
     public:
 
         /** Constructor
-         * @param _FAST_MODE    Enable fast mode to simulate only one image
+         * @param _FAST_MODE    Enable fast mode to simulate only one sample
          * @param _QUIET        Avoid std::out messages
          * @param _CHECK        Check the correctness of the simulations
          */

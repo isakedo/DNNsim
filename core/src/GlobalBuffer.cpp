@@ -84,6 +84,24 @@ namespace core {
     }
 
     template <typename T>
+    std::string GlobalBuffer<T>::filename() {
+        return "_AM" + to_mem_string(ACT_SIZE) + "_WM" + to_mem_string(WGT_SIZE);
+    }
+
+    template <typename T>
+    std::string GlobalBuffer<T>::header() {
+        std::string header = "Activations memory size: " + to_mem_string(ACT_SIZE) + "\n";
+        header += "Weight memory size: " + to_mem_string(WGT_SIZE) + "\n";
+        header += "Number of activation banks: " + std::to_string(ACT_BANKS) + "\n";
+        header += "Number of weight banks: " + std::to_string(WGT_BANKS) + "\n";
+        header += "Number of output banks: " + std::to_string(OUT_BANKS) + "\n";
+        header += "Bank interface width: " + std::to_string(BANK_WIDTH) + "\n";
+        header += "Read delay: " + std::to_string(READ_DELAY) + "\n";
+        header += "Write delay: " + std::to_string(WRITE_DELAY) + "\n";
+        return header;
+    }
+
+    template <typename T>
     void GlobalBuffer<T>::configure_layer() {
         act_read_ready_cycle = 0;
         wgt_read_ready_cycle = 0;

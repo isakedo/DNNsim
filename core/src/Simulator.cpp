@@ -141,10 +141,10 @@ namespace core {
         if(!QUIET) std::cout << "Starting cycles simulation for architecture " << arch->name() << std::endl;
 
         // Initialize statistics
-        std::string filename = arch->name() + arch->filename() + "_cycles";
+        std::string filename = arch->name() + gbuffer->filename() + arch->filename() + "_cycles";
 
-        auto images = this->FAST_MODE ? 1 : network.getImages();
-        sys::Stats stats = sys::Stats(network.getNumLayers(), images, filename);
+        auto batch_size = this->FAST_MODE ? 1 : network.getBatchSize();
+        sys::Stats stats = sys::Stats(network.getNumLayers(), batch_size, filename);
 
         // Time stats
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
@@ -176,25 +176,25 @@ namespace core {
         auto act_precision = stats.register_uint_t("activations precision", 0, sys::Average);
         auto wgt_precision = stats.register_uint_t("weights precision", 0, sys::Average);
 
-        // Iterate over the images
-        for(auto image = 0; image < images; ++image) {
+        // Iterate over the samples
+        for(auto sample = 0; sample < batch_size; ++sample) {
 
             // Iterate over the layers
-            for (auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
+            for (auto layer_it = 0; layer_it < 1; ++layer_it) {
 
                 const base::Layer<T> &layer = network.getLayers()[layer_it];
                 bool conv = layer.getType() == "Convolution";
                 bool rnn = layer.getType() == "RNN";
                 bool fc = layer.getType() == "InnerProduct";
 
-                if (!QUIET) printf("Simulating image: %d/%lu for layer: %s\n", image + 1, images,
+                if (!QUIET) printf("Simulating sample: %d/%lu for layer: %s\n", sample + 1, batch_size,
                         layer.getName().c_str());
 
                 auto act = std::make_shared<base::Array<T>>(layer.getActivations());
                 arch->dataConversion(*act, layer.getActPrecision());
                 if (fc && act->getDimensions() == 4) act->reshape_to_2D();
                 if (act->getDimensions() == 2) act->reshape_to_4D();
-                act->get_image(image);
+                act->get_sample(sample);
 
                 auto wgt = std::make_shared<base::Array<T>>(layer.getWeights());
                 arch->dataConversion(*wgt, layer.getWgtPrecision());
@@ -325,42 +325,47 @@ namespace core {
                 if (CHECK) check_result(sim_output, act, wgt, Ox, Oy, stride, rnn);
 
                 // Dump stats
-                cycles->value[layer_it][image] = *global_cycle;
-                compute_cycles->value[layer_it][image] = arch->getCycles();
-                compute_stall_cycles->value[layer_it][image] = arch->getStallCycles();
-                dram_stall_cycles->value[layer_it][image] = dram->getStallCycles();
-                gbuffer_write_stall_cycles->value[layer_it][image] = gbuffer->getStallCycles();
-                abuffer_stall_cycles->value[layer_it][image] = abuffer->getStallCycles();
-                wbuffer_stall_cycles->value[layer_it][image] = wbuffer->getStallCycles();
-                obuffer_stall_cycles->value[layer_it][image] = obuffer->getStallCycles();
+                cycles->value[layer_it][sample] = *global_cycle;
+                compute_cycles->value[layer_it][sample] = arch->getCycles();
+                compute_stall_cycles->value[layer_it][sample] = arch->getStallCycles();
+                dram_stall_cycles->value[layer_it][sample] = dram->getStallCycles();
+                gbuffer_write_stall_cycles->value[layer_it][sample] = gbuffer->getStallCycles();
+                abuffer_stall_cycles->value[layer_it][sample] = abuffer->getStallCycles();
+                wbuffer_stall_cycles->value[layer_it][sample] = wbuffer->getStallCycles();
+                obuffer_stall_cycles->value[layer_it][sample] = obuffer->getStallCycles();
 
-                scheduled_pe->value[layer_it][image] = arch->getScheduledPe();
-                idle_pe->value[layer_it][image] = arch->getIdlePe();
+                scheduled_pe->value[layer_it][sample] = arch->getScheduledPe();
+                idle_pe->value[layer_it][sample] = arch->getIdlePe();
 
-                dram_act_reads->value[layer_it][image] = dram->getActReads();
-                dram_wgt_reads->value[layer_it][image] = dram->getWgtReads();
-                dram_out_writes->value[layer_it][image] = dram->getOutWrites();
+                dram_act_reads->value[layer_it][sample] = dram->getActReads();
+                dram_wgt_reads->value[layer_it][sample] = dram->getWgtReads();
+                dram_out_writes->value[layer_it][sample] = dram->getOutWrites();
 
-                gbuffer_act_reads->value[layer_it][image] = gbuffer->getActReads() * control->getActBlks();
-                gbuffer_wgt_reads->value[layer_it][image] = gbuffer->getWgtReads() * control->getWgtBlks();
-                gbuffer_out_writes->value[layer_it][image] = gbuffer->getOutWrites();
-                gbuffer_act_bank_conflicts->value[layer_it][image] = gbuffer->getActBankConflicts();
-                gbuffer_wgt_bank_conflicts->value[layer_it][image] = gbuffer->getWgtBankConflicts();
-                gbuffer_out_bank_conflicts->value[layer_it][image] = gbuffer->getOutBankConflicts();
+                gbuffer_act_reads->value[layer_it][sample] = gbuffer->getActReads() * control->getActBlks();
+                gbuffer_wgt_reads->value[layer_it][sample] = gbuffer->getWgtReads() * control->getWgtBlks();
+                gbuffer_out_writes->value[layer_it][sample] = gbuffer->getOutWrites();
+                gbuffer_act_bank_conflicts->value[layer_it][sample] = gbuffer->getActBankConflicts();
+                gbuffer_wgt_bank_conflicts->value[layer_it][sample] = gbuffer->getWgtBankConflicts();
+                gbuffer_out_bank_conflicts->value[layer_it][sample] = gbuffer->getOutBankConflicts();
 
-                act_precision->value[layer_it][image] = act_prec;
-                wgt_precision->value[layer_it][image] = wgt_prec;
+                act_precision->value[layer_it][sample] = act_prec;
+                wgt_precision->value[layer_it][sample] = wgt_prec;
 
             } // Layer
 
-        } // Image
+        } // Sample
 
         //Dump statistics
         std::string header = arch->name() + " Number of Cycles for " + network.getName() + "\n";
         header += "Dataflow: " + control->dataflow() + "\n";
-        // DRAM header
-        // Global buffer header
-        header += arch->header();
+        header += "--> DRAM: \n" + dram->header();
+        header += "--> Global Buffer: \n" + gbuffer->header();
+        header += "--> Activation Buffer: \n" + abuffer->header();
+        header += "--> Weight Buffer: \n" + wbuffer->header();
+        header += "--> Output Buffer: \n" + obuffer->header();
+        header += "--> Composer: \n" + composer->header();
+        header += "--> Post-Processing Unit: \n" + ppu->header();
+        header += "--> Architecture: \n" + arch->header();
 
         stats.dump_csv(network.getName(), network.getLayersName(), header, QUIET);
     }
@@ -374,7 +379,7 @@ namespace core {
 
         // Initialize statistics
         std::string filename = arch->name() + arch->filename_pot() + "_potentials";
-        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getImages(), filename);
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatchSize(), filename);
 
         auto work_reduction = stats.register_double_t("work_reduction", 0, sys::Special);
         auto speedup = stats.register_double_t("speedup", 0, sys::Special);
@@ -412,8 +417,8 @@ namespace core {
             const std::vector<size_t> &act_shape = act.getShape();
             const std::vector<size_t> &wgt_shape = wgt.getShape();
 
-            uint64_t images, act_channels, Nx, Ny, R;
-            images = act_shape[0];
+            uint64_t batch_size, act_channels, Nx, Ny, R;
+            batch_size = act_shape[0];
             if (rnn) {
                 R = act_shape[1];
                 act_channels = act_shape[2];
@@ -425,7 +430,7 @@ namespace core {
                 Nx = act_shape[2];
                 Ny = act_shape[3];
             }
-            if (FAST_MODE) images = 1;
+            if (FAST_MODE) batch_size = 1;
 
             auto num_filters = wgt_shape[0];
             auto wgt_channels = wgt_shape[1];
@@ -448,7 +453,7 @@ namespace core {
 
             arch->configure_layer(act_prec, wgt_prec, network_width, fc || rnn, arch->getColumns());
 
-            for(int n = 0; n < images; ++n) {
+            for(int n = 0; n < batch_size; ++n) {
 
                 // Stats
                 uint64_t bit_counter = 0;

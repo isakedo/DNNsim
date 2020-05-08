@@ -5,6 +5,23 @@ namespace core {
 
     /* COMMON FUNCTIONS */
 
+    std::string to_mem_string(uint64_t mem) {
+        if (mem >= 1e9 && mem % (uint64_t)1e9 == 0)
+            return std::to_string(mem / (uint64_t)1e9) + "GB";
+        else if (mem >= pow(2, 30) && mem % (uint64_t)pow(2, 30) == 0)
+            return std::to_string(mem / (uint64_t)pow(2, 30)) + "GiB";
+        else if (mem >= 1e6 && mem % (uint64_t)1e6 == 0)
+            return std::to_string(mem / (uint64_t)1e6) + "MB";
+        else if (mem >= pow(2, 20) && mem % (uint64_t)pow(2, 20) == 0)
+            return std::to_string(mem / (uint64_t)pow(2, 20)) + "MiB";
+        else if (mem >= 1e3 && mem % (uint64_t)1e3 == 0)
+            return std::to_string(mem / (uint64_t)1e3) + "KB";
+        else if (mem >= pow(2, 10) && mem % (uint64_t)pow(2, 10) == 0)
+            return std::to_string(mem / (uint64_t)pow(2, 10)) + "KiB";
+        else
+            return std::to_string(mem) + "B";
+    }
+
     /* Only encode the values when get less number of bits */
     uint16_t generateBoothEncodingEntry(uint16_t n) {
         uint32_t padded_n = n << 2;

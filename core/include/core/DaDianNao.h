@@ -37,18 +37,6 @@ namespace core {
         /* CYCLES */
 
         /**
-         * Return stats filename for the architecture in the cycles function
-         * @return Filename
-         */
-        std::string filename() override;
-
-        /**
-         * Return stats header for the architecture in the cycles function
-         * @return Header
-         */
-        std::string header() override;
-
-        /**
          * Return if calculate deltas for the window buffer
          * @return True if diffy, False if not
          */

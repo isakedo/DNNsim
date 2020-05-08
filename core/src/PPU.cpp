@@ -4,6 +4,13 @@
 namespace core {
 
     template <typename T>
+    std::string PPU<T>::header() {
+        std::string header = "Number of inputs in parallel: " + std::to_string(INPUTS) + "\n";
+        header += "Delay: " + std::to_string(DELAY) + "\n";
+        return header;
+    }
+
+    template <typename T>
     uint32_t PPU<T>::calculate_delay(const std::vector<core::TileData<T>> &tiles_data) {
         uint64_t inputs = 0;
         for (const auto &tile_data : tiles_data) {

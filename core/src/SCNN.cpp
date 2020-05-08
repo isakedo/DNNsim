@@ -192,7 +192,7 @@ namespace core {
         std::string filename = "SCNN_Wt" + std::to_string(Wt) + "_Ht" + std::to_string(Ht) + "_I" + std::to_string(I) +
                 "_F" + std::to_string(F) + "_acc_out" + std::to_string(OUT_ACC_SIZE) + "_B" + std::to_string(BANKS) +
                 "_cycles";
-        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getImages(), filename);
+        sys::Stats stats = sys::Stats(network.getNumLayers(), this->FAST_MODE ? 1 : network.getBatchSize(), filename);
 
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
         auto dense_cycles = stats.register_uint_t("dense_cycles", 0, sys::AverageTotal);

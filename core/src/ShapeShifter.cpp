@@ -39,19 +39,13 @@ namespace core {
 
     template <typename T>
     std::string ShapeShifter<T>::filename() {
-        return "_L" + std::to_string(this->LANES) + "_C" + std::to_string(this->COLUMNS) +
-               "_R" + std::to_string(this->ROWS) + "_T" + std::to_string(this->TILES) +
-               "_BP" + std::to_string(this->PE_WIDTH) + "_GS" + std::to_string(GROUP_SIZE) +
+        return Architecture<T>::filename() + "_GS" + std::to_string(GROUP_SIZE) +
                "_CR" + std::to_string(COLUMN_REGISTERS) + (MINOR_BIT ? "_MB" : "");
     }
 
     template <typename T>
     std::string ShapeShifter<T>::header() {
-        std::string header = "Number of lanes/terms per PE: " + std::to_string(this->LANES) + "\n";
-        header += "Number of columns/windows in parallel: " + std::to_string(this->COLUMNS) + "\n";
-        header += "Number of rows/filters in parallel: " + std::to_string(this->ROWS) + "\n";
-        header += "Number of tiles: " + std::to_string(this->TILES) + "\n";
-        header += "Size of the PE in bits: " + std::to_string(this->PE_WIDTH) + "\n";
+        std::string header = Architecture<T>::header();
         header += "Number of columns per group: " + std::to_string(GROUP_SIZE) + "\n";
         header += "Number of run-ahead input registers per column: " + std::to_string(COLUMN_REGISTERS) + "\n";
         header +=  MINOR_BIT ? "Trim bits from the bottom\n" : "";

@@ -101,6 +101,12 @@ namespace core {
 
         uint32_t getWgtDataSize() const;
 
+        /**
+         * Return stats header for the DRAM
+         * @return Header
+         */
+        std::string header() override;
+
         void cycle();
 
         void configure_layer() override {}; // Unused

@@ -64,6 +64,13 @@ namespace core {
     }
 
     template <typename T>
+    std::string DRAM<T>::header() {
+        std::string header = "Starting activation address: " + std::to_string(START_ACT_ADDRESS) + "\n";
+        header += "Starting weight address: " + std::to_string(START_WGT_ADDRESS) + "\n";
+        return header;
+    }
+
+    template <typename T>
     void DRAM<T>::configure_layer(uint32_t _ACT_DATA_SIZE, uint32_t _WGT_DATA_SIZE) {
         ACT_DATA_SIZE = _ACT_DATA_SIZE;
         ACT_VALUES_PER_BLOCK = BLOCK_SIZE / _ACT_DATA_SIZE;

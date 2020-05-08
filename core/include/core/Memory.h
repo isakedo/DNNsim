@@ -11,6 +11,8 @@ namespace core {
 
     const uint64_t BLOCK_SIZE = 0x40; // Align to 64 bits
 
+    const uint32_t NULL_DELAY = UINT32_MAX;
+
     template <typename T>
     class Memory {
 
@@ -30,6 +32,12 @@ namespace core {
         Memory(const std::shared_ptr<std::map<uint64_t, uint64_t>> &_tracked_data,
                 const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_wgt_addresses)
                 : tracked_data(_tracked_data), act_addresses(_act_addresses), wgt_addresses(_wgt_addresses) {}
+
+        /**
+         * Return stats header for the memory modules
+         * @return Header
+         */
+        virtual std::string header() = 0;
 
         /**
          * Set shared global cycle

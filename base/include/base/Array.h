@@ -175,10 +175,10 @@ namespace base {
         void reshape_first_layer_wgt(uint16_t stride);
 
         /**
-         * Keep only one image
-         * @param image Image to get
+         * Keep only one sample
+         * @param sample Sample index to get
          */
-        void get_image(uint64_t image);
+        void get_sample(uint64_t sample);
 
     };
 

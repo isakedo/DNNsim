@@ -72,17 +72,17 @@ namespace base {
         uint32_t getNetworkWidth() const { return data_width; }
 
         /**
-         * Get number of images in the layer traces
-         * @return Number of images
+         * Get batch soze in the layer traces
+         * @return Btach
          */
-        uint64_t getImages() const {
-            uint64_t max_images = 0;
+        uint64_t getBatchSize() const {
+            uint64_t max_batch_size = 0;
             for (const auto &layer : this->layers) {
-                uint64_t images = layer.getActivations().getShape()[0];
-                if (images > max_images)
-                    max_images = images;
+                uint64_t batch_size = layer.getActivations().getShape()[0];
+                if (batch_size > max_batch_size)
+                    max_batch_size = batch_size;
             }
-            return max_images;
+            return max_batch_size;
         }
 
         /**

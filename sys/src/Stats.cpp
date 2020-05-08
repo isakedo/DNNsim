@@ -13,57 +13,47 @@ namespace sys {
 
     // string_t
 
-    stat_string_t::stat_string_t(uint64_t _layers, uint64_t _images, const std::string &_value, Measure _measure,
-            bool _skip_first) : stat_base_t(_measure,_skip_first)
-    {
-        value = std::vector<std::vector<std::string>>(_layers, std::vector<std::string>(_images, _value));
+    stat_string_t::stat_string_t(uint64_t _layers, uint64_t _batch_size, const std::string &_value, Measure _measure,
+            bool _skip_first) : stat_base_t(_measure,_skip_first) {
+        value = std::vector<std::vector<std::string>>(_layers, std::vector<std::string>(_batch_size, _value));
     }
 
-    inline stat_type stat_string_t::getType()
-    {
+    inline stat_type stat_string_t::getType() {
         return stat_type::Scalar;
     }
 
-    inline std::string stat_string_t::to_string(uint64_t layer, uint64_t image)
-    {
-        return value[layer][image];
+    inline std::string stat_string_t::to_string(uint64_t layer, uint64_t sample) {
+        return value[layer][sample];
     }
 
-    inline std::string stat_string_t::layer_to_string(uint64_t layer)
-    {
+    inline std::string stat_string_t::layer_to_string(uint64_t layer) {
         return value[layer][0];
     }
 
-    inline std::string stat_string_t::network_to_string()
-    {
+    inline std::string stat_string_t::network_to_string() {
         return "-";
     }
 
-    inline std::string stat_string_t::dist_to_string()
-    {
+    inline std::string stat_string_t::dist_to_string() {
         throw std::runtime_error("Wrong stat type");
     }
 
     // stat_uint_t
 
-    stat_uint_t::stat_uint_t(uint64_t _layers, uint64_t _images, uint64_t _value, Measure _measure, bool _skip_first)
-            : stat_base_t(_measure,_skip_first)
-    {
-        value = std::vector<std::vector<uint64_t>>(_layers, std::vector<uint64_t>(_images, _value));
+    stat_uint_t::stat_uint_t(uint64_t _layers, uint64_t _batch_size, uint64_t _value, Measure _measure,
+            bool _skip_first) : stat_base_t(_measure,_skip_first) {
+        value = std::vector<std::vector<uint64_t>>(_layers, std::vector<uint64_t>(_batch_size, _value));
     }
 
-    inline stat_type stat_uint_t::getType()
-    {
+    inline stat_type stat_uint_t::getType() {
         return stat_type::Scalar;
     }
 
-    inline std::string stat_uint_t::to_string(uint64_t layer, uint64_t image)
-    {
-        return std::to_string(value[layer][image]);
+    inline std::string stat_uint_t::to_string(uint64_t layer, uint64_t sample) {
+        return std::to_string(value[layer][sample]);
     }
 
-    inline std::string stat_uint_t::layer_to_string(uint64_t layer)
-    {
+    inline std::string stat_uint_t::layer_to_string(uint64_t layer) {
         if (measure == Measure::Average || measure == Measure::AverageTotal || measure == Measure::Special) {
             return std::to_string(get_average(value[layer]));
         } else if (measure == Measure ::Total) {
@@ -75,8 +65,7 @@ namespace sys {
         }
     }
 
-    inline std::string stat_uint_t::network_to_string()
-    {
+    inline std::string stat_uint_t::network_to_string() {
         if (measure == Measure::Average) {
             return std::to_string(get_average(value,skip_first));
         } else if ( measure == Measure::AverageTotal) {
@@ -90,31 +79,26 @@ namespace sys {
         }
     }
 
-    inline std::string stat_uint_t::dist_to_string()
-    {
+    inline std::string stat_uint_t::dist_to_string() {
         throw std::runtime_error("Wrong stat type");
     }
 
     // stat_double_t
 
-    stat_double_t::stat_double_t(uint64_t _layers, uint64_t _images, double _value, Measure _measure, bool _skip_first) :
-            stat_base_t(_measure,_skip_first)
-    {
-        value = std::vector<std::vector<double>>(_layers, std::vector<double>(_images, _value));
+    stat_double_t::stat_double_t(uint64_t _layers, uint64_t _batch_size, double _value, Measure _measure,
+            bool _skip_first) : stat_base_t(_measure,_skip_first) {
+        value = std::vector<std::vector<double>>(_layers, std::vector<double>(_batch_size, _value));
     }
 
-    inline stat_type stat_double_t::getType()
-    {
+    inline stat_type stat_double_t::getType() {
         return stat_type::Scalar;
     }
 
-    inline std::string stat_double_t::to_string(uint64_t layer, uint64_t image)
-    {
-        return std::to_string(value[layer][image]);
+    inline std::string stat_double_t::to_string(uint64_t layer, uint64_t sample) {
+        return std::to_string(value[layer][sample]);
     }
 
-    inline std::string stat_double_t::layer_to_string(uint64_t layer)
-    {
+    inline std::string stat_double_t::layer_to_string(uint64_t layer) {
         if (measure == Measure::Average || measure == Measure::AverageTotal || measure == Measure::Special) {
             return std::to_string(get_average(value[layer]));
         } else if (measure == Measure ::Total) {
@@ -126,8 +110,7 @@ namespace sys {
         }
     }
 
-    inline std::string stat_double_t::network_to_string()
-    {
+    inline std::string stat_double_t::network_to_string() {
         if (measure == Measure::Average) {
             return std::to_string(get_average(value,skip_first));
         } else if ( measure == Measure::AverageTotal) {
@@ -141,8 +124,7 @@ namespace sys {
         }
     }
 
-    inline std::string stat_double_t::dist_to_string()
-    {
+    inline std::string stat_double_t::dist_to_string() {
         throw std::runtime_error("Wrong stat type");
     }
 
@@ -150,31 +132,28 @@ namespace sys {
 
     stat_uint_dist_t::stat_uint_dist_t() : min_range(0), max_range(0) {}
 
-    stat_uint_dist_t::stat_uint_dist_t(uint64_t _layers, uint64_t _images, uint64_t _min_range, uint64_t _max_range,
+    stat_uint_dist_t::stat_uint_dist_t(uint64_t _layers, uint64_t _batch_size, uint64_t _min_range, uint64_t _max_range,
             uint64_t _value, Measure _measure, bool _skip_first) : min_range(_min_range), max_range(_max_range),
-            stat_base_t(_measure,_skip_first)
-    {
+            stat_base_t(_measure,_skip_first) {
         auto _n_values = max_range - min_range + 1;
         value = std::vector<std::vector<std::vector<uint64_t>>>(_n_values, std::vector<std::vector<uint64_t>>
-                (_layers, std::vector<uint64_t>(_images, _value)));
+                (_layers, std::vector<uint64_t>(_batch_size, _value)));
     }
 
-    inline stat_type stat_uint_dist_t::getType()
-    {
+    inline stat_type stat_uint_dist_t::getType() {
         return stat_type::Distribution;
     }
 
-    inline std::string stat_uint_dist_t::to_string(uint64_t layer, uint64_t image) {
+    inline std::string stat_uint_dist_t::to_string(uint64_t layer, uint64_t sample) {
         std::string line;
         for (const auto &_value : value) {
-            line += std::to_string(_value[layer][image]) + ',';
+            line += std::to_string(_value[layer][sample]) + ',';
         }
         line = line.substr(0, line.size() - 1);
         return line;
     }
 
-    inline std::string stat_uint_dist_t::layer_to_string(uint64_t layer)
-    {
+    inline std::string stat_uint_dist_t::layer_to_string(uint64_t layer) {
         std::string line;
         for (const auto &_value : value) {
             if (measure == Measure::Average || measure == Measure::AverageTotal || measure == Measure::Special) {
@@ -191,8 +170,7 @@ namespace sys {
         return line;
     }
 
-    inline std::string stat_uint_dist_t::network_to_string()
-    {
+    inline std::string stat_uint_dist_t::network_to_string() {
         std::string line;
         for (const auto &_value : value) {
             if (measure == Measure::Average) {
@@ -211,8 +189,7 @@ namespace sys {
         return line;
     }
 
-    inline std::string stat_uint_dist_t::dist_to_string()
-    {
+    inline std::string stat_uint_dist_t::dist_to_string() {
         std::string line;
         for (int64_t r = min_range; r <= max_range; ++r) {
             line += std::to_string(r) + ',';
@@ -225,31 +202,28 @@ namespace sys {
 
     stat_double_dist_t::stat_double_dist_t() : min_range(0), max_range(0) {}
 
-    stat_double_dist_t::stat_double_dist_t(uint64_t _layers, uint64_t _images, uint64_t _min_range, uint64_t _max_range,
-            double _value, Measure _measure, bool _skip_first) : min_range(_min_range), max_range(_max_range),
-            stat_base_t(_measure,_skip_first)
-    {
+    stat_double_dist_t::stat_double_dist_t(uint64_t _layers, uint64_t _batch_size, uint64_t _min_range,
+            uint64_t _max_range, double _value, Measure _measure, bool _skip_first) : min_range(_min_range),
+            max_range(_max_range), stat_base_t(_measure,_skip_first) {
         auto _n_values = max_range - min_range + 1;
         value = std::vector<std::vector<std::vector<double>>>(_n_values, std::vector<std::vector<double>>
-                (_layers, std::vector<double>(_images, _value)));
+                (_layers, std::vector<double>(_batch_size, _value)));
     }
 
-    inline stat_type stat_double_dist_t::getType()
-    {
+    inline stat_type stat_double_dist_t::getType() {
         return stat_type::Distribution;
     }
 
-    inline std::string stat_double_dist_t::to_string(uint64_t layer, uint64_t image) {
+    inline std::string stat_double_dist_t::to_string(uint64_t layer, uint64_t sample) {
         std::string line;
         for (const auto &_value : value) {
-            line += std::to_string(_value[layer][image]) + ',';
+            line += std::to_string(_value[layer][sample]) + ',';
         }
         line = line.substr(0, line.size() - 1);
         return line;
     }
 
-    inline std::string stat_double_dist_t::layer_to_string(uint64_t layer)
-    {
+    inline std::string stat_double_dist_t::layer_to_string(uint64_t layer) {
         std::string line;
         for (const auto &_value : value) {
             if (measure == Measure::Average || measure == Measure::AverageTotal || measure == Measure::Special) {
@@ -266,8 +240,7 @@ namespace sys {
         return line;
     }
 
-    inline std::string stat_double_dist_t::network_to_string()
-    {
+    inline std::string stat_double_dist_t::network_to_string() {
         std::string line;
         for (const auto &_value : value) {
             if (measure == Measure::Average) {
@@ -286,8 +259,7 @@ namespace sys {
         return line;
     }
 
-    inline std::string stat_double_dist_t::dist_to_string()
-    {
+    inline std::string stat_double_dist_t::dist_to_string() {
         std::string line;
         for (int64_t r = min_range; r <= max_range; ++r)
             line += std::to_string(r) + ',';
@@ -297,14 +269,12 @@ namespace sys {
 
     // Stats
 
-    Stats::Stats(uint64_t _layers, uint64_t _images, const std::string &_filename) : layers(_layers),
-            images(_images)
-    {
+    Stats::Stats(uint64_t _layers, uint64_t _batch_size, const std::string &_filename) : layers(_layers),
+            batch_size(_batch_size) {
         filename = _filename;
     }
 
-    void Stats::check_path(const std::string &path)
-    {
+    void Stats::check_path(const std::string &path) {
         std::ifstream file(path);
         if(!file.good()) {
             throw std::runtime_error("The path " + path + " does not exist.");
@@ -314,40 +284,37 @@ namespace sys {
     std::shared_ptr<stat_string_t> Stats::register_string_t(const std::string &name, Measure measure, bool skip_first) {
         table_t table;
         table.name = name;
-        table.var = std::make_shared<stat_string_t>(stat_string_t(layers, images, "-", measure, skip_first));
+        table.var = std::make_shared<stat_string_t>(stat_string_t(layers, batch_size, "-", measure, skip_first));
 
         database.emplace_back(table);
         return std::dynamic_pointer_cast<stat_string_t>(table.var);
     }
 
     std::shared_ptr<stat_uint_t> Stats::register_uint_t(const std::string &name, uint64_t init_value, Measure measure,
-            bool skip_first)
-    {
+            bool skip_first) {
         table_t table;
         table.name = name;
-        table.var = std::make_shared<stat_uint_t>(stat_uint_t(layers, images, init_value, measure, skip_first));
+        table.var = std::make_shared<stat_uint_t>(stat_uint_t(layers, batch_size, init_value, measure, skip_first));
 
         database.emplace_back(table);
         return std::dynamic_pointer_cast<stat_uint_t>(table.var);
     }
 
     std::shared_ptr<stat_double_t> Stats::register_double_t(const std::string &name, double init_value, Measure measure,
-            bool skip_first)
-    {
+            bool skip_first) {
         table_t table;
         table.name = name;
-        table.var = std::make_shared<stat_double_t>(stat_double_t(layers, images, init_value, measure, skip_first));
+        table.var = std::make_shared<stat_double_t>(stat_double_t(layers, batch_size, init_value, measure, skip_first));
 
         database.emplace_back(table);
         return std::dynamic_pointer_cast<stat_double_t>(table.var);
     }
 
     std::shared_ptr<stat_uint_dist_t> Stats::register_uint_dist_t(const std::string &name, int64_t min_range,
-            int64_t max_range, uint64_t init_value, Measure measure, bool skip_first)
-    {
+            int64_t max_range, uint64_t init_value, Measure measure, bool skip_first) {
         table_t table;
         table.name = name;
-        table.var = std::make_shared<stat_uint_dist_t>(stat_uint_dist_t(layers, images, min_range, max_range,
+        table.var = std::make_shared<stat_uint_dist_t>(stat_uint_dist_t(layers, batch_size, min_range, max_range,
                 init_value, measure, skip_first));
 
         database.emplace_back(table);
@@ -355,11 +322,10 @@ namespace sys {
     }
 
     std::shared_ptr<stat_double_dist_t> Stats::register_double_dist_t(const std::string &name, int64_t min_range,
-            int64_t max_range, double init_value, Measure measure, bool skip_first)
-    {
+            int64_t max_range, double init_value, Measure measure, bool skip_first) {
         table_t table;
         table.name = name;
-        table.var = std::make_shared<stat_double_dist_t>(stat_double_dist_t(layers, images, min_range, max_range,
+        table.var = std::make_shared<stat_double_dist_t>(stat_double_dist_t(layers, batch_size, min_range, max_range,
                 init_value, measure, skip_first));
 
         database.emplace_back(table);
@@ -367,8 +333,7 @@ namespace sys {
     }
 
     void Stats::dump_csv(const std::string &network_name, const std::vector<std::string> &layers_name,
-            const std::string &header, bool QUIET)
-    {
+            const std::string &header, bool QUIET) {
 
         std::ofstream o_file;
 
@@ -400,23 +365,23 @@ namespace sys {
 
         if (scalar) {
 
-            std::string scalar_parameter_names = "Layer,image,";
+            std::string scalar_parameter_names = "Layer,Sample,";
             for (const auto &table : database) {
                 if (table.var->getType() == stat_type::Scalar)
                     scalar_parameter_names += table.name + ',';
             }
             scalar_parameter_names = scalar_parameter_names.substr(0, scalar_parameter_names.size() - 1);
 
-            o_file << std::endl << "Per image scalar results:" << std::endl;
+            o_file << std::endl << "Per sample scalar results:" << std::endl;
             o_file << scalar_parameter_names << std::endl;
 
-            for (uint64_t image = 0; image < images; ++image) {
+            for (uint64_t sample = 0; sample < batch_size; ++sample) {
                 for (uint64_t layer = 0; layer < layers; ++layer) {
 
-                    std::string line = layers_name[layer] + ',' + std::to_string(image) + ',';
+                    std::string line = layers_name[layer] + ',' + std::to_string(sample) + ',';
                     for (const auto &table : database) {
                         if (table.var->getType() == stat_type::Scalar)
-                            line += table.var->to_string(layer, image) + ',';
+                            line += table.var->to_string(layer, sample) + ',';
                     }
                     line = line.substr(0, line.size() - 1);
                     o_file << line << std::endl;
@@ -457,15 +422,15 @@ namespace sys {
         for (const auto &table : database) {
             if (table.var->getType() == stat_type::Distribution) {
 
-                std::string parameter_names = "Layer,Image," + table.var->dist_to_string();
+                std::string parameter_names = "Layer,Sample," + table.var->dist_to_string();
 
-                o_file << std::endl << "Per image " << table.name << " results:" << std::endl;
+                o_file << std::endl << "Per sample " << table.name << " results:" << std::endl;
                 o_file << parameter_names << std::endl;
 
-                for(uint64_t image = 0; image < images; ++image) {
+                for(uint64_t sample = 0; sample < batch_size; ++sample) {
                     for (uint64_t layer = 0; layer < layers; ++layer) {
-                        std::string line = layers_name[layer] + ',' + std::to_string(image) + ',';
-                        o_file << line << table.var->to_string(layer, image) << std::endl;
+                        std::string line = layers_name[layer] + ',' + std::to_string(sample) + ',';
+                        o_file << line << table.var->to_string(layer, sample) << std::endl;
                     }
                 }
 

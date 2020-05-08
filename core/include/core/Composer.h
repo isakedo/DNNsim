@@ -21,6 +21,12 @@ namespace core {
 
         Composer(uint32_t _INPUTS, uint32_t _DELAY) : INPUTS(_INPUTS), DELAY(_DELAY) {}
 
+        /**
+         * Return stats header for the Composer
+         * @return Header
+         */
+        std::string header();
+
         uint32_t calculate_delay(const std::vector<TileData<T>> &tiles_data);
 
     };

@@ -90,7 +90,7 @@ cxxopts::Options parse_options(int argc, char *argv[]) {
 
     options.add_options("simulation")
     ("q,quiet", "Don't show stdout progress messages",cxxopts::value<bool>(),"<Boolean>")
-    ("fast_mode", "Enable fast mode: simulate only one image",cxxopts::value<bool>(),"<Boolean>")
+    ("fast_mode", "Enable fast mode: simulate only one sample",cxxopts::value<bool>(),"<Boolean>")
     ("check_values", "Check the correctness of the output values of the simulations.", cxxopts::value<bool>(),
             "<Boolean>");
 
@@ -148,14 +148,14 @@ int main(int argc, char *argv[]) {
 
                         auto abuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data, act_addresses,
                                 wgt_addresses, experiment.act_buffer_rows, experiment.act_buffer_read_delay,
-                                experiment.act_buffer_write_delay);
+                                core::NULL_DELAY);
 
                         auto wbuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data, act_addresses,
                                 wgt_addresses, experiment.wgt_buffer_rows, experiment.wgt_buffer_read_delay,
-                                experiment.wgt_buffer_write_delay);
+                                core::NULL_DELAY);
 
                         auto obuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data, act_addresses,
-                                wgt_addresses, experiment.out_buffer_rows, experiment.out_buffer_read_delay,
+                                wgt_addresses, experiment.out_buffer_rows, core::NULL_DELAY,
                                 experiment.out_buffer_write_delay);
 
                         auto composer = std::make_shared<core::Composer<float>>(experiment.composer_inputs,
@@ -185,7 +185,7 @@ int main(int argc, char *argv[]) {
                         } else if (experiment.architecture == "DaDianNao") {
                             std::shared_ptr<core::Architecture<float>> arch =
                                     std::make_shared<core::DaDianNao<float>>(experiment.lanes, experiment.columns,
-                                    experiment.rows, experiment.tiles, experiment.pe_width, experiment.tactical);
+                                    experiment.rows, experiment.tiles, experiment.pe_width,  experiment.tactical);
 
                             control->setArch(arch);
                             if (experiment.task == "Cycles") DNNsim.run(network, control);
@@ -220,14 +220,14 @@ int main(int argc, char *argv[]) {
 
                         auto abuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data, act_addresses,
                                 wgt_addresses, experiment.act_buffer_rows, experiment.act_buffer_read_delay,
-                                experiment.act_buffer_write_delay);
+                                core::NULL_DELAY);
 
                         auto wbuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data, act_addresses,
                                 wgt_addresses, experiment.wgt_buffer_rows, experiment.wgt_buffer_read_delay,
-                                experiment.wgt_buffer_write_delay);
+                                core::NULL_DELAY);
 
                         auto obuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data, act_addresses,
-                                wgt_addresses, experiment.out_buffer_rows, experiment.out_buffer_read_delay,
+                                wgt_addresses, experiment.out_buffer_rows, core::NULL_DELAY,
                                 experiment.out_buffer_write_delay);
 
                         auto composer = std::make_shared<core::Composer<uint16_t>>(experiment.composer_inputs,

@@ -141,23 +141,14 @@ namespace sys {
                 /** Activation buffer read delay */
                 uint32_t act_buffer_read_delay = 0;
 
-                /** Activation buffer write delay */
-                uint32_t act_buffer_write_delay = 0;
-
                 /** Weight buffer number of memory rows */
                 uint32_t wgt_buffer_rows = 0;
 
                 /** Weight buffer read delay */
                 uint32_t wgt_buffer_read_delay = 0;
 
-                /** Weight buffer write delay */
-                uint32_t wgt_buffer_write_delay = 0;
-
                 /** Output buffer number of memory rows */
                 uint32_t out_buffer_rows = 0;
-
-                /** Output buffer read delay */
-                uint32_t out_buffer_read_delay = 0;
 
                 /** Output buffer write delay */
                 uint32_t out_buffer_write_delay = 0;

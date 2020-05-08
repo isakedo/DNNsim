@@ -37,7 +37,7 @@ namespace core {
         /** Number of banks */
         const int BANKS;
 
-        /** Enable fast mode: only one image */
+        /** Enable fast mode: only one sample */
         const bool FAST_MODE = false;
 
         /** Avoid std::out messages */
@@ -190,7 +190,7 @@ namespace core {
          * @param _F            Row multipliers per PE
          * @param _OUT_ACC_SIZE Output accumulator size
          * @param _BANKS        Number of banks
-         * @param _FAST_MODE    Enable fast mode to simulate only one image
+         * @param _FAST_MODE    Enable fast mode to simulate only one sample
          * @param _QUIET        Avoid std::out messages
          */
         SCNN(uint32_t _Wt, uint32_t _Ht, uint32_t _I, uint32_t _F, uint32_t _OUT_ACC_SIZE, uint32_t _BANKS,

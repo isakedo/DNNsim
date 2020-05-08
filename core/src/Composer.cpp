@@ -4,6 +4,13 @@
 namespace core {
 
     template <typename T>
+    std::string Composer<T>::header() {
+        std::string header = "Number of inputs in parallel per tile: " + std::to_string(INPUTS) + "\n";
+        header += "Delay per tile: " + std::to_string(DELAY) + "\n";
+        return header;
+    }
+
+    template <typename T>
     uint32_t Composer<T>::calculate_delay(const std::vector<TileData<T>> &tiles_data) {
         uint64_t max_delay = 0;
         for (const auto &tile_data : tiles_data) {

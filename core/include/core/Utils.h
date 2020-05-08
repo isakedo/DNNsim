@@ -66,6 +66,8 @@ namespace core {
         bool valid = false;
     };
 
+    std::string to_mem_string(uint64_t mem);
+
     /** Return the optimal encoding for the given value
      * @param value     Value to encode WITHOUT the sign
      * @return          Value with the optimal encoding

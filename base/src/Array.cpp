@@ -467,14 +467,14 @@ namespace base {
 
     template <typename T>
     void Array<T>::zero_pad(int padding) {
-        auto images = this->shape[0];
+        auto batch_size = this->shape[0];
         auto act_channels = this->shape[1];
         auto Nx = this->shape[2];
         auto Ny = this->shape[3];
 
-        auto tmp_data4D = Array4D(images, Array3D(act_channels, Array2D(Nx + 2*padding,Array1D(Ny + 2*padding,0))));
+        auto tmp_data4D = Array4D(batch_size, Array3D(act_channels, Array2D(Nx + 2*padding,Array1D(Ny + 2*padding,0))));
 
-        for(int n = 0; n < images; n++) {
+        for(int n = 0; n < batch_size; n++) {
             for (int k = 0; k < act_channels; k++) {
                 for (int i = 0; i < Nx; i++) {
                     for(int j = 0; j < Ny; j++) {
@@ -487,7 +487,7 @@ namespace base {
         this->data4D.clear();
         this->data4D = tmp_data4D;
         this->shape.clear();
-        this->shape.push_back(images);
+        this->shape.push_back(batch_size);
         this->shape.push_back(act_channels);
         this->shape.push_back(Nx + 2*padding);
         this->shape.push_back(Ny + 2*padding);
@@ -495,14 +495,14 @@ namespace base {
 
     template <typename T>
     void Array<T>::grid_zero_pad(uint64_t X, uint64_t Y) {
-        auto images = this->shape[0];
+        auto batch_size = this->shape[0];
         auto act_channels = this->shape[1];
         auto Nx = this->shape[2];
         auto Ny = this->shape[3];
 
-        auto tmp_data4D = Array4D(images, Array3D(act_channels, Array2D(X, Array1D(Y,0))));
+        auto tmp_data4D = Array4D(batch_size, Array3D(act_channels, Array2D(X, Array1D(Y,0))));
 
-        for(int n = 0; n < images; n++) {
+        for(int n = 0; n < batch_size; n++) {
             for (int k = 0; k < act_channels; k++) {
                 for (int i = 0; i < Nx; i++) {
                     for(int j = 0; j < Ny; j++) {
@@ -515,7 +515,7 @@ namespace base {
         this->data4D.clear();
         this->data4D = tmp_data4D;
         this->shape.clear();
-        this->shape.push_back(images);
+        this->shape.push_back(batch_size);
         this->shape.push_back(act_channels);
         this->shape.push_back((unsigned)X);
         this->shape.push_back((unsigned)Y);
@@ -625,7 +625,7 @@ namespace base {
     template <typename T>
     void Array<T>::reshape_first_layer_act(uint16_t stride) {
         if(getDimensions() != 4 || this->shape[1] != 3) return;
-        auto images = this->shape[0];
+        auto batch_size = this->shape[0];
         auto act_channels = this->shape[1];
         auto Nx = this->shape[2];
         auto Ny = this->shape[3];
@@ -634,9 +634,9 @@ namespace base {
         auto new_Nx = (uint16_t)ceil(Nx/(double)stride);
         auto new_Ny = (uint16_t)ceil(Nx/(double)stride);
 
-        auto tmp_data4D = Array4D(images, Array3D(new_act_channels, Array2D(new_Nx, Array1D(new_Ny, 0))));
+        auto tmp_data4D = Array4D(batch_size, Array3D(new_act_channels, Array2D(new_Nx, Array1D(new_Ny, 0))));
 
-        for(int n = 0; n < images; n++)
+        for(int n = 0; n < batch_size; n++)
             for(int k = 0; k < act_channels; k++)
                 for(int i = 0; i < Nx; i++)
                     for(int j = 0; j < Ny; j++) {
@@ -649,7 +649,7 @@ namespace base {
         this->data4D.clear();
         this->data4D = tmp_data4D;
         this->shape.clear();
-        this->shape.push_back(images);
+        this->shape.push_back(batch_size);
         this->shape.push_back(new_act_channels);
         this->shape.push_back(new_Nx);
         this->shape.push_back(new_Ny);
@@ -689,21 +689,21 @@ namespace base {
     }
 
     template <typename T>
-    void Array<T>::get_image(uint64_t image) {
+    void Array<T>::get_sample(uint64_t sample) {
 
         if (this->getDimensions() == 3) { // RNNs
-            auto images = this->shape[0];
+            auto batch_size = this->shape[0];
             auto recurrences = this->shape[1];
             auto act_channels = this->shape[2];
 
-            if (image > (images - 1))
-                throw std::runtime_error("Image required is out of the scope");
+            if (sample > (batch_size - 1))
+                throw std::runtime_error("Sample required is out of the scope");
 
             auto tmp_data3D = Array3D(1, Array2D(recurrences, Array1D(act_channels, 0)));
 
             for (int r = 0; r < recurrences; r++) {
                 for (int k = 0; k < act_channels; k++) {
-                    tmp_data3D[0][r][k] = this->data3D[image][r][k];
+                    tmp_data3D[0][r][k] = this->data3D[sample][r][k];
                 }
             }
 
@@ -712,20 +712,20 @@ namespace base {
             this->shape[0] = 1;
 
         } else if (this->getDimensions() == 4) {
-            auto images = this->shape[0];
+            auto batch_size = this->shape[0];
             auto act_channels = this->shape[1];
             auto Nx = this->shape[2];
             auto Ny = this->shape[3];
 
-            if (image > (images - 1))
-                throw std::runtime_error("Image required is out of the scope");
+            if (sample > (batch_size - 1))
+                throw std::runtime_error("Sample required is out of the scope");
 
             auto tmp_data4D = Array4D(1, Array3D(act_channels, Array2D(Nx, Array1D(Ny, 0))));
 
             for (int k = 0; k < act_channels; k++) {
                 for (int i = 0; i < Nx; i++) {
                     for(int j = 0; j < Ny; j++) {
-                        tmp_data4D[0][k][i][j] = this->data4D[image][k][i][j];
+                        tmp_data4D[0][k][i][j] = this->data4D[sample][k][i][j];
                     }
                 }
             }

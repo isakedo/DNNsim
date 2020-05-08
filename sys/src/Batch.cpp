@@ -145,20 +145,14 @@ namespace sys {
                     experiment_proto.act_buffer_rows();
             experiment.act_buffer_read_delay = experiment_proto.act_buffer_read_delay() < 1 ? 1 :
                     experiment_proto.act_buffer_read_delay();
-            experiment.act_buffer_write_delay = experiment_proto.act_buffer_write_delay() < 1 ? 1 :
-                    experiment_proto.act_buffer_write_delay();
 
             experiment.wgt_buffer_rows = experiment_proto.wgt_buffer_rows() < 1 ? 2 :
                     experiment_proto.wgt_buffer_rows();
             experiment.wgt_buffer_read_delay = experiment_proto.wgt_buffer_read_delay() < 1 ? 1 :
                     experiment_proto.wgt_buffer_read_delay();
-            experiment.wgt_buffer_write_delay = experiment_proto.wgt_buffer_write_delay() < 1 ? 1 :
-                    experiment_proto.wgt_buffer_write_delay();
 
             experiment.out_buffer_rows = experiment_proto.out_buffer_rows() < 1 ? 2 :
                     experiment_proto.out_buffer_rows();
-            experiment.out_buffer_read_delay = experiment_proto.out_buffer_read_delay() < 1 ? 1 :
-                    experiment_proto.out_buffer_read_delay();
             experiment.out_buffer_write_delay = experiment_proto.out_buffer_write_delay() < 1 ? 1 :
                     experiment_proto.out_buffer_write_delay();
 
