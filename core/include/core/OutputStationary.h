@@ -94,11 +94,15 @@ namespace core {
         /** Skip variable for bit tactical */
         std::vector<int> skip;
 
+        int prev_filter_set = 0;
+
         /** Indicate if window buffer already filled */
         bool window_buffer_filled = false;
 
         /** Indicate if filter buffer already filled */
         bool filter_buffer_filled = false;
+
+        void fill_window_steps(std::vector<std::vector<int>> &window_steps, uint32_t output_size);
 
         std::vector<AddressRange> generate_addresses(uint32_t start_act_blk, uint32_t end_act_blk,
                 uint32_t last_act_blk, uint32_t start_window, uint32_t end_window);

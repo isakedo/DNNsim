@@ -29,6 +29,8 @@ namespace core {
 
         auto all_input_size = (uint32_t)ceil(act_channels * Nx * Ny * this->dram->getActDataSize() / 8.);
         auto subset_windows = std::min((uint32_t)num_windows, this->EF_COLUMNS);
+        auto subset_windows_size = (uint32_t)(subset_windows * act_channels * Kx * Ky //TODO reduce worst case size
+                * this->dram->getActDataSize() / 8.);
 
         auto all_filters_size = (uint32_t)ceil(num_filters * wgt_channels * Kx * Ky
                 * this->dram->getWgtDataSize() / 8.);
@@ -46,8 +48,8 @@ namespace core {
         MemPolicy act_policy;
         if (all_input_size + all_output_size < this->gbuffer->getActSize()) act_policy = ALL;
         else if (all_input_size + subset_filters_output_size < this->gbuffer->getActSize()) act_policy = INPUTS;
-        //else if (subset_windows_size + subset_windows_output_size < this->gbuffer->getActSize()) act_policy = SET;
-        //else if (subset_windows_size + subsets_output_size < this->gbuffer->getActSize()) act_policy = SUBSET;
+        else if (subset_windows_size + subset_windows_output_size < this->gbuffer->getActSize()) act_policy = SET;
+        else if (subset_windows_size + subsets_output_size < this->gbuffer->getActSize()) act_policy = SUBSET;
         else act_policy = CHANNELS;
 
         MemPolicy wgt_policy;
@@ -74,6 +76,16 @@ namespace core {
             this->next_layer_act_on_chip = true;
         } else if (act_policy == INPUTS) {
             auto output_left_size = this->gbuffer->getActSize() - all_input_size;
+            assert(output_left_size < this->gbuffer->getActSize());
+
+            filter_sets_per_step_act = output_left_size / subset_filters_output_size;
+            assert(filter_sets_per_step_act != total_filter_sets);
+        } else if (act_policy == SET) {
+            // None
+        } else if (act_policy == SUBSET) {
+            auto output_left_size = this->gbuffer->getActSize() - subset_windows_size;
+            assert(output_left_size < this->gbuffer->getActSize());
+
             filter_sets_per_step_act = output_left_size / subset_filters_output_size;
             assert(filter_sets_per_step_act != total_filter_sets);
         } else {
@@ -81,11 +93,14 @@ namespace core {
             assert(input_left_size < this->gbuffer->getActSize());
 
             filter_sets_per_step_act = 1;
-            time_steps_act = (uint64_t)ceil(all_input_size / (double)input_left_size);
+            time_steps_act = (uint64_t)ceil(subset_windows_size / (double)input_left_size);
             assert(time_steps_act != 1);
 
             assert(!this->layer_act_on_chip);
         }
+
+        uint32_t filter_sets_per_step = std::min(filter_sets_per_step_act, filter_sets_per_step_wgt);
+        uint32_t filter_steps = ceil(total_filter_sets / (double)filter_sets_per_step);
 
         std::vector<std::vector<int>> window_steps;
         if (wgt_policy == CHANNELS || act_policy == CHANNELS) {
@@ -96,15 +111,21 @@ namespace core {
             window_steps.emplace_back(std::vector<int>(this->window_sets, 0));
             std::iota(window_steps.front().begin(), window_steps.front().end(), 0);
         } else {
-
+            auto window_out_size = (uint32_t)ceil(subset_filters * filter_sets_per_step
+                    * this->dram->getBaseDataSize() / 8.);
+            this->fill_window_steps(window_steps, window_out_size);
+            assert(window_steps.size() > 1);
         }
-
-        uint32_t filter_sets_per_step = std::min(filter_sets_per_step_act, filter_sets_per_step_wgt);
-        uint32_t filter_steps = ceil(total_filter_sets / (double)filter_sets_per_step);
 
         auto time_steps = std::max(time_steps_act, time_steps_wgt);
         auto max_time_per_step = (uint32_t)ceil(this->max_buffer_time /(double)time_steps);
-        assert(this->max_buffer_time > time_steps);
+        if ((time_steps - 1) * max_time_per_step >= this->max_buffer_time) {
+            assert(max_time_per_step == 2);
+            time_steps = this->max_buffer_time;
+            max_time_per_step = 1;
+        }
+
+        assert(this->max_buffer_time >= time_steps);
 
         auto last_act_blk = (uint64_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
         auto blks_per_window = (uint64_t)ceil(Ky * Kx * act_channels / (double)this->dram->getActValuesPerBlock());
@@ -113,8 +134,7 @@ namespace core {
 
         auto next_out_address = this->next_act_address;
 
-        this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(window_steps.size()
-                * filter_steps * time_steps);
+        this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>();
 
         for (int wstep = 0; wstep < window_steps.size(); ++wstep) {
 
@@ -153,6 +173,13 @@ namespace core {
                             auto first_address = this->act_address_map[0][0][0];
                             auto last_address = this->act_address_map[Ny - 1][Nx - 1][last_act_blk - 1];
                             node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
+                        }
+
+                    } else if (act_policy == SET || act_policy == SUBSET) {
+                        if (fstep == 0 && tstep == 0 && ((!this->layer_act_on_chip && wstep == 0) || wstep != 0)) {
+                            node->read_act_addresses = this->generate_addresses(0, blks_per_window, last_act_blk,
+                                    start_window, end_window);
+                            node->evict_act = true;
                         }
 
                     } else {
@@ -226,6 +253,9 @@ namespace core {
 
                             }
 
+                            if (first_address == NULL_ADDR || last_address == NULL_ADDR)
+                                continue;
+
                         } else {
                             first_address = this->wgt_address_buffer[start_filter_subset][start_time].front();
                             last_address = this->wgt_address_buffer[end_filter_subset - 1][end_time].back();
@@ -249,7 +279,7 @@ namespace core {
                         node->write_addresses.emplace_back(first_address, last_address);
                     }
 
-                    this->on_chip_graph[wstep * filter_steps * time_steps + fstep * time_steps + tstep] = node;
+                    this->on_chip_graph.emplace_back(node);
 
                 } // Time step
             } // Filter step
@@ -296,6 +326,8 @@ namespace core {
             this->next_layer_act_on_chip = true;
         } else if (act_policy == INPUTS) {
             auto output_left_size = this->gbuffer->getActSize() - all_input_size;
+            assert(output_left_size < this->gbuffer->getActSize());
+
             filter_sets_per_step_act = output_left_size / subset_filters_output_size;
             assert(filter_sets_per_step_act != total_filter_sets);
         } else {
@@ -325,14 +357,19 @@ namespace core {
 
         auto time_steps = std::max(time_steps_act, time_steps_wgt);
         auto max_time_per_step = (uint32_t)ceil(this->max_buffer_time / (double)time_steps);
-        assert(this->max_buffer_time > time_steps);
+        if ((time_steps - 1) * max_time_per_step >= this->max_buffer_time) {
+            assert(max_time_per_step == 2);
+            time_steps = this->max_buffer_time;
+            max_time_per_step = 1;
+        }
+
+        assert(this->max_buffer_time >= time_steps);
 
         auto last_act_blk = (uint64_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
         auto blocks_per_time = (uint32_t)ceil(last_act_blk / (double)this->max_buffer_time);
         auto blocks_per_step = max_time_per_step * blocks_per_time;
 
-        this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>(recurrences * filter_steps
-                * time_steps);
+        this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>();
 
         for (int r = 0; r < recurrences; ++r) {
 
@@ -373,7 +410,7 @@ namespace core {
                             node->use_prev_buffer = true;
 
                     } else if (act_policy == INPUTS) {
-                        if (fstep == 0 && ((!this->layer_act_on_chip && r == 0) || r != 0)) {
+                        if (fstep == 0 && tstep == 0 && ((!this->layer_act_on_chip && r == 0) || r != 0)) {
                             auto first_address = this->act_address_map[0][0][0];
                             auto last_address = this->act_address_map[0][0][last_act_blk - 1];
                             node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
@@ -455,6 +492,9 @@ namespace core {
 
                             }
 
+                            if (first_address == NULL_ADDR || last_address == NULL_ADDR)
+                                continue;
+
                         } else {
                             first_address = this->wgt_address_buffer[start_filter_subset][start_time].front();
                             last_address = this->wgt_address_buffer[end_filter_subset - 1][end_time].back();
@@ -477,7 +517,7 @@ namespace core {
                         node->write_addresses.emplace_back(first_address, last_address);
                     }
 
-                    this->on_chip_graph[r * filter_steps * time_steps + fstep * time_steps + tstep] = node;
+                    this->on_chip_graph.emplace_back(node);
 
                 } // Time step
             } // Filter step
@@ -566,6 +606,9 @@ namespace core {
                     }
 
                     this->filter_buffer_filled = true;
+                    if (this->prev_filter_set != filter_set)
+                        this->skip = std::vector<int>(this->arch->getTiles(), 0);
+                    this->prev_filter_set = filter_set;
                 }
 
                 bool first = true;
@@ -666,8 +709,8 @@ namespace core {
 
                 this->write = std::vector<bool>(this->arch->getTiles(), false);
                 this->time = std::vector<int>(this->arch->getTiles(), 0);
-                this->skip = std::vector<int>(this->arch->getTiles(), 0);
                 this->filter_buffer_filled = false;
+                this->prev_filter_set = 0;
                 this->filters.clear();
                 this->filter_set_it += this->arch->getTiles();
             } // Filter set
@@ -726,6 +769,9 @@ namespace core {
                 }
 
                 this->filter_buffer_filled = true;
+                if (this->prev_filter_set != filter_set)
+                    this->skip = std::vector<int>(this->arch->getTiles(), 0);
+                this->prev_filter_set = filter_set;
             }
 
             bool first = true;
@@ -824,8 +870,8 @@ namespace core {
 
             this->write = std::vector<bool>(this->arch->getTiles(), false);
             this->time = std::vector<int>(this->arch->getTiles(), 0);
-            this->skip = std::vector<int>(this->arch->getTiles(), 0);
             this->filter_buffer_filled = false;
+            this->prev_filter_set = 0;
             this->filters.clear();
             this->filter_set_it += this->arch->getTiles();
         } // Filter set

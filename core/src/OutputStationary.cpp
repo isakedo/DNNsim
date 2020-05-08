@@ -5,13 +5,83 @@ namespace core {
 
     /* CYCLES */
 
+    template <typename T>
+    void OutputStationary<T>::fill_window_steps(std::vector<std::vector<int>> &window_steps,
+            uint32_t window_out_size) {
+
+        const std::vector<size_t> &act_shape = this->act->getShape();
+        const std::vector<size_t> &wgt_shape = this->wgt->getShape();
+
+        auto num_windows = this->out_x * this->out_y;
+        auto act_channels = act_shape[1];
+        auto Nx = act_shape[2];
+        auto Ny = act_shape[3];
+
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
+
+        uint64_t tmp_size = 0;
+        std::vector<int> tmp_window_steps;
+        auto position_on_chip = std::vector<std::vector<bool>>(Ny, std::vector<bool>(Nx, false));
+
+        int ws = 0;
+        while (ws < window_sets) {
+
+            auto set_size = 0;
+            std::set<std::tuple<int, int>> new_positions;
+
+            auto start_window = ws * this->EF_COLUMNS;
+            auto total_windows = std::min(this->EF_COLUMNS, (uint32_t)(num_windows - start_window));
+            auto end_window = start_window + total_windows;
+
+            for (int w = start_window; w < end_window; ++w) {
+                auto x_window = (w % out_x) * this->stride;
+                auto y_window = (w / out_x) * this->stride;
+
+                for (int y = 0; y < Ky; y++) {
+                    for (int x = 0; x < Kx; x++) {
+                        if (position_on_chip[x_window + x][y_window + y])
+                            continue;
+
+                        new_positions.emplace(std::make_tuple(x_window + x, y_window + y));
+                    }
+                }
+
+                set_size += window_out_size;
+            }
+
+            set_size += ceil(new_positions.size() * act_channels * this->dram->getActDataSize() / 8.);
+
+            if (tmp_size + set_size > this->gbuffer->getActSize()) {
+                assert(!tmp_window_steps.empty());
+                position_on_chip = std::vector<std::vector<bool>>(Ny, std::vector<bool>(Nx, false));
+                window_steps.emplace_back(tmp_window_steps);
+                tmp_window_steps.clear();
+                tmp_size = 0;
+                continue;
+            }
+
+            tmp_size += set_size;
+            for (const auto &pos : new_positions)
+                position_on_chip[std::get<0>(pos)][std::get<1>(pos)] = true;
+            tmp_window_steps.push_back(ws++);
+        }
+
+        if (tmp_size != 0) {
+            assert(!tmp_window_steps.empty());
+            window_steps.emplace_back(tmp_window_steps);
+        }
+
+    }
 
     template <typename T>
     std::vector<AddressRange> OutputStationary<T>::generate_addresses(uint32_t start_act_blk, uint32_t end_act_blk,
             uint32_t last_act_blk, uint32_t start_window, uint32_t end_window) {
 
-        auto Kx = this->wgt->getShape()[2];
-        auto Ky = this->wgt->getShape()[3];
+        const std::vector<size_t> &wgt_shape = this->wgt->getShape();
+
+        auto Kx = wgt_shape[2];
+        auto Ky = wgt_shape[3];
 
         auto start_y = start_act_blk / (Kx * last_act_blk);
         auto start_rem = start_act_blk % (Kx * last_act_blk);
@@ -352,6 +422,7 @@ namespace core {
         write = std::vector<bool>(this->arch->getTiles(), false);
         time = std::vector<int>(this->arch->getTiles(), 0);
         skip = std::vector<int>(this->arch->getTiles(), 0);
+        prev_filter_set = 0;
         window_buffer_filled = false;
         filter_buffer_filled = false;
 
