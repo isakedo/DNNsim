@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <numeric>
 #include <unistd.h>
+#include <iomanip>
 //#include <math.h>
 
 #define INITIALISE_DATA_TYPES(name) \

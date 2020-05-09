@@ -20,6 +20,8 @@ namespace core {
 
         const uint64_t START_WGT_ADDRESS;
 
+        const uint32_t SIZE;
+
         uint32_t BASE_DATA_SIZE;
 
         uint32_t BASE_VALUES_PER_BLOCK;
@@ -59,7 +61,7 @@ namespace core {
                 uint32_t _SIZE, uint32_t _BASE_DATA_SIZE, uint64_t clock_freq, uint64_t _START_ACT_ADDRESS,
                 uint64_t _START_WGT_ADDRESS, const std::string &_dram_conf, const std::string &_system_conf,
                 const std::string &_network) : Memory<T>(_tracked_data, _act_addresses, _wgt_addresses),
-                START_ACT_ADDRESS(_START_ACT_ADDRESS), START_WGT_ADDRESS(_START_WGT_ADDRESS),
+                START_ACT_ADDRESS(_START_ACT_ADDRESS), START_WGT_ADDRESS(_START_WGT_ADDRESS), SIZE(_SIZE),
                 BASE_VALUES_PER_BLOCK(64 / _BASE_DATA_SIZE), BASE_DATA_SIZE(_BASE_DATA_SIZE), ACT_VALUES_PER_BLOCK(0),
                 ACT_DATA_SIZE(0), WGT_VALUES_PER_BLOCK(0), WGT_DATA_SIZE(0) {
 

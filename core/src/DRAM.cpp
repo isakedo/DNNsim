@@ -63,10 +63,16 @@ namespace core {
         return WGT_DATA_SIZE;
     }
 
+    std::string addr_to_hex(uint64_t address, uint32_t SIZE) {
+        std::stringstream stream;
+        stream << "0x" << std::setfill ('0') << std::setw(ceil(log2(SIZE * pow(2, 20)) / 4.)) << std::hex << address;
+        return stream.str();
+    }
+
     template <typename T>
     std::string DRAM<T>::header() {
-        std::string header = "Starting activation address: " + std::to_string(START_ACT_ADDRESS) + "\n";
-        header += "Starting weight address: " + std::to_string(START_WGT_ADDRESS) + "\n";
+        std::string header = "Starting activation address: " + addr_to_hex(START_ACT_ADDRESS, SIZE) + "\n";
+        header += "Starting weight address: " + addr_to_hex(START_WGT_ADDRESS, SIZE) + "\n";
         return header;
     }
 
