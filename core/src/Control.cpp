@@ -80,6 +80,11 @@ namespace core {
         EF_COLUMNS = arch->getColumns() / ACT_BLKS;
         EF_ROWS = arch->getRows() / WGT_BLKS;
 
+        if (EF_COLUMNS == 0)
+            throw std::runtime_error ("Too few columns to perform spatial decomposition");
+        if (EF_ROWS == 0)
+            throw std::runtime_error ("Too few rows to perform spatial decomposition");
+
         auto act_dram_width = std::max(dram->getBaseDataSize(), (uint32_t)pow(2, ceil(log2(act_prec))));
         auto wgt_dram_width = std::max(dram->getBaseDataSize(), (uint32_t)pow(2, ceil(log2(wgt_prec))));
 
