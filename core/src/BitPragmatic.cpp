@@ -28,8 +28,8 @@ namespace core {
     }
 
     template <typename T>
-    void BitPragmatic<T>::dataConversion(base::Array<T> &data, uint8_t data_prec) {
-        if (!DIFFY) data.powers_of_two_representation(data_prec);
+    void BitPragmatic<T>::dataConversion(base::Array<T> &data) {
+        if (!DIFFY) data.powers_of_two_representation();
     }
 
     /* CYCLES */

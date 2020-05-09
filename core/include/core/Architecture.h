@@ -202,9 +202,8 @@ namespace core {
         /**
          * Convert the data representation to the one need it.
          * @param data          Array of values
-         * @param data_prec     Activation layer precision
          */
-        virtual void dataConversion(base::Array<T> &data, uint8_t data_prec) {}
+        virtual void dataConversion(base::Array<T> &data) {}
 
         /* CYCLES */
 

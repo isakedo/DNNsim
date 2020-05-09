@@ -16,8 +16,8 @@ namespace core {
     }
 
     template <typename T>
-    void Laconic<T>::dataConversion(base::Array<T> &data, uint8_t data_prec) {
-        data.powers_of_two_representation(data_prec);
+    void Laconic<T>::dataConversion(base::Array<T> &data) {
+        data.powers_of_two_representation();
     }
 
     /* CYCLES */

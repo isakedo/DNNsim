@@ -131,9 +131,8 @@ namespace base {
         Array<uint16_t> linear_quantization(int data_width) const;
 
         /** Change fixed point representation to powers of two
-         * @param prec   Precision: sign + magnitude + fraction
          */
-        void powers_of_two_representation(int prec);
+        void powers_of_two_representation();
 
         /** zero pad the activations
          * @param padding   Padding of the layer

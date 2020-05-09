@@ -190,7 +190,7 @@ namespace core {
         for(auto sample = 0; sample < batch_size; ++sample) {
 
             // Iterate over the layers
-            for (auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
+            for (auto layer_it = 0; layer_it < 1; ++layer_it) {
 
                 const base::Layer<T> &layer = network.getLayers()[layer_it];
                 bool conv = layer.getType() == "Convolution";
@@ -201,13 +201,13 @@ namespace core {
                         layer.getName().c_str());
 
                 auto act = std::make_shared<base::Array<T>>(layer.getActivations());
-                arch->dataConversion(*act, layer.getActPrecision());
+                arch->dataConversion(*act);
                 if (fc && act->getDimensions() == 4) act->reshape_to_2D();
                 if (act->getDimensions() == 2) act->reshape_to_4D();
                 act->get_sample(sample);
 
                 auto wgt = std::make_shared<base::Array<T>>(layer.getWeights());
-                arch->dataConversion(*wgt, layer.getWgtPrecision());
+                arch->dataConversion(*wgt);
                 if (wgt->getDimensions() == 2) wgt->reshape_to_4D();
 
                 int padding = layer.getPadding();
@@ -411,12 +411,12 @@ namespace core {
             if (!QUIET) std::cout << "Simulating layer: " << layer.getName() << std::endl;
 
             base::Array<T> act = layer.getActivations();
-            arch->dataConversion(act, layer.getActPrecision());
+            arch->dataConversion(act);
             if (fc && act.getDimensions() == 4) act.reshape_to_2D();
             if (act.getDimensions() == 2) act.reshape_to_4D();
 
             base::Array<T> wgt = layer.getWeights();
-            arch->dataConversion(wgt, layer.getWgtPrecision());
+            arch->dataConversion(wgt);
             if (wgt.getDimensions() == 2) wgt.reshape_to_4D();
 
             int padding = layer.getPadding();
