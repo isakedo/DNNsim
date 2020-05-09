@@ -28,13 +28,6 @@ namespace core {
          */
         std::string name() override;
 
-        /**
-         * Convert the data representation to the one need it.
-         * @param data          Array of values
-         * @param data_prec     Activation layer precision
-         */
-        void dataConversion(base::Array<T> &data, uint8_t data_prec)  override {}
-
         /* CYCLES */
 
         /**

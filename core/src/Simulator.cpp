@@ -7,7 +7,7 @@ namespace core {
 
     template <typename T>
     void check_result(const OutputTensor &sim_output, const std::shared_ptr<base::Array<T>> &act,
-            const std::shared_ptr<base::Array<T>> &wgt, uint64_t Ox, uint64_t Oy, int stride, bool _3dim) {
+            const std::shared_ptr<base::Array<T>> &wgt, uint64_t Ox, uint64_t Oy, int stride, bool _3dim, bool diffy) {
 
         const std::vector<size_t> &act_shape = act->getShape();
         const std::vector<size_t> &wgt_shape = wgt->getShape();
@@ -52,8 +52,18 @@ namespace core {
                         for (int j = 0; j < Ky; ++j) {
                             for (int i = 0; i < Kx; ++i) {
                                 for (int k = 0; k < wgt_channels; ++k) {
+                                    auto x_window = stride * x;
+                                    auto y_window = stride * y;
+
                                     auto act_bits = _3dim ? act->get(0, r, k) :
-                                            act->get(0, start_group + k, stride * x + i, stride * y + j);
+                                            act->get(0, start_group + k, x_window + i, y_window + j);
+
+                                    if (diffy && !_3dim) {
+                                        auto prev_act_bits = (x_window - stride < 0) ? 0 :
+                                                act->get(0, start_group + k, x_window + i - stride, y_window + j);
+                                        act_bits = (short)act_bits - (short)prev_act_bits;
+                                    }
+
                                     sum += act_bits * wgt->get(m, k, i, j);
                                 }
                             }
@@ -180,7 +190,7 @@ namespace core {
         for(auto sample = 0; sample < batch_size; ++sample) {
 
             // Iterate over the layers
-            for (auto layer_it = 2; layer_it < network.getNumLayers(); ++layer_it) {
+            for (auto layer_it = 0; layer_it < network.getNumLayers(); ++layer_it) {
 
                 const base::Layer<T> &layer = network.getLayers()[layer_it];
                 bool conv = layer.getType() == "Convolution";
@@ -322,7 +332,7 @@ namespace core {
 
                 } while(control->still_off_chip_data());
 
-                if (CHECK) check_result(sim_output, act, wgt, Ox, Oy, stride, rnn);
+                if (CHECK) check_result(sim_output, act, wgt, Ox, Oy, stride, rnn, arch->diffy());
 
                 // Dump stats
                 cycles->value[layer_it][sample] = *global_cycle;
@@ -451,7 +461,8 @@ namespace core {
                     num_filters * wgt_channels * R;
             uint64_t max_bit_counter = max_par_counter * MAX_BITS;
 
-            arch->configure_layer(act_prec, wgt_prec, network_width, fc || rnn, arch->getColumns());
+            arch->configure_layer(act_prec, wgt_prec, network_width, act.isSigned(), wgt.isSigned(),
+                    fc || rnn, arch->getColumns());
 
             for(int n = 0; n < batch_size; ++n) {
 

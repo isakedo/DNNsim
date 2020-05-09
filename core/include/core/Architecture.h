@@ -48,6 +48,10 @@ namespace core {
         /** Network width */
         int network_width = 0;
 
+        bool signed_act = false;
+
+        bool signed_wgt = false;
+
         /** Linear layer */
         bool linear = false;
 
@@ -122,15 +126,20 @@ namespace core {
          * @param _act_prec      Activations precision
          * @param _wgt_prec      Weights precision
          * @param _network_width Network width
+         * @param _signed_act    Signed activations
+         * @param _signed_wgt    Signed weights
          * @param _linear        Linear layer
          * @param EF_COLUMNS     Number of effective columns
          */
-        virtual void configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _linear,
-                uint64_t EF_COLUMNS) {
+        virtual void configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _signed_act,
+                bool _signed_wgt, bool _linear, uint64_t EF_COLUMNS) {
             act_prec = _act_prec;
             wgt_prec = _wgt_prec;
             network_width = _network_width;
+            signed_act = _signed_act;
+            signed_wgt = _signed_wgt;
             linear = _linear;
+
             ready_cycle = 0;
             done_cycle = 0;
 
@@ -195,7 +204,7 @@ namespace core {
          * @param data          Array of values
          * @param data_prec     Activation layer precision
          */
-        virtual void dataConversion(base::Array<T> &data, uint8_t data_prec) = 0;
+        virtual void dataConversion(base::Array<T> &data, uint8_t data_prec) {}
 
         /* CYCLES */
 

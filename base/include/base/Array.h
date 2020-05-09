@@ -20,6 +20,8 @@ namespace base {
         typedef std::vector<std::vector<T>> Array2D;
         typedef std::vector<T> Array1D;
 
+        bool signed_data = false;
+
         /** Set to true to ensure the array is read as 4D */
         bool force4D = false;
 
@@ -57,6 +59,8 @@ namespace base {
             this->shape = _shape;
         }
 
+        bool isSigned() const;
+
         /** Read the numpy array from the npy file, copy the direction, and set the size
          * @param path  Path to the numpy file with extension .npy
          */
@@ -65,8 +69,9 @@ namespace base {
         /** Load the vector into the data vector
          * @param _data     Dynamic vector containing the data
          * @param _shape    Shape of the data
+         * @param _signed_data True if signed
          */
-        void set_values(const Array1D &_data, const std::vector<size_t> &_shape);
+        void set_values(const Array1D &_data, const std::vector<size_t> &_shape, bool _signed_data);
 
         /** Return the value inside the vector given the fourth dimensions
          * @param i     Index for the first dimension
@@ -124,11 +129,6 @@ namespace base {
          * @return Fixed point quantized tensor
          */
         Array<uint16_t> linear_quantization(int data_width) const;
-
-        /** Change fixed point representation to sign-magnitude
-         * @param prec   Precision: sign + magnitude + fraction
-         */
-        void sign_magnitude_representation(int prec);
 
         /** Change fixed point representation to powers of two
          * @param prec   Precision: sign + magnitude + fraction

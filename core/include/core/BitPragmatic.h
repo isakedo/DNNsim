@@ -43,9 +43,6 @@ namespace core {
         /** Previous compute cycles */
         std::vector<uint64_t> previous_compute_cycles;
 
-        /** Activations mask to remove negative numbers */
-        uint16_t act_mask = 0;
-
         /* AUXILIARY FUNCTIONS */
 
         /**
@@ -53,10 +50,13 @@ namespace core {
          * @param _act_prec      Activations precision
          * @param _wgt_prec      Weights precision
          * @param _network_width Network width
+         * @param _signed_act    Signed activations
+         * @param _signed_wgt    Signed weights
          * @param _linear        Linear layer
          * @param EF_COLUMNS     Number of effective columns
          */
-        void configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _linear, uint64_t EF_COLUMNS) override;
+        void configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _signed_act, bool _signed_wgt,
+                bool _linear, uint64_t EF_COLUMNS) override;
 
         /**
          * Get number of cycles

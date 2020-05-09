@@ -113,13 +113,4 @@ namespace core {
         return min_max_table[value];
     }
 
-    uint16_t sign_magnitude(short two_comp, uint16_t mask) {
-        bool neg = two_comp < 0;
-        int max_value = mask - 1;
-        auto sign_mag = (uint16_t)abs(two_comp);
-        sign_mag = (uint16_t)(sign_mag > max_value ? max_value : sign_mag);
-        sign_mag = neg ? sign_mag | mask : sign_mag;
-        return sign_mag;
-    }
-
 }

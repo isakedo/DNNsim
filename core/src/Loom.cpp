@@ -6,11 +6,13 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    void Loom<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _linear,
-            uint64_t EF_COLUMNS) {
-        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_width, _linear, EF_COLUMNS);
-        act_mask = (uint16_t)(1u << (_act_prec - 1u));
-        wgt_mask = (uint16_t)(1u << (_wgt_prec - 1u));
+    void Loom<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _signed_act,
+            bool _signed_wgt, bool _linear, uint64_t EF_COLUMNS) {
+        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_width, _signed_act, _signed_wgt, _linear,
+                EF_COLUMNS);
+
+        act_mask = (uint16_t)(1u << (sizeof(T) * 8u - 1u));
+        wgt_mask = (uint16_t)(1u << (sizeof(T) * 8u - 1u));
     }
 
     template <typename T>
@@ -21,11 +23,6 @@ namespace core {
     template <typename T>
     std::string Loom<T>::name() {
         return DYNAMIC_WEIGHTS ? "DynLoom" : "Loom";
-    }
-
-    template <typename T>
-    void Loom<T>::dataConversion(base::Array<T> &data, uint8_t data_prec) {
-        data.sign_magnitude_representation(data_prec);
     }
 
     /* CYCLES */
@@ -56,17 +53,15 @@ namespace core {
     }
 
     template <typename T>
-    void process_pe(const BufferRow<T> &row, int idx, int lanes, uint16_t mask, int &min_group_bit,
+    void process_pe(const BufferRow<T> &row, int idx, int lanes, uint16_t mask, bool signed_data, int &min_group_bit,
             int &max_group_bit) {
 
         for (int lane = 0; lane < lanes; ++lane) {
 
             auto bits = std::get<0>(row[idx + lane]);
 
-            bool neg = false;
-            if((bits & mask) != 0) {
-                bits = bits & ~mask;
-                neg = true;
+            if(signed_data && (bits & mask) != 0) {
+                bits = bits ^ (mask - 1u + mask);
             }
 
             const auto &min_max_bits = minMax(bits);
@@ -74,7 +69,7 @@ namespace core {
             auto min_bit = std::get<0>(min_max_bits);
             auto max_bit = std::get<1>(min_max_bits);
 
-            if (neg) max_bit += 1;
+            if (signed_data) max_bit += 1;
 
             if(min_bit < min_group_bit) min_group_bit = min_bit;
             if(max_bit > max_group_bit) max_group_bit = max_bit;
@@ -100,9 +95,11 @@ namespace core {
             auto window_cycles = 0;
             auto window_idx = this->column_index * tile_data.lanes;
 
-            process_pe(tile_data.act_row.front(), window_idx, tile_data.lanes, act_mask, min_act_bit, max_act_bit);
+            process_pe(tile_data.act_row.front(), window_idx, tile_data.lanes, act_mask, this->signed_act,
+                    min_act_bit, max_act_bit);
 
-            window_cycles = MINOR_BIT ? min_act_bit > max_act_bit ? 1 : max_act_bit - min_act_bit + 1 : max_act_bit + 1;
+            window_cycles = MINOR_BIT ? min_act_bit > max_act_bit ? 1 + this->signed_act :
+                    max_act_bit - min_act_bit + 1 : max_act_bit + 1;
 
             if (DYNAMIC_WEIGHTS) {
 
@@ -116,12 +113,13 @@ namespace core {
                 for (int f = 0; f < tile_data.filters.size(); ++f) {
                     auto filter_idx = f * tile_data.lanes;
 
-                    process_pe(tile_data.wgt_row, filter_idx, tile_data.lanes, wgt_mask, min_wgt_bit, max_wgt_bit);
+                    process_pe(tile_data.wgt_row, filter_idx, tile_data.lanes, wgt_mask, this->signed_wgt,
+                            min_wgt_bit, max_wgt_bit);
 
                     group_count++;
                     if (group_count >= GROUP_SIZE) {
-                        filter_cycles[group] = MINOR_BIT ?
-                                min_wgt_bit > max_wgt_bit ? 1 : max_wgt_bit - min_wgt_bit + 1 : max_wgt_bit + 1;
+                        filter_cycles[group] = MINOR_BIT ? min_wgt_bit > max_wgt_bit ? 1 + this->signed_wgt :
+                                max_wgt_bit - min_wgt_bit + 1 : max_wgt_bit + 1;
 
                         group++;
                         group_count = 0;
@@ -131,8 +129,8 @@ namespace core {
                 }
 
                 if (group_count < GROUP_SIZE)
-                    filter_cycles[group] = MINOR_BIT ?
-                            min_wgt_bit > max_wgt_bit ? 1 : max_wgt_bit - min_wgt_bit + 1 : max_wgt_bit + 1;
+                    filter_cycles[group] = MINOR_BIT ? min_wgt_bit > max_wgt_bit ? 1 + this->signed_wgt :
+                            max_wgt_bit - min_wgt_bit + 1 : max_wgt_bit + 1;
 
                 // Calculate cycles
                 auto max_cycles = 0;
@@ -194,12 +192,13 @@ namespace core {
             for (int w = 0; w < tile_data.windows.size(); ++w) {
                 auto window_idx = w * tile_data.lanes;
 
-                process_pe(tile_data.act_row.front(), window_idx, tile_data.lanes, act_mask, min_act_bit, max_act_bit);
+                process_pe(tile_data.act_row.front(), window_idx, tile_data.lanes, act_mask, this->signed_act,
+                        min_act_bit, max_act_bit);
 
                 group_count++;
                 if (group_count >= GROUP_SIZE) {
-                    window_cycles[group] = MINOR_BIT ?
-                            min_act_bit > max_act_bit ? 1 : max_act_bit - min_act_bit + 1 : max_act_bit + 1;
+                    window_cycles[group] = MINOR_BIT ? min_act_bit > max_act_bit ? 1 + this->signed_act :
+                            max_act_bit - min_act_bit + 1 : max_act_bit + 1;
 
                     group++;
                     group_count = 0;
@@ -209,8 +208,8 @@ namespace core {
             }
 
             if (group_count < GROUP_SIZE)
-                window_cycles[group] = MINOR_BIT ?
-                        min_act_bit > max_act_bit ? 1 : max_act_bit - min_act_bit + 1 : max_act_bit + 1;
+                window_cycles[group] = MINOR_BIT ? min_act_bit > max_act_bit ? 1 + this->signed_act :
+                        max_act_bit - min_act_bit + 1 : max_act_bit + 1;
 
             if (DYNAMIC_WEIGHTS) {
 
@@ -224,12 +223,13 @@ namespace core {
                 for (int f = 0; f < tile_data.filters.size(); ++f) {
                     auto filter_idx = f * tile_data.lanes;
 
-                    process_pe(tile_data.wgt_row, filter_idx, tile_data.lanes, wgt_mask, min_wgt_bit, max_wgt_bit);
+                    process_pe(tile_data.wgt_row, filter_idx, tile_data.lanes, wgt_mask, this->signed_wgt,
+                            min_wgt_bit, max_wgt_bit);
 
                     group_count++;
                     if (group_count >= GROUP_SIZE) {
-                        filter_cycles[group] = MINOR_BIT ?
-                                min_wgt_bit > max_wgt_bit ? 1 : max_wgt_bit - min_wgt_bit + 1 : max_wgt_bit + 1;
+                        filter_cycles[group] = MINOR_BIT ? min_wgt_bit > max_wgt_bit ? 1 + this->signed_wgt :
+                                max_wgt_bit - min_wgt_bit + 1 : max_wgt_bit + 1;
 
                         group++;
                         group_count = 0;
@@ -239,8 +239,8 @@ namespace core {
                 }
 
                 if (group_count < GROUP_SIZE)
-                    filter_cycles[group] = MINOR_BIT ?
-                            min_wgt_bit > max_wgt_bit ? 1 : max_wgt_bit - min_wgt_bit + 1 : max_wgt_bit + 1;
+                    filter_cycles[group] = MINOR_BIT ? min_wgt_bit > max_wgt_bit ? 1 + this->signed_wgt :
+                            max_wgt_bit - min_wgt_bit + 1 : max_wgt_bit + 1;
 
                 // Calculate cycles
                 auto max_cycles = 0;
@@ -308,35 +308,31 @@ namespace core {
     template <typename T>
     uint16_t Loom<T>::computeBits(T act, T wgt) {
 
-        bool neg_act = false;
-        if((act & act_mask) != 0) {
-            act = act & ~act_mask;
-            neg_act = true;
+        if(this->signed_act && (act & act_mask) != 0) {
+            act = act ^ (act_mask - 1u + act_mask);
         }
 
         const auto &min_max_act_bits = minMax(act);
         auto min_act_bit = std::get<0>(min_max_act_bits);
         auto max_act_bit = std::get<1>(min_max_act_bits);
-        if (neg_act) max_act_bit++;
+        max_act_bit += this->signed_act;
 
-        auto act_width = MINOR_BIT ? min_act_bit > max_act_bit ? 0 : max_act_bit - min_act_bit + 1u :
-                max_act_bit + 1u;
+        auto act_width = MINOR_BIT ? min_act_bit > max_act_bit ? 1 + this->signed_act :
+                max_act_bit - min_act_bit + 1u : max_act_bit + 1u;
 
         if (DYNAMIC_WEIGHTS) {
 
-            bool neg_wgt = false;
-            if((wgt & wgt_mask) != 0) {
-                wgt = wgt & ~wgt_mask;
-                neg_wgt = true;
+            if(this->signed_wgt && (wgt & wgt_mask) != 0) {
+                wgt = wgt ^ (wgt_mask - 1u + wgt_mask);
             }
 
             const auto &min_max_wgt_bits = minMax(wgt);
             auto min_wgt_bit = std::get<0>(min_max_wgt_bits);
             auto max_wgt_bit = std::get<1>(min_max_wgt_bits);
-            if (neg_wgt) max_wgt_bit++;
+            max_wgt_bit += this->signed_wgt;
 
-            auto wgt_width = MINOR_BIT ? min_wgt_bit > max_wgt_bit ? 0 : max_wgt_bit - min_wgt_bit + 1u :
-                    max_wgt_bit + 1u;
+            auto wgt_width = MINOR_BIT ? min_wgt_bit > max_wgt_bit ? 1 + this->signed_wgt :
+                    max_wgt_bit - min_wgt_bit + 1u : max_wgt_bit + 1u;
 
             return act_width * wgt_width;
         } else {

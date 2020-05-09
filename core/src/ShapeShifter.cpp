@@ -6,9 +6,10 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    void ShapeShifter<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _linear,
-            uint64_t EF_COLUMNS) {
-        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_width, _linear, EF_COLUMNS);
+    void ShapeShifter<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _signed_act,
+            bool _signed_wgt, bool _linear, uint64_t EF_COLUMNS) {
+        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_width, _signed_act, _signed_wgt, _linear,
+                EF_COLUMNS);
 
         auto GROUPS = ceil(this->column_cycles.size() / (double)GROUP_SIZE);
         this->column_cycles = std::vector<uint64_t>(GROUPS, 0);
@@ -17,7 +18,7 @@ namespace core {
         previous_index = 0;
         previous_cycles = std::vector<uint64_t>(COLUMN_REGISTERS, 0);
         previous_compute_cycles = std::vector<uint64_t>(COLUMN_REGISTERS, 0);
-        act_mask = (uint16_t)(1u << (_act_prec - 1u));
+        act_mask = (uint16_t)(1u << (sizeof(T) * 8u - 1u));
     }
 
     template <typename T>
@@ -28,11 +29,6 @@ namespace core {
     template <typename T>
     std::string ShapeShifter<T>::name() {
         return TCL ? "BitTacticalP" : DIFFY ? "ShapeShifterDiffy" : "ShapeShifter";
-    }
-
-    template <typename T>
-    void ShapeShifter<T>::dataConversion(base::Array<T> &data, uint8_t data_prec) {
-        if (!DIFFY) data.sign_magnitude_representation(data_prec);
     }
 
     /* CYCLES */
@@ -78,12 +74,9 @@ namespace core {
             }
 
             auto act_bits = std::get<0>(act_row[time_h][window_idx + lane_d]);
-            if (DIFFY) act_bits = sign_magnitude(act_bits, act_mask);
 
-            bool neg = false;
-            if((act_bits & act_mask) != 0) {
-                act_bits = act_bits & ~act_mask;
-                neg = true;
+            if(this->signed_act && (act_bits & act_mask) != 0) {
+                act_bits = act_bits ^ (act_mask - 1u + act_mask);
             }
 
             const auto &min_max_bits = minMax(act_bits);
@@ -91,7 +84,7 @@ namespace core {
             auto min_bit = std::get<0>(min_max_bits);
             auto max_bit = std::get<1>(min_max_bits);
 
-            if (neg) max_bit += 1;
+            max_bit += this->signed_act;
 
             if(min_bit < min_group_bit) min_group_bit = min_bit;
             if(max_bit > max_group_bit) max_group_bit = max_bit;
@@ -129,8 +122,8 @@ namespace core {
                         max_act_bit);
             }
 
-            column_cycles = MINOR_BIT ? min_act_bit > max_act_bit ? 1 : max_act_bit - min_act_bit + 1 :
-                    max_act_bit + 1;
+            column_cycles = MINOR_BIT ? min_act_bit > max_act_bit ? 1 + this->signed_act :
+                    max_act_bit - min_act_bit + 1 : max_act_bit + 1;
 
             if (max_tile_cycles < column_cycles) max_tile_cycles = column_cycles;
 
@@ -188,8 +181,8 @@ namespace core {
 
                 group_count++;
                 if (group_count >= GROUP_SIZE) {
-                    auto cycles = MINOR_BIT ?
-                            min_act_bit > max_act_bit ? 1 : max_act_bit - min_act_bit + 1 : max_act_bit + 1;
+                    auto cycles = MINOR_BIT ? min_act_bit > max_act_bit ? 1 + this->signed_act :
+                            max_act_bit - min_act_bit + 1 : max_act_bit + 1;
 
                     if (max_group_cycles[group] < cycles) max_group_cycles[group] = cycles;
 
@@ -201,8 +194,8 @@ namespace core {
             } // Window
 
             if (group_count < GROUP_SIZE) {
-                auto cycles = MINOR_BIT ?
-                        min_act_bit > max_act_bit ? 1 : max_act_bit - min_act_bit + 1 : max_act_bit + 1;
+                auto cycles = MINOR_BIT ? min_act_bit > max_act_bit ? 1 + this->signed_act
+                        : max_act_bit - min_act_bit + 1 : max_act_bit + 1;
 
                 if (max_group_cycles[group] < cycles) max_group_cycles[group] = cycles;
             }
@@ -282,19 +275,17 @@ namespace core {
             if(wgt == 0) return 0;
         }
 
-        bool neg = false;
-        if((act & act_mask) != 0) {
-            act = act & ~act_mask;
-            neg = true;
+        if(this->signed_act && (act & act_mask) != 0) {
+            act = act ^ (act_mask - 1u + act_mask);
         }
 
         const auto &min_max_act_bits = minMax(act);
         auto min_act_bit = std::get<0>(min_max_act_bits);
         auto max_act_bit = std::get<1>(min_max_act_bits);
-        if (neg) max_act_bit++;
+        max_act_bit += this->signed_act;
 
         uint8_t act_width;
-        if (MINOR_BIT) act_width = min_act_bit > max_act_bit ? 0 : max_act_bit - min_act_bit + 1u;
+        if (MINOR_BIT) act_width = min_act_bit > max_act_bit ? 1 + this->signed_act : max_act_bit - min_act_bit + 1u;
         else act_width = max_act_bit + 1u;
 
         return act_width * this->network_width;

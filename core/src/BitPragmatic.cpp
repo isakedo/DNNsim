@@ -6,15 +6,15 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    void BitPragmatic<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _linear,
-            uint64_t EF_COLUMNS) {
-        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_width, _linear, EF_COLUMNS);
+    void BitPragmatic<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _signed_act,
+            bool _signed_wgt, bool _linear, uint64_t EF_COLUMNS) {
+        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_width, _signed_act, _signed_wgt, _linear,
+                EF_COLUMNS);
 
         ready_compute_cycle = 0;
         previous_index = 0;
         previous_cycles = std::vector<uint64_t>(COLUMN_REGISTERS, 0);
         previous_compute_cycles = std::vector<uint64_t>(COLUMN_REGISTERS, 0);
-        act_mask = (uint16_t)(1u << (_act_prec - 1u));
     }
 
     template <typename T>
@@ -84,7 +84,7 @@ namespace core {
             }
 
             auto act_bits = std::get<0>(act_row[time_h][window_idx + lane_d]);
-            if (DIFFY) act_bits = sign_magnitude(act_bits, act_mask);
+            if (DIFFY) act_bits = abs((short)act_bits);
             if (BOOTH_ENCODING) act_bits = booth_encoding(act_bits);
 
             auto it = std::find(acts.begin(), acts.end(), act_bits);

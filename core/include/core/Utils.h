@@ -86,13 +86,6 @@ namespace core {
      */
     uint8_t effectualBits(uint16_t value);
 
-    /** Return value into sign-magnitude representation
-     * @param two_comp  Signed value in two complement
-     * @param mask      Mask with one bit for the bit position
-     * @return          Value in sign-magnitude
-     */
-    uint16_t sign_magnitude(short two_comp, uint16_t mask);
-
 }
 
 #endif //DNNSIM_UTILS_H
