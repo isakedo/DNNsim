@@ -46,10 +46,10 @@ namespace core {
         auto subsets_output_size = (uint32_t)ceil(subset_filters * subset_windows * this->dram->getBaseDataSize() / 8.);
 
         MemPolicy act_policy;
-        if (all_input_size + all_output_size < this->gbuffer->getActSize()) act_policy = ALL;
-        else if (all_input_size + subset_filters_output_size < this->gbuffer->getActSize()) act_policy = INPUTS;
-        else if (subset_windows_size + subset_windows_output_size < this->gbuffer->getActSize()) act_policy = SET;
-        else if (subset_windows_size + subsets_output_size < this->gbuffer->getActSize()) act_policy = SUBSET;
+        if (all_input_size + all_output_size <= this->gbuffer->getActSize()) act_policy = ALL;
+        else if (all_input_size + subset_filters_output_size <= this->gbuffer->getActSize()) act_policy = INPUTS;
+        else if (subset_windows_size + subset_windows_output_size <= this->gbuffer->getActSize()) act_policy = SET;
+        else if (subset_windows_size + subsets_output_size <= this->gbuffer->getActSize()) act_policy = SUBSET;
         else act_policy = CHANNELS;
 
         MemPolicy wgt_policy;
@@ -60,17 +60,6 @@ namespace core {
         uint32_t time_steps_act = 1, time_steps_wgt = 1;
         auto total_filter_sets = (uint32_t)ceil(num_filters / (double)subset_filters);
         auto filter_sets_per_step_act = total_filter_sets, filter_sets_per_step_wgt = total_filter_sets;
-
-        if (wgt_policy == ALL) {
-            // None
-        } else if (wgt_policy == SET) {
-            filter_sets_per_step_wgt = this->gbuffer->getWgtSize() / subset_filters_size;
-            assert(filter_sets_per_step_wgt != this->filter_sets);
-        } else {
-            filter_sets_per_step_wgt = 1;
-            time_steps_wgt = (uint64_t)ceil(subset_filters_size / (double)this->gbuffer->getWgtSize());
-            assert(time_steps_wgt != 1);
-        }
 
         if (act_policy == ALL) {
             this->next_layer_act_on_chip = true;
@@ -93,14 +82,25 @@ namespace core {
             assert(input_left_size < this->gbuffer->getActSize());
 
             filter_sets_per_step_act = 1;
-            time_steps_act = (uint64_t)ceil(subset_windows_size / (double)input_left_size);
+            time_steps_act = (uint32_t)ceil(subset_windows_size / (double)input_left_size);
             assert(time_steps_act != 1);
 
             assert(!this->layer_act_on_chip);
         }
 
-        uint32_t filter_sets_per_step = std::min(filter_sets_per_step_act, filter_sets_per_step_wgt);
-        uint32_t filter_steps = ceil(total_filter_sets / (double)filter_sets_per_step);
+        if (wgt_policy == ALL) {
+            // None
+        } else if (wgt_policy == SET) {
+            filter_sets_per_step_wgt = this->gbuffer->getWgtSize() / subset_filters_size;
+            assert(filter_sets_per_step_wgt != this->filter_sets);
+        } else {
+            filter_sets_per_step_wgt = 1;
+            time_steps_wgt = (uint32_t)ceil(subset_filters_size / (double)this->gbuffer->getWgtSize());
+            assert(time_steps_wgt != 1);
+        }
+
+        auto filter_sets_per_step = std::min(filter_sets_per_step_act, filter_sets_per_step_wgt);
+        auto filter_steps = (uint32_t)ceil(total_filter_sets / (double)filter_sets_per_step);
 
         std::vector<std::vector<int>> window_steps;
         if (wgt_policy == CHANNELS || act_policy == CHANNELS) {
@@ -127,8 +127,8 @@ namespace core {
 
         assert(this->max_buffer_time >= time_steps);
 
-        auto last_act_blk = (uint64_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
-        auto blks_per_window = (uint64_t)ceil(Ky * Kx * act_channels / (double)this->dram->getActValuesPerBlock());
+        auto last_act_blk = (uint32_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
+        auto blks_per_window = (uint32_t)ceil(Ky * Kx * act_channels / (double)this->dram->getActValuesPerBlock());
         auto blocks_per_time = (uint32_t)ceil(blks_per_window / (double)this->max_buffer_time);
         auto blocks_per_step = max_time_per_step * blocks_per_time;
 
@@ -146,11 +146,11 @@ namespace core {
             for(int fstep = 0; fstep < filter_steps; ++fstep) {
 
                 auto start_filter_set = fstep * filter_sets_per_step;
-                auto filter_per_set = std::min((uint32_t)filter_sets_per_step, total_filter_sets - start_filter_set);
+                auto filter_per_set = std::min(filter_sets_per_step, total_filter_sets - start_filter_set);
                 auto end_filter_set = start_filter_set + filter_per_set;
 
                 auto start_filter_subset = fstep * filter_sets_per_step * this->arch->getTiles();
-                auto filter_per_subset = std::min((uint64_t)filter_sets_per_step * this->arch->getTiles(),
+                auto filter_per_subset = std::min(filter_sets_per_step * this->arch->getTiles(),
                         this->filter_sets - start_filter_subset);
                 auto end_filter_subset = start_filter_subset + filter_per_subset;
 
@@ -185,7 +185,7 @@ namespace core {
 
                     } else {
                         auto start_act_blk = tstep * blocks_per_step;
-                        auto end_act_blk = std::min((uint64_t)((tstep + 1) * blocks_per_step), blks_per_window);
+                        auto end_act_blk = std::min((tstep + 1) * blocks_per_step, blks_per_window);
 
                         if (this->arch->schedule()) {
                             end_act_blk += this->scheduler->getLookaheadH() * blocks_per_time;
@@ -303,40 +303,131 @@ namespace core {
         auto Kx = wgt_shape[2];
         auto Ky = wgt_shape[3];
 
-        auto last_act_index = (int)ceil(act_channels / (double)this->dram->getActValuesPerBlock()) - 1;
+        auto num_windows = this->out_x * this->out_y;
 
-        this->next_layer_act_on_chip = true;
-        typename OutputStationary<T>::NodeOutS unique_node;
+        auto subset_windows = std::min((uint32_t)num_windows, this->EF_COLUMNS);
 
-        // Fill parameters
-        unique_node.time_step = 0;
-        unique_node.max_time = this->max_buffer_time;
+        auto all_filters_size = (uint32_t)ceil(num_filters * wgt_channels * Kx * Ky
+                * this->dram->getWgtDataSize() / 8.);
+        auto subset_filters_size = (uint32_t)ceil(this->filters_per_group * wgt_channels * Kx * Ky
+                * this->dram->getWgtDataSize() / 8.);
 
-        // Fill groups
-        unique_node.groups = std::vector<int>(this->groups, 0);
-        std::iota(unique_node.groups.begin(), unique_node.groups.end(), 0);
+        MemPolicy act_policy = ALL;
 
-        // Fill windows
-        unique_node.window_sets = std::vector<int>(this->window_sets, 0);
-        std::iota(unique_node.window_sets.begin(), unique_node.window_sets.end(), 0);
+        MemPolicy wgt_policy;
+        if (all_filters_size <= this->gbuffer->getWgtSize()) wgt_policy = ALL;
+        else wgt_policy = GROUPS;
 
-        // Fil filters
-        unique_node.filter_sets = std::vector<int>(this->filter_sets, 0);
-        std::iota(unique_node.filter_sets.begin(), unique_node.filter_sets.end(), 0);
+        auto groups_per_step_act = this->groups, groups_per_step_wgt = this->groups;
 
-        // Finally read remaining activations
-        if (!this->layer_act_on_chip) {
-            auto first_address = this->act_address_map[0][0][0];
-            auto last_address = this->act_address_map[Ny - 1][Nx - 1][last_act_index];
-            unique_node.read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
+        if (act_policy == ALL) {
+            this->next_layer_act_on_chip = true;
         }
 
-        // Then read all filters
-        auto first_address = std::get<0>(this->wgt_address_map[0]);
-        auto last_address = std::get<1>(this->wgt_address_map[ceil(this->filter_sets / (double)this->arch->getTiles()) * this->groups - 1]);
-        unique_node.read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
+        if (wgt_policy == ALL) {
+            // None
+        } else if (wgt_policy == GROUPS) {
+            if (subset_filters_size > this->gbuffer->getWgtSize())
+                throw std::runtime_error("Weight memory size too small to allocate one group of filters.");
 
-        this->on_chip_graph.emplace_back(std::make_shared<typename OutputStationary<T>::NodeOutS>(unique_node));
+            groups_per_step_wgt = this->gbuffer->getWgtSize() / subset_filters_size;
+            assert(groups_per_step_wgt != (this->filter_sets * this->groups));
+        }
+
+        auto groups_per_step = std::min(groups_per_step_act, groups_per_step_wgt);
+        auto group_steps = (uint32_t)ceil(this->groups / (double)groups_per_step);
+
+        std::vector<std::vector<int>> window_steps;
+        if (act_policy == ALL || act_policy == INPUTS) {
+            window_steps.emplace_back(std::vector<int>(this->window_sets, 0));
+            std::iota(window_steps.front().begin(), window_steps.front().end(), 0);
+        }
+
+        auto last_act_blk = (uint64_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
+
+        auto filter_sets_per_group = (uint32_t)ceil(this->filters_per_group / (double)this->filters_per_group);
+        auto total_filter_sets = this->groups * filter_sets_per_group;
+
+        auto next_out_address = this->next_act_address;
+
+        this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>();
+
+        for (int gstep = 0; gstep < group_steps; ++gstep) {
+
+            auto start_group = gstep * groups_per_step;
+            auto total_groups = std::min(groups_per_step, this->groups - start_group);
+            auto end_group = start_group + total_groups;
+
+            auto start_filter_set = gstep * filter_sets_per_group;
+            auto filter_per_set = std::min(total_groups * filter_sets_per_group, total_filter_sets - start_filter_set);
+            auto end_filter_set = start_filter_set + filter_per_set;
+
+            auto start_filter = gstep * this->filters_per_group;
+            auto total_filters = std::min(total_groups * this->filters_per_group,
+                    (uint32_t)(num_filters - start_filter));
+
+            for (int wstep = 0; wstep < window_steps.size(); ++wstep) {
+
+                auto start_window = window_steps[wstep].front() * this->EF_COLUMNS;
+                auto total_windows = std::min(window_steps[wstep].size() * this->EF_COLUMNS,
+                        (uint64_t)(num_windows - start_window));
+                auto end_window = start_window + total_windows;
+
+                auto node = std::make_shared<typename OutputStationary<T>::NodeOutS>();
+
+                node->time_step = 0;
+                node->max_time = this->max_buffer_time;
+
+                // Fil groups
+                node->groups = std::vector<int>(total_groups, 0);
+                std::iota(node->groups.begin(), node->groups.end(), start_group);
+
+                // Fil activations
+                node->window_sets = window_steps[wstep];
+
+                if (act_policy == ALL || act_policy == INPUTS) {
+                    if (gstep == 0 && wstep == 0 && !this->layer_act_on_chip) {
+                        auto first_address = this->act_address_map[0][0][0];
+                        auto last_address = this->act_address_map[Ny - 1][Nx - 1][last_act_blk - 1];
+                        node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
+                    }
+
+                }
+
+                // Fil filters
+                node->filter_sets = std::vector<int>(this->filter_sets, 0);
+                std::iota(node->filter_sets.begin(), node->filter_sets.end(), 0);
+
+                if (wgt_policy == ALL) {
+                    if (gstep == 0 && wstep == 0) {
+                        auto first_address = std::get<0>(this->wgt_address_map[start_filter_set]);
+                        auto last_address = std::get<1>(this->wgt_address_map[end_filter_set - 1]);
+                        node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
+                    }
+
+                } else {
+                    if (wstep == 0) {
+                        auto first_address = std::get<0>(this->wgt_address_map[start_filter_set]);
+                        auto last_address = std::get<1>(this->wgt_address_map[end_filter_set - 1]);
+                        node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
+                        node->evict_wgt = true;
+                    }
+
+                }
+
+                // Fil write addresses
+                if (!this->next_layer_act_on_chip) {
+                    auto first_address = this->dram->getStartActAddress() + next_out_address;
+                    auto out_blks = ceil(total_filters * total_windows / (double)this->dram->getBaseValuesPerBlock());
+                    next_out_address += out_blks * BLOCK_SIZE;
+                    auto last_address = this->dram->getStartActAddress() + next_out_address - BLOCK_SIZE;
+                    node->write_addresses.emplace_back(first_address, last_address);
+                }
+
+                this->on_chip_graph.emplace_back(node);
+
+            } // Window step
+        } // Groups
 
     }
 
@@ -388,7 +479,7 @@ namespace core {
             assert(input_left_size < this->gbuffer->getActSize());
 
             filter_sets_per_step_act = 1;
-            time_steps_act = (uint64_t)ceil(all_input_size / (double)input_left_size);
+            time_steps_act = (uint32_t)ceil(all_input_size / (double)input_left_size);
             assert(time_steps_act != 1);
 
             assert(!this->layer_act_on_chip);
@@ -401,7 +492,7 @@ namespace core {
             assert(filter_sets_per_step_wgt != this->filter_sets);
         } else {
             filter_sets_per_step_wgt = 1;
-            time_steps_wgt = (uint64_t)ceil(subset_filters_size / (double)this->gbuffer->getWgtSize());
+            time_steps_wgt = (uint32_t)ceil(subset_filters_size / (double)this->gbuffer->getWgtSize());
             assert(time_steps_wgt != 1);
         }
 
@@ -418,7 +509,7 @@ namespace core {
 
         assert(this->max_buffer_time >= time_steps);
 
-        auto last_act_blk = (uint64_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
+        auto last_act_blk = (uint32_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
         auto blocks_per_time = (uint32_t)ceil(last_act_blk / (double)this->max_buffer_time);
         auto blocks_per_step = max_time_per_step * blocks_per_time;
 
@@ -431,11 +522,11 @@ namespace core {
             for (int fstep = 0; fstep < filter_steps; ++fstep) {
 
                 auto start_filter_set = fstep * filter_sets_per_step;
-                auto filter_per_set = std::min((uint32_t)filter_sets_per_step, total_filter_sets - start_filter_set);
+                auto filter_per_set = std::min(filter_sets_per_step, total_filter_sets - start_filter_set);
                 auto end_filter_set = start_filter_set + filter_per_set;
 
                 auto start_filter_subset = fstep * filter_sets_per_step * this->arch->getTiles();
-                auto filter_per_subset = std::min((uint64_t)filter_sets_per_step * this->arch->getTiles(),
+                auto filter_per_subset = std::min(filter_sets_per_step * this->arch->getTiles(),
                         this->filter_sets - start_filter_subset);
                 auto end_filter_subset = start_filter_subset + filter_per_subset;
 
@@ -475,7 +566,7 @@ namespace core {
 
                     } else {
                         auto start_act_blk = tstep * blocks_per_step;
-                        auto end_act_blk = std::min((uint64_t)((tstep + 1) * blocks_per_step), last_act_blk);
+                        auto end_act_blk = std::min((tstep + 1) * blocks_per_step, last_act_blk);
 
                         if (this->arch->schedule()) {
                             end_act_blk += this->scheduler->getLookaheadH() * blocks_per_time;

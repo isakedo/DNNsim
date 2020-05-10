@@ -5,7 +5,7 @@
 
 namespace core {
 
-    enum MemPolicy { ALL, INPUTS, SET, SUBSET, CHANNELS };
+    enum MemPolicy { ALL, INPUTS, SET, SUBSET, CHANNELS, GROUPS };
 
     /**
      * Generic Output Stationary dataflow
@@ -68,19 +68,19 @@ namespace core {
         bool depthwise = false;
 
         /** Number of layer groups */
-        uint64_t groups = 0;
+        uint32_t groups = 0;
 
         /** Number of window sets */
-        uint64_t window_sets = 0;
+        uint32_t window_sets = 0;
 
         /** Number of filter sets */
-        uint64_t filter_sets = 0;
+        uint32_t filter_sets = 0;
 
         /** Number of filters per group */
-        uint64_t filters_per_group = 0;
+        uint32_t filters_per_group = 0;
 
         /** Maximum buffer depth */
-        uint64_t max_buffer_time = 0;
+        uint32_t max_buffer_time = 0;
 
         /** List of coordinates for the windows */
         std::vector<WindowCoord> windows;
