@@ -143,11 +143,11 @@ namespace core {
                 for (const auto &act_addr_row : tile_data.act_addresses)
                     for (const auto &act_addr : act_addr_row)
                         if (act_addr != NULL_ADDR && (*this->tracked_data).at(act_addr) == NULL_TIME)
-                            waiting_addresses[act_addr] = nullptr;
+                            waiting_addresses.insert(act_addr);
 
                 for (const auto &wgt_addr : tile_data.wgt_addresses)
                     if (wgt_addr != NULL_ADDR && (*this->tracked_data).at(wgt_addr) == NULL_TIME)
-                        waiting_addresses[wgt_addr] = nullptr;
+                        waiting_addresses.insert(wgt_addr);
 
             }
         } catch (std::exception &exception) {

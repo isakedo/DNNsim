@@ -40,7 +40,7 @@ namespace core {
         /** Transactions queue */
         std::queue<std::tuple<uint64_t, bool>> request_queue;
 
-        std::map<uint64_t, nullptr_t> waiting_addresses;
+        std::set<uint64_t> waiting_addresses;
 
         /* STATISTICS */
 

@@ -123,18 +123,16 @@ namespace core {
 
         auto time_steps = std::max(time_steps_act, time_steps_wgt);
         auto max_time_per_step = (uint32_t)ceil(this->max_buffer_time /(double)time_steps);
-        if ((time_steps - 1) * max_time_per_step >= this->max_buffer_time) {
-            assert(max_time_per_step == 2);
-            time_steps = this->max_buffer_time;
-            max_time_per_step = 1;
+        while ((time_steps - 1) * max_time_per_step >= this->max_buffer_time) {
+            time_steps++;
+            max_time_per_step = (uint32_t)ceil(this->max_buffer_time /(double)time_steps);
+            if (time_steps == this->max_buffer_time) break;
         }
 
         assert(this->max_buffer_time >= time_steps);
 
         auto last_act_blk = (uint32_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
         auto blks_per_window = (uint32_t)ceil(Ky * Kx * act_channels / (double)this->dram->getActValuesPerBlock());
-        auto blocks_per_time = (uint32_t)ceil(blks_per_window / (double)this->max_buffer_time);
-        auto blocks_per_step = max_time_per_step * blocks_per_time;
 
         auto next_out_address = this->next_act_address;
 
@@ -191,13 +189,14 @@ namespace core {
                         node->layer_act_on_chip = wstep == 0 ? this->layer_act_on_chip : false;
 
                     } else {
-                        auto start_act_blk = tstep * blocks_per_step;
-                        auto end_act_blk = std::min((tstep + 1) * blocks_per_step, blks_per_window);
+                        auto start_act_blk = (uint32_t)ceil(tstep * max_time_per_step * this->EF_LANES /
+                                (double)this->dram->getActValuesPerBlock());
 
-                        if (this->arch->schedule()) {
-                            end_act_blk += this->scheduler->getLookaheadH() * blocks_per_time;
-                            end_act_blk = std::min(end_act_blk, blks_per_window);
-                        }
+                        auto end_time = (tstep + 1) * max_time_per_step;
+                        if (this->arch->schedule()) end_time += this->scheduler->getLookaheadH();
+                        auto end_act_blk = (uint32_t)ceil(end_time * this->EF_LANES /
+                                (double)this->dram->getActValuesPerBlock());
+                        end_act_blk = std::min(end_act_blk, blks_per_window);
 
                         node->read_act_addresses = this->generate_addresses(start_act_blk, end_act_blk, last_act_blk,
                                 start_window, end_window, 0);
@@ -387,11 +386,6 @@ namespace core {
         auto total_filter_sets = this->groups * filter_sets_per_group;
 
         auto last_act_blk = (uint32_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
-        auto last_grp_act_blk = (uint32_t)ceil(this->filters_per_group / (double)this->dram->getActValuesPerBlock());
-
-        auto blks_per_window_group = (uint32_t)ceil(Ky * Kx * this->filters_per_group /
-                (double)this->dram->getActValuesPerBlock());
-        auto blocks_per_step = blks_per_window_group * groups_per_step;
 
         auto next_out_address = this->next_act_address;
 
@@ -401,7 +395,13 @@ namespace core {
 
             auto start_group = gstep * groups_per_step;
             auto total_groups = std::min(groups_per_step, this->groups - start_group);
-            auto start_act_ch = start_group * last_grp_act_blk;
+            auto start_act_ch = (uint32_t)ceil(start_group * this->filters_per_group
+                    / (double)this->dram->getActValuesPerBlock());
+
+            auto last_grp_act_blk = (uint32_t)ceil(total_groups * this->filters_per_group
+                    / (double)this->dram->getActValuesPerBlock());
+            last_grp_act_blk = std::min(last_grp_act_blk, last_act_blk - start_act_ch);
+            auto blocks_per_step = Ky * Kx * last_grp_act_blk;
 
             auto start_filter_set = gstep * groups_per_step * filter_sets_per_group;
             auto filter_per_set = std::min(groups_per_step * filter_sets_per_group, total_filter_sets - start_filter_set);
@@ -441,7 +441,7 @@ namespace core {
                 } else {
                     if ((!this->layer_act_on_chip && wstep == 0) || wstep != 0) {
                         node->read_act_addresses = this->generate_addresses(0, blocks_per_step,
-                                last_grp_act_blk * total_groups, start_window, end_window, start_act_ch);
+                                last_grp_act_blk, start_window, end_window, start_act_ch);
                         node->evict_act = true;
                     }
 
@@ -560,17 +560,16 @@ namespace core {
 
         auto time_steps = std::max(time_steps_act, time_steps_wgt);
         auto max_time_per_step = (uint32_t)ceil(this->max_buffer_time / (double)time_steps);
-        if ((time_steps - 1) * max_time_per_step >= this->max_buffer_time) {
-            assert(max_time_per_step == 2);
-            time_steps = this->max_buffer_time;
-            max_time_per_step = 1;
+        while ((time_steps - 1) * max_time_per_step >= this->max_buffer_time) {
+            time_steps++;
+            max_time_per_step = (uint32_t)ceil(this->max_buffer_time /(double)time_steps);
+            if (time_steps == this->max_buffer_time) break;
         }
 
         assert(this->max_buffer_time >= time_steps);
 
         auto last_act_blk = (uint32_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
         auto blocks_per_time = (uint32_t)ceil(last_act_blk / (double)this->max_buffer_time);
-        auto blocks_per_step = max_time_per_step * blocks_per_time;
 
         this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>();
 
@@ -627,13 +626,14 @@ namespace core {
                             node->use_prev_buffer = true;
 
                     } else {
-                        auto start_act_blk = tstep * blocks_per_step;
-                        auto end_act_blk = std::min((tstep + 1) * blocks_per_step, last_act_blk);
+                        auto start_act_blk = (uint32_t)ceil(tstep * max_time_per_step * this->EF_LANES /
+                                (double)this->dram->getActValuesPerBlock());
 
-                        if (this->arch->schedule()) {
-                            end_act_blk += this->scheduler->getLookaheadH() * blocks_per_time;
-                            end_act_blk = std::min(end_act_blk, last_act_blk);
-                        }
+                        auto end_time = (tstep + 1) * max_time_per_step;
+                        if (this->arch->schedule()) end_time += this->scheduler->getLookaheadH();
+                        auto end_act_blk = (uint32_t)ceil(end_time * this->EF_LANES /
+                                (double)this->dram->getActValuesPerBlock());
+                        end_act_blk = std::min(end_act_blk, last_act_blk);
 
                         auto first_address = this->act_address_map[0][0][start_act_blk];
                         auto last_address = this->act_address_map[0][0][end_act_blk - 1];
@@ -925,7 +925,6 @@ namespace core {
                     this->write = std::vector<bool>(this->arch->getTiles(), false);
                     this->time = std::vector<int>(this->arch->getTiles(), 0);
                     this->filter_buffer_filled = false;
-                    this->prev_filter_set = 0;
                     this->filters.clear();
                     this->filter_set_it += this->arch->getTiles();
                 } // Filter set
@@ -1075,7 +1074,7 @@ namespace core {
                     auto out_bank_idx = 0;
                     for (int t = 0; t < this->arch->getTiles(); ++t) {
                         if (!this->write[t]) continue;
-                        tiles_data[t].out_banks = BankBufferRow(this->filters.size(), 0);
+                        tiles_data[t].out_banks = BankBufferRow(this->filters[t].size(), 0);
                         tiles_data[t].write = true;
 
                         for (int ob = 0; ob < this->filters[t].size(); ++ob) {
@@ -1091,7 +1090,6 @@ namespace core {
             this->write = std::vector<bool>(this->arch->getTiles(), false);
             this->time = std::vector<int>(this->arch->getTiles(), 0);
             this->filter_buffer_filled = false;
-            this->prev_filter_set = 0;
             this->filters.clear();
             this->filter_set_it += this->arch->getTiles();
         } // Filter set

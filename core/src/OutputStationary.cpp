@@ -136,9 +136,7 @@ namespace core {
         }
 
         // Generate address map
-        auto channel_blks = this->groups > 1 ?
-                ceil(this->filters_per_group / (double)this->dram->getActValuesPerBlock()) * this->groups :
-                ceil(act_channels / (double)this->dram->getActValuesPerBlock());
+        auto channel_blks = ceil(act_channels / (double)this->dram->getActValuesPerBlock());
         act_address_map = std::vector<std::vector<std::vector<uint64_t>>>(Ny, std::vector<std::vector<uint64_t>>(Nx,
                 std::vector<uint64_t>(channel_blks)));
 
