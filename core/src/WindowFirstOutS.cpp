@@ -31,12 +31,14 @@ namespace core {
         auto subset_windows = std::min((uint32_t)num_windows, this->EF_COLUMNS);
         auto subset_windows_size = (uint32_t)(subset_windows * act_channels * Kx * Ky //TODO reduce worst case size
                 * this->dram->getActDataSize() / 8.);
+        auto row_input_size = (uint32_t)ceil(subset_windows_size / (double)this->max_buffer_time);
 
         auto all_filters_size = (uint32_t)ceil(num_filters * wgt_channels * Kx * Ky
                 * this->dram->getWgtDataSize() / 8.);
         auto subset_filters = std::min((uint32_t)num_filters, this->EF_ROWS * this->arch->getTiles());
         auto subset_filters_size = (uint32_t)ceil(subset_filters * wgt_channels * Kx * Ky
                 * this->dram->getWgtDataSize() / 8.);
+        auto row_filter_size = (uint32_t)ceil(subset_filters_size / (double)this->max_buffer_time);
 
         auto all_output_size = (uint32_t)ceil(num_filters * num_windows * this->dram->getBaseDataSize() / 8.);
         auto subset_filters_output_size = (uint32_t)ceil(subset_filters * num_windows
@@ -50,12 +52,14 @@ namespace core {
         else if (all_input_size + subset_filters_output_size <= this->gbuffer->getActSize()) act_policy = INPUTS;
         else if (subset_windows_size + subset_windows_output_size <= this->gbuffer->getActSize()) act_policy = SET;
         else if (subset_windows_size + subsets_output_size <= this->gbuffer->getActSize()) act_policy = SUBSET;
-        else act_policy = CHANNELS;
+        else if (row_input_size + subsets_output_size <= this->gbuffer->getActSize()) act_policy = CHANNELS;
+        else throw std::runtime_error("Activation memory size too small to allocate one buffer row and one set outputs.");
 
         MemPolicy wgt_policy;
         if (all_filters_size <= this->gbuffer->getWgtSize()) wgt_policy = ALL;
         else if (subset_filters_size <= this->gbuffer->getWgtSize()) wgt_policy = SET;
-        else wgt_policy = CHANNELS;
+        else if (row_filter_size <= this->gbuffer->getWgtSize()) wgt_policy = CHANNELS;
+        else throw std::runtime_error("Weight memory size too small to allocate one buffer row.");
 
         uint32_t time_steps_act = 1, time_steps_wgt = 1;
         auto total_filter_sets = (uint32_t)ceil(num_filters / (double)subset_filters);
@@ -68,15 +72,15 @@ namespace core {
             assert(output_left_size < this->gbuffer->getActSize());
 
             filter_sets_per_step_act = output_left_size / subset_filters_output_size;
-            assert(filter_sets_per_step_act != total_filter_sets);
+            assert(filter_sets_per_step_act < total_filter_sets);
         } else if (act_policy == SET) {
             // None
         } else if (act_policy == SUBSET) {
             auto output_left_size = this->gbuffer->getActSize() - subset_windows_size;
             assert(output_left_size < this->gbuffer->getActSize());
 
-            filter_sets_per_step_act = output_left_size / subset_filters_output_size;
-            assert(filter_sets_per_step_act != total_filter_sets);
+            filter_sets_per_step_act = output_left_size / subsets_output_size;
+            assert(filter_sets_per_step_act < total_filter_sets);
         } else {
             auto input_left_size = this->gbuffer->getActSize() - subsets_output_size;
             assert(input_left_size < this->gbuffer->getActSize());
@@ -92,7 +96,7 @@ namespace core {
             // None
         } else if (wgt_policy == SET) {
             filter_sets_per_step_wgt = this->gbuffer->getWgtSize() / subset_filters_size;
-            assert(filter_sets_per_step_wgt != this->filter_sets);
+            assert(filter_sets_per_step_wgt < this->filter_sets);
         } else {
             filter_sets_per_step_wgt = 1;
             time_steps_wgt = (uint32_t)ceil(subset_filters_size / (double)this->gbuffer->getWgtSize());
@@ -113,7 +117,7 @@ namespace core {
         } else {
             auto window_out_size = (uint32_t)ceil(subset_filters * filter_sets_per_step
                     * this->dram->getBaseDataSize() / 8.);
-            this->fill_window_steps(window_steps, window_out_size);
+            this->fill_window_steps(window_steps, window_out_size, act_channels);
             assert(window_steps.size() > 1);
         }
 
@@ -164,6 +168,7 @@ namespace core {
 
                     node->time_step = tstep;
                     node->max_time = max_time_per_step;
+                    node->layer_act_on_chip = this->layer_act_on_chip;
                     node->groups = {0};
 
                     // Fil activations
@@ -179,9 +184,11 @@ namespace core {
                     } else if (act_policy == SET || act_policy == SUBSET) {
                         if (fstep == 0 && tstep == 0 && ((!this->layer_act_on_chip && wstep == 0) || wstep != 0)) {
                             node->read_act_addresses = this->generate_addresses(0, blks_per_window, last_act_blk,
-                                    start_window, end_window);
+                                    start_window, end_window, 0);
                             node->evict_act = true;
                         }
+
+                        node->layer_act_on_chip = wstep == 0 ? this->layer_act_on_chip : false;
 
                     } else {
                         auto start_act_blk = tstep * blocks_per_step;
@@ -193,7 +200,7 @@ namespace core {
                         }
 
                         node->read_act_addresses = this->generate_addresses(start_act_blk, end_act_blk, last_act_blk,
-                                start_window, end_window);
+                                start_window, end_window, 0);
                         node->evict_act = true;
 
                         if (fstep != 0 || tstep != 0)
@@ -206,9 +213,9 @@ namespace core {
                     std::iota(node->filter_sets.begin(), node->filter_sets.end(), start_filter_subset);
 
                     if (wgt_policy == ALL) {
-                        if (wstep == 0 && tstep == 0) {
-                            auto first_address = std::get<0>(this->wgt_address_map[start_filter_set]);
-                            auto last_address = std::get<1>(this->wgt_address_map[end_filter_set - 1]);
+                        if (wstep == 0 && fstep == 0 && tstep == 0) {
+                            auto first_address = std::get<0>(this->wgt_address_map[0]);
+                            auto last_address = std::get<1>(this->wgt_address_map[total_filter_sets - 1]);
                             node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
                         }
 
@@ -305,33 +312,60 @@ namespace core {
 
         auto num_windows = this->out_x * this->out_y;
 
+        auto all_input_size = (uint32_t)ceil(act_channels * Nx * Ny * this->dram->getActDataSize() / 8.);
         auto subset_windows = std::min((uint32_t)num_windows, this->EF_COLUMNS);
+        auto subset_windows_size = (uint32_t)(subset_windows * act_channels * Kx * Ky //TODO reduce worst case size
+                * this->dram->getActDataSize() / 8.);
+        auto group_subset_windows_size = (uint32_t)(subset_windows * this->filters_per_group * Kx * Ky //TODO reduce worst case size
+                * this->dram->getActDataSize() / 8.);
 
         auto all_filters_size = (uint32_t)ceil(num_filters * wgt_channels * Kx * Ky
                 * this->dram->getWgtDataSize() / 8.);
         auto subset_filters_size = (uint32_t)ceil(this->filters_per_group * wgt_channels * Kx * Ky
                 * this->dram->getWgtDataSize() / 8.);
 
-        MemPolicy act_policy = ALL;
+        auto all_output_size = (uint32_t)ceil(num_filters * num_windows * this->dram->getBaseDataSize() / 8.);
+        auto subset_filters_output_size = (uint32_t)ceil(this->filters_per_group * num_windows
+                * this->dram->getBaseDataSize() / 8.);
+        auto subset_windows_output_size = (uint32_t)ceil(num_filters * subset_windows
+                * this->dram->getBaseDataSize() / 8.);
+        auto subsets_output_size = (uint32_t)ceil(this->filters_per_group * subset_windows
+                * this->dram->getBaseDataSize() / 8.);
+
+        MemPolicy act_policy;
+        if (all_input_size + all_output_size <= this->gbuffer->getActSize()) act_policy = ALL;
+        else if (all_input_size + subset_filters_output_size <= this->gbuffer->getActSize()) act_policy = INPUTS;
+        else if (subset_windows_size + subset_windows_output_size <= this->gbuffer->getActSize()) act_policy = SET;
+        else if (group_subset_windows_size + subsets_output_size <= this->gbuffer->getActSize()) act_policy = GROUPS;
+        else throw std::runtime_error("Activation memory size too small to allocate one window set and group outputs.");
 
         MemPolicy wgt_policy;
         if (all_filters_size <= this->gbuffer->getWgtSize()) wgt_policy = ALL;
-        else wgt_policy = GROUPS;
+        else if (subset_filters_size <= this->gbuffer->getWgtSize()) wgt_policy = GROUPS;
+        else throw std::runtime_error("Weight memory size too small to allocate one group of filters.");
 
         auto groups_per_step_act = this->groups, groups_per_step_wgt = this->groups;
 
         if (act_policy == ALL) {
             this->next_layer_act_on_chip = true;
+        } else if (act_policy == INPUTS) {
+            auto output_left_size = this->gbuffer->getActSize() - all_input_size;
+            assert(output_left_size < this->gbuffer->getActSize());
+
+            groups_per_step_act = output_left_size / subset_filters_output_size;
+            assert(groups_per_step_act < (this->filter_sets * this->groups));
+        } else if (act_policy == SET) {
+            // None
+        } else {
+            groups_per_step_act = this->gbuffer->getActSize() / (group_subset_windows_size + subsets_output_size);
+            assert(groups_per_step_act < (this->filter_sets * this->groups));
         }
 
         if (wgt_policy == ALL) {
             // None
-        } else if (wgt_policy == GROUPS) {
-            if (subset_filters_size > this->gbuffer->getWgtSize())
-                throw std::runtime_error("Weight memory size too small to allocate one group of filters.");
-
+        } else {
             groups_per_step_wgt = this->gbuffer->getWgtSize() / subset_filters_size;
-            assert(groups_per_step_wgt != (this->filter_sets * this->groups));
+            assert(groups_per_step_wgt < (this->filter_sets * this->groups));
         }
 
         auto groups_per_step = std::min(groups_per_step_act, groups_per_step_wgt);
@@ -341,12 +375,23 @@ namespace core {
         if (act_policy == ALL || act_policy == INPUTS) {
             window_steps.emplace_back(std::vector<int>(this->window_sets, 0));
             std::iota(window_steps.front().begin(), window_steps.front().end(), 0);
+        } else {
+            auto channels = std::min(this->filters_per_group * groups_per_step, (uint32_t)act_channels);
+            auto window_out_size = (uint32_t)ceil(this->filters_per_group * groups_per_step
+                    * this->dram->getBaseDataSize() / 8.);
+            this->fill_window_steps(window_steps, window_out_size, channels);
         }
 
-        auto last_act_blk = (uint64_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
-
-        auto filter_sets_per_group = (uint32_t)ceil(this->filters_per_group / (double)this->filters_per_group);
+        auto filter_sets_per_group = (uint32_t)ceil(this->filters_per_group /
+                (double)(this->EF_ROWS * this->arch->getTiles()));
         auto total_filter_sets = this->groups * filter_sets_per_group;
+
+        auto last_act_blk = (uint32_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
+        auto last_grp_act_blk = (uint32_t)ceil(this->filters_per_group / (double)this->dram->getActValuesPerBlock());
+
+        auto blks_per_window_group = (uint32_t)ceil(Ky * Kx * this->filters_per_group /
+                (double)this->dram->getActValuesPerBlock());
+        auto blocks_per_step = blks_per_window_group * groups_per_step;
 
         auto next_out_address = this->next_act_address;
 
@@ -356,10 +401,10 @@ namespace core {
 
             auto start_group = gstep * groups_per_step;
             auto total_groups = std::min(groups_per_step, this->groups - start_group);
-            auto end_group = start_group + total_groups;
+            auto start_act_ch = start_group * last_grp_act_blk;
 
-            auto start_filter_set = gstep * filter_sets_per_group;
-            auto filter_per_set = std::min(total_groups * filter_sets_per_group, total_filter_sets - start_filter_set);
+            auto start_filter_set = gstep * groups_per_step * filter_sets_per_group;
+            auto filter_per_set = std::min(groups_per_step * filter_sets_per_group, total_filter_sets - start_filter_set);
             auto end_filter_set = start_filter_set + filter_per_set;
 
             auto start_filter = gstep * this->filters_per_group;
@@ -377,6 +422,7 @@ namespace core {
 
                 node->time_step = 0;
                 node->max_time = this->max_buffer_time;
+                node->layer_act_on_chip = this->layer_act_on_chip;
 
                 // Fil groups
                 node->groups = std::vector<int>(total_groups, 0);
@@ -392,6 +438,15 @@ namespace core {
                         node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
                     }
 
+                } else {
+                    if ((!this->layer_act_on_chip && wstep == 0) || wstep != 0) {
+                        node->read_act_addresses = this->generate_addresses(0, blocks_per_step,
+                                last_grp_act_blk * total_groups, start_window, end_window, start_act_ch);
+                        node->evict_act = true;
+                    }
+
+                    node->layer_act_on_chip = gstep == 0 && wstep == 0 ? this->layer_act_on_chip : false;
+
                 }
 
                 // Fil filters
@@ -400,8 +455,8 @@ namespace core {
 
                 if (wgt_policy == ALL) {
                     if (gstep == 0 && wstep == 0) {
-                        auto first_address = std::get<0>(this->wgt_address_map[start_filter_set]);
-                        auto last_address = std::get<1>(this->wgt_address_map[end_filter_set - 1]);
+                        auto first_address = std::get<0>(this->wgt_address_map[0]);
+                        auto last_address = std::get<1>(this->wgt_address_map[this->filter_sets * this->groups - 1]);
                         node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
                     }
 
@@ -444,10 +499,12 @@ namespace core {
         auto wgt_channels = wgt_shape[1];
 
         auto all_input_size = (uint32_t)ceil(act_channels * this->dram->getActDataSize() / 8.);
+        auto row_input_size = (uint32_t)ceil(all_input_size / (double)this->max_buffer_time);
 
         auto all_filters_size = (uint32_t)ceil(num_filters * wgt_channels * this->dram->getWgtDataSize() / 8.);
         auto subset_filters = std::min((uint32_t)num_filters, this->EF_ROWS * this->arch->getTiles());
         auto subset_filters_size = (uint32_t)ceil(subset_filters * wgt_channels * this->dram->getWgtDataSize() / 8.);
+        auto row_filter_size = (uint32_t)ceil(subset_filters_size / (double)this->max_buffer_time);
 
         auto all_output_size = (uint32_t)ceil(num_filters * this->dram->getBaseDataSize() / 8.);
         auto subset_filters_output_size = (uint32_t)ceil(subset_filters * this->dram->getBaseDataSize() / 8.);
@@ -455,12 +512,14 @@ namespace core {
         MemPolicy act_policy;
         if (all_input_size + all_output_size <= this->gbuffer->getActSize()) act_policy = ALL;
         else if (all_input_size + subset_filters_output_size <= this->gbuffer->getActSize()) act_policy = INPUTS;
-        else act_policy = CHANNELS;
+        else if (row_input_size + subset_filters_output_size <= this->gbuffer->getActSize()) act_policy = CHANNELS;
+        else throw std::runtime_error("Activation memory size too small to allocate one buffer row and one set outputs.");
 
         MemPolicy wgt_policy;
         if (all_filters_size <= this->gbuffer->getWgtSize()) wgt_policy = ALL;
         else if (subset_filters_size <= this->gbuffer->getWgtSize()) wgt_policy = SET;
-        else wgt_policy = CHANNELS;
+        else if (row_filter_size <= this->gbuffer->getWgtSize()) wgt_policy = CHANNELS;
+        else throw std::runtime_error("Weight memory size too small to allocate one buffer row.");
 
         uint32_t time_steps_act = 1, time_steps_wgt = 1;
         auto total_filter_sets = (uint32_t)ceil(num_filters / (double)subset_filters);
@@ -473,7 +532,7 @@ namespace core {
             assert(output_left_size < this->gbuffer->getActSize());
 
             filter_sets_per_step_act = output_left_size / subset_filters_output_size;
-            assert(filter_sets_per_step_act != total_filter_sets);
+            assert(filter_sets_per_step_act < total_filter_sets);
         } else {
             auto input_left_size = this->gbuffer->getActSize() - subset_filters_output_size;
             assert(input_left_size < this->gbuffer->getActSize());
@@ -489,7 +548,7 @@ namespace core {
             // None
         } else if (wgt_policy == SET) {
             filter_sets_per_step_wgt = this->gbuffer->getWgtSize() / subset_filters_size;
-            assert(filter_sets_per_step_wgt != this->filter_sets);
+            assert(filter_sets_per_step_wgt < this->filter_sets);
         } else {
             filter_sets_per_step_wgt = 1;
             time_steps_wgt = (uint32_t)ceil(subset_filters_size / (double)this->gbuffer->getWgtSize());
@@ -540,6 +599,7 @@ namespace core {
 
                     node->time_step = tstep;
                     node->max_time = max_time_per_step;
+                    node->layer_act_on_chip = this->layer_act_on_chip;
                     node->recurrence = r;
 
                     // Fil activations
@@ -560,6 +620,8 @@ namespace core {
                             node->read_act_addresses.emplace_back(std::make_tuple(first_address, last_address));
                             node->evict_act = true;
                         }
+
+                        node->layer_act_on_chip = r == 0 ? this->layer_act_on_chip : false;
 
                         if (fstep != 0)
                             node->use_prev_buffer = true;
@@ -588,9 +650,9 @@ namespace core {
                     std::iota(node->filter_sets.begin(), node->filter_sets.end(), start_filter_subset);
 
                     if (wgt_policy == ALL) {
-                        if (r == 0 && tstep == 0) {
-                            auto first_address = std::get<0>(this->wgt_address_map[start_filter_set]);
-                            auto last_address = std::get<1>(this->wgt_address_map[end_filter_set - 1]);
+                        if (r == 0 && fstep == 0 && tstep == 0) {
+                            auto first_address = std::get<0>(this->wgt_address_map[0]);
+                            auto last_address = std::get<1>(this->wgt_address_map[total_filter_sets - 1]);
                             node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
                         }
 
@@ -703,6 +765,7 @@ namespace core {
         const auto &time_step = current_node->time_step;
         const auto &max_time = current_node->max_time;
         const auto &use_prev_buffer = current_node->use_prev_buffer;
+        const auto &layer_act_on_chip = current_node->layer_act_on_chip;
 
         while (this->group_it < groups.size()) {
             auto group_idx = groups[this->group_it];
@@ -795,11 +858,11 @@ namespace core {
                                     std::min(this->window_buffer.begin() + set_time +
                                     num_act_rows, this->window_buffer.end()));
                             if (first) {
-                                if (!this->layer_act_on_chip) {
+                                if (!layer_act_on_chip) {
                                     tiles_data[t].act_addresses =
                                             AddressBufferSet(this->window_address_buffer.begin() + set_time,
-                                            std::min(this->window_address_buffer.begin() + set_time +
-                                            num_act_rows, this->window_address_buffer.end()));
+                                            std::min(this->window_address_buffer.begin() + set_time + num_act_rows,
+                                            this->window_address_buffer.end()));
                                 }
                                 tiles_data[t].act_banks = this->window_bank_buffer[set_time];
                                 first = false;
@@ -892,6 +955,7 @@ namespace core {
         const auto &time_step = current_node->time_step;
         const auto &max_time = current_node->max_time;
         const auto &use_prev_buffer = current_node->use_prev_buffer;
+        const auto &layer_act_on_chip = current_node->layer_act_on_chip;
 
         // Fill window buffer
         if (!use_prev_buffer && !this->window_buffer_filled) {
@@ -964,11 +1028,11 @@ namespace core {
                             std::min(this->window_buffer.begin() + set_time +
                             num_act_rows, this->window_buffer.end()));
                     if (first) {
-                        if (!this->layer_act_on_chip) {
+                        if (!layer_act_on_chip) {
                             tiles_data[t].act_addresses =
                                     AddressBufferSet(this->window_address_buffer.begin() + set_time,
-                                    std::min(this->window_address_buffer.begin() + set_time +
-                                    num_act_rows, this->window_address_buffer.end()));
+                                    std::min(this->window_address_buffer.begin() + set_time + num_act_rows,
+                                    this->window_address_buffer.end()));
                         }
                         tiles_data[t].act_banks = this->window_bank_buffer[set_time];
                         first = false;

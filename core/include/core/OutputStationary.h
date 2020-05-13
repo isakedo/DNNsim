@@ -114,10 +114,10 @@ namespace core {
         /** Indicate if filter buffer already filled */
         bool filter_buffer_filled = false;
 
-        void fill_window_steps(std::vector<std::vector<int>> &window_steps, uint32_t output_size);
+        void fill_window_steps(std::vector<std::vector<int>> &window_steps, uint32_t output_size, uint32_t channels);
 
         std::vector<AddressRange> generate_addresses(uint32_t start_act_blk, uint32_t end_act_blk,
-                uint32_t last_act_blk, uint32_t start_window, uint32_t end_window);
+                uint32_t last_act_blk, uint32_t start_window, uint32_t end_window, uint32_t start_group);
 
         void generate_memory_maps() override;
 

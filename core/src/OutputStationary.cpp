@@ -7,13 +7,12 @@ namespace core {
 
     template <typename T>
     void OutputStationary<T>::fill_window_steps(std::vector<std::vector<int>> &window_steps,
-            uint32_t window_out_size) {
+            uint32_t window_out_size, uint32_t channels) {
 
         const std::vector<size_t> &act_shape = this->act->getShape();
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
 
         auto num_windows = this->out_x * this->out_y;
-        auto act_channels = act_shape[1];
         auto Nx = act_shape[2];
         auto Ny = act_shape[3];
 
@@ -50,7 +49,7 @@ namespace core {
                 set_size += window_out_size;
             }
 
-            set_size += ceil(new_positions.size() * act_channels * this->dram->getActDataSize() / 8.);
+            set_size += ceil(new_positions.size() * channels * this->dram->getActDataSize() / 8.);
 
             if (tmp_size + set_size > this->gbuffer->getActSize()) {
                 assert(!tmp_window_steps.empty());
@@ -76,7 +75,7 @@ namespace core {
 
     template <typename T>
     std::vector<AddressRange> OutputStationary<T>::generate_addresses(uint32_t start_act_blk, uint32_t end_act_blk,
-            uint32_t last_act_blk, uint32_t start_window, uint32_t end_window) {
+            uint32_t last_act_blk, uint32_t start_window, uint32_t end_window, uint32_t start_group) {
 
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
 
@@ -104,7 +103,8 @@ namespace core {
             while (y < Ky && idx != window_blks) {
                 while (x < Kx && idx != window_blks) {
                     while (ch < last_act_blk && idx != window_blks) {
-                        read_addresses[w * window_blks + idx] = act_address_map[y_window + y][x_window + x][ch];
+                        read_addresses[w * window_blks + idx] =
+                                act_address_map[y_window + y][x_window + x][start_group + ch];
                         idx++;
                         ch++;
                     }
@@ -136,8 +136,11 @@ namespace core {
         }
 
         // Generate address map
+        auto channel_blks = this->groups > 1 ?
+                ceil(this->filters_per_group / (double)this->dram->getActValuesPerBlock()) * this->groups :
+                ceil(act_channels / (double)this->dram->getActValuesPerBlock());
         act_address_map = std::vector<std::vector<std::vector<uint64_t>>>(Ny, std::vector<std::vector<uint64_t>>(Nx,
-                std::vector<uint64_t>(ceil(act_channels / (double)this->dram->getActValuesPerBlock()))));
+                std::vector<uint64_t>(channel_blks)));
 
         // Column third
         for (int y = 0; y < Ny; ++y) {
@@ -146,9 +149,8 @@ namespace core {
             for (int x = 0; x < Nx; ++x) {
 
                 // Store channel-first
-                for (int k = 0; k < act_channels; k += this->dram->getActValuesPerBlock()) {
-                    act_address_map[y][x][k/this->dram->getActValuesPerBlock()] =
-                            this->dram->getStartActAddress() + next_act_address;
+                for (int k = 0; k < channel_blks; ++k) {
+                    act_address_map[y][x][k] = this->dram->getStartActAddress() + next_act_address;
                     next_act_address += BLOCK_SIZE;
                 }
             }
@@ -399,7 +401,7 @@ namespace core {
 
                             int addr_pos = w * addresses_per_window + index / this->dram->getActValuesPerBlock();
                             window_address_buffer[buffer_time][addr_pos] = act_address_map[y_window + y]
-                                    [x_window + x][ch / this->dram->getActValuesPerBlock()];
+                                    [x_window + x][(start_group + ch) / this->dram->getActValuesPerBlock()];
 
                             for (int b = 0; b < this->ACT_BLKS; ++b) {
                                 int bank_pos = w * accesses_per_window + bank_index;

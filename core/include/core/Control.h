@@ -28,6 +28,7 @@ namespace core {
         public:
             bool evict_act = false;
             bool evict_wgt = false;
+            bool layer_act_on_chip = false;
             std::vector<AddressRange> read_act_addresses;
             std::vector<AddressRange> read_wgt_addresses;
             std::vector<AddressRange> write_addresses;
