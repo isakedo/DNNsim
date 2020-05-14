@@ -74,9 +74,7 @@ average results for all images. Finally, the last line corresponds to the total 
 | model | Description |
 |:---:|:---:|
 | Caffe | Load network model from *train_val.prototxt*, precisions from *precision.txt*, and traces from numpy arrays |
-| Trace | Load network model from *trace_params.csv*, precisions from *precision.txt*, and traces from numpy arrays | 
-| CParams | Load network model and precisions from *conv_params.csv*, and traces from numpy arrays | 
-| Protobuf | Load network model, precisions, and traces from a protobuf file |
+| CSV | Load network model from *model.csv*, precisions from *precision.txt*, and traces from numpy arrays | 
 
 *  Allowed architectures for the experiments:
 
@@ -104,7 +102,7 @@ The batch file can be constructed as follows for the simulation tool:
 | Name | Data Type | Description | Valid Options | Default |
 |:---:|:---:|:---:|:---:|:---:|
 | batch | uint32 | Corresponding batch for the Numpy traces | Positive numbers | 0 | 
-| model | string | Format of the input model definition and traces | Trace-Caffe-CParams-Protobuf | N/A |
+| model | string | Format of the input model definition and traces | Caffe-CSV | N/A |
 | data_type | string | Data type of the input traces | Float-Fixed | N/A |
 | network | string | Name of the network as in the models folder | Valid path | N/A |
 | data_width | uint32 | Number of baseline bits of the network | Positive Number | 16 |
@@ -121,8 +119,8 @@ They can be found [here](examples/).
 | | | **Memory Parameters** | | |
 | cpu_clock_freq | string | Compute frequency | NUM (G&#124;M&#124;K) Hz | 1GHz |
 | dram_size | string | DRAM off-chip size | NUM \(G&#124;M&#124;Gi&#124;Mi) B | 16GiB |
-| dram_start_act_address | uint64 | DRAM start activations address | Positive Number | 0x00000000 |
-| dram_start_wgt_address | uint64 | DRAM start weight address | Positive Number | 0x80000000 |
+| dram_start_act_address | uint64 | DRAM start activations address | Positive Number | 0x80000000 |
+| dram_start_wgt_address | uint64 | DRAM start weight address | Positive Number | 0x00000000 |
 | gbuffer_act_size | string | Global Buffer activations On-chip size | NUM \(G&#124;M&#124;K&#124;Gi&#124;Mi&#124;Ki\) B | 1GiB |
 | gbuffer_wgt_size | string | Global Buffer weights On-chip size | NUM \(G&#124;M&#124;K&#124;Gi&#124;Mi&#124;Ki\) B | 1GiB |
 | gbuffer_act_banks | uint32 | Global Buffer activations On-chip banks | Positive Number | 16 |

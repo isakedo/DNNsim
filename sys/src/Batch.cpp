@@ -128,7 +128,6 @@ namespace sys {
             if (dram_range <= dram_wgt_addr_range)
                 throw std::runtime_error("DRAM start weight addresses out of range.");
 
-
             try {
                 if (experiment_proto.gbuffer_act_size().empty())
                     experiment.gbuffer_act_size = (uint64_t)pow(10, 9);
@@ -136,6 +135,7 @@ namespace sys {
             } catch (const std::exception &e) {
                 throw std::runtime_error("Global Buffer activation size not recognised.");
             }
+
             try {
                 if (experiment_proto.gbuffer_wgt_size().empty())
                     experiment.gbuffer_wgt_size = (uint64_t)pow(10, 9);
@@ -143,6 +143,7 @@ namespace sys {
             } catch (const std::exception &e) {
                 throw std::runtime_error("Global Buffer weights size not recognised.");
             }
+
             experiment.gbuffer_act_banks = experiment_proto.gbuffer_act_banks() < 1 ? 16 :
                     experiment_proto.gbuffer_act_banks();
             experiment.gbuffer_wgt_banks = experiment_proto.gbuffer_wgt_banks() < 1 ? 256 :
