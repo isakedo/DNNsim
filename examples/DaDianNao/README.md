@@ -12,11 +12,11 @@ The following parameters are valid for this architecture:
 
 | Name | Data Type | Description | Valid Options | Default |
 |:---:|:---:|:---:|:---:|:---:|
-| n_lanes | uint32 | Number of concurrent multiplications per PE | Positive Number | 16 |
-| n_columns | uint32 | Number of columns/windows in the tile | Positive number | 16 |
-| n_rows | uint32 | Number of rows/filters in the tile | Positive number | 16 |
-| n_tiles | uint32 | Number of tiles | Positive number | 16 |
-| bits_pe | uint32 | Number of bits per PE | Positive number | 16 |
+| lanes | uint32 | Number of concurrent multiplications per PE | Positive Number | 16 |
+| columns | uint32 | Number of columns/windows in the tile | Positive number | 16 |
+| rows | uint32 | Number of rows/filters in the tile | Positive number | 16 |
+| tiles | uint32 | Number of tiles | Positive number | 16 |
+| pe_width | uint32 | PE input bit-width | Positive number | 16 |
 | tactical | bool | Add BitTactical zero weight skipping on top | True-False | false |
 | lookahead_h | uint32 | Lookahead value of H | Positive number | 2 |
 | lookaside_d | uint32 | Lookaside value of D | Positive number | 5 |

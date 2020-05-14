@@ -4,12 +4,20 @@ simulate {
 	data_type: "Fixed"
 	experiment {
         architecture: "ShapeShifter"
+        task: "Potentials"
+        minor_bit: false
+        tactical: true
+    }
+	experiment {
+        architecture: "ShapeShifter"
         task: "Cycles"
-        n_lanes: 16
-        n_columns: 16
-        n_rows: 16
-        n_tiles: 16
-        bits_pe: 16
+        dataflow: "WindowFirstOutS"
+
+        lanes: 16
+        columns: 16
+        rows: 16
+        tiles: 16
+        pe_width: 16
         group_size: 1
         column_registers: 0
         minor_bit: false
@@ -17,11 +25,32 @@ simulate {
         lookahead_h: 2
         lookaside_d: 5
         search_shape: 'T'
-	}
-	experiment {
-        architecture: "ShapeShifter"
-        task: "Potentials"
-        minor_bit: false
-        tactical: true
+
+        cpu_clock_freq: "1GHz"
+
+        dram_size: "16GiB"
+        dram_start_act_address: 0x80000000
+        dram_start_wgt_address: 0x00000000
+
+        gbuffer_act_size: "1GiB"
+        gbuffer_wgt_size: "1GiB"
+        gbuffer_act_banks: 16
+        gbuffer_wgt_banks: 256
+        gbuffer_out_banks: 16
+        gbuffer_bank_width: 256
+        gbuffer_read_delay: 1
+        gbuffer_write_delay: 1
+
+        abuffer_rows: 2
+        abuffer_read_delay: 1
+        wbuffer_rows: 2
+        wbuffer_read_delay: 1
+        obuffer_rows: 2
+        obuffer_write_delay: 1
+
+        composer_inputs: 256
+        composer_delay: 1
+        ppu_inputs: 16
+        ppu_delay: 1
 	}
 }

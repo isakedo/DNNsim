@@ -104,7 +104,11 @@ namespace sys {
             // Memory parameters
             try {
                 if (experiment_proto.dram_size().empty()) experiment.dram_size = (uint64_t)pow(2, 14);
-                else experiment.dram_size = parse_memory_size(experiment_proto.dram_size());
+                else {
+                    experiment.dram_size = parse_memory_size(experiment_proto.dram_size());
+                    if (experiment.dram_size < pow(2, 20)) experiment.dram_size = 1;
+                    else experiment.dram_size /= pow(2, 20);
+                }
             } catch (const std::exception &e) {
                 throw std::runtime_error("DRAM size not recognised.");
             }
@@ -114,47 +118,58 @@ namespace sys {
             experiment.dram_start_wgt_address = experiment_proto.dram_start_wgt_address() < 1 ? 0x00000000 :
                     experiment_proto.dram_start_wgt_address();
 
+            auto dram_range = log2(experiment.dram_size * pow(2, 20));
+
+            auto dram_act_addr_range = log2(experiment.dram_start_act_address);
+            if (dram_range <= dram_act_addr_range)
+                throw std::runtime_error("DRAM start activation addresses out of range.");
+
+            auto dram_wgt_addr_range = log2(experiment.dram_start_wgt_address);
+            if (dram_range <= dram_wgt_addr_range)
+                throw std::runtime_error("DRAM start weight addresses out of range.");
+
+
             try {
-                if (experiment_proto.global_buffer_act_size().empty())
-                    experiment.global_buffer_act_size = (uint64_t)pow(10, 9);
-                else experiment.global_buffer_act_size = parse_memory_size(experiment_proto.global_buffer_act_size());
+                if (experiment_proto.gbuffer_act_size().empty())
+                    experiment.gbuffer_act_size = (uint64_t)pow(10, 9);
+                else experiment.gbuffer_act_size = parse_memory_size(experiment_proto.gbuffer_act_size());
             } catch (const std::exception &e) {
                 throw std::runtime_error("Global Buffer activation size not recognised.");
             }
             try {
-                if (experiment_proto.global_buffer_wgt_size().empty())
-                    experiment.global_buffer_wgt_size = (uint64_t)pow(10, 9);
-                else experiment.global_buffer_wgt_size = parse_memory_size(experiment_proto.global_buffer_wgt_size());
+                if (experiment_proto.gbuffer_wgt_size().empty())
+                    experiment.gbuffer_wgt_size = (uint64_t)pow(10, 9);
+                else experiment.gbuffer_wgt_size = parse_memory_size(experiment_proto.gbuffer_wgt_size());
             } catch (const std::exception &e) {
                 throw std::runtime_error("Global Buffer weights size not recognised.");
             }
-            experiment.global_buffer_act_banks = experiment_proto.global_buffer_act_banks() < 1 ? 16 :
-                    experiment_proto.global_buffer_act_banks();
-            experiment.global_buffer_wgt_banks = experiment_proto.global_buffer_wgt_banks() < 1 ? 256 :
-                    experiment_proto.global_buffer_wgt_banks();
-            experiment.global_buffer_out_banks = experiment_proto.global_buffer_out_banks() < 1 ? 16 :
-                    experiment_proto.global_buffer_out_banks();
-            experiment.global_buffer_bank_width = experiment_proto.global_buffer_bank_width() < 1 ? 256 :
-                    experiment_proto.global_buffer_bank_width();
-            experiment.global_buffer_read_delay = experiment_proto.global_buffer_read_delay() < 1 ? 1 :
-                    experiment_proto.global_buffer_read_delay();
-            experiment.global_buffer_write_delay = experiment_proto.global_buffer_write_delay() < 1 ? 1 :
-                    experiment_proto.global_buffer_write_delay();
+            experiment.gbuffer_act_banks = experiment_proto.gbuffer_act_banks() < 1 ? 16 :
+                    experiment_proto.gbuffer_act_banks();
+            experiment.gbuffer_wgt_banks = experiment_proto.gbuffer_wgt_banks() < 1 ? 256 :
+                    experiment_proto.gbuffer_wgt_banks();
+            experiment.gbuffer_out_banks = experiment_proto.gbuffer_out_banks() < 1 ? 16 :
+                    experiment_proto.gbuffer_out_banks();
+            experiment.gbuffer_bank_width = experiment_proto.gbuffer_bank_width() < 1 ? 256 :
+                    experiment_proto.gbuffer_bank_width();
+            experiment.gbuffer_read_delay = experiment_proto.gbuffer_read_delay() < 1 ? 1 :
+                    experiment_proto.gbuffer_read_delay();
+            experiment.gbuffer_write_delay = experiment_proto.gbuffer_write_delay() < 1 ? 1 :
+                    experiment_proto.gbuffer_write_delay();
 
-            experiment.act_buffer_rows = experiment_proto.act_buffer_rows() < 1 ? 2 :
-                    experiment_proto.act_buffer_rows();
-            experiment.act_buffer_read_delay = experiment_proto.act_buffer_read_delay() < 1 ? 1 :
-                    experiment_proto.act_buffer_read_delay();
+            experiment.abuffer_rows = experiment_proto.abuffer_rows() < 1 ? 2 :
+                    experiment_proto.abuffer_rows();
+            experiment.abuffer_read_delay = experiment_proto.abuffer_read_delay() < 1 ? 1 :
+                    experiment_proto.abuffer_read_delay();
 
-            experiment.wgt_buffer_rows = experiment_proto.wgt_buffer_rows() < 1 ? 2 :
-                    experiment_proto.wgt_buffer_rows();
-            experiment.wgt_buffer_read_delay = experiment_proto.wgt_buffer_read_delay() < 1 ? 1 :
-                    experiment_proto.wgt_buffer_read_delay();
+            experiment.wbuffer_rows = experiment_proto.wbuffer_rows() < 1 ? 2 :
+                    experiment_proto.wbuffer_rows();
+            experiment.wbuffer_read_delay = experiment_proto.wbuffer_read_delay() < 1 ? 1 :
+                    experiment_proto.wbuffer_read_delay();
 
-            experiment.out_buffer_rows = experiment_proto.out_buffer_rows() < 1 ? 2 :
-                    experiment_proto.out_buffer_rows();
-            experiment.out_buffer_write_delay = experiment_proto.out_buffer_write_delay() < 1 ? 1 :
-                    experiment_proto.out_buffer_write_delay();
+            experiment.obuffer_rows = experiment_proto.obuffer_rows() < 1 ? 2 :
+                    experiment_proto.obuffer_rows();
+            experiment.obuffer_write_delay = experiment_proto.obuffer_write_delay() < 1 ? 1 :
+                    experiment_proto.obuffer_write_delay();
 
             experiment.composer_inputs = experiment_proto.composer_inputs() < 1 ? 256 :
                     experiment_proto.composer_inputs();

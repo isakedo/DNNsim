@@ -4,6 +4,10 @@ simulate {
 	data_type: "Float"
 	experiment {
         architecture: "SCNN"
+        task: "Potentials"
+	}
+	experiment {
+        architecture: "SCNN"
         task: "Cycles"
         Wt: 32
         Ht: 32
@@ -11,9 +15,5 @@ simulate {
         F: 4
         out_acc_size: 1024
         banks: 32
-	}
-	experiment {
-        architecture: "SCNN"
-        task: "Potentials"
 	}
 }

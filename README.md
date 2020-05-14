@@ -1,6 +1,6 @@
 # DNNsim 
 
-## Requeriments
+## Requirements
 *   Cmake version >= 3.10
 *   GNU C++ compiler version >= 5.1
 *   Google Protobuf for C++. Installation link:
@@ -27,12 +27,12 @@ Then, we can proceed to build the project
 Create folder **models** including a folder for each network. Every network must include one of these files:
    *  train_val.prototxt
    *  model.csv (Instead of the prototxt file)
-      *  _Header_: \<Name\>:\<Type(conv|fc|lstm)\>:\<Stride\>:\<Padding\>             
+      *  _Header_: \<Name\>:\<Type(conv|fc|rnn)\>:\<Stride\>:\<Padding\>             
       
 They can also include a:      
    *  precision.txt (Contain 5 lines as the example, first line is skipped)
-        *   If this file does not exist the precisions are 14:2 for activations and 1:15 for weights
-        *   If the network traces are already quantized, create precision file with precision 8:0 (for 8b traces)
+        *   If this file does not exist the layers are quantized using linear quantization
+        *   If the network traces are already quantized, a precision file must be created with precisions 8:0 (for 8b traces)
    
    ```
    magnitude (+1 of the sign), fraction, wgt_magnitude, wgt_fraction
@@ -104,17 +104,41 @@ The batch file can be constructed as follows for the simulation tool:
 | Name | Data Type | Description | Valid Options | Default |
 |:---:|:---:|:---:|:---:|:---:|
 | batch | uint32 | Corresponding batch for the Numpy traces | Positive numbers | 0 | 
-| epoch | uint32 | Number of epochs in the Numpy traces | Positive numbers | 1 | 
 | model | string | Format of the input model definition and traces | Trace-Caffe-CParams-Protobuf | N/A |
 | data_type | string | Data type of the input traces | Float-Fixed | N/A |
 | network | string | Name of the network as in the models folder | Valid path | N/A |
-| network_bits | uint32 | Number of baseline bits of the network | Positive Number | 16 |
-| tensorflow | bool | Use tensorflow quantization | True-False | False |
+| data_width | uint32 | Number of baseline bits of the network | Positive Number | 16 |
 
-Experiments contain the following parameters.
+Experiments contain the parameters specifics for the memory system and the architectures. 
+The memory system parameters are general for all architectures, while architecture are different per architecture. 
+They can be found [here](examples/).
 
 | Name | Data Type | Description | Valid Options | Default |
 |:---:|:---:|:---:|:---:|:---:|
 | architecture | string | Name of the architecture to simulate | Allowed architectures | N/A |
 | task | string | Name of the architecture to simulate | Allowed tasks | N/A |
-| | | **Architecture Parameters** | | |
+| dataflow | string | Name of the dataflow to simulate | Allowed dataflows | N/A |
+| | | **Memory Parameters** | | |
+| cpu_clock_freq | string | Compute frequency | NUM (G&#124;M&#124;K) Hz | 1GHz |
+| dram_size | string | DRAM off-chip size | NUM \(G&#124;M&#124;Gi&#124;Mi) B | 16GiB |
+| dram_start_act_address | uint64 | DRAM start activations address | Positive Number | 0x00000000 |
+| dram_start_wgt_address | uint64 | DRAM start weight address | Positive Number | 0x80000000 |
+| gbuffer_act_size | string | Global Buffer activations On-chip size | NUM \(G&#124;M&#124;K&#124;Gi&#124;Mi&#124;Ki\) B | 1GiB |
+| gbuffer_wgt_size | string | Global Buffer weights On-chip size | NUM \(G&#124;M&#124;K&#124;Gi&#124;Mi&#124;Ki\) B | 1GiB |
+| gbuffer_act_banks | uint32 | Global Buffer activations On-chip banks | Positive Number | 16 |
+| gbuffer_wgt_banks | uint32 | Global Buffer weight On-chip banks | Positive Number | 256 |
+| gbuffer_out_banks | uint32 | Global Buffer output On-chip banks | Positive Number | 16 |
+| gbuffer_bank_width | uint32 | Global Buffer bank interface width in bits | Positive Number | 256 |
+| gbuffer_read_delay | uint32 | Global Buffer read delay in cycles | Positive Number | 1 |
+| gbuffer_write_delay | uint32 | Global Buffer write delay in cycles | Positive Number | 1 |
+| abuffer_rows | uint32 | Activation Buffer memory rows | Positive Number | 2 |
+| abuffer_read_delay | uint32 | Activation Buffer read delay in cycles | Positive Number | 1 |
+| wbuffer_rows | uint32 | Weight Buffer memory rows | Positive Number | 2 |
+| wbuffer_read_delay | uint32 | Weight Buffer read delay in cycles | Positive Number | 1 |
+| obuffer_rows | uint32 | Output Buffer memory rows | Positive Number | 2 |
+| obuffer_read_delay | uint32 | Output Buffer read delay in cycles | Positive Number | 1 |
+| composer_inputs | uint32 | Composer column parallel inputs per tile | Positive Number | 256 |
+| composer_delay | uint32 | Composer column delay | Positive Number | 1 |
+| ppu_inputs | uint32 | Post-Processing Unit parallel inputs | Positive Number | 16 |
+| ppu_delay | uint32 | Post-Processing Unit delay | Positive Number | 1 |
+| | | [**Architecture Parameters**](examples/) | | |
