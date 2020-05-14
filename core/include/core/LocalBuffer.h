@@ -6,23 +6,30 @@
 namespace core {
 
     /**
-     *
+     * Local Buffer model
+     * @tparam T Data type values
      */
     template <typename T>
     class LocalBuffer : public Memory<T> {
 
     private:
 
+        /** Number of local buffer row slots */
         const uint32_t ROWS = 0;
 
+        /** Read delay in cycles */
         const uint32_t READ_DELAY = 0;
 
+        /** Write delay in cycles */
         const uint32_t WRITE_DELAY = 0;
 
+        /** Row index */
         uint32_t idx = 0;
 
+        /** Ready cycle per row */
         std::vector<uint64_t> ready_cycle;
 
+        /** Ready cycle per row */
         std::vector<uint64_t> done_cycle;
 
         /* STATISTICS */
@@ -42,20 +49,38 @@ namespace core {
          */
         std::string header() override;
 
+        /**
+         * Return stall cycles
+         * @return Stall cycles
+         */
         uint64_t getStallCycles() const;
 
         // GENERAL
 
+        /** Configure memory for current layer parameters */
         void configure_layer() override;
 
+        /**
+         * Return ready cycle for current fifo position
+         * @return Ready cycle for current fifo position
+         */
         uint64_t getFifoReadyCycle() const;
 
+        /**
+         * Return done cycle for current fifo position
+         * @return Done cycle for current fifo position
+         */
         uint64_t getFifoDoneCycle() const;
 
+        /** Update fifo position */
         void update_fifo();
 
         // READ
 
+        /**
+         * Return if the data is ready to be read
+         * @return True if data is ready
+         */
         bool data_ready();
 
         void read_request(uint64_t global_buffer_ready_cycle);

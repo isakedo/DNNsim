@@ -5,23 +5,30 @@
 
 namespace core {
 
+    /** Not valid address */
     const uint64_t NULL_ADDR = UINT64_MAX;
 
+    /** Not valid time */
     const uint64_t NULL_TIME = UINT64_MAX;
 
-    const uint64_t BLOCK_SIZE = 0x40; // Align to 64 bits
-
+    /** Not valid delay */
     const uint32_t NULL_DELAY = UINT32_MAX;
+
+    /** DRAM interface width */
+    const uint64_t BLOCK_SIZE = 0x40; // Align to 64 bits
 
     template <typename T>
     class Memory {
 
     protected:
 
+        /** Current tracked data on-chip: Tuple <Address,Time arrival on-chip> */
         std::shared_ptr<std::map<uint64_t, uint64_t>> tracked_data;
 
+        /** Address range for activations */
         std::shared_ptr<AddressRange> act_addresses;
 
+        /** Address range for weights */
         std::shared_ptr<AddressRange> wgt_addresses;
 
         /** Global cycle */
@@ -29,6 +36,12 @@ namespace core {
 
     public:
 
+        /**
+         * Constructor
+         * @param _tracked_data     Current tracked data on-chip
+         * @param _act_addresses    Activations addresses range
+         * @param _wgt_addresses    Weight addresses range
+         */
         Memory(const std::shared_ptr<std::map<uint64_t, uint64_t>> &_tracked_data,
                 const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_wgt_addresses)
                 : tracked_data(_tracked_data), act_addresses(_act_addresses), wgt_addresses(_wgt_addresses) {}
@@ -47,6 +60,7 @@ namespace core {
             global_cycle = globalCycle;
         }
 
+        /** Configure memory for current layer parameters */
         virtual void configure_layer() = 0;
 
     };

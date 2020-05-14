@@ -127,7 +127,7 @@ namespace core {
     }
 
     template <typename T>
-    bool DRAM<T>::data_ready(const std::vector<TileData<T>> &tiles_data) {
+    bool DRAM<T>::data_ready() {
         if (!waiting_addresses.empty()) stall_cycles++;
         return waiting_addresses.empty();
     }

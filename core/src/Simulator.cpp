@@ -262,7 +262,7 @@ namespace core {
                         dram->read_request(tiles_data);
 
                         // Wait for data to be on-chip
-                        while (!dram->data_ready(tiles_data)) {
+                        while (!dram->data_ready()) {
                             dram->cycle();
                             *global_cycle += 1;
                         }

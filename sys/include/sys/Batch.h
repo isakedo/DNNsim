@@ -153,12 +153,16 @@ namespace sys {
                 /** Output buffer write delay */
                 uint32_t obuffer_write_delay = 0;
 
+                /** Composer column inputs per tile */
                 uint32_t composer_inputs = 0;
 
+                /** Composer column delay */
                 uint32_t composer_delay = 0;
 
+                /** Post-Processing Unit inputs */
                 uint32_t ppu_inputs = 0;
 
+                /** Post-Processing Unit delay */
                 uint32_t ppu_delay = 0;
 
             };

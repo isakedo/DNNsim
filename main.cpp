@@ -187,9 +187,11 @@ int main(int argc, char *argv[]) {
                                     std::make_shared<core::DaDianNao<float>>(experiment.lanes, experiment.columns,
                                     experiment.rows, experiment.tiles, experiment.pe_width,  experiment.tactical);
 
-                            control->setArch(arch);
-                            if (experiment.task == "Cycles") DNNsim.run(network, control);
-                            else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
+                            if (experiment.task == "Cycles") {
+                                control->setArch(arch);
+                                DNNsim.run(network, control);
+                            } else if (experiment.task == "Potentials")
+                                DNNsim.potentials(network, arch);
                         }
                     }
 
@@ -260,18 +262,22 @@ int main(int argc, char *argv[]) {
                                     experiment.columns, experiment.rows, experiment.tiles, experiment.pe_width,
                                     experiment.tactical);
 
-                            control->setArch(arch);
-                            if (experiment.task == "Cycles") DNNsim.run(network, control);
-                            else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
+                            if (experiment.task == "Cycles") {
+                                control->setArch(arch);
+                                DNNsim.run(network, control);
+                            } else if (experiment.task == "Potentials")
+                                DNNsim.potentials(network, arch);
 
                         } else if (experiment.architecture == "Stripes") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
                                     std::make_shared<core::Stripes<uint16_t>>(experiment.lanes, experiment.columns,
                                     experiment.rows, experiment.tiles, experiment.pe_width);
 
-                            control->setArch(arch);
-                            if (experiment.task == "Cycles") DNNsim.run(network, control);
-                            else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
+                            if (experiment.task == "Cycles") {
+                                control->setArch(arch);
+                                DNNsim.run(network, control);
+                            } else if (experiment.task == "Potentials")
+                                DNNsim.potentials(network, arch);
 
                         } else if (experiment.architecture == "ShapeShifter") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
@@ -280,9 +286,11 @@ int main(int argc, char *argv[]) {
                                     experiment.group_size, experiment.column_registers, experiment.minor_bit,
                                     experiment.diffy, experiment.tactical);
 
-                            control->setArch(arch);
-                            if (experiment.task == "Cycles") DNNsim.run(network, control);
-                            else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
+                            if (experiment.task == "Cycles") {
+                                control->setArch(arch);
+                                DNNsim.run(network, control);
+                            } else if (experiment.task == "Potentials")
+                                DNNsim.potentials(network, arch);
 
                         } else if (experiment.architecture == "Loom") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
@@ -290,9 +298,11 @@ int main(int argc, char *argv[]) {
                                     experiment.rows, experiment.tiles, experiment.pe_width, experiment.group_size,
                                     experiment.pe_serial_bits, experiment.minor_bit, experiment.dynamic_weights);
 
-                            control->setArch(arch);
-                            if (experiment.task == "Cycles") DNNsim.run(network, control);
-                            else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
+                            if (experiment.task == "Cycles") {
+                                control->setArch(arch);
+                                DNNsim.run(network, control);
+                            } else if (experiment.task == "Potentials")
+                                DNNsim.potentials(network, arch);
 
                         } else if (experiment.architecture == "BitPragmatic") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
@@ -301,18 +311,22 @@ int main(int argc, char *argv[]) {
                                     experiment.bits_first_stage, experiment.column_registers, experiment.booth,
                                     experiment.diffy, experiment.tactical);
 
-                            control->setArch(arch);
-                            if (experiment.task == "Cycles") DNNsim.run(network, control);
-                            else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
+                            if (experiment.task == "Cycles") {
+                                control->setArch(arch);
+                                DNNsim.run(network, control);
+                            } else if (experiment.task == "Potentials")
+                                DNNsim.potentials(network, arch);
 
                         } else if (experiment.architecture == "Laconic") {
                             std::shared_ptr<core::Architecture<uint16_t>> arch =
                                     std::make_shared<core::Laconic<uint16_t>>(experiment.lanes, experiment.columns,
                                     experiment.rows, experiment.tiles, experiment.pe_width, experiment.booth);
 
-                            control->setArch(arch);
-                            if (experiment.task == "Cycles") DNNsim.run(network, control);
-                            else if (experiment.task == "Potentials") DNNsim.potentials(network, arch);
+                            if (experiment.task == "Cycles") {
+                                control->setArch(arch);
+                                DNNsim.run(network, control);
+                            } else if (experiment.task == "Potentials")
+                                DNNsim.potentials(network, arch);
 
                         }
 

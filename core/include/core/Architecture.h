@@ -28,7 +28,7 @@ namespace core {
         /** Number of tiles */
         const uint32_t TILES = 0;
 
-        /** Bits per PE */
+        /** PE bit-width */
         const uint32_t PE_WIDTH = 0;
 
         /* SIMULATION PARAMETERS */
@@ -48,8 +48,10 @@ namespace core {
         /** Network width */
         int network_width = 0;
 
+        /** True if signed activations */
         bool signed_act = false;
 
+        /** True if signed weights */
         bool signed_wgt = false;
 
         /** Linear layer */
@@ -99,22 +101,42 @@ namespace core {
         Architecture(uint32_t _LANES, uint32_t _COLUMNS, uint32_t _ROWS, uint32_t _TILES, uint32_t _PE_WIDTH) :
                 LANES(_LANES), COLUMNS(_COLUMNS), ROWS(_ROWS), TILES(_TILES), PE_WIDTH(_PE_WIDTH) {}
 
+        /**
+         * Return the number of lanes
+         * @return Lanes
+         */
         uint32_t getLanes() const {
             return LANES;
         }
 
+        /**
+         * Return the number of columns
+         * @return Columns
+         */
         uint32_t getColumns() const {
             return COLUMNS;
         }
 
+        /**
+         * Return the number of rows
+         * @return Rows
+         */
         uint32_t getRows() const {
             return ROWS;
         }
 
+        /**
+         * Return the number of tiles
+         * @return Tiles
+         */
         uint32_t getTiles() const {
             return TILES;
         }
 
+        /**
+         * Return the pe bit-width
+         * @return PE width
+         */
         uint32_t getPeWidth() const {
             return PE_WIDTH;
         }
@@ -162,7 +184,7 @@ namespace core {
         }
 
         /**
-         * Get number of cycles
+         * Return number of cycles
          * @return Cycles
          */
         virtual uint64_t getCycles() const {
@@ -170,7 +192,7 @@ namespace core {
         }
 
         /**
-         * Get number of stall cycles
+         * Return number of stall cycles
          * @return Sstall cycles
          */
         uint64_t getStallCycles() const {
@@ -178,7 +200,7 @@ namespace core {
         }
 
         /**
-         * Get scheduled PEs
+         * Return scheduled PEs
          * @return Scheduled PEs
          */
         uint64_t getScheduledPe() const {
@@ -186,7 +208,7 @@ namespace core {
         }
 
         /**
-         * Get idle PEs
+         * Return idle PEs
          * @return Idle PEs
          */
         uint64_t getIdlePe() const {

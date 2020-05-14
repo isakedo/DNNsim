@@ -145,11 +145,11 @@ namespace core {
          * @param _COLUMNS                Number of columns
          * @param _ROWS                   Number of rows
          * @param _TILES                  Number of tiles
-         * @param _PE_WIDTH                  Bits per PE
-         * @param _GROUP_SIZE               Granularity for dynamic precisions
-         * @param _PE_SERIAL_BITS           Number of bits in series that the PE process
-         * @param _MINOR_BIT                Calculate also the minor bit for dynamic precisions
-         * @param _DYNAMIC_WEIGHTS          Calculate dynamic precision for weights rather than profiled
+         * @param _PE_WIDTH               Bits per PE
+         * @param _GROUP_SIZE             Granularity for dynamic precisions
+         * @param _PE_SERIAL_BITS         Number of bits in series that the PE process
+         * @param _MINOR_BIT              Calculate also the minor bit for dynamic precisions
+         * @param _DYNAMIC_WEIGHTS        Calculate dynamic precision for weights rather than profiled
          */
         Loom(uint32_t _LANES, uint32_t _COLUMNS, uint32_t _ROWS, uint32_t _TILES, uint32_t _PE_WIDTH,
                 uint32_t _GROUP_SIZE, uint32_t _PE_SERIAL_BITS, bool _MINOR_BIT, bool _DYNAMIC_WEIGHTS) :

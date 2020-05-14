@@ -173,12 +173,12 @@ namespace core {
          * @param _COLUMNS            Number of columns
          * @param _ROWS               Number of rows
          * @param _TILES              Number of tiles
-         * @param _PE_WIDTH              Bits per PE
-         * @param _BITS_FIRST_STAGE     Bits of the first stage in the two stages shifting
-         * @param _COLUMN_REGISTERS     Number of registers per SIP
-         * @param _BOOTH_ENCODING       Activate booth-like encoding
-         * @param _DIFFY                Enable Diffy
-         * @param _TCL                  Enable BitTactical simulation
+         * @param _PE_WIDTH           Bits per PE
+         * @param _BITS_FIRST_STAGE   Bits of the first stage in the two stages shifting
+         * @param _COLUMN_REGISTERS   Number of registers per SIP
+         * @param _BOOTH_ENCODING     Activate booth-like encoding
+         * @param _DIFFY              Enable Diffy
+         * @param _TCL                Enable BitTactical simulation
          */
         BitPragmatic(uint32_t _LANES, uint32_t _COLUMNS, uint32_t _ROWS, uint32_t _TILES, uint32_t _PE_WIDTH,
                 uint32_t _BITS_FIRST_STAGE, uint32_t _COLUMN_REGISTERS, bool _BOOTH_ENCODING, bool _DIFFY,

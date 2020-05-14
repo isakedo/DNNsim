@@ -20,6 +20,7 @@ namespace base {
         typedef std::vector<std::vector<T>> Array2D;
         typedef std::vector<T> Array1D;
 
+        /** Indicates if the values are signed or unsigned */
         bool signed_data = false;
 
         /** Set to true to ensure the array is read as 4D */
@@ -30,10 +31,16 @@ namespace base {
          */
         std::vector<size_t> shape;
 
-        /* Vector containing the data */
+        /** Vector containing the data if 1 Dimension */
         Array1D data1D;
+
+        /** Vector containing the data if 2 Dimensions */
         Array2D data2D;
+
+        /** Vector containing the data if 3 Dimensions */
         Array3D data3D;
+
+        /** Vector containing the data if 4 Dimensions */
         Array4D data4D;
 
     public:
