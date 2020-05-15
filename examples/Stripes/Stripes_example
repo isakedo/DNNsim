@@ -37,7 +37,7 @@ simulate {
         wbuffer_rows: 2
         wbuffer_read_delay: 1
         obuffer_rows: 2
-        obuffer_write_delay: 1            
+        obuffer_write_delay: 1
 
         composer_inputs: 256
         composer_delay: 1
