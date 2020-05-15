@@ -32,6 +32,13 @@ simulate {
         gbuffer_read_delay: 1
         gbuffer_write_delay: 1
 
+        abuffer_rows: 2
+        abuffer_read_delay: 1
+        wbuffer_rows: 2
+        wbuffer_read_delay: 1
+        obuffer_rows: 2
+        obuffer_write_delay: 1            
+
         composer_inputs: 256
         composer_delay: 1
         ppu_inputs: 16

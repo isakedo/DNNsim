@@ -135,6 +135,24 @@ namespace sys {
                 /** Global buffer write delay */
                 uint32_t gbuffer_write_delay = 0;
 
+                /** Activation buffer number of memory rows */
+                uint32_t abuffer_rows = 0;
+
+                /** Activation buffer read delay */
+                uint32_t abuffer_read_delay = 0;
+
+                /** Weight buffer number of memory rows */
+                uint32_t wbuffer_rows = 0;
+
+                /** Weight buffer read delay */
+                uint32_t wbuffer_read_delay = 0;
+
+                /** Output buffer number of memory rows */
+                uint32_t obuffer_rows = 0;
+
+                /** Output buffer write delay */
+                uint32_t obuffer_write_delay = 0;
+
                 /** Composer column inputs per tile */
                 uint32_t composer_inputs = 0;
 

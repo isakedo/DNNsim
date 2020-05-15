@@ -157,6 +157,26 @@ namespace sys {
             experiment.gbuffer_write_delay = experiment_proto.gbuffer_write_delay() < 1 ? 1 :
                     experiment_proto.gbuffer_write_delay();
 
+            experiment.abuffer_rows = experiment_proto.abuffer_rows() < 1 ? 2 :
+                    experiment_proto.abuffer_rows();
+            experiment.abuffer_read_delay = experiment_proto.abuffer_read_delay() < 1 ? 1 :
+                    experiment_proto.abuffer_read_delay();
+
+            experiment.wbuffer_rows = experiment_proto.wbuffer_rows() < 1 ? 2 :
+                    experiment_proto.wbuffer_rows();
+            experiment.wbuffer_read_delay = experiment_proto.wbuffer_read_delay() < 1 ? 1 :
+                    experiment_proto.wbuffer_read_delay();
+
+            experiment.obuffer_rows = experiment_proto.obuffer_rows() < 1 ? 2 :
+                    experiment_proto.obuffer_rows();
+            experiment.obuffer_write_delay = experiment_proto.obuffer_write_delay() < 1 ? 1 :
+                    experiment_proto.obuffer_write_delay();
+
+            experiment.composer_inputs = experiment_proto.composer_inputs() < 1 ? 256 :
+                                         experiment_proto.composer_inputs();
+            experiment.composer_delay = experiment_proto.composer_delay() < 1 ? 1 :
+                                        experiment_proto.composer_delay();
+
             experiment.composer_inputs = experiment_proto.composer_inputs() < 1 ? 256 :
                     experiment_proto.composer_inputs();
             experiment.composer_delay = experiment_proto.composer_delay() < 1 ? 1 :

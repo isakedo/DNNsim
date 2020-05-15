@@ -22,6 +22,7 @@ add_library(
         src/WindowFirstOutS.cpp
         src/DRAM.cpp
         src/GlobalBuffer.cpp
+        src/LocalBuffer.cpp
         src/DaDianNao.cpp
         src/Stripes.cpp
         src/ShapeShifter.cpp

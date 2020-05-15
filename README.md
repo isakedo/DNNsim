@@ -129,6 +129,12 @@ They can be found [here](examples/).
 | gbuffer_bank_width | uint32 | Global Buffer bank interface width in bits | Positive Number | 256 |
 | gbuffer_read_delay | uint32 | Global Buffer read delay in cycles | Positive Number | 1 |
 | gbuffer_write_delay | uint32 | Global Buffer write delay in cycles | Positive Number | 1 |
+| abuffer_rows | uint32 | Activation Buffer memory rows | Positive Number | 2 |
+| abuffer_read_delay | uint32 | Activation Buffer read delay in cycles | Positive Number | 1 |
+| wbuffer_rows | uint32 | Weight Buffer memory rows | Positive Number | 2 |
+| wbuffer_read_delay | uint32 | Weight Buffer read delay in cycles | Positive Number | 1 |
+| obuffer_rows | uint32 | Output Buffer memory rows | Positive Number | 2 |
+| obuffer_read_delay | uint32 | Output Buffer read delay in cycles | Positive Number | 1 |
 | composer_inputs | uint32 | Composer column parallel inputs per tile | Positive Number | 256 |
 | composer_delay | uint32 | Composer column delay | Positive Number | 1 |
 | ppu_inputs | uint32 | Post-Processing Unit parallel inputs | Positive Number | 16 |

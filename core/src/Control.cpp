@@ -14,6 +14,21 @@ namespace core {
     }
 
     template <typename T>
+    const std::shared_ptr<LocalBuffer<T>> &Control<T>::getAbuffer() const {
+        return abuffer;
+    }
+
+    template <typename T>
+    const std::shared_ptr<LocalBuffer<T>> &Control<T>::getWbuffer() const {
+        return wbuffer;
+    }
+
+    template <typename T>
+    const std::shared_ptr<LocalBuffer<T>> &Control<T>::getObuffer() const {
+        return obuffer;
+    }
+
+    template <typename T>
     const std::shared_ptr<Composer<T>> &Control<T>::getComposer() const {
         return composer;
     }
@@ -65,6 +80,9 @@ namespace core {
 
         dram->configure_layer(act_dram_width, wgt_dram_width);
         gbuffer->configure_layer();
+        abuffer->configure_layer();
+        wbuffer->configure_layer();
+        obuffer->configure_layer();
         arch->configure_layer(act_prec, wgt_prec, -1, arch->diffy() || act->isSigned(),
                 arch->diffy() || wgt->isSigned(), _linear, EF_COLUMNS);
     }

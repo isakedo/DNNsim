@@ -73,9 +73,6 @@ namespace core {
         /** Output Activation bank conflicts */
         uint64_t out_bank_conflicts = 0;
 
-        /** Stall read cycles */
-        uint64_t stall_read_cycles = 0;
-
         /** Stall write cycles */
         uint64_t stall_write_cycles = 0;
 
@@ -171,28 +168,34 @@ namespace core {
         uint32_t getOutBanks() const;
 
         /**
-         * Return bank interface width
-         * @return Bank interface width
-         */
-        uint32_t getBankWidth() const;
-
-        /**
          * Return number of addresses per access
          * @return Number of addresses per access
          */
         uint32_t getAddrsPerAccess() const;
 
         /**
-         * Return read stall cycles
-         * @return Stall read cycles
-         */
-        uint64_t getReadStallCycles() const;
-
-        /**
          * Return write stall cycles
          * @return Stall write cycles
          */
         uint64_t getWriteStallCycles() const;
+
+        /**
+         * Return activation bank ready cycle
+         * @return Activation bank ready cycle
+         */
+        uint64_t getActReadReadyCycle() const;
+
+        /**
+         * Return weight bank ready cycle
+         * @return Weight bank ready cycle
+         */
+        uint64_t getWgtReadReadyCycle() const;
+
+        /**
+         * Return Output activation bank ready cycle
+         * @return Output activation bank ready cycle
+         */
+        uint64_t getWriteReadyCycle() const;
 
         /**
          * Return activation and weight memory size for the file name
@@ -210,18 +213,6 @@ namespace core {
         void configure_layer() override;
 
         /**
-         * Check if activations are ready
-         * @return True if activations ready
-         */
-        bool act_data_ready();
-
-        /**
-         * Check if weights are ready
-         * @return True if weights ready
-         */
-        bool wgt_data_ready();
-
-        /**
          * Check if all the writes are done
          * @return True if writes done
          */
@@ -230,20 +221,23 @@ namespace core {
         /**
          * Read request to the activation banks
          * @param tiles_data        Data to be read from the banks
+         * @param fifo_ready_cycle  Cycle at which the activation buffer has a slot
          */
-        void act_read_request(const std::vector<TileData<T>> &tiles_data);
+        void act_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle);
 
         /**
          * Read request to the weight banks
          * @param tiles_data        Data to be read from the banks
+         * @param fifo_ready_cycle  Cycle at which the activation buffer has a slot
          */
-        void wgt_read_request(const std::vector<TileData<T>> &tiles_data);
+        void wgt_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle);
 
         /**
          * Write request to the output banks
          * @param tiles_data        Data to be written to the banks
+         * @param fifo_ready_cycle  Cycle at which the activation buffer has a slot
          */
-        void write_request(const std::vector<TileData<T>> &tiles_data);
+        void write_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle);
 
         /**
          * Evict activations and/or weights from on-chip

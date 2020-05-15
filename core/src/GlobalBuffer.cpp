@@ -29,11 +29,6 @@ namespace core {
         return OUT_BANKS;
     }
 
-    template <typename T>
-    uint32_t GlobalBuffer<T>::getBankWidth() const {
-        return BANK_WIDTH;
-    }
-
     template<typename T>
     uint32_t GlobalBuffer<T>::getAddrsPerAccess() const {
         return ADDRS_PER_ACCESS;
@@ -70,13 +65,23 @@ namespace core {
     }
 
     template<typename T>
-    uint64_t GlobalBuffer<T>::getReadStallCycles() const {
-        return stall_read_cycles;
+    uint64_t GlobalBuffer<T>::getWriteStallCycles() const {
+        return stall_write_cycles;
     }
 
     template<typename T>
-    uint64_t GlobalBuffer<T>::getWriteStallCycles() const {
-        return stall_write_cycles;
+    uint64_t GlobalBuffer<T>::getActReadReadyCycle() const {
+        return act_read_ready_cycle;
+    }
+
+    template<typename T>
+    uint64_t GlobalBuffer<T>::getWgtReadReadyCycle() const {
+        return wgt_read_ready_cycle;
+    }
+
+    template<typename T>
+    uint64_t GlobalBuffer<T>::getWriteReadyCycle() const {
+        return write_ready_cycle;
     }
 
     template <typename T>
@@ -109,20 +114,7 @@ namespace core {
         act_bank_conflicts = 0;
         wgt_bank_conflicts = 0;
         out_bank_conflicts = 0;
-        stall_read_cycles = 0;
         stall_write_cycles = 0;
-    }
-
-    template<typename T>
-    bool GlobalBuffer<T>::act_data_ready() {
-        if (act_read_ready_cycle > *this->global_cycle) stall_read_cycles++;
-        return act_read_ready_cycle <= *this->global_cycle;
-    }
-
-    template<typename T>
-    bool GlobalBuffer<T>::wgt_data_ready() {
-        if (wgt_read_ready_cycle > *this->global_cycle) stall_read_cycles++;
-        return wgt_read_ready_cycle <= *this->global_cycle;
     }
 
     template<typename T>
@@ -132,11 +124,11 @@ namespace core {
     }
 
     template <typename T>
-    void GlobalBuffer<T>::act_read_request(const std::vector<TileData<T>> &tiles_data) {
+    void GlobalBuffer<T>::act_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle) {
 
         try {
 
-            uint64_t start_time = std::max(act_read_ready_cycle, *this->global_cycle);
+            uint64_t start_time = std::max(act_read_ready_cycle, fifo_ready_cycle);
             auto bank_conflicts = std::vector<int>(ACT_BANKS + OUT_BANKS, 0);
 
             for (const auto &tile_data : tiles_data) {
@@ -191,11 +183,11 @@ namespace core {
     }
 
     template <typename T>
-    void GlobalBuffer<T>::wgt_read_request(const std::vector<TileData<T>> &tiles_data) {
+    void GlobalBuffer<T>::wgt_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle) {
 
         try {
 
-            uint64_t start_time = std::max(wgt_read_ready_cycle, *this->global_cycle);
+            uint64_t start_time = std::max(wgt_read_ready_cycle, fifo_ready_cycle);
             auto bank_conflicts = std::vector<int>(WGT_BANKS, 0);
 
             for (const auto &tile_data : tiles_data) {
@@ -234,9 +226,9 @@ namespace core {
     }
 
     template <typename T>
-    void GlobalBuffer<T>::write_request(const std::vector<TileData<T>> &tiles_data) {
+    void GlobalBuffer<T>::write_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle) {
 
-        auto start_time = std::max(write_ready_cycle, *this->global_cycle);
+        auto start_time = std::max(write_ready_cycle, fifo_ready_cycle);
 
         auto bank_conflicts = std::vector<int>(OUT_BANKS, 0);
         for (const auto &tile_data : tiles_data) {

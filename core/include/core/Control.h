@@ -6,6 +6,7 @@
 
 #include "DRAM.h"
 #include "GlobalBuffer.h"
+#include "LocalBuffer.h"
 
 #include "Composer.h"
 #include "PPU.h"
@@ -57,6 +58,15 @@ namespace core {
 
         /** Global Buffer model */
         std::shared_ptr<GlobalBuffer<T>> gbuffer;
+
+        /** Activation Buffer model */
+        std::shared_ptr<LocalBuffer<T>> abuffer;
+
+        /** Weight Buffer model */
+        std::shared_ptr<LocalBuffer<T>> wbuffer;
+
+        /** Output Buffer model */
+        std::shared_ptr<LocalBuffer<T>> obuffer;
 
         /** Composer Column model */
         std::shared_ptr<Composer<T>> composer;
@@ -116,13 +126,18 @@ namespace core {
          * @param _scheduler    Weight buffer scheduler
          * @param _dram         Dram model
          * @param _gbuffer      Global Buffer model
+         * @param _abuffer      Activation Buffer model
+         * @param _wbuffer      Weight Buffer model
+         * @param _obuffer      Output Buffer model
          * @param _composer     Composer column model
          * @param _ppu          Post-Processing Unit model
          */
         Control(const std::shared_ptr<BitTactical<T>> &_scheduler, const std::shared_ptr<DRAM<T>> &_dram,
-                const std::shared_ptr<GlobalBuffer<T>> &_gbuffer, const std::shared_ptr<Composer<T>> &_composer,
-                const std::shared_ptr<PPU<T>> &_ppu) : scheduler(_scheduler), dram(_dram), gbuffer(_gbuffer),
-                composer(_composer), ppu(_ppu) {}
+                const std::shared_ptr<GlobalBuffer<T>> &_gbuffer, const std::shared_ptr<LocalBuffer<T>> &_abuffer,
+                const std::shared_ptr<LocalBuffer<T>> &_wbuffer, const std::shared_ptr<LocalBuffer<T>> &_obuffer,
+                const std::shared_ptr<Composer<T>> &_composer, const std::shared_ptr<PPU<T>> &_ppu) :
+                scheduler(_scheduler), dram(_dram), gbuffer(_gbuffer), abuffer(_abuffer), wbuffer(_wbuffer),
+                obuffer(_obuffer), composer(_composer), ppu(_ppu) {}
 
         /**
          * Return a pointer to the dram model
@@ -135,6 +150,24 @@ namespace core {
          * @return Global Buffer model
          */
         const std::shared_ptr<GlobalBuffer<T>> &getGbuffer() const;
+
+        /**
+         * Return a pointer to the Activation Buffer model
+         * @return Activation Buffer model
+         */
+        const std::shared_ptr<LocalBuffer<T>> &getAbuffer() const;
+
+        /**
+         * Return a pointer to the Weight Buffer model
+         * @return Weight Buffer model
+         */
+        const std::shared_ptr<LocalBuffer<T>> &getWbuffer() const;
+
+        /**
+         * Return a pointer to the Output Buffer model
+         * @return Output Buffer model
+         */
+        const std::shared_ptr<LocalBuffer<T>> &getObuffer() const;
 
         /**
          * Return a pointer to the Composer Column model

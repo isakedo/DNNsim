@@ -133,6 +133,9 @@ namespace core {
         // Get components from control
         auto dram = control->getDram();
         auto gbuffer = control->getGbuffer();
+        auto abuffer = control->getAbuffer();
+        auto wbuffer = control->getWbuffer();
+        auto obuffer = control->getObuffer();
         auto composer = control->getComposer();
         auto ppu = control->getPPU();
         auto arch = control->getArch();
@@ -140,6 +143,9 @@ namespace core {
         std::shared_ptr<uint64_t> global_cycle = std::make_shared<uint64_t>(0);
         dram->setGlobalCycle(global_cycle);
         gbuffer->setGlobalCycle(global_cycle);
+        abuffer->setGlobalCycle(global_cycle);
+        wbuffer->setGlobalCycle(global_cycle);
+        obuffer->setGlobalCycle(global_cycle);
         arch->setGlobalCycle(global_cycle);
 
         if(!QUIET) std::cout << "Starting cycles simulation for architecture " << arch->name() << std::endl;
@@ -155,8 +161,10 @@ namespace core {
         auto compute_cycles = stats.register_uint_t("compute_cycles", 0, sys::AverageTotal);
         auto compute_stall_cycles = stats.register_uint_t("compute stall cycles", 0, sys::AverageTotal);
         auto dram_stall_cycles = stats.register_uint_t("dram_stall_cycles", 0, sys::AverageTotal);
-        auto gbuffer_read_stall_cycles  = stats.register_uint_t("gbuffer_read_stall_cycles", 0, sys::AverageTotal);
         auto gbuffer_write_stall_cycles  = stats.register_uint_t("gbuffer_write_stall_cycles", 0, sys::AverageTotal);
+        auto abuffer_stall_cycles = stats.register_uint_t("abuffer_stall_cycles", 0, sys::AverageTotal);
+        auto wbuffer_stall_cycles = stats.register_uint_t("wbuffer_stall_cycles", 0, sys::AverageTotal);
+        auto obuffer_stall_cycles = stats.register_uint_t("obuffer_stall_cycles", 0, sys::AverageTotal);
 
         // Architecture stats
         auto scheduled_pe = stats.register_uint_t("scheduled PEs", 0, sys::AverageTotal);
@@ -260,22 +268,32 @@ namespace core {
                         }
 
                         // Request data to on-chip global buffer
-                        gbuffer->act_read_request(tiles_data);
-                        gbuffer->wgt_read_request(tiles_data);
+                        gbuffer->act_read_request(tiles_data, abuffer->getFifoDoneCycle());
+                        gbuffer->wgt_read_request(tiles_data, wbuffer->getFifoDoneCycle());
+
+                        // Request data to local buffers
+                        abuffer->read_request(gbuffer->getActReadReadyCycle());
+                        wbuffer->read_request(gbuffer->getWgtReadReadyCycle());
 
                         // Wait for:
                         // - activation buffer to have the data ready
                         // - weight buffer to have the data ready
                         // - pipeline to be ready
-                        while (!gbuffer->act_data_ready() || !gbuffer->wgt_data_ready() || !arch->ready()) {
+                        while (!abuffer->data_ready() || !wbuffer->data_ready() || !arch->ready()) {
                             dram->cycle();
                             *global_cycle += 1;
                         }
 
                         arch->process_tiles(tiles_data);
 
+                        abuffer->evict_data();
+                        wbuffer->evict_data();
+
                         dram->cycle();
                         *global_cycle += 1;
+
+                        abuffer->update_fifo();
+                        wbuffer->update_fifo();
 
                         // Check if write the output register back to global buffer
                         if (control->check_if_write_output(tiles_data)) {
@@ -283,14 +301,18 @@ namespace core {
                             // Wait for:
                             // - Pipeline is empty
                             // - Space in output buffer before starting new windows
-                            if (!arch->flush() || !gbuffer->write_done()) {
+                            if (!arch->flush() || !obuffer->write_ready()) {
                                 dram->cycle();
                                 *global_cycle += 1;
                             }
 
                             *global_cycle += composer->calculate_delay(tiles_data);
                             *global_cycle += ppu->calculate_delay(tiles_data);
-                            gbuffer->write_request(tiles_data);
+
+                            obuffer->write_request();
+                            gbuffer->write_request(tiles_data, obuffer->getFifoReadyCycle());
+                            obuffer->update_done_cycle(gbuffer->getWriteReadyCycle());
+                            obuffer->update_fifo();
 
                         }
 
@@ -319,8 +341,10 @@ namespace core {
                 compute_cycles->value[layer_it][sample] = arch->getCycles();
                 compute_stall_cycles->value[layer_it][sample] = arch->getStallCycles();
                 dram_stall_cycles->value[layer_it][sample] = dram->getStallCycles();
-                gbuffer_read_stall_cycles->value[layer_it][sample] = gbuffer->getReadStallCycles();
                 gbuffer_write_stall_cycles->value[layer_it][sample] = gbuffer->getWriteStallCycles();
+                abuffer_stall_cycles->value[layer_it][sample] = abuffer->getStallCycles();
+                wbuffer_stall_cycles->value[layer_it][sample] = wbuffer->getStallCycles();
+                obuffer_stall_cycles->value[layer_it][sample] = obuffer->getStallCycles();
 
                 scheduled_pe->value[layer_it][sample] = arch->getScheduledPe();
                 idle_pe->value[layer_it][sample] = arch->getIdlePe();
@@ -348,6 +372,9 @@ namespace core {
         header += "Dataflow: " + control->dataflow() + "\n";
         header += "--> DRAM: \n" + dram->header();
         header += "--> Global Buffer: \n" + gbuffer->header();
+        header += "--> Activation Buffer: \n" + abuffer->header();
+        header += "--> Weight Buffer: \n" + wbuffer->header();
+        header += "--> Output Buffer: \n" + obuffer->header();
         header += "--> Composer: \n" + composer->header();
         header += "--> Post-Processing Unit: \n" + ppu->header();
         header += "--> Architecture: \n" + arch->header();

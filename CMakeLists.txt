@@ -5,7 +5,7 @@ project(
         LANGUAGES CXX
 )
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 
 find_package(OpenMP)
 if (OPENMP_FOUND)
