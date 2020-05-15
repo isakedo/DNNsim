@@ -29,7 +29,7 @@ namespace core {
 
     typedef std::vector<std::vector<std::vector<uint64_t>>> AddressMap;
 
-    typedef std::vector<std::vector<std::vector<int>>> ActBankMap;
+    typedef std::vector<std::vector<int>> ActBankMap;
 
     typedef std::vector<std::vector<std::vector<uint64_t>>> AddressBuffer;
 
@@ -54,6 +54,7 @@ namespace core {
 
         AddressBufferSet act_addresses;
         AddressBufferRow wgt_addresses;
+        AddressBufferRow out_addresses;
 
         BankBufferRow act_banks;
         BankBufferRow wgt_banks;
@@ -62,6 +63,9 @@ namespace core {
         int time = 0;
         int lanes = 0;
 
+        bool read_psum = false;
+
+        bool ppu = false;
         bool write = false;
         bool valid = false;
     };

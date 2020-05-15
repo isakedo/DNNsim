@@ -3,16 +3,6 @@
 
 namespace core {
 
-    template<typename T>
-    uint32_t Control<T>::getActBlks() const {
-        return ACT_BLKS;
-    }
-
-    template<typename T>
-    uint32_t Control<T>::getWgtBlks() const {
-        return WGT_BLKS;
-    }
-
     template <typename T>
     const std::shared_ptr<DRAM<T>> &Control<T>::getDram() const {
         return dram;
@@ -21,21 +11,6 @@ namespace core {
     template <typename T>
     const std::shared_ptr<GlobalBuffer<T>> &Control<T>::getGbuffer() const {
         return gbuffer;
-    }
-
-    template <typename T>
-    const std::shared_ptr<LocalBuffer<T>> &Control<T>::getAbuffer() const {
-        return abuffer;
-    }
-
-    template <typename T>
-    const std::shared_ptr<LocalBuffer<T>> &Control<T>::getWbuffer() const {
-        return wbuffer;
-    }
-
-    template <typename T>
-    const std::shared_ptr<LocalBuffer<T>> &Control<T>::getObuffer() const {
-        return obuffer;
     }
 
     template <typename T>
@@ -90,9 +65,6 @@ namespace core {
 
         dram->configure_layer(act_dram_width, wgt_dram_width);
         gbuffer->configure_layer();
-        abuffer->configure_layer();
-        wbuffer->configure_layer();
-        obuffer->configure_layer();
         arch->configure_layer(act_prec, wgt_prec, -1, arch->diffy() || act->isSigned(),
                 arch->diffy() || wgt->isSigned(), _linear, EF_COLUMNS);
     }

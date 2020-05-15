@@ -11,9 +11,6 @@ namespace core {
     /** Not valid time */
     const uint64_t NULL_TIME = UINT64_MAX;
 
-    /** Not valid delay */
-    const uint32_t NULL_DELAY = UINT32_MAX;
-
     /** DRAM interface width */
     const uint64_t BLOCK_SIZE = 0x40; // Align to 64 bits
 

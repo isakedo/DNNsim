@@ -15,7 +15,7 @@ namespace core {
         uint64_t inputs = 0;
         for (const auto &tile_data : tiles_data) {
 
-            if (!tile_data.write)
+            if (!tile_data.ppu)
                 continue;
 
             inputs += tile_data.out_banks.size();

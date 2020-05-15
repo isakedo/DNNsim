@@ -61,6 +61,8 @@ namespace core {
 
         uint64_t next_wgt_address = 0;
 
+        uint64_t next_out_address = 0;
+
         int out_x = 0;
 
         int out_y = 0;
@@ -138,10 +140,8 @@ namespace core {
     public:
 
         OutputStationary(const std::shared_ptr<BitTactical<T>> &_scheduler, const std::shared_ptr<DRAM<T>> &_dram,
-                const std::shared_ptr<GlobalBuffer<T>> &_gbuffer, const std::shared_ptr<LocalBuffer<T>> &_abuffer,
-                const std::shared_ptr<LocalBuffer<T>> &_wbuffer, const std::shared_ptr<LocalBuffer<T>> &_obuffer,
-                const std::shared_ptr<Composer<T>> &_composer, const std::shared_ptr<PPU<T>> &_ppu) :
-                Control<T>(_scheduler,_dram, _gbuffer, _abuffer, _wbuffer, _obuffer, _composer, _ppu) {}
+                const std::shared_ptr<GlobalBuffer<T>> &_gbuffer, const std::shared_ptr<Composer<T>> &_composer,
+                const std::shared_ptr<PPU<T>> &_ppu) : Control<T>(_scheduler,_dram, _gbuffer, _composer, _ppu) {}
 
     };
 

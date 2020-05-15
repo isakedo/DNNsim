@@ -120,7 +120,6 @@ namespace core {
         return compressed_addresses;
     }
 
-
     template <typename T>
     void DRAM<T>::cycle() {
         dram_interface->update();

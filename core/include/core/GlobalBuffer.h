@@ -1,6 +1,7 @@
 #ifndef DNNSIM_GLOBALBUFFER_H
 #define DNNSIM_GLOBALBUFFER_H
 
+#include <cstdint>
 #include "Memory.h"
 
 namespace core {
@@ -31,14 +32,17 @@ namespace core {
         /** Output Activation banks */
         const uint32_t OUT_BANKS = 0;
 
-        /** Bank interface datawidth */
-        const uint32_t BANK_WIDTH = 0;
-
         /** Bank read delay */
         const uint32_t READ_DELAY = 0;
 
         /** Write read delay */
         const uint32_t WRITE_DELAY = 0;
+
+        /** Bank interface datawidth */
+        const uint32_t BANK_WIDTH = 0;
+
+        /** Addresses per access */
+        const uint32_t ADDRS_PER_ACCESS = 0;
 
         /** Activation banks ready cycle */
         uint64_t act_read_ready_cycle = 0;
@@ -69,13 +73,16 @@ namespace core {
         /** Output Activation bank conflicts */
         uint64_t out_bank_conflicts = 0;
 
-        /** Stall cycles */
-        uint64_t stall_cycles = 0;
+        /** Stall read cycles */
+        uint64_t stall_read_cycles = 0;
+
+        /** Stall write cycles */
+        uint64_t stall_write_cycles = 0;
 
     public:
 
         /**
-         *
+         * Constructor
          * @param _tracked_data
          * @param _act_addresses
          * @param _wgt_addresses
@@ -93,7 +100,8 @@ namespace core {
                 uint64_t _ACT_SIZE, uint64_t _WGT_SIZE, uint32_t _ACT_BANKS, uint32_t _WGT_BANKS, uint32_t _OUT_BANKS,
                 uint32_t _BANK_WIDTH, uint32_t _READ_DELAY, uint32_t _WRITE_DELAY) : Memory<T>(_tracked_data,
                 _act_addresses, _wgt_addresses), ACT_SIZE(_ACT_SIZE), WGT_SIZE(_WGT_SIZE), ACT_BANKS(_ACT_BANKS),
-                WGT_BANKS(_WGT_BANKS), OUT_BANKS(_OUT_BANKS), BANK_WIDTH(_BANK_WIDTH), READ_DELAY(_READ_DELAY),
+                WGT_BANKS(_WGT_BANKS), OUT_BANKS(_OUT_BANKS), BANK_WIDTH(_BANK_WIDTH),
+                ADDRS_PER_ACCESS(ceil(BANK_WIDTH / (double)BLOCK_SIZE)), READ_DELAY(_READ_DELAY),
                 WRITE_DELAY(_WRITE_DELAY) {}
 
         /**
@@ -169,28 +177,22 @@ namespace core {
         uint32_t getBankWidth() const;
 
         /**
-         * Return stall cycles
-         * @return Stall cycles
+         * Return number of addresses per access
+         * @return Number of addresses per access
          */
-        uint64_t getStallCycles() const;
+        uint32_t getAddrsPerAccess() const;
 
         /**
-         * Return activation bank ready cycle
-         * @return Activation bank ready cycle
+         * Return read stall cycles
+         * @return Stall read cycles
          */
-        uint64_t getActReadReadyCycle() const;
+        uint64_t getReadStallCycles() const;
 
         /**
-         * Return weight bank ready cycle
-         * @return Weight bank ready cycle
+         * Return write stall cycles
+         * @return Stall write cycles
          */
-        uint64_t getWgtReadReadyCycle() const;
-
-        /**
-         * Return Output activation bank ready cycle
-         * @return Output activation bank ready cycle
-         */
-        uint64_t getWriteReadyCycle() const;
+        uint64_t getWriteStallCycles() const;
 
         /**
          * Return activation and weight memory size for the file name
@@ -208,7 +210,19 @@ namespace core {
         void configure_layer() override;
 
         /**
-         * CHeck if all the writes are done
+         * Check if activations are ready
+         * @return True if activations ready
+         */
+        bool act_data_ready();
+
+        /**
+         * Check if weights are ready
+         * @return True if weights ready
+         */
+        bool wgt_data_ready();
+
+        /**
+         * Check if all the writes are done
          * @return True if writes done
          */
         bool write_done();
@@ -216,25 +230,20 @@ namespace core {
         /**
          * Read request to the activation banks
          * @param tiles_data        Data to be read from the banks
-         * @param fifo_ready_cycle  Cycle at which the activation buffer has a slot
          */
-        void act_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle);
+        void act_read_request(const std::vector<TileData<T>> &tiles_data);
 
         /**
          * Read request to the weight banks
          * @param tiles_data        Data to be read from the banks
-         * @param fifo_ready_cycle  Cycle at which the weight buffer has a slot
          */
-        void wgt_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle);
+        void wgt_read_request(const std::vector<TileData<T>> &tiles_data);
 
         /**
          * Write request to the output banks
          * @param tiles_data        Data to be written to the banks
-         * @param fifo_ready_cycle  Cycle at which the output buffer has the data ready
-         * @param ppu_delay         Cycle at which the post-processing unit is done
          */
-        void write_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle,
-                uint64_t ppu_delay);
+        void write_request(const std::vector<TileData<T>> &tiles_data);
 
         /**
          * Evict activations and/or weights from on-chip

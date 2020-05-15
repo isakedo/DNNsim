@@ -747,6 +747,7 @@ namespace core {
 
         // Generate off-chip addresses and bank mapping
         this->generate_memory_maps();
+        this->next_out_address = this->next_act_address;
 
         // Generate execution graph for on-chip memory
         generate_execution_graph();
@@ -827,6 +828,8 @@ namespace core {
                     bool still_work = false;
                     for (int t = 0; t < this->arch->getTiles(); ++t) {
 
+                        tiles_data[t].read_psum = false;
+                        tiles_data[t].ppu = false;
                         tiles_data[t].write = false;
                         tiles_data[t].valid = false;
 
@@ -908,12 +911,20 @@ namespace core {
                             auto out_bank_idx = 0;
                             for (int t = 0; t < this->arch->getTiles(); ++t) {
                                 if (!this->write[t]) continue;
-                                auto outputs = this->windows.size() * this->filters[t].size();
+                                auto outputs = (uint32_t)ceil(this->windows.size() * this->filters[t].size() /
+                                        (double)this->gbuffer->getAddrsPerAccess());
+
+                                tiles_data[t].out_addresses = AddressBufferRow(outputs, 0);
                                 tiles_data[t].out_banks = BankBufferRow(outputs, 0);
+                                tiles_data[t].ppu = true;
                                 tiles_data[t].write = true;
 
-                                for (int ob = 0; ob < outputs; ++ob) {
-                                    tiles_data[t].out_banks[ob] = out_bank_idx;
+                                for (int o = 0; o < outputs; ++o) {
+                                    tiles_data[t].out_addresses[o] = this->dram->getStartActAddress()
+                                            + this->next_out_address;
+                                    this->next_out_address += BLOCK_SIZE;
+
+                                    tiles_data[t].out_banks[o] = out_bank_idx;
                                     out_bank_idx = (out_bank_idx + 1) % this->gbuffer->getOutBanks();
                                 }
                             }
@@ -997,6 +1008,8 @@ namespace core {
             bool still_work = false;
             for (int t = 0; t < this->arch->getTiles(); ++t) {
 
+                tiles_data[t].read_psum = false;
+                tiles_data[t].ppu = false;
                 tiles_data[t].write = false;
                 tiles_data[t].valid = false;
 
@@ -1074,11 +1087,19 @@ namespace core {
                     auto out_bank_idx = 0;
                     for (int t = 0; t < this->arch->getTiles(); ++t) {
                         if (!this->write[t]) continue;
-                        tiles_data[t].out_banks = BankBufferRow(this->filters[t].size(), 0);
+                        auto outputs = (uint32_t)ceil(this->filters[t].size() /
+                                (double)this->gbuffer->getAddrsPerAccess());
+
+                        tiles_data[t].out_addresses = AddressBufferRow(outputs, 0);
+                        tiles_data[t].out_banks = BankBufferRow(outputs, 0);
+                        tiles_data[t].ppu = true;
                         tiles_data[t].write = true;
 
-                        for (int ob = 0; ob < this->filters[t].size(); ++ob) {
-                            tiles_data[t].out_banks[ob] = out_bank_idx;
+                        for (int o = 0; o < outputs; ++o) {
+                            tiles_data[t].out_addresses[o] = this->dram->getStartActAddress() + this->next_out_address;
+                            this->next_out_address += BLOCK_SIZE;
+
+                            tiles_data[t].out_banks[o] = out_bank_idx;
                             out_bank_idx = (out_bank_idx + 1) % this->gbuffer->getOutBanks();
                         }
                     }
