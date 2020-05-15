@@ -140,14 +140,6 @@ namespace core {
         auto ppu = control->getPPU();
         auto arch = control->getArch();
 
-        std::shared_ptr<uint64_t> global_cycle = std::make_shared<uint64_t>(0);
-        dram->setGlobalCycle(global_cycle);
-        gbuffer->setGlobalCycle(global_cycle);
-        abuffer->setGlobalCycle(global_cycle);
-        wbuffer->setGlobalCycle(global_cycle);
-        obuffer->setGlobalCycle(global_cycle);
-        arch->setGlobalCycle(global_cycle);
-
         if(!QUIET) std::cout << "Starting cycles simulation for architecture " << arch->name() << std::endl;
 
         // Initialize statistics
@@ -247,7 +239,6 @@ namespace core {
                 OutputTensor sim_output = OutputTensor(num_filters, std::vector<std::vector<double>>(Ox,
                         std::vector<double>(Oy, 0)));
 
-                *global_cycle = 0;
                 auto tiles_data = std::vector<TileData<T>>(arch->getTiles(), TileData<T>());
                 do {
 
@@ -262,10 +253,8 @@ namespace core {
                         dram->read_request(tiles_data);
 
                         // Wait for data to be on-chip
-                        while (!dram->data_ready()) {
-                            dram->cycle();
-                            *global_cycle += 1;
-                        }
+                        while (!dram->data_ready())
+                            control->cycle();
 
                         // Request data to on-chip global buffer
                         gbuffer->act_read_request(tiles_data, abuffer->getFifoDoneCycle());
@@ -279,18 +268,15 @@ namespace core {
                         // - activation buffer to have the data ready
                         // - weight buffer to have the data ready
                         // - pipeline to be ready
-                        while (!abuffer->data_ready() || !wbuffer->data_ready() || !arch->ready()) {
-                            dram->cycle();
-                            *global_cycle += 1;
-                        }
+                        while (!abuffer->data_ready() || !wbuffer->data_ready() || !arch->ready())
+                            control->cycle();
 
                         arch->process_tiles(tiles_data);
 
                         abuffer->evict_data();
                         wbuffer->evict_data();
 
-                        dram->cycle();
-                        *global_cycle += 1;
+                        control->cycle();
 
                         abuffer->update_fifo();
                         wbuffer->update_fifo();
@@ -301,13 +287,11 @@ namespace core {
                             // Wait for:
                             // - Pipeline is empty
                             // - Space in output buffer before starting new windows
-                            if (!arch->flush() || !obuffer->write_ready()) {
-                                dram->cycle();
-                                *global_cycle += 1;
-                            }
+                            if (!arch->flush() || !obuffer->write_ready())
+                                control->cycle();
 
-                            *global_cycle += composer->calculate_delay(tiles_data);
-                            *global_cycle += ppu->calculate_delay(tiles_data);
+                            composer->calculate_delay(tiles_data);
+                            ppu->calculate_delay(tiles_data);
 
                             obuffer->write_request();
                             gbuffer->write_request(tiles_data, obuffer->getFifoReadyCycle());
@@ -324,10 +308,8 @@ namespace core {
                     // Wait for:
                     // - Pipeline is empty
                     // - All write petitions are fulfilled
-                    while (!arch->flush() || !gbuffer->write_done()) {
-                        dram->cycle();
-                        *global_cycle += 1;
-                    }
+                    while (!arch->flush() || !gbuffer->write_done())
+                        control->cycle();
 
                     // Write values to DRAM
                     dram->write_data(control->getWriteAddresses());
@@ -337,7 +319,7 @@ namespace core {
                 if (CHECK) check_result(sim_output, act, wgt, Ox, Oy, stride, rnn, arch->diffy());
 
                 // Dump stats
-                cycles->value[layer_it][sample] = *global_cycle;
+                cycles->value[layer_it][sample] = control->getCycles();
                 compute_cycles->value[layer_it][sample] = arch->getCycles();
                 compute_stall_cycles->value[layer_it][sample] = arch->getStallCycles();
                 dram_stall_cycles->value[layer_it][sample] = dram->getStallCycles();

@@ -3,6 +3,17 @@
 
 namespace core {
 
+    template<typename T>
+    uint64_t Control<T>::getCycles() const {
+        return *global_cycle;
+    }
+
+    template <typename T>
+    void Control<T>::cycle() {
+        dram->cycle();
+        *global_cycle += 1;
+    }
+
     template <typename T>
     const std::shared_ptr<DRAM<T>> &Control<T>::getDram() const {
         return dram;
@@ -46,6 +57,7 @@ namespace core {
     template <typename T>
     void Control<T>::setArch(const std::shared_ptr<Architecture<T>> &_arch) {
         Control::arch = _arch;
+        arch->setGlobalCycle(global_cycle);
     }
 
     template <typename T>
@@ -78,6 +90,7 @@ namespace core {
         auto act_dram_width = std::max(dram->getBaseDataSize(), (uint32_t)pow(2, ceil(log2(act_prec))));
         auto wgt_dram_width = std::max(dram->getBaseDataSize(), (uint32_t)pow(2, ceil(log2(wgt_prec))));
 
+        *global_cycle = 0;
         dram->configure_layer(act_dram_width, wgt_dram_width);
         gbuffer->configure_layer();
         abuffer->configure_layer();

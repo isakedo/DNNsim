@@ -11,7 +11,7 @@ namespace core {
     }
 
     template <typename T>
-    uint32_t Composer<T>::calculate_delay(const std::vector<TileData<T>> &tiles_data) {
+    void Composer<T>::calculate_delay(const std::vector<TileData<T>> &tiles_data) {
         uint64_t max_delay = 0;
         for (const auto &tile_data : tiles_data) {
 
@@ -24,7 +24,7 @@ namespace core {
                 max_delay = delay;
 
         }
-        return max_delay;
+        *global_cycle += max_delay;
     }
 
     INITIALISE_DATA_TYPES(Composer);

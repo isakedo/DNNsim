@@ -17,6 +17,9 @@ namespace core {
 
         const uint32_t DELAY;
 
+        /** Global cycle */
+        std::shared_ptr<uint64_t> global_cycle;
+
     public:
 
         PPU(uint32_t _INPUTS, uint32_t _DELAY) : INPUTS(_INPUTS), DELAY(_DELAY) {}
@@ -27,7 +30,15 @@ namespace core {
          */
         std::string header();
 
-        uint32_t calculate_delay(const std::vector<TileData<T>> &tiles_data);
+        /**
+         * Set shared global cycle
+         * @param globalCycle
+         */
+        void setGlobalCycle(const std::shared_ptr<uint64_t> &globalCycle) {
+            global_cycle = globalCycle;
+        }
+
+        void calculate_delay(const std::vector<TileData<T>> &tiles_data);
 
     };
 

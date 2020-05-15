@@ -11,7 +11,7 @@ namespace core {
     }
 
     template <typename T>
-    uint32_t PPU<T>::calculate_delay(const std::vector<core::TileData<T>> &tiles_data) {
+    void PPU<T>::calculate_delay(const std::vector<core::TileData<T>> &tiles_data) {
         uint64_t inputs = 0;
         for (const auto &tile_data : tiles_data) {
 
@@ -23,7 +23,7 @@ namespace core {
         }
         auto input_steps = ceil(inputs / (double)INPUTS);
         auto delay = input_steps * DELAY;
-        return delay;
+        *global_cycle += delay;
     }
 
     INITIALISE_DATA_TYPES(PPU);

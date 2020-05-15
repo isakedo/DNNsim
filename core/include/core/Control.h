@@ -50,6 +50,8 @@ namespace core {
         /** List of on-chip stages */
         std::vector<std::shared_ptr<Node>> on_chip_graph;
 
+        std::shared_ptr<uint64_t> global_cycle;
+
         /** Weight buffer scheduler */
         std::shared_ptr<BitTactical<T>> scheduler;
 
@@ -137,7 +139,26 @@ namespace core {
                 const std::shared_ptr<LocalBuffer<T>> &_wbuffer, const std::shared_ptr<LocalBuffer<T>> &_obuffer,
                 const std::shared_ptr<Composer<T>> &_composer, const std::shared_ptr<PPU<T>> &_ppu) :
                 scheduler(_scheduler), dram(_dram), gbuffer(_gbuffer), abuffer(_abuffer), wbuffer(_wbuffer),
-                obuffer(_obuffer), composer(_composer), ppu(_ppu) {}
+                obuffer(_obuffer), composer(_composer), ppu(_ppu) {
+
+            global_cycle = std::make_shared<uint64_t>(0);
+            dram->setGlobalCycle(global_cycle);
+            gbuffer->setGlobalCycle(global_cycle);
+            abuffer->setGlobalCycle(global_cycle);
+            wbuffer->setGlobalCycle(global_cycle);
+            obuffer->setGlobalCycle(global_cycle);
+            composer->setGlobalCycle(global_cycle);
+            ppu->setGlobalCycle(global_cycle);
+        }
+
+        /**
+         * Return total number of cycles
+         * @return Total number of cycles
+         */
+        uint64_t getCycles() const;
+
+        /** Update time one cycle */
+        void cycle();
 
         /**
          * Return a pointer to the dram model

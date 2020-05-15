@@ -20,6 +20,9 @@ namespace core {
         /** Delay */
         const uint32_t DELAY;
 
+        /** Global cycle */
+        std::shared_ptr<uint64_t> global_cycle;
+
     public:
 
         /**
@@ -36,11 +39,19 @@ namespace core {
         std::string header();
 
         /**
+         * Set shared global cycle
+         * @param globalCycle
+         */
+        void setGlobalCycle(const std::shared_ptr<uint64_t> &globalCycle) {
+            global_cycle = globalCycle;
+        }
+
+        /**
          * Calculate the delay of the composer column
          * @param tiles_data Outputs per tile
          * @return Delay in cycles
          */
-        uint32_t calculate_delay(const std::vector<TileData<T>> &tiles_data);
+        void calculate_delay(const std::vector<TileData<T>> &tiles_data);
 
     };
 
