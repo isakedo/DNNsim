@@ -173,16 +173,11 @@ namespace sys {
                     experiment_proto.obuffer_write_delay();
 
             experiment.composer_inputs = experiment_proto.composer_inputs() < 1 ? 256 :
-                                         experiment_proto.composer_inputs();
-            experiment.composer_delay = experiment_proto.composer_delay() < 1 ? 1 :
-                                        experiment_proto.composer_delay();
-
-            experiment.composer_inputs = experiment_proto.composer_inputs() < 1 ? 256 :
                     experiment_proto.composer_inputs();
             experiment.composer_delay = experiment_proto.composer_delay() < 1 ? 1 :
                     experiment_proto.composer_delay();
 
-            experiment.ppu_inputs = experiment_proto.ppu_inputs() < 1 ? 16 : experiment_proto.ppu_inputs();
+            experiment.ppu_inputs = experiment_proto.ppu_inputs() < 1 ? 256 : experiment_proto.ppu_inputs();
             experiment.ppu_delay = experiment_proto.ppu_delay() < 1 ? 1 : experiment_proto.ppu_delay();
 
             // Generic parameters

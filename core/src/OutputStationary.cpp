@@ -412,6 +412,23 @@ namespace core {
 
     }
 
+    template<typename T>
+    uint64_t OutputStationary<T>::calculate_outputs() {
+        const auto &current_node = std::static_pointer_cast<NodeOutS>(this->on_chip_graph.front());
+
+        auto num_windows = out_x * out_y;
+        auto start_window = current_node->window_sets.front() * this->EF_COLUMNS;
+        auto total_windows = std::min(current_node->window_sets.size() * this->EF_COLUMNS,
+                (uint64_t)(num_windows - start_window));
+
+        auto num_filters = this->wgt->getShape()[0];
+        auto start_filter = current_node->filter_sets.front() * this->arch->getTiles() * this->EF_ROWS;
+        auto total_filters = std::min(current_node->filter_sets.size() * this->arch->getTiles() * this->EF_ROWS,
+                num_filters - start_filter);
+
+        return total_windows * total_filters;
+    }
+
     template <typename T>
     void OutputStationary<T>::configure_layer(const std::shared_ptr<base::Array<T>> &_act,
             const std::shared_ptr<base::Array<T>> &_wgt, uint32_t act_prec, uint32_t wgt_prec, bool _linear,

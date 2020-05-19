@@ -829,7 +829,6 @@ namespace core {
                     for (int t = 0; t < this->arch->getTiles(); ++t) {
 
                         tiles_data[t].read_psum = false;
-                        tiles_data[t].ppu = false;
                         tiles_data[t].write = false;
                         tiles_data[t].valid = false;
 
@@ -916,7 +915,6 @@ namespace core {
 
                                 tiles_data[t].out_addresses = AddressBufferRow(outputs, 0);
                                 tiles_data[t].out_banks = BankBufferRow(outputs, 0);
-                                tiles_data[t].ppu = true;
                                 tiles_data[t].write = true;
 
                                 for (int o = 0; o < outputs; ++o) {
@@ -1009,7 +1007,6 @@ namespace core {
             for (int t = 0; t < this->arch->getTiles(); ++t) {
 
                 tiles_data[t].read_psum = false;
-                tiles_data[t].ppu = false;
                 tiles_data[t].write = false;
                 tiles_data[t].valid = false;
 
@@ -1092,7 +1089,6 @@ namespace core {
 
                         tiles_data[t].out_addresses = AddressBufferRow(outputs, 0);
                         tiles_data[t].out_banks = BankBufferRow(outputs, 0);
-                        tiles_data[t].ppu = true;
                         tiles_data[t].write = true;
 
                         for (int o = 0; o < outputs; ++o) {

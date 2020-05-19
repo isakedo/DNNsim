@@ -271,6 +271,12 @@ namespace core {
         bool still_off_chip_data();
 
         /**
+         * Return the number of outputs in the current node step
+         * @return Outputs on-chip
+         */
+        virtual uint64_t calculate_outputs() = 0;
+
+        /**
          * Return if still data to process
          * @param tiles_data Tile data to process
          * @return True if still data to process, False if not

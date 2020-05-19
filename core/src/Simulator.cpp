@@ -291,7 +291,6 @@ namespace core {
                                 control->cycle();
 
                             composer->calculate_delay(tiles_data);
-                            ppu->calculate_delay(tiles_data);
 
                             obuffer->write_request();
                             gbuffer->write_request(tiles_data, obuffer->getFifoReadyCycle());
@@ -310,6 +309,9 @@ namespace core {
                     // - All write petitions are fulfilled
                     while (!arch->flush() || !gbuffer->write_done())
                         control->cycle();
+
+                    // Calculate PPU delay
+                    ppu->calculate_delay(control->calculate_outputs());
 
                     // Write values to DRAM
                     dram->write_data(control->getWriteAddresses());

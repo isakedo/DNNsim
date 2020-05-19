@@ -11,17 +11,8 @@ namespace core {
     }
 
     template <typename T>
-    void PPU<T>::calculate_delay(const std::vector<core::TileData<T>> &tiles_data) {
-        uint64_t inputs = 0;
-        for (const auto &tile_data : tiles_data) {
-
-            if (!tile_data.ppu)
-                continue;
-
-            inputs += tile_data.out_banks.size();
-
-        }
-        auto input_steps = ceil(inputs / (double)INPUTS);
+    void PPU<T>::calculate_delay(uint64_t outputs) {
+        auto input_steps = ceil(outputs / (double)INPUTS);
         auto delay = input_steps * DELAY;
         *global_cycle += delay;
     }

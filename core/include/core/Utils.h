@@ -65,7 +65,6 @@ namespace core {
 
         bool read_psum = false;
 
-        bool ppu = false;
         bool write = false;
         bool valid = false;
     };

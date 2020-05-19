@@ -38,7 +38,7 @@ namespace core {
             global_cycle = globalCycle;
         }
 
-        void calculate_delay(const std::vector<TileData<T>> &tiles_data);
+        void calculate_delay(uint64_t outputs);
 
     };
 
