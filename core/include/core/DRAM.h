@@ -64,9 +64,6 @@ namespace core {
         /** Output Activation off-chip writes */
         uint64_t out_writes = 0;
 
-        /** Stall cycles */
-        uint64_t stall_cycles = 0;
-
         /**
          * Request an address to the memory system
          * @param address Address to request
@@ -130,12 +127,6 @@ namespace core {
          * @return Output activation writes
          */
         uint64_t getOutWrites() const;
-
-        /**
-         * Return the number of stall cycles
-         * @return Stall cycles
-         */
-        uint64_t getStallCycles() const;
 
         /**
          * Return the start activation address

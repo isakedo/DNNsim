@@ -1,9 +1,7 @@
 #ifndef DNNSIM_UTILS_H
 #define DNNSIM_UTILS_H
 
-#include <base/Layer.h>
 #include <base/Network.h>
-#include <sys/common.h>
 
 namespace core {
 

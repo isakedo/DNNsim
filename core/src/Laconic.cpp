@@ -157,18 +157,6 @@ namespace core {
     }
 
     template <typename T>
-    bool Laconic<T>::ready() {
-        if(this->ready_cycle > *this->global_cycle) this->stall_cycles++;
-        return this->ready_cycle <= *this->global_cycle;
-    }
-
-    template <typename T>
-    bool Laconic<T>::flush() {
-        if(this->ready_cycle > *this->global_cycle) this->stall_cycles++;
-        return this->done_cycle <= *this->global_cycle;
-    }
-
-    template <typename T>
     void Laconic<T>::process_tiles(const std::vector<TileData<T>> &tiles_data) {
         if (this->linear) process_linear(tiles_data);
         else process_convolution(tiles_data);

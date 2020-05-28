@@ -3,11 +3,6 @@
 
 namespace core {
 
-    template<typename T>
-    uint64_t LocalBuffer<T>::getStallCycles() const {
-        return stall_cycles;
-    }
-
     template <typename T>
     std::string LocalBuffer<T>::header() {
         std::string header = "Number of memory rows: " + std::to_string(ROWS) + "\n";
@@ -21,8 +16,6 @@ namespace core {
         idx = 0;
         ready_cycle = std::vector<uint64_t>(ROWS, 0);
         done_cycle = std::vector<uint64_t>(ROWS, 0);
-
-        stall_cycles = 0;
     }
 
     template <typename T>
@@ -42,7 +35,6 @@ namespace core {
 
     template <typename T>
     bool LocalBuffer<T>::data_ready() {
-        if (ready_cycle[idx] > *this->global_cycle) stall_cycles++;
         return ready_cycle[idx] <= *this->global_cycle;
     }
 
@@ -58,7 +50,6 @@ namespace core {
 
     template <typename T>
     bool LocalBuffer<T>::write_ready() {
-        if (done_cycle[idx] > *this->global_cycle) stall_cycles++;
         return done_cycle[idx] <= *this->global_cycle;
     }
 

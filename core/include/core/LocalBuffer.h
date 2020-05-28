@@ -32,10 +32,6 @@ namespace core {
         /** Ready cycle per row */
         std::vector<uint64_t> done_cycle;
 
-        /* STATISTICS */
-
-        uint64_t stall_cycles = 0;
-
     public:
 
         LocalBuffer(const std::shared_ptr<std::map<uint64_t, uint64_t>> &_tracked_data,
@@ -48,12 +44,6 @@ namespace core {
          * @return Header
          */
         std::string header() override;
-
-        /**
-         * Return stall cycles
-         * @return Stall cycles
-         */
-        uint64_t getStallCycles() const;
 
         // GENERAL
 

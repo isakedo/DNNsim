@@ -73,9 +73,6 @@ namespace core {
         /** Output Activation bank conflicts */
         uint64_t out_bank_conflicts = 0;
 
-        /** Stall write cycles */
-        uint64_t stall_write_cycles = 0;
-
     public:
 
         /**
@@ -172,12 +169,6 @@ namespace core {
          * @return Number of addresses per access
          */
         uint32_t getAddrsPerAccess() const;
-
-        /**
-         * Return write stall cycles
-         * @return Stall write cycles
-         */
-        uint64_t getWriteStallCycles() const;
 
         /**
          * Return activation bank ready cycle

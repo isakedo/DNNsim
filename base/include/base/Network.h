@@ -1,7 +1,6 @@
 #ifndef DNNSIM_NETWORK_H
 #define DNNSIM_NETWORK_H
 
-#include <sys/common.h>
 #include <base/Layer.h>
 
 namespace base {

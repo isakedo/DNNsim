@@ -74,9 +74,6 @@ namespace core {
         /** Number of cycles */
         uint64_t cycles = 0;
 
-        /** Number of stalle cycles */
-        uint64_t stall_cycles = 0;
-
         /** Scheduled PEs */
         uint64_t scheduled_pe = 0;
 
@@ -170,7 +167,6 @@ namespace core {
 
             compute_cycles = std::vector<uint64_t>(EF_COLUMNS, 0);
             cycles = 0;
-            stall_cycles = 0;
             scheduled_pe = 0;
             idle_pe = 0;
         }
@@ -189,14 +185,6 @@ namespace core {
          */
         virtual uint64_t getCycles() const {
             return cycles;
-        }
-
-        /**
-         * Return number of stall cycles
-         * @return Sstall cycles
-         */
-        uint64_t getStallCycles() const {
-            return stall_cycles;
         }
 
         /**

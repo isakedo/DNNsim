@@ -1,7 +1,6 @@
 #ifndef DNNSIM_LAYER_H
 #define DNNSIM_LAYER_H
 
-#include <sys/common.h>
 #include <base/Array.h>
 
 namespace base {

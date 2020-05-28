@@ -151,12 +151,6 @@ namespace core {
         // Time stats
         auto cycles = stats.register_uint_t("cycles", 0, sys::AverageTotal);
         auto compute_cycles = stats.register_uint_t("compute_cycles", 0, sys::AverageTotal);
-        auto compute_stall_cycles = stats.register_uint_t("compute stall cycles", 0, sys::AverageTotal);
-        auto dram_stall_cycles = stats.register_uint_t("dram_stall_cycles", 0, sys::AverageTotal);
-        auto gbuffer_write_stall_cycles  = stats.register_uint_t("gbuffer_write_stall_cycles", 0, sys::AverageTotal);
-        auto abuffer_stall_cycles = stats.register_uint_t("abuffer_stall_cycles", 0, sys::AverageTotal);
-        auto wbuffer_stall_cycles = stats.register_uint_t("wbuffer_stall_cycles", 0, sys::AverageTotal);
-        auto obuffer_stall_cycles = stats.register_uint_t("obuffer_stall_cycles", 0, sys::AverageTotal);
 
         // Architecture stats
         auto scheduled_pe = stats.register_uint_t("scheduled PEs", 0, sys::AverageTotal);
@@ -323,12 +317,6 @@ namespace core {
                 // Dump stats
                 cycles->value[layer_it][sample] = control->getCycles();
                 compute_cycles->value[layer_it][sample] = arch->getCycles();
-                compute_stall_cycles->value[layer_it][sample] = arch->getStallCycles();
-                dram_stall_cycles->value[layer_it][sample] = dram->getStallCycles();
-                gbuffer_write_stall_cycles->value[layer_it][sample] = gbuffer->getWriteStallCycles();
-                abuffer_stall_cycles->value[layer_it][sample] = abuffer->getStallCycles();
-                wbuffer_stall_cycles->value[layer_it][sample] = wbuffer->getStallCycles();
-                obuffer_stall_cycles->value[layer_it][sample] = obuffer->getStallCycles();
 
                 scheduled_pe->value[layer_it][sample] = arch->getScheduledPe();
                 idle_pe->value[layer_it][sample] = arch->getIdlePe();

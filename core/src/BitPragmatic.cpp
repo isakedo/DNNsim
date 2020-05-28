@@ -267,18 +267,6 @@ namespace core {
         else process_convolution(tiles_data);
     }
 
-    template <typename T>
-    bool BitPragmatic<T>::ready() {
-        if(this->ready_cycle > *this->global_cycle) this->stall_cycles++;
-        return this->ready_cycle <= *this->global_cycle;
-    }
-
-    template <typename T>
-    bool BitPragmatic<T>::flush() {
-        if(this->ready_cycle > *this->global_cycle) this->stall_cycles++;
-        return this->done_cycle <= *this->global_cycle;
-    }
-
     /* POTENTIALS */
 
     template <typename T>

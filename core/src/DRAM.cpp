@@ -18,11 +18,6 @@ namespace core {
         return out_writes;
     }
 
-    template<typename T>
-    uint64_t DRAM<T>::getStallCycles() const {
-        return stall_cycles;
-    }
-
     template <typename T>
     uint64_t DRAM<T>::getStartActAddress() const {
         return START_ACT_ADDRESS;
@@ -91,7 +86,6 @@ namespace core {
         act_reads = 0;
         wgt_reads = 0;
         out_writes = 0;
-        stall_cycles = 0;
     }
 
     template <typename T>
@@ -127,7 +121,6 @@ namespace core {
 
     template <typename T>
     bool DRAM<T>::data_ready() {
-        if (!waiting_addresses.empty()) stall_cycles++;
         return waiting_addresses.empty();
     }
 
