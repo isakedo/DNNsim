@@ -30,6 +30,11 @@ namespace core {
     }
 
     template <typename T>
+    const std::shared_ptr<LocalBuffer<T>> &Control<T>::getPbuffer() const {
+        return pbuffer;
+    }
+
+    template <typename T>
     const std::shared_ptr<LocalBuffer<T>> &Control<T>::getWbuffer() const {
         return wbuffer;
     }
@@ -94,6 +99,7 @@ namespace core {
         dram->configure_layer(act_dram_width, wgt_dram_width);
         gbuffer->configure_layer();
         abuffer->configure_layer();
+        pbuffer->configure_layer();
         wbuffer->configure_layer();
         obuffer->configure_layer();
         arch->configure_layer(act_prec, wgt_prec, -1, arch->diffy() || act->isSigned(),

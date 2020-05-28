@@ -39,13 +39,13 @@ namespace core {
     }
 
     template <typename T>
-    void LocalBuffer<T>::read_request(uint64_t global_buffer_ready_cycle) {
-        ready_cycle[idx] = global_buffer_ready_cycle + READ_DELAY;
+    void LocalBuffer<T>::read_request(uint64_t global_buffer_ready_cycle, bool read) {
+        if (read) ready_cycle[idx] = global_buffer_ready_cycle + READ_DELAY;
     }
 
     template <typename T>
-    void LocalBuffer<T>::evict_data() {
-        done_cycle[idx] = *this->global_cycle;
+    void LocalBuffer<T>::evict_data(bool read) {
+        if (read) done_cycle[idx] = *this->global_cycle;
     }
 
     template <typename T>

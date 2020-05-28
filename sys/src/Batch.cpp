@@ -144,12 +144,10 @@ namespace sys {
                 throw std::runtime_error("Global Buffer weights size not recognised.");
             }
 
-            experiment.gbuffer_act_banks = experiment_proto.gbuffer_act_banks() < 1 ? 16 :
+            experiment.gbuffer_act_banks = experiment_proto.gbuffer_act_banks() < 1 ? 32 :
                     experiment_proto.gbuffer_act_banks();
             experiment.gbuffer_wgt_banks = experiment_proto.gbuffer_wgt_banks() < 1 ? 256 :
                     experiment_proto.gbuffer_wgt_banks();
-            experiment.gbuffer_out_banks = experiment_proto.gbuffer_out_banks() < 1 ? 16 :
-                    experiment_proto.gbuffer_out_banks();
             experiment.gbuffer_bank_width = experiment_proto.gbuffer_bank_width() < 1 ? 256 :
                     experiment_proto.gbuffer_bank_width();
             experiment.gbuffer_read_delay = experiment_proto.gbuffer_read_delay() < 1 ? 1 :
@@ -161,6 +159,11 @@ namespace sys {
                     experiment_proto.abuffer_rows();
             experiment.abuffer_read_delay = experiment_proto.abuffer_read_delay() < 1 ? 1 :
                     experiment_proto.abuffer_read_delay();
+
+            experiment.pbuffer_rows = experiment_proto.pbuffer_rows() < 1 ? 2 :
+                    experiment_proto.pbuffer_rows();
+            experiment.pbuffer_read_delay = experiment_proto.pbuffer_read_delay() < 1 ? 1 :
+                    experiment_proto.pbuffer_read_delay();
 
             experiment.wbuffer_rows = experiment_proto.wbuffer_rows() < 1 ? 2 :
                     experiment_proto.wbuffer_rows();

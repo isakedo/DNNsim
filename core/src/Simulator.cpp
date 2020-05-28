@@ -134,6 +134,7 @@ namespace core {
         auto dram = control->getDram();
         auto gbuffer = control->getGbuffer();
         auto abuffer = control->getAbuffer();
+        auto pbuffer = control->getPbuffer();
         auto wbuffer = control->getWbuffer();
         auto obuffer = control->getObuffer();
         auto composer = control->getComposer();
@@ -163,9 +164,12 @@ namespace core {
 
         // Global Buffer stats
         auto gbuffer_act_reads = stats.register_uint_t("gbuffer_act_reads", 0, sys::AverageTotal);
+        auto gbuffer_psum_reads = stats.register_uint_t("gbuffer_psum_reads", 0, sys::AverageTotal);
         auto gbuffer_wgt_reads = stats.register_uint_t("gbuffer_wgt_reads", 0, sys::AverageTotal);
         auto gbuffer_out_writes = stats.register_uint_t("gbuffer_out_writes", 0, sys::AverageTotal);
+
         auto gbuffer_act_bank_conflicts = stats.register_uint_t("gbuffer_act_bank_conflicts", 0, sys::AverageTotal);
+        auto gbuffer_psum_bank_conflicts = stats.register_uint_t("gbuffer_psum_bank_conflicts", 0, sys::AverageTotal);
         auto gbuffer_wgt_bank_conflicts = stats.register_uint_t("gbuffer_wgt_bank_conflicts", 0, sys::AverageTotal);
         auto gbuffer_out_bank_conflicts = stats.register_uint_t("gbuffer_out_bank_conflicts", 0, sys::AverageTotal);
 
@@ -251,28 +255,35 @@ namespace core {
                             control->cycle();
 
                         // Request data to on-chip global buffer
+                        bool read_psum = false;
                         gbuffer->act_read_request(tiles_data, abuffer->getFifoDoneCycle());
+                        gbuffer->psum_read_request(tiles_data, pbuffer->getFifoDoneCycle(), read_psum);
                         gbuffer->wgt_read_request(tiles_data, wbuffer->getFifoDoneCycle());
 
                         // Request data to local buffers
                         abuffer->read_request(gbuffer->getActReadReadyCycle());
+                        pbuffer->read_request(gbuffer->getPsumReadReadyCycle(), read_psum);
                         wbuffer->read_request(gbuffer->getWgtReadReadyCycle());
 
                         // Wait for:
                         // - activation buffer to have the data ready
+                        // - partial sum buffer to have the data ready
                         // - weight buffer to have the data ready
                         // - pipeline to be ready
-                        while (!abuffer->data_ready() || !wbuffer->data_ready() || !arch->ready())
+                        while (!abuffer->data_ready() || !abuffer->data_ready() || !wbuffer->data_ready() ||
+                                !arch->ready())
                             control->cycle();
 
                         arch->process_tiles(tiles_data);
 
                         abuffer->evict_data();
+                        pbuffer->evict_data(read_psum);
                         wbuffer->evict_data();
 
                         control->cycle();
 
                         abuffer->update_fifo();
+                        pbuffer->update_fifo();
                         wbuffer->update_fifo();
 
                         // Check if write the output register back to global buffer
@@ -326,9 +337,12 @@ namespace core {
                 dram_out_writes->value[layer_it][sample] = dram->getOutWrites();
 
                 gbuffer_act_reads->value[layer_it][sample] = gbuffer->getActReads();
+                gbuffer_psum_reads->value[layer_it][sample] = gbuffer->getPsumReads();
                 gbuffer_wgt_reads->value[layer_it][sample] = gbuffer->getWgtReads();
                 gbuffer_out_writes->value[layer_it][sample] = gbuffer->getOutWrites();
+
                 gbuffer_act_bank_conflicts->value[layer_it][sample] = gbuffer->getActBankConflicts();
+                gbuffer_psum_bank_conflicts->value[layer_it][sample] = gbuffer->getPsumBankConflicts();
                 gbuffer_wgt_bank_conflicts->value[layer_it][sample] = gbuffer->getWgtBankConflicts();
                 gbuffer_out_bank_conflicts->value[layer_it][sample] = gbuffer->getOutBankConflicts();
 
@@ -345,6 +359,7 @@ namespace core {
         header += "--> DRAM: \n" + dram->header();
         header += "--> Global Buffer: \n" + gbuffer->header();
         header += "--> Activation Buffer: \n" + abuffer->header();
+        header += "--> Partial Sum Buffer: \n" + pbuffer->header();
         header += "--> Weight Buffer: \n" + wbuffer->header();
         header += "--> Output Buffer: \n" + obuffer->header();
         header += "--> Composer: \n" + composer->header();

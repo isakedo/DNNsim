@@ -61,25 +61,27 @@ message Batch {
             string gbuffer_wgt_size = 32;
             uint32 gbuffer_act_banks = 33;
             uint32 gbuffer_wgt_banks = 34;
-            uint32 gbuffer_out_banks = 35;
-            uint32 gbuffer_bank_width = 36;
-            uint32 gbuffer_read_delay = 37;
-            uint32 gbuffer_write_delay = 38;
+            uint32 gbuffer_bank_width = 35;
+            uint32 gbuffer_read_delay = 36;
+            uint32 gbuffer_write_delay = 37;
 
-            uint32 abuffer_rows = 39;
-            uint32 abuffer_read_delay = 40;
+            uint32 abuffer_rows = 38;
+            uint32 abuffer_read_delay = 39;
 
-            uint32 wbuffer_rows = 41;
-            uint32 wbuffer_read_delay = 42;
+            uint32 pbuffer_rows = 40;
+            uint32 pbuffer_read_delay = 41;
 
-            uint32 obuffer_rows = 43;
-            uint32 obuffer_write_delay = 44;
+            uint32 wbuffer_rows = 42;
+            uint32 wbuffer_read_delay = 43;
+
+            uint32 obuffer_rows = 44;
+            uint32 obuffer_write_delay = 45;
 
             // Other modules
-            uint32 composer_inputs = 45;
-            uint32 composer_delay = 46;
-            uint32 ppu_inputs = 47;
-            uint32 ppu_delay = 48;
+            uint32 composer_inputs = 46;
+            uint32 composer_delay = 47;
+            uint32 ppu_inputs = 48;
+            uint32 ppu_delay = 49;
 
         }
 

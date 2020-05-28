@@ -123,9 +123,6 @@ namespace sys {
                 /** Global buffer wgt banks */
                 uint32_t gbuffer_wgt_banks = 0;
 
-                /** Global buffer out banks */
-                uint32_t gbuffer_out_banks = 0;
-
                 /** Global buffer bank width */
                 uint32_t gbuffer_bank_width = 0;
 
@@ -140,6 +137,12 @@ namespace sys {
 
                 /** Activation buffer read delay */
                 uint32_t abuffer_read_delay = 0;
+
+                /** Partial sum buffer number of memory rows */
+                uint32_t pbuffer_rows = 0;
+
+                /** Partial sum buffer read delay */
+                uint32_t pbuffer_read_delay = 0;
 
                 /** Weight buffer number of memory rows */
                 uint32_t wbuffer_rows = 0;

@@ -73,9 +73,9 @@ namespace core {
          */
         bool data_ready();
 
-        void read_request(uint64_t global_buffer_ready_cycle);
+        void read_request(uint64_t global_buffer_ready_cycle, bool read = true);
 
-        void evict_data();
+        void evict_data(bool read = true);
 
         // WRITE
 

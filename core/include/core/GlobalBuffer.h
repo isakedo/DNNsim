@@ -47,6 +47,9 @@ namespace core {
         /** Activation banks ready cycle */
         uint64_t act_read_ready_cycle = 0;
 
+        /** Partial sum banks ready cycle */
+        uint64_t psum_read_ready_cycle = 0;
+
         /** Weight banks ready cycle */
         uint64_t wgt_read_ready_cycle = 0;
 
@@ -58,6 +61,9 @@ namespace core {
         /** Activation bank reads */
         uint64_t act_reads = 0;
 
+        /** Partial sum bank reads */
+        uint64_t psum_reads = 0;
+
         /** Weight bank reads */
         uint64_t wgt_reads = 0;
 
@@ -66,6 +72,9 @@ namespace core {
 
         /** Activation bank conflicts */
         uint64_t act_bank_conflicts = 0;
+
+        /** Partial sum bank conflicts */
+        uint64_t psum_bank_conflicts = 0;
 
         /** Weight bank conflicts */
         uint64_t wgt_bank_conflicts = 0;
@@ -82,19 +91,18 @@ namespace core {
          * @param _wgt_addresses
          * @param _ACT_SIZE
          * @param _WGT_SIZE
-         * @param _ACT_BANKS
+         * @param _ACT_OUT_BANKS
          * @param _WGT_BANKS
-         * @param _OUT_BANKS
          * @param _BANK_WIDTH
          * @param _READ_DELAY
          * @param _WRITE_DELAY
          */
         GlobalBuffer(const std::shared_ptr<std::map<uint64_t, uint64_t>> &_tracked_data,
                 const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_wgt_addresses,
-                uint64_t _ACT_SIZE, uint64_t _WGT_SIZE, uint32_t _ACT_BANKS, uint32_t _WGT_BANKS, uint32_t _OUT_BANKS,
+                uint64_t _ACT_SIZE, uint64_t _WGT_SIZE, uint32_t _ACT_OUT_BANKS, uint32_t _WGT_BANKS,
                 uint32_t _BANK_WIDTH, uint32_t _READ_DELAY, uint32_t _WRITE_DELAY) : Memory<T>(_tracked_data,
-                _act_addresses, _wgt_addresses), ACT_SIZE(_ACT_SIZE), WGT_SIZE(_WGT_SIZE), ACT_BANKS(_ACT_BANKS),
-                WGT_BANKS(_WGT_BANKS), OUT_BANKS(_OUT_BANKS), BANK_WIDTH(_BANK_WIDTH),
+                _act_addresses, _wgt_addresses), ACT_SIZE(_ACT_SIZE), WGT_SIZE(_WGT_SIZE), ACT_BANKS(_ACT_OUT_BANKS/2),
+                WGT_BANKS(_WGT_BANKS), OUT_BANKS(_ACT_OUT_BANKS/2), BANK_WIDTH(_BANK_WIDTH),
                 ADDRS_PER_ACCESS(ceil(BANK_WIDTH / (double)BLOCK_SIZE)), READ_DELAY(_READ_DELAY),
                 WRITE_DELAY(_WRITE_DELAY) {}
 
@@ -103,6 +111,12 @@ namespace core {
          * @return Activation bank reads
          */
         uint64_t getActReads() const;
+
+        /**
+         * Return the number of output bank reads
+         * @return Output bank reads
+         */
+        uint64_t getPsumReads() const;
 
         /**
          * Return the number of weight bank reads
@@ -121,6 +135,12 @@ namespace core {
          * @return Activation bank conflicts
          */
         uint64_t getActBankConflicts() const;
+
+        /**
+         * Return the number of partial sum bank conflicts
+         * @return Partial sum bank conflicts
+         */
+        uint64_t getPsumBankConflicts() const;
 
         /**
          * Return the number of weight bank conflicts
@@ -177,6 +197,12 @@ namespace core {
         uint64_t getActReadReadyCycle() const;
 
         /**
+         * Return partial sum bank ready cycle
+         * @return Partial sum bank ready cycle
+         */
+        uint64_t getPsumReadReadyCycle() const;
+
+        /**
          * Return weight bank ready cycle
          * @return Weight bank ready cycle
          */
@@ -215,6 +241,14 @@ namespace core {
          * @param fifo_ready_cycle  Cycle at which the activation buffer has a slot
          */
         void act_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle);
+
+        /**
+         * Read request to the output banks
+         * @param tiles_data        Data to be read from the banks
+         * @param fifo_ready_cycle  Cycle at which the activation buffer has a slot
+         * @param read_psum         Update to True if psums to red (Overwritten)
+         */
+        void psum_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle, bool &read_psum);
 
         /**
          * Read request to the weight banks

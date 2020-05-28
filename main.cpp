@@ -143,11 +143,15 @@ int main(int argc, char *argv[]) {
                         auto gbuffer = std::make_shared<core::GlobalBuffer<float>>(tracked_data, act_addresses,
                                 wgt_addresses, experiment.gbuffer_act_size, experiment.gbuffer_wgt_size,
                                 experiment.gbuffer_act_banks, experiment.gbuffer_wgt_banks,
-                                experiment.gbuffer_out_banks, experiment.gbuffer_bank_width,
-                                experiment.gbuffer_read_delay, experiment.gbuffer_write_delay);
+                                experiment.gbuffer_bank_width, experiment.gbuffer_read_delay,
+                                experiment.gbuffer_write_delay);
 
                         auto abuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data, act_addresses,
                                 wgt_addresses, experiment.abuffer_rows, experiment.abuffer_read_delay,
+                                core::NULL_DELAY);
+
+                        auto pbuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data, act_addresses,
+                                wgt_addresses, experiment.pbuffer_rows, experiment.pbuffer_read_delay,
                                 core::NULL_DELAY);
 
                         auto wbuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data, act_addresses,
@@ -169,7 +173,7 @@ int main(int argc, char *argv[]) {
                         std::shared_ptr<core::Control<float>> control;
                         if (experiment.dataflow == "WindowFirstOutS")
                             control = std::make_shared<core::WindowFirstOutS<float>>(scheduler, dram, gbuffer, abuffer,
-                                    wbuffer, obuffer, composer, ppu);
+                                    pbuffer, wbuffer, obuffer, composer, ppu);
 
                         core::Simulator<float> DNNsim(FAST_MODE, QUIET, CHECK);
 
@@ -217,11 +221,15 @@ int main(int argc, char *argv[]) {
                         auto gbuffer = std::make_shared<core::GlobalBuffer<uint16_t>>(tracked_data, act_addresses,
                                 wgt_addresses, experiment.gbuffer_act_size, experiment.gbuffer_wgt_size,
                                 experiment.gbuffer_act_banks, experiment.gbuffer_wgt_banks,
-                                experiment.gbuffer_out_banks, experiment.gbuffer_bank_width,
-                                experiment.gbuffer_read_delay, experiment.gbuffer_write_delay);
+                                experiment.gbuffer_bank_width, experiment.gbuffer_read_delay,
+                                experiment.gbuffer_write_delay);
 
                         auto abuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data, act_addresses,
                                 wgt_addresses, experiment.abuffer_rows, experiment.abuffer_read_delay,
+                                core::NULL_DELAY);
+
+                        auto pbuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data, act_addresses,
+                                wgt_addresses, experiment.pbuffer_rows, experiment.pbuffer_read_delay,
                                 core::NULL_DELAY);
 
                         auto wbuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data, act_addresses,
@@ -243,7 +251,7 @@ int main(int argc, char *argv[]) {
                         std::shared_ptr<core::Control<uint16_t>> control;
                         if (experiment.dataflow == "WindowFirstOutS")
                             control = std::make_shared<core::WindowFirstOutS<uint16_t>>(scheduler, dram, gbuffer,
-                                    abuffer, wbuffer, obuffer, composer, ppu);
+                                    abuffer, pbuffer, wbuffer, obuffer, composer, ppu);
 
                         core::Simulator<uint16_t> DNNsim(FAST_MODE, QUIET, CHECK);
 

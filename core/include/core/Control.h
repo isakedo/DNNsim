@@ -67,6 +67,9 @@ namespace core {
         /** Weight Buffer model */
         std::shared_ptr<LocalBuffer<T>> wbuffer;
 
+        /** Partial Sum Buffer model */
+        std::shared_ptr<LocalBuffer<T>> pbuffer;
+
         /** Output Buffer model */
         std::shared_ptr<LocalBuffer<T>> obuffer;
 
@@ -129,22 +132,25 @@ namespace core {
          * @param _dram         Dram model
          * @param _gbuffer      Global Buffer model
          * @param _abuffer      Activation Buffer model
-         * @param _wbuffer      Weight Buffer model
+         * @param _pbuffer      Weight Buffer model
+         * @param _wbuffer      Partial Sum Buffer model
          * @param _obuffer      Output Buffer model
          * @param _composer     Composer column model
          * @param _ppu          Post-Processing Unit model
          */
         Control(const std::shared_ptr<BitTactical<T>> &_scheduler, const std::shared_ptr<DRAM<T>> &_dram,
                 const std::shared_ptr<GlobalBuffer<T>> &_gbuffer, const std::shared_ptr<LocalBuffer<T>> &_abuffer,
-                const std::shared_ptr<LocalBuffer<T>> &_wbuffer, const std::shared_ptr<LocalBuffer<T>> &_obuffer,
-                const std::shared_ptr<Composer<T>> &_composer, const std::shared_ptr<PPU<T>> &_ppu) :
-                scheduler(_scheduler), dram(_dram), gbuffer(_gbuffer), abuffer(_abuffer), wbuffer(_wbuffer),
-                obuffer(_obuffer), composer(_composer), ppu(_ppu) {
+                const std::shared_ptr<LocalBuffer<T>> &_pbuffer, const std::shared_ptr<LocalBuffer<T>> &_wbuffer,
+                const std::shared_ptr<LocalBuffer<T>> &_obuffer, const std::shared_ptr<Composer<T>> &_composer,
+                const std::shared_ptr<PPU<T>> &_ppu) : scheduler(_scheduler), dram(_dram), gbuffer(_gbuffer),
+                abuffer(_abuffer), pbuffer(_pbuffer), wbuffer(_wbuffer), obuffer(_obuffer), composer(_composer),
+                ppu(_ppu) {
 
             global_cycle = std::make_shared<uint64_t>(0);
             dram->setGlobalCycle(global_cycle);
             gbuffer->setGlobalCycle(global_cycle);
             abuffer->setGlobalCycle(global_cycle);
+            pbuffer->setGlobalCycle(global_cycle);
             wbuffer->setGlobalCycle(global_cycle);
             obuffer->setGlobalCycle(global_cycle);
             composer->setGlobalCycle(global_cycle);
@@ -177,6 +183,12 @@ namespace core {
          * @return Activation Buffer model
          */
         const std::shared_ptr<LocalBuffer<T>> &getAbuffer() const;
+
+        /**
+         * Return a pointer to the Partial Sum Buffer model
+         * @return Partial Sum Buffer model
+         */
+        const std::shared_ptr<LocalBuffer<T>> &getPbuffer() const;
 
         /**
          * Return a pointer to the Weight Buffer model

@@ -600,6 +600,7 @@ namespace core {
                     node->max_time = max_time_per_step;
                     node->layer_act_on_chip = this->layer_act_on_chip;
                     node->recurrence = r;
+                    node->window_sets = {0};
 
                     // Fil activations
                     if (act_policy == ALL) {

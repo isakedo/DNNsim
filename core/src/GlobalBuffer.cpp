@@ -40,6 +40,11 @@ namespace core {
     }
 
     template<typename T>
+    uint64_t GlobalBuffer<T>::getPsumReads() const {
+        return psum_reads;
+    }
+
+    template<typename T>
     uint64_t GlobalBuffer<T>::getWgtReads() const {
         return wgt_reads;
     }
@@ -55,6 +60,11 @@ namespace core {
     }
 
     template<typename T>
+    uint64_t GlobalBuffer<T>::getPsumBankConflicts() const {
+        return psum_bank_conflicts;
+    }
+
+    template<typename T>
     uint64_t GlobalBuffer<T>::getWgtBankConflicts() const {
         return wgt_bank_conflicts;
     }
@@ -67,6 +77,11 @@ namespace core {
     template<typename T>
     uint64_t GlobalBuffer<T>::getActReadReadyCycle() const {
         return act_read_ready_cycle;
+    }
+
+    template<typename T>
+    uint64_t GlobalBuffer<T>::getPsumReadReadyCycle() const {
+        return psum_read_ready_cycle;
     }
 
     template<typename T>
@@ -100,13 +115,17 @@ namespace core {
     template <typename T>
     void GlobalBuffer<T>::configure_layer() {
         act_read_ready_cycle = 0;
+        psum_read_ready_cycle = 0;
         wgt_read_ready_cycle = 0;
         write_ready_cycle = 0;
 
         act_reads = 0;
+        psum_reads = 0;
         wgt_reads = 0;
         out_writes = 0;
+
         act_bank_conflicts = 0;
+        psum_bank_conflicts = 0;
         wgt_bank_conflicts = 0;
         out_bank_conflicts = 0;
     }
@@ -122,7 +141,7 @@ namespace core {
         try {
 
             uint64_t start_time = std::max(act_read_ready_cycle, fifo_ready_cycle);
-            auto bank_conflicts = std::vector<int>(ACT_BANKS + OUT_BANKS, 0);
+            auto bank_conflicts = std::vector<int>(ACT_BANKS, 0);
 
             for (const auto &tile_data : tiles_data) {
 
@@ -141,21 +160,6 @@ namespace core {
                     if (act_bank != -1)
                         bank_conflicts[act_bank]++;
 
-                // Read partial sums if needed
-                if (tile_data.read_psum) {
-
-                    // Start time
-                    for (const auto &out_addr : tile_data.out_addresses)
-                        if (out_addr != NULL_ADDR)
-                            if (start_time < (*this->tracked_data).at(out_addr))
-                                start_time = (*this->tracked_data).at(out_addr);
-
-                    // Bank conflicts
-                    for (const auto &out_bank : tile_data.out_banks)
-                        if (out_bank != -1)
-                            bank_conflicts[ACT_BANKS + out_bank]++;
-
-                }
             }
 
             auto bank_steps = 0;
@@ -167,7 +171,63 @@ namespace core {
             }
 
             act_read_ready_cycle = start_time + bank_steps * READ_DELAY;
-            act_bank_conflicts += bank_steps - 1;
+            act_bank_conflicts += bank_steps > 0 ? bank_steps - 1 : 0;
+
+        } catch (std::exception &exception) {
+            throw std::runtime_error("Global Buffer waiting for a memory address not requested.");
+        }
+
+    }
+
+    template <typename T>
+    void GlobalBuffer<T>::psum_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle,
+            bool &read_psum) {
+
+        try {
+
+            bool first = true;
+            uint64_t start_time = 0;
+            auto bank_conflicts = std::vector<int>(OUT_BANKS, 0);
+
+            for (const auto &tile_data : tiles_data) {
+
+                if (!tile_data.valid)
+                    continue;
+
+                // Read partial sums if needed
+                if (tile_data.read_psum) {
+
+                    if (first) {
+                        start_time = std::max(psum_read_ready_cycle, write_ready_cycle);
+                        start_time = std::max(start_time, fifo_ready_cycle);
+                        first = false;
+                    }
+
+                    // Start time
+                    for (const auto &out_addr : tile_data.out_addresses)
+                        if (out_addr != NULL_ADDR)
+                            if (start_time < (*this->tracked_data).at(out_addr))
+                                start_time = (*this->tracked_data).at(out_addr);
+
+                    // Bank conflicts
+                    for (const auto &out_bank : tile_data.out_banks)
+                        if (out_bank != -1)
+                            bank_conflicts[out_bank]++;
+
+                }
+            }
+
+            auto bank_steps = 0;
+            for (const auto &reads : bank_conflicts) {
+                auto bank_reads = ceil(reads /(double)ADDRS_PER_ACCESS);
+                psum_reads += bank_reads;
+                if (bank_reads > bank_steps)
+                    bank_steps = bank_reads;
+            }
+
+            psum_read_ready_cycle = start_time + bank_steps * READ_DELAY;
+            psum_bank_conflicts += bank_steps > 0 ? bank_steps - 1 : 0;
+            read_psum = !first;
 
         } catch (std::exception &exception) {
             throw std::runtime_error("Global Buffer waiting for a memory address not requested.");
@@ -210,7 +270,7 @@ namespace core {
             }
 
             wgt_read_ready_cycle = start_time + bank_steps * READ_DELAY;
-            wgt_bank_conflicts += bank_steps - 1;
+            wgt_bank_conflicts += bank_steps > 0 ? bank_steps - 1 : 0;
 
         } catch (std::exception &exception) {
             throw std::runtime_error("Global Buffer waiting for a memory address not requested.");
@@ -221,7 +281,8 @@ namespace core {
     template <typename T>
     void GlobalBuffer<T>::write_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle) {
 
-        auto start_time = std::max(write_ready_cycle, fifo_ready_cycle);
+        auto start_time = std::max(psum_read_ready_cycle, write_ready_cycle);
+        start_time = std::max(start_time, fifo_ready_cycle);
 
         auto bank_conflicts = std::vector<int>(OUT_BANKS, 0);
         for (const auto &tile_data : tiles_data) {
@@ -245,7 +306,7 @@ namespace core {
         }
 
         write_ready_cycle = start_time + bank_steps * WRITE_DELAY;
-        out_bank_conflicts += bank_steps - 1;
+        out_bank_conflicts += bank_steps > 0 ? bank_steps - 1 : 0;
 
     }
 
