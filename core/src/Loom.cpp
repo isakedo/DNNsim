@@ -174,7 +174,7 @@ namespace core {
 
 
     template <typename T>
-    void Loom<T>::process_convolution(const std::vector<TileData<T>> &tiles_data) {
+    void Loom<T>::process_mmul(const std::vector<TileData<T>> &tiles_data) {
 
         auto max_tile_cycles = 0;
         for (const auto &tile_data : tiles_data) {
@@ -278,7 +278,7 @@ namespace core {
     template <typename T>
     void Loom<T>::process_tiles(const std::vector<TileData<T>> &tiles_data) {
         if (this->linear) process_linear(tiles_data);
-        else process_convolution(tiles_data);
+        else process_mmul(tiles_data);
     }
 
     /* POTENTIALS */

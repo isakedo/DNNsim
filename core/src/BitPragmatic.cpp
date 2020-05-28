@@ -184,7 +184,7 @@ namespace core {
     }
 
     template <typename T>
-    void BitPragmatic<T>::process_convolution(const std::vector<core::TileData<T>> &tiles_data) {
+    void BitPragmatic<T>::process_mmul(const std::vector<core::TileData<T>> &tiles_data) {
 
         auto max_column_cycles = std::vector<uint64_t>(this->column_cycles.size(), 0);
 
@@ -264,7 +264,7 @@ namespace core {
     template <typename T>
     void BitPragmatic<T>::process_tiles(const std::vector<TileData<T>> &tiles_data) {
         if (this->linear) process_linear(tiles_data);
-        else process_convolution(tiles_data);
+        else process_mmul(tiles_data);
     }
 
     /* POTENTIALS */

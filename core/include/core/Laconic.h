@@ -72,10 +72,10 @@ namespace core {
         void process_linear(const std::vector<TileData<T>> &tiles_data);
 
         /**
-         * Calculate cycles for convolutional layers
+         * Calculate cycles for matrix multiply
          * @param tile_data Processing information for all the tiles
          */
-        void process_convolution(const std::vector<TileData<T>> &tiles_data);
+        void process_mmul(const std::vector<TileData<T>> &tiles_data);
 
         /**
          * Calculate cycles for all the tiles
