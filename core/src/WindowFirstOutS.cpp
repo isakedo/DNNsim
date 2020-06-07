@@ -767,7 +767,6 @@ namespace core {
         const auto &time_step = current_node->time_step;
         const auto &max_time = current_node->max_time;
         const auto &use_prev_buffer = current_node->use_prev_buffer;
-        const auto &layer_act_on_chip = current_node->layer_act_on_chip;
 
         while (this->group_it < groups.size()) {
             auto group_idx = groups[this->group_it];
@@ -861,12 +860,10 @@ namespace core {
                                     std::min(this->window_buffer.begin() + set_time +
                                     num_act_rows, this->window_buffer.end()));
                             if (first) {
-                                if (!layer_act_on_chip) {
-                                    tiles_data[t].act_addresses =
-                                            AddressBufferSet(this->window_address_buffer.begin() + set_time,
-                                            std::min(this->window_address_buffer.begin() + set_time + num_act_rows,
-                                            this->window_address_buffer.end()));
-                                }
+                                tiles_data[t].act_addresses =
+                                        AddressBufferSet(this->window_address_buffer.begin() + set_time,
+                                        std::min(this->window_address_buffer.begin() + set_time + num_act_rows,
+                                        this->window_address_buffer.end()));
                                 tiles_data[t].act_banks = this->window_bank_buffer[set_time];
                                 first = false;
                             } else {
@@ -964,7 +961,6 @@ namespace core {
         const auto &time_step = current_node->time_step;
         const auto &max_time = current_node->max_time;
         const auto &use_prev_buffer = current_node->use_prev_buffer;
-        const auto &layer_act_on_chip = current_node->layer_act_on_chip;
 
         // Fill window buffer
         if (!use_prev_buffer && !this->window_buffer_filled) {
@@ -1038,12 +1034,10 @@ namespace core {
                             std::min(this->window_buffer.begin() + set_time +
                             num_act_rows, this->window_buffer.end()));
                     if (first) {
-                        if (!layer_act_on_chip) {
-                            tiles_data[t].act_addresses =
-                                    AddressBufferSet(this->window_address_buffer.begin() + set_time,
-                                    std::min(this->window_address_buffer.begin() + set_time + num_act_rows,
-                                    this->window_address_buffer.end()));
-                        }
+                        tiles_data[t].act_addresses =
+                                AddressBufferSet(this->window_address_buffer.begin() + set_time,
+                                std::min(this->window_address_buffer.begin() + set_time + num_act_rows,
+                                this->window_address_buffer.end()));
                         tiles_data[t].act_banks = this->window_bank_buffer[set_time];
                         first = false;
                     } else {

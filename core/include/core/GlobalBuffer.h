@@ -239,8 +239,10 @@ namespace core {
          * Read request to the activation banks
          * @param tiles_data        Data to be read from the banks
          * @param fifo_ready_cycle  Cycle at which the activation buffer has a slot
+         * @param layer_act_on_chip Layer activation on-chip flag
          */
-        void act_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle);
+        void act_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle,
+                bool layer_act_on_chip);
 
         /**
          * Read request to the output banks

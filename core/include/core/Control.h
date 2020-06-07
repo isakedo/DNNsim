@@ -277,6 +277,13 @@ namespace core {
         bool getIfEvictWgt() const;
 
         /**
+         * Return True if layer activations are already on-chip
+         * @return Layer activations on-chip
+         */
+        bool getIfLayerActOnChip() const;
+
+
+        /**
          * Update the memory node and return if more on-chip stages
          * @return True if still off-chip data to process
          */

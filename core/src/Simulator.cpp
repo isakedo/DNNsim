@@ -256,7 +256,7 @@ namespace core {
 
                         // Request data to on-chip global buffer
                         bool read_psum = false;
-                        gbuffer->act_read_request(tiles_data, abuffer->getFifoDoneCycle());
+                        gbuffer->act_read_request(tiles_data, abuffer->getFifoDoneCycle(), control->getIfLayerActOnChip());
                         gbuffer->psum_read_request(tiles_data, pbuffer->getFifoDoneCycle(), read_psum);
                         gbuffer->wgt_read_request(tiles_data, wbuffer->getFifoDoneCycle());
 

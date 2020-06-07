@@ -132,6 +132,11 @@ namespace core {
     }
 
     template <typename T>
+    bool Control<T>::getIfLayerActOnChip() const {
+        return on_chip_graph.front()->layer_act_on_chip;
+    }
+
+    template <typename T>
     bool Control<T>::still_off_chip_data() {
         on_chip_graph.erase(on_chip_graph.begin());
         return !on_chip_graph.empty();

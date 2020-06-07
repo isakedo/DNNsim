@@ -136,7 +136,8 @@ namespace core {
     }
 
     template <typename T>
-    void GlobalBuffer<T>::act_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle) {
+    void GlobalBuffer<T>::act_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle,
+            bool layer_act_on_chip) {
 
         try {
 
@@ -149,11 +150,12 @@ namespace core {
                     continue;
 
                 // Start time
-                for (const auto &act_addr_row : tile_data.act_addresses)
-                    for (const auto &act_addr : act_addr_row)
-                        if (act_addr != NULL_ADDR)
-                            if (start_time < (*this->tracked_data).at(act_addr))
-                                start_time = (*this->tracked_data).at(act_addr);
+                if (!layer_act_on_chip)
+                    for (const auto &act_addr_row : tile_data.act_addresses)
+                        for (const auto &act_addr : act_addr_row)
+                            if (act_addr != NULL_ADDR)
+                                if (start_time < (*this->tracked_data).at(act_addr))
+                                    start_time = (*this->tracked_data).at(act_addr);
 
                 // Bank conflicts
                 for (const auto &act_bank : tile_data.act_banks)
