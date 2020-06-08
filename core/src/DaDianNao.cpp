@@ -35,11 +35,14 @@ namespace core {
                 continue;
 
             if (this->linear) {
-                this->scheduled_pe += tile_data.filters.size();
-                this->idle_pe += this->ROWS - tile_data.filters.size();
+                auto scheduled_pe = tile_data.filters.size() * this->wgt_blks;
+                this->scheduled_pe += scheduled_pe;
+                this->idle_pe += this->ROWS - scheduled_pe;
             } else {
-                this->scheduled_pe += tile_data.windows.size() * tile_data.filters.size();
-                this->idle_pe += (this->COLUMNS * this->ROWS - tile_data.windows.size() * tile_data.filters.size());
+                auto scheduled_pe = tile_data.windows.size() * this->act_blks
+                        * tile_data.filters.size() * this->wgt_blks;
+                this->scheduled_pe += scheduled_pe;
+                this->idle_pe += this->COLUMNS * this->ROWS - scheduled_pe;
             }
         }
 

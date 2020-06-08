@@ -40,14 +40,16 @@ namespace core {
          * Initialise layer
          * @param _act_prec      Activations precision
          * @param _wgt_prec      Weights precision
+         * @param _act_blks      Activation steps
+         * @param _wgt_blks      Weight steps
          * @param _network_width Network width
          * @param _signed_act    Signed activations
          * @param _signed_wgt    Signed weights
          * @param _linear        Linear layer
          * @param EF_COLUMNS     Number of effective columns
          */
-        void configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _signed_act, bool _signed_wgt,
-                bool _linear, uint64_t EF_COLUMNS) override;
+        void configure_layer(int _act_prec, int _wgt_prec, int _act_blks, int _wgt_blks, int _network_width,
+                bool _signed_act, bool _signed_wgt, bool _linear, uint64_t EF_COLUMNS) override;
 
         /**
          * Get number of cycles
@@ -86,6 +88,9 @@ namespace core {
          * @return True if weight buffer to schedule, False if not
          */
         bool schedule() override;
+
+        void process_pe(const BufferRow<T> &row, int idx, int lanes, uint16_t n_mask, bool signed_data,
+                int &min_group_bit, int &max_group_bit, int blk);
 
         /**
          * Calculate cycles for linear layers

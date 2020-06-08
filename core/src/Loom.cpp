@@ -6,13 +6,13 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    void Loom<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _signed_act,
-            bool _signed_wgt, bool _linear, uint64_t EF_COLUMNS) {
-        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_width, _signed_act, _signed_wgt, _linear,
-                EF_COLUMNS);
+    void Loom<T>::configure_layer(int _act_prec, int _wgt_prec, int _act_blks, int _wgt_blks, int _network_width,
+            bool _signed_act, bool _signed_wgt, bool _linear, uint64_t EF_COLUMNS) {
+        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _act_blks, _wgt_blks, _network_width, _signed_act,
+                _signed_wgt, _linear, EF_COLUMNS);
 
-        act_mask = (uint16_t)(1u << (sizeof(T) * 8u - 1u));
-        wgt_mask = (uint16_t)(1u << (sizeof(T) * 8u - 1u));
+        act_mask = (uint16_t)(1u << (this->PE_WIDTH - 1u));
+        wgt_mask = (uint16_t)(1u << (this->PE_WIDTH - 1u));
     }
 
     template <typename T>
@@ -53,15 +53,19 @@ namespace core {
     }
 
     template <typename T>
-    void process_pe(const BufferRow<T> &row, int idx, int lanes, uint16_t mask, bool signed_data, int &min_group_bit,
-            int &max_group_bit) {
+    void Loom<T>::process_pe(const BufferRow<T> &row, int idx, int lanes, uint16_t n_mask, bool signed_data,
+            int &min_group_bit, int &max_group_bit, int blk) {
+
+        auto w_shift = this->PE_WIDTH * blk;
+        auto w_mask = ((1u << this->PE_WIDTH) - 1u) << w_shift;
 
         for (int lane = 0; lane < lanes; ++lane) {
 
             auto bits = std::get<0>(row[idx + lane]);
+            bits = (bits & w_mask) >> w_shift;
 
-            if(signed_data && (bits & mask) != 0) {
-                bits = bits ^ (mask - 1u + mask);
+            if(signed_data && (bits & n_mask) != 0) {
+                bits = bits ^ (n_mask - 1u + n_mask);
             }
 
             const auto &min_max_bits = minMax(bits);
@@ -88,45 +92,66 @@ namespace core {
             if (!tile_data.valid)
                 continue;
 
+            auto COLUMN_GROUPS = ceil(this->act_blks / (double)GROUP_SIZE);
+            auto window_cycles = std::vector<int>(COLUMN_GROUPS, 0);
+
+            auto group = 0;
+            auto group_count = 0;
             auto max_act_bit = 0;
             auto min_act_bit = INT_MAX;
-
-            auto column_cycles = 0;
-            auto window_cycles = 0;
             auto window_idx = this->column_index * tile_data.lanes;
 
-            process_pe(tile_data.act_row.front(), window_idx, tile_data.lanes, act_mask, this->signed_act,
-                    min_act_bit, max_act_bit);
+            for (int act_blk = 0; act_blk < this->act_blks; ++act_blk) {
 
-            window_cycles = MINOR_BIT ? min_act_bit > max_act_bit ? 1 + this->signed_act :
-                    max_act_bit - min_act_bit + 1 : max_act_bit + 1;
+                process_pe(tile_data.act_row.front(), window_idx, tile_data.lanes, act_mask, this->signed_act,
+                           min_act_bit, max_act_bit, act_blk);
+
+                group_count++;
+                if (group_count >= GROUP_SIZE) {
+                    window_cycles[group] = MINOR_BIT ? min_act_bit > max_act_bit ? 1 + this->signed_act :
+                            max_act_bit - min_act_bit + 1 : max_act_bit + 1;
+
+                    group++;
+                    group_count = 0;
+                    max_act_bit = 0;
+                    min_act_bit = INT_MAX;
+                }
+
+            } // Act Spatial Composition
+
+            if (group_count >= GROUP_SIZE)
+                window_cycles[group] = MINOR_BIT ? min_act_bit > max_act_bit ? 1 + this->signed_act :
+                        max_act_bit - min_act_bit + 1 : max_act_bit + 1;
 
             if (DYNAMIC_WEIGHTS) {
 
                 auto ROW_GROUPS = ceil(this->ROWS / (double)GROUP_SIZE);
                 auto filter_cycles = std::vector<int>(ROW_GROUPS, 0);
 
-                auto group = 0;
-                auto group_count = 0;
+                group = 0;
+                group_count = 0;
                 auto max_wgt_bit = 0;
                 auto min_wgt_bit = INT_MAX;
                 for (int f = 0; f < tile_data.filters.size(); ++f) {
                     auto filter_idx = f * tile_data.lanes;
 
-                    process_pe(tile_data.wgt_row, filter_idx, tile_data.lanes, wgt_mask, this->signed_wgt,
-                            min_wgt_bit, max_wgt_bit);
+                    for (int wgt_blk = 0; wgt_blk < this->wgt_blks; ++wgt_blk) {
 
-                    group_count++;
-                    if (group_count >= GROUP_SIZE) {
-                        filter_cycles[group] = MINOR_BIT ? min_wgt_bit > max_wgt_bit ? 1 + this->signed_wgt :
-                                max_wgt_bit - min_wgt_bit + 1 : max_wgt_bit + 1;
+                        process_pe(tile_data.wgt_row, filter_idx, tile_data.lanes, wgt_mask, this->signed_wgt,
+                                min_wgt_bit, max_wgt_bit, wgt_blk);
 
-                        group++;
-                        group_count = 0;
-                        max_wgt_bit = 0;
-                        min_wgt_bit = INT_MAX;
-                    }
-                }
+                        group_count++;
+                        if (group_count >= GROUP_SIZE) {
+                            filter_cycles[group] = MINOR_BIT ? min_wgt_bit > max_wgt_bit ? 1 + this->signed_wgt :
+                                    max_wgt_bit - min_wgt_bit + 1 : max_wgt_bit + 1;
+
+                            group++;
+                            group_count = 0;
+                            max_wgt_bit = 0;
+                            min_wgt_bit = INT_MAX;
+                        }
+                    } // Wgt Spatial Composition
+                } // Filter
 
                 if (group_count < GROUP_SIZE)
                     filter_cycles[group] = MINOR_BIT ? min_wgt_bit > max_wgt_bit ? 1 + this->signed_wgt :
@@ -135,25 +160,27 @@ namespace core {
                 // Calculate cycles
                 auto max_cycles = 0;
                 auto min_cycles = INT_MAX;
-                for (const auto &wgt_cycles : filter_cycles) {
-                    auto act_pe_cycles = (int)ceil(window_cycles / (double)PE_SERIAL_BITS);
-
-                    auto cycles = act_pe_cycles * wgt_cycles;
-                    if (cycles > max_cycles) max_cycles = cycles;
-                    if (cycles < min_cycles) min_cycles = cycles;
+                for (const auto &act_cycles : window_cycles) {
+                    for (const auto &wgt_cycles : filter_cycles) {
+                        auto act_pe_cycles = (int)ceil(act_cycles / (double)PE_SERIAL_BITS);
+                        auto cycles = act_pe_cycles * wgt_cycles;
+                        if (cycles > max_cycles) max_cycles = cycles;
+                        if (cycles < min_cycles) min_cycles = cycles;
+                    }
                 }
 
-                column_cycles += max_cycles;
+                if (max_tile_cycles < max_cycles) max_tile_cycles = max_cycles;
 
             } else {
-                auto act_pe_cycles = (int)ceil(window_cycles / (double)PE_SERIAL_BITS);
-                column_cycles = act_pe_cycles * this->wgt_prec;
+                auto max_act_cycles = (int)ceil(sys::get_max(window_cycles) / (double)PE_SERIAL_BITS);
+                auto max_cycles = max_act_cycles * this->wgt_prec;
+
+                if (max_tile_cycles < max_cycles) max_tile_cycles = max_cycles;
             }
 
-            if (max_tile_cycles < column_cycles) max_tile_cycles = column_cycles;
-
-            this->scheduled_pe += tile_data.filters.size();
-            this->idle_pe += this->ROWS - tile_data.filters.size();
+            auto scheduled_pe = tile_data.filters.size() * this->wgt_blks;
+            this->scheduled_pe += scheduled_pe;
+            this->idle_pe += this->ROWS - scheduled_pe;
 
         }
 
@@ -192,20 +219,23 @@ namespace core {
             for (int w = 0; w < tile_data.windows.size(); ++w) {
                 auto window_idx = w * tile_data.lanes;
 
-                process_pe(tile_data.act_row.front(), window_idx, tile_data.lanes, act_mask, this->signed_act,
-                        min_act_bit, max_act_bit);
+                for (int act_blk = 0; act_blk < this->act_blks; ++act_blk) {
 
-                group_count++;
-                if (group_count >= GROUP_SIZE) {
-                    window_cycles[group] = MINOR_BIT ? min_act_bit > max_act_bit ? 1 + this->signed_act :
-                            max_act_bit - min_act_bit + 1 : max_act_bit + 1;
+                    process_pe(tile_data.act_row.front(), window_idx, tile_data.lanes, act_mask, this->signed_act,
+                            min_act_bit, max_act_bit, act_blk);
 
-                    group++;
-                    group_count = 0;
-                    max_act_bit = 0;
-                    min_act_bit = INT_MAX;
-                }
-            }
+                    group_count++;
+                    if (group_count >= GROUP_SIZE) {
+                        window_cycles[group] = MINOR_BIT ? min_act_bit > max_act_bit ? 1 + this->signed_act :
+                                max_act_bit - min_act_bit + 1 : max_act_bit + 1;
+
+                        group++;
+                        group_count = 0;
+                        max_act_bit = 0;
+                        min_act_bit = INT_MAX;
+                    }
+                } // Act Spatial Composition
+            } // Window
 
             if (group_count < GROUP_SIZE)
                 window_cycles[group] = MINOR_BIT ? min_act_bit > max_act_bit ? 1 + this->signed_act :
@@ -223,20 +253,23 @@ namespace core {
                 for (int f = 0; f < tile_data.filters.size(); ++f) {
                     auto filter_idx = f * tile_data.lanes;
 
-                    process_pe(tile_data.wgt_row, filter_idx, tile_data.lanes, wgt_mask, this->signed_wgt,
-                            min_wgt_bit, max_wgt_bit);
+                    for (int wgt_blk = 0; wgt_blk < this->wgt_blks; ++wgt_blk) {
 
-                    group_count++;
-                    if (group_count >= GROUP_SIZE) {
-                        filter_cycles[group] = MINOR_BIT ? min_wgt_bit > max_wgt_bit ? 1 + this->signed_wgt :
-                                max_wgt_bit - min_wgt_bit + 1 : max_wgt_bit + 1;
+                        process_pe(tile_data.wgt_row, filter_idx, tile_data.lanes, wgt_mask, this->signed_wgt,
+                                min_wgt_bit, max_wgt_bit, wgt_blk);
 
-                        group++;
-                        group_count = 0;
-                        max_wgt_bit = 0;
-                        min_wgt_bit = INT_MAX;
-                    }
-                }
+                        group_count++;
+                        if (group_count >= GROUP_SIZE) {
+                            filter_cycles[group] = MINOR_BIT ? min_wgt_bit > max_wgt_bit ? 1 + this->signed_wgt :
+                                    max_wgt_bit - min_wgt_bit + 1 : max_wgt_bit + 1;
+
+                            group++;
+                            group_count = 0;
+                            max_wgt_bit = 0;
+                            min_wgt_bit = INT_MAX;
+                        }
+                    } // Wgt Spatial Composition
+                } // Filter
 
                 if (group_count < GROUP_SIZE)
                     filter_cycles[group] = MINOR_BIT ? min_wgt_bit > max_wgt_bit ? 1 + this->signed_wgt :
@@ -254,7 +287,6 @@ namespace core {
                     }
                 }
 
-
                 if (max_tile_cycles < max_cycles) max_tile_cycles = max_cycles;
 
             } else {
@@ -264,8 +296,9 @@ namespace core {
                 if (max_tile_cycles < max_cycles) max_tile_cycles = max_cycles;
             }
 
-            this->scheduled_pe += tile_data.windows.size() * tile_data.filters.size();
-            this->idle_pe += (this->COLUMNS * this->ROWS - tile_data.windows.size() * tile_data.filters.size());
+            auto scheduled_pe = tile_data.windows.size() * this->act_blks * tile_data.filters.size() * this->wgt_blks;
+            this->scheduled_pe += scheduled_pe;
+            this->idle_pe += this->COLUMNS * this->ROWS - scheduled_pe;
 
         }
 

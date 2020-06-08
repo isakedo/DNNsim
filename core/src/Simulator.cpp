@@ -248,7 +248,7 @@ namespace core {
                     while(still_data) {
 
                         // Check if data is on-chip
-                        dram->read_request(tiles_data);
+                        dram->read_request(tiles_data, control->getIfLayerActOnChip());
 
                         // Wait for data to be on-chip
                         while (!dram->data_ready())
@@ -450,7 +450,7 @@ namespace core {
                     num_filters * wgt_channels * R;
             uint64_t max_bit_counter = max_par_counter * MAX_BITS;
 
-            arch->configure_layer(act_prec, wgt_prec, network_width, act.isSigned(), wgt.isSigned(),
+            arch->configure_layer(act_prec, wgt_prec, 1, 1, network_width, act.isSigned(), wgt.isSigned(),
                     fc || rnn, arch->getColumns());
 
             for(int n = 0; n < batch_size; ++n) {

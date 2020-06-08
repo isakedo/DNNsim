@@ -6,10 +6,10 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    void BitPragmatic<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _signed_act,
-            bool _signed_wgt, bool _linear, uint64_t EF_COLUMNS) {
-        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_width, _signed_act, _signed_wgt, _linear,
-                EF_COLUMNS);
+    void BitPragmatic<T>::configure_layer(int _act_prec, int _wgt_prec, int _act_blks, int _wgt_blks,
+            int _network_width, bool _signed_act, bool _signed_wgt, bool _linear, uint64_t EF_COLUMNS) {
+        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _act_blks, _wgt_blks, _network_width, _signed_act,
+                _signed_wgt, _linear, EF_COLUMNS);
 
         ready_compute_cycle = 0;
         previous_index = 0;
@@ -69,7 +69,10 @@ namespace core {
 
     template <typename T>
     uint16_t BitPragmatic<T>::process_pe(const BufferSet<T> &act_row, const BufferRow<T> &wgt_row, int window_idx,
-            int filter_idx, int lanes, int time) {
+            int filter_idx, int lanes, int time, int act_blk) {
+
+        auto shift = this->PE_WIDTH * act_blk;
+        auto mask = ((1u << this->PE_WIDTH) - 1u) << shift;
 
         std::vector<T> acts;
         for (int lane = 0; lane < lanes; ++lane) {
@@ -85,6 +88,8 @@ namespace core {
 
             auto act_bits = std::get<0>(act_row[time_h][window_idx + lane_d]);
             if (DIFFY) act_bits = abs((short)act_bits);
+            act_bits = (act_bits & mask) >> shift;
+
             if (BOOTH_ENCODING) act_bits = booth_encoding(act_bits);
 
             auto it = std::find(acts.begin(), acts.end(), act_bits);
@@ -141,32 +146,37 @@ namespace core {
             auto column_cycles = 0;
             auto window_idx = this->column_index * tile_data.lanes;
 
-            if (TCL) {
+            for (int act_blk = 0; act_blk < this->act_blks; ++act_blk) {
+                if (TCL) {
 
-                auto max_cycles = 0;
-                auto min_cycles = INT_MAX;
-                for (int f = 0; f < tile_data.filters.size(); ++f) {
-                    auto filter_idx = f * tile_data.lanes;
+                    auto max_cycles = 0;
+                    auto min_cycles = INT_MAX;
+                    for (int f = 0; f < tile_data.filters.size(); ++f) {
+                        auto filter_idx = f * tile_data.lanes;
 
-                    auto cycles = process_pe(tile_data.act_row, tile_data.wgt_row, window_idx, filter_idx,
-                            tile_data.lanes, tile_data.time);
-                    if (cycles > max_cycles) max_cycles = cycles;
-                    if (cycles < min_cycles) min_cycles = cycles;
+                        auto cycles = process_pe(tile_data.act_row, tile_data.wgt_row, window_idx, filter_idx,
+                                tile_data.lanes, tile_data.time, act_blk);
+                        if (cycles > max_cycles) max_cycles = cycles;
+                        if (cycles < min_cycles) min_cycles = cycles;
 
-                } // Filter
+                    } // Filter
 
-                column_cycles = max_cycles;
+                    column_cycles = max_cycles;
 
-            } else {
-               column_cycles = process_pe(tile_data.act_row, BufferRow<T>(), window_idx, -1, tile_data.lanes, -1);
-            }
+                } else {
+                    column_cycles = process_pe(tile_data.act_row, BufferRow<T>(), window_idx, -1, tile_data.lanes,
+                            -1, act_blk);
+                }
 
-            if (max_tile_cycles < column_cycles) max_tile_cycles = column_cycles;
+                if (max_tile_cycles < column_cycles) max_tile_cycles = column_cycles;
 
-            this->scheduled_pe += tiles_data[t].filters.size();
-            this->idle_pe += this->ROWS - tiles_data[t].filters.size();
+            } // Act Spatial Composition
 
-        }
+            auto scheduled_pe = tile_data.filters.size() * this->wgt_blks;
+            this->scheduled_pe += scheduled_pe;
+            this->idle_pe += this->ROWS - scheduled_pe;
+
+        } // Tile
 
         if (this->cycles < this->compute_cycles[this->column_index])
             this->cycles = this->compute_cycles[this->column_index];
@@ -194,39 +204,42 @@ namespace core {
             if (!tile_data.valid)
                 continue;
 
-            if (TCL) {
+            auto idx = 0;
+            for (int w = 0; w < tile_data.windows.size(); ++w) {
+                auto window_idx = w * tile_data.lanes;
 
-                for (int w = 0; w < tile_data.windows.size(); ++w) {
-                    auto window_idx = w * tile_data.lanes;
+                for (int act_blk = 0; act_blk < this->act_blks; ++act_blk) {
+                    if (TCL) {
 
-                    auto max_cycles = 0;
-                    auto min_cycles = INT_MAX;
-                    for (int f = 0; f < tile_data.filters.size(); ++f) {
-                        auto filter_idx = f * tile_data.lanes;
+                        auto max_cycles = 0;
+                        auto min_cycles = INT_MAX;
+                        for (int f = 0; f < tile_data.filters.size(); ++f) {
+                            auto filter_idx = f * tile_data.lanes;
 
-                        auto cycles = process_pe(tile_data.act_row, tile_data.wgt_row, window_idx, filter_idx,
-                                tile_data.lanes, tile_data.time);
-                        if (cycles > max_cycles) max_cycles = cycles;
-                        if (cycles < min_cycles) min_cycles = cycles;
+                            auto cycles = process_pe(tile_data.act_row, tile_data.wgt_row, window_idx, filter_idx,
+                                    tile_data.lanes, tile_data.time, act_blk);
+                            if (cycles > max_cycles) max_cycles = cycles;
+                            if (cycles < min_cycles) min_cycles = cycles;
 
-                    } // Filter
+                        } // Filter
 
-                    if (max_column_cycles[w] < max_cycles) max_column_cycles[w] = max_cycles;
+                        if (max_column_cycles[idx] < max_cycles) max_column_cycles[idx] = max_cycles;
+                        idx++;
 
-                } // Window
+                    } else {
+                        auto cycles = process_pe(tile_data.act_row, BufferRow<T>(), window_idx, -1, tile_data.lanes,
+                                -1, act_blk);
+                        if (max_column_cycles[idx] < cycles) max_column_cycles[idx] = cycles;
+                        idx++;
+                    }
+                } // Act Spatial Composition
+            } // Window
 
-            } else {
-                for (int w = 0; w < tile_data.windows.size(); ++w) {
-                    auto window_idx = w * tile_data.lanes;
-                    auto cycles = process_pe(tile_data.act_row, BufferRow<T>(), window_idx, -1, tile_data.lanes, -1);
-                    if (max_column_cycles[w] < cycles) max_column_cycles[w] = cycles;
-                } // Window
-            }
+            auto scheduled_pe = tile_data.windows.size() * this->act_blks * tile_data.filters.size() * this->wgt_blks;
+            this->scheduled_pe += scheduled_pe;
+            this->idle_pe += this->COLUMNS * this->ROWS - scheduled_pe;
 
-            this->scheduled_pe += tile_data.windows.size() * tile_data.filters.size();
-            this->idle_pe += (this->COLUMNS * this->ROWS - tile_data.windows.size() * tile_data.filters.size());
-
-        }
+        } // Tile
 
         // Column registers
         if(COLUMN_REGISTERS > 0) {

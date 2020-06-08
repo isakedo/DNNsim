@@ -52,14 +52,16 @@ namespace core {
          * Initialise layer
          * @param _act_prec      Activations precision
          * @param _wgt_prec      Weights precision
+         * @param _act_blks      Activation steps
+         * @param _wgt_blks      Weight steps
          * @param _network_width Network width
          * @param _signed_act    Signed activations
          * @param _signed_wgt    Signed weights
          * @param _linear        Linear layer
          * @param EF_COLUMNS     Number of effective columns
          */
-        void configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _signed_act, bool _signed_wgt,
-                bool _linear, uint64_t EF_COLUMNS) override;
+        void configure_layer(int _act_prec, int _wgt_prec, int _act_blks, int _wgt_blks, int _network_width,
+                bool _signed_act, bool _signed_wgt, bool _linear, uint64_t EF_COLUMNS) override;
 
         /**
          * Get number of cycles
@@ -111,7 +113,7 @@ namespace core {
          * @param max_group_bit Leading bit for the group (Overwritten)
          */
         void process_pe(const BufferSet<T> &act_row, const BufferRow<T> &wgt_row, int window_idx, int filter_idx,
-                int lanes, int time, int &min_group_bit, int &max_group_bit);
+                int lanes, int time, int &min_group_bit, int &max_group_bit, int act_blk);
 
         /**
          * Calculate cycles for linear layers

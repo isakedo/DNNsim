@@ -6,10 +6,10 @@ namespace core {
     /* AUXILIARY FUNCTIONS */
 
     template <typename T>
-    void ShapeShifter<T>::configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _signed_act,
-            bool _signed_wgt, bool _linear, uint64_t EF_COLUMNS) {
-        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _network_width, _signed_act, _signed_wgt, _linear,
-                EF_COLUMNS);
+    void ShapeShifter<T>::configure_layer(int _act_prec, int _wgt_prec, int _act_blks, int _wgt_blks,
+            int _network_width, bool _signed_act, bool _signed_wgt, bool _linear, uint64_t EF_COLUMNS) {
+        Architecture<T>::configure_layer(_act_prec, _wgt_prec, _act_blks, _wgt_blks, _network_width, _signed_act,
+                _signed_wgt, _linear, EF_COLUMNS);
 
         auto GROUPS = ceil(this->column_cycles.size() / (double)GROUP_SIZE);
         this->column_cycles = std::vector<uint64_t>(GROUPS, 0);
@@ -18,7 +18,7 @@ namespace core {
         previous_index = 0;
         previous_cycles = std::vector<uint64_t>(COLUMN_REGISTERS, 0);
         previous_compute_cycles = std::vector<uint64_t>(COLUMN_REGISTERS, 0);
-        act_mask = (uint16_t)(1u << (sizeof(T) * 8u - 1u));
+        act_mask = (uint16_t)(1u << (this->PE_WIDTH - 1u));
     }
 
     template <typename T>
@@ -60,7 +60,10 @@ namespace core {
 
     template <typename T>
     void ShapeShifter<T>::process_pe(const BufferSet<T> &act_row, const BufferRow<T> &wgt_row, int window_idx,
-            int filter_idx, int lanes, int time, int &min_group_bit, int &max_group_bit) {
+            int filter_idx, int lanes, int time, int &min_group_bit, int &max_group_bit, int act_blk) {
+
+        auto shift = this->PE_WIDTH * act_blk;
+        auto mask = ((1u << this->PE_WIDTH) - 1u) << shift;
 
         for (int lane = 0; lane < lanes; ++lane) {
 
@@ -74,6 +77,7 @@ namespace core {
             }
 
             auto act_bits = std::get<0>(act_row[time_h][window_idx + lane_d]);
+            act_bits = (act_bits & mask) >> shift;
 
             if(this->signed_act && (act_bits & act_mask) != 0) {
                 act_bits = act_bits ^ (act_mask - 1u + act_mask);
@@ -103,34 +107,54 @@ namespace core {
             if (!tile_data.valid)
                 continue;
 
+            auto group = 0;
+            auto group_count = 0;
             auto max_act_bit = 0;
             auto min_act_bit = INT_MAX;
 
-            auto column_cycles = 0;
             auto window_idx = this->column_index * tile_data.lanes;
 
-            if (TCL) {
-                for (int f = 0; f < tile_data.filters.size(); ++f) {
-                    auto filter_idx = f * tile_data.lanes;
+            for (int act_blk = 0; act_blk < this->act_blks; ++act_blk) {
+                if (TCL) {
+                    for (int f = 0; f < tile_data.filters.size(); ++f) {
+                        auto filter_idx = f * tile_data.lanes;
 
-                    process_pe(tile_data.act_row, tile_data.wgt_row, window_idx, filter_idx, tile_data.lanes,
-                            tile_data.time, min_act_bit, max_act_bit);
+                        process_pe(tile_data.act_row, tile_data.wgt_row, window_idx, filter_idx, tile_data.lanes,
+                                tile_data.time, min_act_bit, max_act_bit, act_blk);
 
-                } // Filter
-            } else {
-                process_pe(tile_data.act_row, BufferRow<T>(), window_idx, -1, tile_data.lanes, -1, min_act_bit,
-                        max_act_bit);
+                    } // Filter
+                } else {
+                    process_pe(tile_data.act_row, BufferRow<T>(), window_idx, -1, tile_data.lanes, -1, min_act_bit,
+                            max_act_bit, act_blk);
+                }
+
+                group_count++;
+                if (group_count >= GROUP_SIZE) {
+                    auto column_cycles = MINOR_BIT ? min_act_bit > max_act_bit ? 1 + this->signed_act :
+                            max_act_bit - min_act_bit + 1 : max_act_bit + 1;
+
+                    if (max_tile_cycles < column_cycles) max_tile_cycles = column_cycles;
+
+                    group++;
+                    group_count = 0;
+                    max_act_bit = 0;
+                    min_act_bit = INT_MAX;
+                }
+
+            } // Act Spatial Composition
+
+            if (group_count < GROUP_SIZE) {
+                auto column_cycles = MINOR_BIT ? min_act_bit > max_act_bit ? 1 + this->signed_act
+                        : max_act_bit - min_act_bit + 1 : max_act_bit + 1;
+
+                if (max_tile_cycles < column_cycles) max_tile_cycles = column_cycles;
             }
 
-            column_cycles = MINOR_BIT ? min_act_bit > max_act_bit ? 1 + this->signed_act :
-                    max_act_bit - min_act_bit + 1 : max_act_bit + 1;
+            auto scheduled_pe = tile_data.filters.size() * this->wgt_blks;
+            this->scheduled_pe += scheduled_pe;
+            this->idle_pe += this->ROWS - scheduled_pe;
 
-            if (max_tile_cycles < column_cycles) max_tile_cycles = column_cycles;
-
-            this->scheduled_pe += tiles_data[t].filters.size();
-            this->idle_pe += this->ROWS - tiles_data[t].filters.size();
-
-        }
+        } // Tile
 
         if (this->cycles < this->compute_cycles[this->column_index])
             this->cycles = this->compute_cycles[this->column_index];
@@ -166,31 +190,33 @@ namespace core {
             for (int w = 0; w < tile_data.windows.size(); ++w) {
                 auto window_idx = w * tile_data.lanes;
 
-                if (TCL) {
-                    for (int f = 0; f < tile_data.filters.size(); ++f) {
-                        auto filter_idx = f * tile_data.lanes;
+                for (int act_blk = 0; act_blk < this->act_blks; ++act_blk) {
+                    if (TCL) {
+                        for (int f = 0; f < tile_data.filters.size(); ++f) {
+                            auto filter_idx = f * tile_data.lanes;
 
-                        process_pe(tile_data.act_row, tile_data.wgt_row, window_idx, filter_idx, tile_data.lanes,
-                                tile_data.time, min_act_bit, max_act_bit);
+                            process_pe(tile_data.act_row, tile_data.wgt_row, window_idx, filter_idx, tile_data.lanes,
+                                    tile_data.time, min_act_bit, max_act_bit, act_blk);
 
-                    } // Filter
-                } else {
-                    process_pe(tile_data.act_row, BufferRow<T>(), window_idx, -1, tile_data.lanes, -1, min_act_bit,
-                            max_act_bit);
-                }
+                        } // Filter
+                    } else {
+                        process_pe(tile_data.act_row, BufferRow<T>(), window_idx, -1, tile_data.lanes, -1, min_act_bit,
+                                max_act_bit, act_blk);
+                    }
 
-                group_count++;
-                if (group_count >= GROUP_SIZE) {
-                    auto cycles = MINOR_BIT ? min_act_bit > max_act_bit ? 1 + this->signed_act :
-                            max_act_bit - min_act_bit + 1 : max_act_bit + 1;
+                    group_count++;
+                    if (group_count >= GROUP_SIZE) {
+                        auto cycles = MINOR_BIT ? min_act_bit > max_act_bit ? 1 + this->signed_act :
+                                max_act_bit - min_act_bit + 1 : max_act_bit + 1;
 
-                    if (max_group_cycles[group] < cycles) max_group_cycles[group] = cycles;
+                        if (max_group_cycles[group] < cycles) max_group_cycles[group] = cycles;
 
-                    group++;
-                    group_count = 0;
-                    max_act_bit = 0;
-                    min_act_bit = INT_MAX;
-                }
+                        group++;
+                        group_count = 0;
+                        max_act_bit = 0;
+                        min_act_bit = INT_MAX;
+                    }
+                } // Act Spatial Composition
             } // Window
 
             if (group_count < GROUP_SIZE) {
@@ -200,10 +226,11 @@ namespace core {
                 if (max_group_cycles[group] < cycles) max_group_cycles[group] = cycles;
             }
 
-            this->scheduled_pe += tile_data.windows.size() * tile_data.filters.size();
-            this->idle_pe += (this->COLUMNS * this->ROWS - tile_data.windows.size() * tile_data.filters.size());
+            auto scheduled_pe = tile_data.windows.size() * this->act_blks * tile_data.filters.size() * this->wgt_blks;
+            this->scheduled_pe += scheduled_pe;
+            this->idle_pe += this->COLUMNS * this->ROWS - scheduled_pe;
 
-        }
+        } // Tile
 
         // Column registers
         if(COLUMN_REGISTERS > 0) {

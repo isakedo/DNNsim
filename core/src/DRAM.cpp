@@ -125,17 +125,18 @@ namespace core {
     }
 
     template <typename T>
-    void DRAM<T>::read_request(const std::vector<TileData<T>> &tiles_data) {
+    void DRAM<T>::read_request(const std::vector<TileData<T>> &tiles_data, bool layer_act_on_chip) {
         try {
             for (const auto &tile_data : tiles_data) {
 
                 if (!tile_data.valid)
                     continue;
 
-                for (const auto &act_addr_row : tile_data.act_addresses)
-                    for (const auto &act_addr : act_addr_row)
-                        if (act_addr != NULL_ADDR && (*this->tracked_data).at(act_addr) == NULL_TIME)
-                            waiting_addresses.insert(act_addr);
+                if (!layer_act_on_chip)
+                    for (const auto &act_addr_row : tile_data.act_addresses)
+                        for (const auto &act_addr : act_addr_row)
+                            if (act_addr != NULL_ADDR && (*this->tracked_data).at(act_addr) == NULL_TIME)
+                                waiting_addresses.insert(act_addr);
 
                 for (const auto &wgt_addr : tile_data.wgt_addresses)
                     if (wgt_addr != NULL_ADDR && (*this->tracked_data).at(wgt_addr) == NULL_TIME)

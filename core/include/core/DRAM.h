@@ -212,7 +212,7 @@ namespace core {
          * Add requested data on-chip to the waiting list if still off-chip
          * @param tiles_data Data to be read
          */
-        void read_request(const std::vector<TileData<T>> &tiles_data);
+        void read_request(const std::vector<TileData<T>> &tiles_data, bool layer_act_on_chip);
 
         /**
          * Callback function for read address from DRAM

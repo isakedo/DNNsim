@@ -30,25 +30,26 @@ namespace core {
     template <typename T>
     void Stripes<T>::process_tiles(const std::vector<TileData<T>> &tiles_data) {
 
+        auto process_time = std::min(this->act_prec, (int)this->PE_WIDTH);
         if (this->linear) {
 
             if (this->cycles < this->compute_cycles[this->column_index])
                 this->cycles = this->compute_cycles[this->column_index];
 
-            this->compute_cycles[this->column_index] = this->cycles + this->act_prec;
+            this->compute_cycles[this->column_index] = this->cycles + process_time;
             this->cycles++;
 
-            this->column_cycles[this->column_index] = *this->global_cycle + this->act_prec;
+            this->column_cycles[this->column_index] = *this->global_cycle + process_time;
             this->column_index = (this->column_index + 1) % this->column_cycles.size();
 
-            this->done_cycle = *this->global_cycle + this->act_prec;
+            this->done_cycle = *this->global_cycle + process_time;
             this->ready_cycle = this->column_cycles[this->column_index];
 
         } else {
 
-            this->done_cycle = *this->global_cycle + this->act_prec;
-            this->ready_cycle = *this->global_cycle + this->act_prec;
-            this->cycles += this->act_prec;
+            this->done_cycle = *this->global_cycle + process_time;
+            this->ready_cycle = *this->global_cycle + process_time;
+            this->cycles += process_time;
 
         }
 
@@ -58,11 +59,14 @@ namespace core {
                 continue;
 
             if (this->linear) {
-                this->scheduled_pe += tile_data.filters.size();
-                this->idle_pe += this->ROWS - tile_data.filters.size();
+                auto scheduled_pe = tile_data.filters.size() * this->wgt_blks;
+                this->scheduled_pe += scheduled_pe;
+                this->idle_pe += this->ROWS - scheduled_pe;
             } else {
-                this->scheduled_pe += tile_data.windows.size() * tile_data.filters.size();
-                this->idle_pe += (this->COLUMNS * this->ROWS - tile_data.windows.size() * tile_data.filters.size());
+                auto scheduled_pe = tile_data.windows.size() * this->act_blks
+                        * tile_data.filters.size() * this->wgt_blks;
+                this->scheduled_pe += scheduled_pe;
+                this->idle_pe += this->COLUMNS * this->ROWS - scheduled_pe;
             }
 
         }

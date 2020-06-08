@@ -45,6 +45,12 @@ namespace core {
         /** Weights precision */
         int wgt_prec = 0;
 
+        /** Number of activation steps */
+        int act_blks = 0;
+
+        /** Number of weight steps */
+        int wgt_blks = 0;
+
         /** Network width */
         int network_width = 0;
 
@@ -144,16 +150,20 @@ namespace core {
          * Initialise layer
          * @param _act_prec      Activations precision
          * @param _wgt_prec      Weights precision
+         * @param _act_blks      Activation steps
+         * @param _wgt_blks      Weight steps
          * @param _network_width Network width
          * @param _signed_act    Signed activations
          * @param _signed_wgt    Signed weights
          * @param _linear        Linear layer
          * @param EF_COLUMNS     Number of effective columns
          */
-        virtual void configure_layer(int _act_prec, int _wgt_prec, int _network_width, bool _signed_act,
-                bool _signed_wgt, bool _linear, uint64_t EF_COLUMNS) {
+        virtual void configure_layer(int _act_prec, int _wgt_prec, int _act_blks, int _wgt_blks, int _network_width,
+                bool _signed_act, bool _signed_wgt, bool _linear, uint64_t EF_COLUMNS) {
             act_prec = _act_prec;
             wgt_prec = _wgt_prec;
+            act_blks = _act_blks;
+            wgt_blks = _wgt_blks;
             network_width = _network_width;
             signed_act = _signed_act;
             signed_wgt = _signed_wgt;
@@ -162,10 +172,12 @@ namespace core {
             ready_cycle = 0;
             done_cycle = 0;
 
-            column_cycles = std::vector<uint64_t>(EF_COLUMNS, 0);
+            column_cycles = _linear ? std::vector<uint64_t>(EF_COLUMNS, 0) :
+                    std::vector<uint64_t>(EF_COLUMNS * _act_blks, 0);
             column_index = 0;
 
-            compute_cycles = std::vector<uint64_t>(EF_COLUMNS, 0);
+            compute_cycles = _linear ? std::vector<uint64_t>(EF_COLUMNS, 0) :
+                    std::vector<uint64_t>(EF_COLUMNS * _act_blks, 0);
             cycles = 0;
             scheduled_pe = 0;
             idle_pe = 0;

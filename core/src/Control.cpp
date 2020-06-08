@@ -102,7 +102,7 @@ namespace core {
         pbuffer->configure_layer();
         wbuffer->configure_layer();
         obuffer->configure_layer();
-        arch->configure_layer(act_prec, wgt_prec, -1, arch->diffy() || act->isSigned(),
+        arch->configure_layer(act_prec, wgt_prec, ACT_BLKS, WGT_BLKS, -1, arch->diffy() || act->isSigned(),
                 arch->diffy() || wgt->isSigned(), _linear, EF_COLUMNS);
     }
 

@@ -57,34 +57,49 @@ namespace core {
             auto max_cycles = 0;
             auto min_cycles = INT_MAX;
             auto window_idx = this->column_index * tiles_data[t].lanes;
-            for (int f = 0; f < tiles_data[t].filters.size(); ++f) {
-                auto filter_idx = f * tiles_data[t].lanes;
 
-                for (int lane = 0; lane < tiles_data[t].lanes; ++lane) {
+            for (int act_blk = 0; act_blk < this->act_blks; ++act_blk) {
+                auto act_shift = this->PE_WIDTH * act_blk;
+                auto act_mask = ((1u << this->PE_WIDTH) - 1u) << act_shift;
 
-                    auto act_bits = std::get<0>(tiles_data[t].act_row.front()[window_idx + lane]);
-                    auto wgt_bits = std::get<0>(tiles_data[t].wgt_row[filter_idx + lane]);
+                for (int f = 0; f < tiles_data[t].filters.size(); ++f) {
+                    auto filter_idx = f * tiles_data[t].lanes;
 
-                    if (BOOTH_ENCODING) {
-                        act_bits = booth_encoding(act_bits);
-                        wgt_bits = booth_encoding(wgt_bits);
-                    }
+                    for (int wgt_blk = 0; wgt_blk < this->wgt_blks; ++wgt_blk) {
+                        auto wgt_shift = this->PE_WIDTH * wgt_blk;
+                        auto wgt_mask = ((1u << this->PE_WIDTH) - 1u) << wgt_shift;
 
-                    auto act_cycles = effectualBits(act_bits);
-                    auto wgt_cycles = effectualBits(wgt_bits);
-                    auto cycles = act_cycles * wgt_cycles;
+                        for (int lane = 0; lane < tiles_data[t].lanes; ++lane) {
 
-                    if (cycles == 0) cycles = 1;
-                    if (cycles > max_cycles) max_cycles = cycles;
-                    if (cycles < min_cycles) min_cycles = cycles;
+                            auto act_bits = std::get<0>(tiles_data[t].act_row.front()[window_idx + lane]);
+                            act_bits = (act_bits & act_mask) >> act_shift;
 
-                } // Multiply 16 weights and 16 activations values
-            } // Filter
+                            auto wgt_bits = std::get<0>(tiles_data[t].wgt_row[filter_idx + lane]);
+                            wgt_bits = (wgt_bits & wgt_mask) >> wgt_shift;
+
+                            if (BOOTH_ENCODING) {
+                                act_bits = booth_encoding(act_bits);
+                                wgt_bits = booth_encoding(wgt_bits);
+                            }
+
+                            auto act_cycles = effectualBits(act_bits);
+                            auto wgt_cycles = effectualBits(wgt_bits);
+                            auto cycles = act_cycles * wgt_cycles;
+
+                            if (cycles == 0) cycles = 1;
+                            if (cycles > max_cycles) max_cycles = cycles;
+                            if (cycles < min_cycles) min_cycles = cycles;
+
+                        } // Multiply weights and activations values
+                    } // Wgt Spatial Composition
+                } // Filter
+            } // Act Spatial Composition
 
             if (max_tile_cycles < max_cycles) max_tile_cycles = max_cycles;
 
-            this->scheduled_pe += tiles_data[t].filters.size();
-            this->idle_pe += this->ROWS - tiles_data[t].filters.size();
+            auto scheduled_pe = tile_data.filters.size() * this->wgt_blks;
+            this->scheduled_pe += scheduled_pe;
+            this->idle_pe += this->ROWS - scheduled_pe;
 
         }
 
@@ -118,35 +133,49 @@ namespace core {
             for (int w = 0; w < tile_data.windows.size(); ++w) {
                 auto window_idx = w * tile_data.lanes;
 
-                for (int f = 0; f < tile_data.filters.size(); ++f) {
-                    auto filter_idx = f * tile_data.lanes;
+                for (int act_blk = 0; act_blk < this->act_blks; ++act_blk) {
+                    auto act_shift = this->PE_WIDTH * act_blk;
+                    auto act_mask = ((1u << this->PE_WIDTH) - 1u) << act_shift;
 
-                    for (int lane = 0; lane < tile_data.lanes; ++lane) {
+                    for (int f = 0; f < tile_data.filters.size(); ++f) {
+                        auto filter_idx = f * tile_data.lanes;
 
-                        auto act_bits = std::get<0>(tile_data.act_row.front()[window_idx + lane]);
-                        auto wgt_bits = std::get<0>(tile_data.wgt_row[filter_idx + lane]);
+                        for (int wgt_blk = 0; wgt_blk < this->wgt_blks; ++wgt_blk) {
+                            auto wgt_shift = this->PE_WIDTH * wgt_blk;
+                            auto wgt_mask = ((1u << this->PE_WIDTH) - 1u) << wgt_shift;
 
-                        if (BOOTH_ENCODING) {
-                            act_bits = booth_encoding(act_bits);
-                            wgt_bits = booth_encoding(wgt_bits);
-                        }
+                            for (int lane = 0; lane < tile_data.lanes; ++lane) {
 
-                        auto act_cycles = effectualBits(act_bits);
-                        auto wgt_cycles = effectualBits(wgt_bits);
-                        auto cycles = act_cycles * wgt_cycles;
+                                auto act_bits = std::get<0>(tile_data.act_row.front()[window_idx + lane]);
+                                act_bits = (act_bits & act_mask) >> act_shift;
 
-                        if (cycles == 0) cycles = 1;
-                        if (cycles > max_cycles) max_cycles = cycles;
-                        if (cycles < min_cycles) min_cycles = cycles;
+                                auto wgt_bits = std::get<0>(tile_data.wgt_row[filter_idx + lane]);
+                                wgt_bits = (wgt_bits & wgt_mask) >> wgt_shift;
 
-                    } // Multiply 16 weights and 16 activations values
-                } // Filter
+                                if (BOOTH_ENCODING) {
+                                    act_bits = booth_encoding(act_bits);
+                                    wgt_bits = booth_encoding(wgt_bits);
+                                }
+
+                                auto act_cycles = effectualBits(act_bits);
+                                auto wgt_cycles = effectualBits(wgt_bits);
+                                auto cycles = act_cycles * wgt_cycles;
+
+                                if (cycles == 0) cycles = 1;
+                                if (cycles > max_cycles) max_cycles = cycles;
+                                if (cycles < min_cycles) min_cycles = cycles;
+
+                            } // Multiply weights and activations values
+                        } // Wgt Spatial Composition
+                    } // Filter
+                } // Act Spatial Composition
             } // Window
 
             if (max_tile_cycles < max_cycles) max_tile_cycles = max_cycles;
 
-            this->scheduled_pe += tile_data.windows.size() * tile_data.filters.size();
-            this->idle_pe += (this->COLUMNS * this->ROWS - tile_data.windows.size() * tile_data.filters.size());
+            auto scheduled_pe = tile_data.windows.size() * this->act_blks * tile_data.filters.size() * this->wgt_blks;
+            this->scheduled_pe += scheduled_pe;
+            this->idle_pe += this->COLUMNS * this->ROWS - scheduled_pe;
 
         }
 
