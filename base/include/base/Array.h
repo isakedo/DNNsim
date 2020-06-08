@@ -123,6 +123,11 @@ namespace base {
          */
         const std::vector<size_t> &getShape() const;
 
+        /** Return a fixed point array from already quantised floating-point
+         * @return Fixed point quantized tensor
+         */
+        Array<uint16_t> float_to_int() const;
+
         /** Return a fixed point array given profiled precisions
          * @param mag   Magnitude (without sign bit)
          * @param frac  Fraction

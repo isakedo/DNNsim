@@ -44,6 +44,7 @@ base::Network<T> read(const sys::Batch::Simulate &simulate, bool QUIET) {
     base::NetReader<T> reader = base::NetReader<T>(simulate.network, simulate.batch, 0, QUIET);
     if (simulate.model == "Caffe") {
         network = reader.read_network_caffe();
+        network.setQuantised(simulate.quantised);
         network.setNetworkWidth(simulate.data_width);
         reader.read_precision(network);
         reader.read_weights_npy(network);
@@ -51,6 +52,7 @@ base::Network<T> read(const sys::Batch::Simulate &simulate, bool QUIET) {
 
     } else if (simulate.model == "CSV") {
         network = reader.read_network_csv();
+        network.setQuantised(simulate.quantised);
         network.setNetworkWidth(simulate.data_width);
         reader.read_precision(network);
         reader.read_weights_npy(network);

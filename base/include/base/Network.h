@@ -26,6 +26,9 @@ namespace base {
         /** Profiled quantization */
         bool profiled = false;
 
+        /** Quantised */
+        bool quantised = false;
+
     public:
 
         /** Default constructor */
@@ -35,9 +38,10 @@ namespace base {
          * @param _name             The name of the network
          * @param _data_width       Max number of bits of the network
          * @param _profiled         Active profiled quantization
+         * @param _quantised        True if traces already quantised
          */
-        explicit Network(const std::string &_name, uint32_t _data_width = 16, bool _profiled = false) :
-                data_width(_data_width), profiled(_profiled) {
+        explicit Network(const std::string &_name, uint32_t _data_width = 16, bool _profiled = false,
+                bool _quantised = false) : data_width(_data_width), profiled(_profiled), quantised(_quantised) {
             name = _name;
         }
 
@@ -46,9 +50,11 @@ namespace base {
          * @param _layers           Vector of layers
          * @param _data_width       Max number of bits of the network
          * @param _profiled         Active profiled quantization
+         * @param _quantised        True if traces already quantised
          */
         Network(const std::string &_name, const std::vector<Layer<T>> &_layers, uint32_t _data_width = 16,
-                bool _profiled = false) : data_width(_data_width), profiled(_profiled) {
+                bool _profiled = false, bool _quantised = false) : data_width(_data_width), profiled(_profiled),
+                quantised(_quantised) {
             name = _name; layers = _layers;
         }
 
@@ -118,24 +124,32 @@ namespace base {
          */
         void setProfiled(bool _profiled) { Network::profiled = _profiled; }
 
+        /**
+         * Update quantised flag
+         * @param _quantised True if already quantised
+         */
+        void setQuantised(bool _quantised) { Network::quantised = _quantised; }
+
         /** Return a network in fixed point given a floating point network
          * @return   Network in fixed point
          */
         Network<uint16_t> fixed_point() {
-            auto fixed_network = Network<uint16_t>(name, data_width, profiled);
+            auto fixed_network = Network<uint16_t>(name, quantised, data_width, profiled);
 
             for(auto &layer : layers) {
                 auto fixed_layer = Layer<uint16_t>(layer.getName(), layer.getType(), layer.getStride(),
                         layer.getPadding(), layer.getActPrecision(), layer.getActMagnitude(), layer.getActFraction(),
                         layer.getWgtPrecision(), layer.getWgtMagnitude(), layer.getWgtFraction());
 
-                if (profiled) fixed_layer.setActivations(layer.getActivations().profiled_quantization(layer.getActMagnitude(),
-                        layer.getActFraction()));
+                if (quantised) fixed_layer.setActivations(layer.getActivations().float_to_int());
+                else if (profiled) fixed_layer.setActivations(layer.getActivations().profiled_quantization
+                        (layer.getActMagnitude(), layer.getActFraction()));
                 else fixed_layer.setActivations(layer.getActivations().linear_quantization(data_width));
                 layer.setActivations(Array<T>()); // Clear
 
-                if (profiled) fixed_layer.setWeights(layer.getWeights().profiled_quantization(layer.getWgtMagnitude(),
-                        layer.getWgtFraction()));
+                if (quantised) fixed_layer.setWeights(layer.getWeights().float_to_int());
+                else if (profiled) fixed_layer.setWeights(layer.getWeights().profiled_quantization
+                        (layer.getWgtMagnitude(), layer.getWgtFraction()));
                 else fixed_layer.setWeights(layer.getWeights().linear_quantization(data_width));
                 layer.setWeights(Array<T>()); // Clear
 

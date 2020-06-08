@@ -70,6 +70,7 @@ namespace sys {
         Batch::Simulate simulate;
         simulate.network = simulate_proto.network();
         simulate.batch = simulate_proto.batch();
+        simulate.quantised = simulate_proto.quantised();
 
         const auto &model = simulate_proto.model();
         if(model  != "Caffe" && model != "CSV")

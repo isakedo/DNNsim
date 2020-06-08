@@ -217,6 +217,48 @@ namespace base {
 
     /* DATA TRANSFORMATION */
 
+    template <typename T>
+    Array<uint16_t> Array<T>::float_to_int() const {
+        std::vector<uint16_t> fixed_point_vector;
+        if (this->getDimensions() == 1) {
+            for(int i = 0; i < this->shape[0]; i++) {
+                auto float_value = this->data1D[i];
+                fixed_point_vector.push_back((int)float_value);
+            }
+        } else if(this->getDimensions() == 2){
+            for(int i = 0; i < this->shape[0]; i++) {
+                for(int j = 0; j < this->shape[1]; j++) {
+                    auto float_value = this->data2D[i][j];
+                    fixed_point_vector.push_back((int)float_value);
+                }
+            }
+        } else if (this->getDimensions() == 3) {
+            for(int i = 0; i < this->shape[0]; i++) {
+                for(int j = 0; j < this->shape[1]; j++) {
+                    for(int k = 0; k < this->shape[2]; k++) {
+                        auto float_value = this->data3D[i][j][k];
+                        fixed_point_vector.push_back((int)float_value);
+                    }
+                }
+            }
+        } else if (this->getDimensions() == 4) {
+            for(int i = 0; i < this->shape[0]; i++) {
+                for(int j = 0; j < this->shape[1]; j++) {
+                    for(int k = 0; k < this->shape[2]; k++) {
+                        for(int l = 0; l < this->shape[3]; l++) {
+                            auto float_value = this->data4D[i][j][k][l];
+                            fixed_point_vector.push_back((int)float_value);
+                        }
+                    }
+                }
+            }
+        } else throw std::runtime_error("Array dimensions error");
+
+        Array<uint16_t> fixed_point_array;
+        fixed_point_array.set_values(fixed_point_vector, this->shape, this->signed_data);
+        return fixed_point_array;
+    }
+
     /* Return value in two complement */
     static inline
     uint16_t profiled_value(float num, int mag, int frac) {

@@ -90,7 +90,8 @@ message Batch {
         string data_type = 3;
         string network = 4;
         uint32 data_width = 5;
-        repeated Experiment experiment = 6;
+        bool quantised = 6;
+        repeated Experiment experiment = 7;
     }
 
     repeated Simulate simulate = 1;

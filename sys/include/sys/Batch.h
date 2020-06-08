@@ -185,6 +185,9 @@ namespace sys {
             /** Network data width */
             uint32_t data_width = 0;
 
+            /** True if traces already quantised */
+            bool quantised = false;
+
             /** Array of experiments */
             std::vector<Experiment> experiments;
         };
