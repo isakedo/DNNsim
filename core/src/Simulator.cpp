@@ -90,9 +90,9 @@ namespace core {
     }
 
     template <typename T>
-    void calculate_output(OutputTensor &output, const std::vector<TileData<T>> &tiles_data) {
+    void calculate_output(OutputTensor &output, const TilesData<T> &tiles_data) {
 
-        for (const auto &tile_data : tiles_data) {
+        for (const auto &tile_data : tiles_data.tiles_data) {
 
             if (!tile_data.valid)
                 continue;
@@ -237,75 +237,69 @@ namespace core {
                 OutputTensor sim_output = OutputTensor(num_filters, std::vector<std::vector<double>>(Ox,
                         std::vector<double>(Oy, 0)));
 
-                auto tiles_data = std::vector<TileData<T>>(arch->getTiles(), TileData<T>());
                 do {
 
                     // Feed off-chip data
                     gbuffer->evict_data(control->getIfEvictAct(), control->getIfEvictWgt());
                     dram->read_data(control->getReadActAddresses(), control->getReadWgtAddresses());
 
+                    auto tiles_data = TilesData<T>(arch->getTiles(), MEMORY_I);
                     bool still_data = control->still_on_chip_data(tiles_data);
+                    if (still_data) dram->read_request(tiles_data, control->getIfLayerActOnChip());
+
                     while(still_data) {
 
-                        // Check if data is on-chip
-                        dram->read_request(tiles_data, control->getIfLayerActOnChip());
+                        if (tiles_data.stage == WRITEBACK_II) {
+                            if (obuffer->data_ready()) {
+                                gbuffer->write_request(tiles_data);
+                                tiles_data.stage = IDLE;
+                            }
+                        }
 
-                        // Wait for data to be on-chip
-                        while (!dram->data_ready())
-                            control->cycle();
+                        if (tiles_data.stage == WRITEBACK_I) {
+                            if (arch->flush()) { // And space in output buffer
+                                composer->calculate_delay(tiles_data);
+                                obuffer->write_request();
+                                tiles_data.stage = WRITEBACK_II;
+                            }
+                        }
 
-                        // Request data to on-chip global buffer
-                        bool read_psum = false;
-                        gbuffer->act_read_request(tiles_data, abuffer->getFifoDoneCycle(), control->getIfLayerActOnChip());
-                        gbuffer->psum_read_request(tiles_data, pbuffer->getFifoDoneCycle(), read_psum);
-                        gbuffer->wgt_read_request(tiles_data, wbuffer->getFifoDoneCycle());
+                        if (tiles_data.stage == EXECUTION) {
+                            if (abuffer->data_ready() && pbuffer->data_ready() &&
+                                    wbuffer->data_ready() && arch->ready()) {
 
-                        // Request data to local buffers
-                        abuffer->read_request(gbuffer->getActReadReadyCycle());
-                        pbuffer->read_request(gbuffer->getPsumReadReadyCycle(), read_psum);
-                        wbuffer->read_request(gbuffer->getWgtReadReadyCycle());
+                                arch->process_tiles(tiles_data);
+                                if (control->check_if_write_output(tiles_data)) tiles_data.stage = WRITEBACK_I;
+                                else tiles_data.stage = IDLE;
+                            }
+                        }
 
-                        // Wait for:
-                        // - activation buffer to have the data ready
-                        // - partial sum buffer to have the data ready
-                        // - weight buffer to have the data ready
-                        // - pipeline to be ready
-                        while (!abuffer->data_ready() || !abuffer->data_ready() || !wbuffer->data_ready() ||
-                                !arch->ready())
-                            control->cycle();
+                        if (tiles_data.stage == MEMORY_II) {
+                            if (gbuffer->data_ready()) { // And space in the buffers
+                                abuffer->read_request();
+                                pbuffer->read_request(tiles_data.read_psum);
+                                wbuffer->read_request();
+                                tiles_data.stage = EXECUTION;
+                            }
+                        }
 
-                        arch->process_tiles(tiles_data);
-
-                        abuffer->evict_data();
-                        pbuffer->evict_data(read_psum);
-                        wbuffer->evict_data();
+                        if (tiles_data.stage == MEMORY_I) { // and next stage empty
+                            if (dram->data_ready()) {
+                                gbuffer->act_read_request(tiles_data, control->getIfLayerActOnChip());
+                                gbuffer->psum_read_request(tiles_data, tiles_data.read_psum);
+                                gbuffer->wgt_read_request(tiles_data);
+                                tiles_data.stage = MEMORY_II;
+                            }
+                        }
 
                         control->cycle();
 
-                        abuffer->update_fifo();
-                        pbuffer->update_fifo();
-                        wbuffer->update_fifo();
-
-                        // Check if write the output register back to global buffer
-                        if (control->check_if_write_output(tiles_data)) {
-
-                            // Wait for:
-                            // - Pipeline is empty
-                            // - Space in output buffer before starting new windows
-                            if (!arch->flush() || !obuffer->write_ready())
-                                control->cycle();
-
-                            composer->calculate_delay(tiles_data);
-
-                            obuffer->write_request();
-                            gbuffer->write_request(tiles_data, obuffer->getFifoReadyCycle());
-                            obuffer->update_done_cycle(gbuffer->getWriteReadyCycle());
-                            obuffer->update_fifo();
-
+                        if (tiles_data.stage == IDLE) {
+                            if (this->CHECK) calculate_output(sim_output, tiles_data);
+                            still_data = control->still_on_chip_data(tiles_data);
+                            if (still_data) dram->read_request(tiles_data, control->getIfLayerActOnChip());
+                            tiles_data.stage = MEMORY_I;
                         }
-
-                        if (this->CHECK) calculate_output(sim_output, tiles_data);
-                        still_data = control->still_on_chip_data(tiles_data);
 
                     }
 

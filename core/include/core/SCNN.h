@@ -151,7 +151,7 @@ namespace core {
          * Calculate cycles for all the tiles
          * @param tiles_data Processing information for all the tiles
          */
-        void process_tiles(const std::vector<TileData<T>> &tiles_data) override;
+        void process_tiles(const TilesData<T> &tiles_data) override;
 
         /* POTENTIALS */
 

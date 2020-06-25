@@ -51,39 +51,14 @@ namespace core {
         void configure_layer() override;
 
         /**
-         * Return ready cycle for current fifo position
-         * @return Ready cycle for current fifo position
-         */
-        uint64_t getFifoReadyCycle() const;
-
-        /**
-         * Return done cycle for current fifo position
-         * @return Done cycle for current fifo position
-         */
-        uint64_t getFifoDoneCycle() const;
-
-        /** Update fifo position */
-        void update_fifo();
-
-        // READ
-
-        /**
          * Return if the data is ready to be read
          * @return True if data is ready
          */
         bool data_ready();
 
-        void read_request(uint64_t global_buffer_ready_cycle, bool read = true);
-
-        void evict_data(bool read = true);
-
-        // WRITE
-
-        bool write_ready();
+        void read_request(bool read = true);;
 
         void write_request();
-
-        void update_done_cycle(uint64_t global_buffer_ready_cycle);
 
     };
 

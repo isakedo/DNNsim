@@ -756,7 +756,7 @@ namespace core {
     }
 
     template <typename T>
-    bool WindowFirstOutS<T>::still_on_chip_data_conv_layer(std::vector<core::TileData<T>> &tiles_data) {
+    bool WindowFirstOutS<T>::still_on_chip_data_conv_layer(TilesData<T> &_tiles_data) {
 
         // Select values from current node
         const auto &current_node = std::static_pointer_cast<typename OutputStationary<T>::NodeOutS>
@@ -767,6 +767,7 @@ namespace core {
         const auto &time_step = current_node->time_step;
         const auto &max_time = current_node->max_time;
         const auto &use_prev_buffer = current_node->use_prev_buffer;
+        auto &tiles_data = _tiles_data.tiles_data;
 
         while (this->group_it < groups.size()) {
             auto group_idx = groups[this->group_it];
@@ -952,7 +953,7 @@ namespace core {
     }
 
     template <typename T>
-    bool WindowFirstOutS<T>::still_on_chip_data_linear_layer(std::vector<core::TileData<T>> &tiles_data) {
+    bool WindowFirstOutS<T>::still_on_chip_data_linear_layer(TilesData<T> &_tiles_data) {
 
         // Select values from current node
         const auto &current_node = std::static_pointer_cast<typename OutputStationary<T>::NodeOutS>
@@ -961,6 +962,7 @@ namespace core {
         const auto &time_step = current_node->time_step;
         const auto &max_time = current_node->max_time;
         const auto &use_prev_buffer = current_node->use_prev_buffer;
+        auto &tiles_data = _tiles_data.tiles_data;
 
         // Fill window buffer
         if (!use_prev_buffer && !this->window_buffer_filled) {
@@ -1114,7 +1116,7 @@ namespace core {
     }
 
     template <typename T>
-    bool WindowFirstOutS<T>::still_on_chip_data(std::vector<core::TileData<T>> &tiles_data) {
+    bool WindowFirstOutS<T>::still_on_chip_data(TilesData<T> &tiles_data) {
         if (this->linear) return still_on_chip_data_linear_layer(tiles_data);
         else return still_on_chip_data_conv_layer(tiles_data);
     }

@@ -67,6 +67,27 @@ namespace core {
         bool valid = false;
     };
 
+    enum Stage {
+        IDLE,
+        MEMORY_I,
+        MEMORY_II,
+        EXECUTION,
+        WRITEBACK_I,
+        WRITEBACK_II
+    };
+
+    template <typename T>
+    class TilesData {
+    public:
+        std::vector<TileData<T>> tiles_data;
+        Stage stage = IDLE;
+        bool read_psum = false;
+
+        TilesData(uint64_t _tiles, Stage _stage) : stage(_stage) {
+            tiles_data = std::vector<TileData<T>>(_tiles, TileData<T>());
+        }
+    };
+
     std::string to_mem_string(uint64_t mem);
 
     /** Return the optimal encoding for the given value

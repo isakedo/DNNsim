@@ -28,7 +28,7 @@ namespace core {
     }
 
     template <typename T>
-    void Stripes<T>::process_tiles(const std::vector<TileData<T>> &tiles_data) {
+    void Stripes<T>::process_tiles(const TilesData<T> &tiles_data) {
 
         auto process_time = std::min(this->act_prec, (int)this->PE_WIDTH);
         if (this->linear) {
@@ -53,7 +53,7 @@ namespace core {
 
         }
 
-        for (const auto &tile_data : tiles_data) {
+        for (const auto &tile_data : tiles_data.tiles_data) {
 
             if (!tile_data.valid)
                 continue;

@@ -98,11 +98,11 @@ namespace core {
     }
 
     template <typename T>
-    void ShapeShifter<T>::process_linear(const std::vector<core::TileData<T>> &tiles_data) {
+    void ShapeShifter<T>::process_linear(const TilesData<T> &tiles_data) {
 
         auto max_tile_cycles = 0;
-        for (int t = 0; t < tiles_data.size(); ++t) {
-            const auto &tile_data = tiles_data[t];
+        for (int t = 0; t < tiles_data.tiles_data.size(); ++t) {
+            const auto &tile_data = tiles_data.tiles_data[t];
 
             if (!tile_data.valid)
                 continue;
@@ -172,12 +172,12 @@ namespace core {
     }
 
     template <typename T>
-    void ShapeShifter<T>::process_mmul(const std::vector<core::TileData<T>> &tiles_data) {
+    void ShapeShifter<T>::process_mmul(const TilesData<T> &tiles_data) {
 
         auto max_group_cycles = std::vector<uint64_t>(this->column_cycles.size(), 0);
 
-        for (int t = 0; t < tiles_data.size(); ++t) {
-            const auto &tile_data = tiles_data[t];
+        for (int t = 0; t < tiles_data.tiles_data.size(); ++t) {
+            const auto &tile_data = tiles_data.tiles_data[t];
 
             if (!tile_data.valid)
                 continue;
@@ -266,7 +266,7 @@ namespace core {
     }
 
     template <typename T>
-    void ShapeShifter<T>::process_tiles(const std::vector<TileData<T>> &tiles_data) {
+    void ShapeShifter<T>::process_tiles(const TilesData<T> &tiles_data) {
         if (this->linear) process_linear(tiles_data);
         else process_mmul(tiles_data);
     }

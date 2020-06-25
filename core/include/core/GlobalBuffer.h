@@ -53,6 +53,9 @@ namespace core {
         /** Weight banks ready cycle */
         uint64_t wgt_read_ready_cycle = 0;
 
+        /** Input banks ready cycle */
+        uint64_t read_ready_cycle = 0;
+
         /** Output Activations banks ready cycle */
         uint64_t write_ready_cycle = 0;
 
@@ -190,29 +193,7 @@ namespace core {
          */
         uint32_t getAddrsPerAccess() const;
 
-        /**
-         * Return activation bank ready cycle
-         * @return Activation bank ready cycle
-         */
-        uint64_t getActReadReadyCycle() const;
-
-        /**
-         * Return partial sum bank ready cycle
-         * @return Partial sum bank ready cycle
-         */
-        uint64_t getPsumReadReadyCycle() const;
-
-        /**
-         * Return weight bank ready cycle
-         * @return Weight bank ready cycle
-         */
-        uint64_t getWgtReadReadyCycle() const;
-
-        /**
-         * Return Output activation bank ready cycle
-         * @return Output activation bank ready cycle
-         */
-        uint64_t getWriteReadyCycle() const;
+        bool data_ready() const;
 
         /**
          * Return activation and weight memory size for the file name
@@ -238,33 +219,28 @@ namespace core {
         /**
          * Read request to the activation banks
          * @param tiles_data        Data to be read from the banks
-         * @param fifo_ready_cycle  Cycle at which the activation buffer has a slot
          * @param layer_act_on_chip Layer activation on-chip flag
          */
-        void act_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle,
-                bool layer_act_on_chip);
+        void act_read_request(const TilesData<T> &tiles_data, bool layer_act_on_chip);
 
         /**
          * Read request to the output banks
          * @param tiles_data        Data to be read from the banks
-         * @param fifo_ready_cycle  Cycle at which the activation buffer has a slot
          * @param read_psum         Update to True if psums to red (Overwritten)
          */
-        void psum_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle, bool &read_psum);
+        void psum_read_request(const TilesData<T> &tiles_data, bool &read_psum);
 
         /**
          * Read request to the weight banks
          * @param tiles_data        Data to be read from the banks
-         * @param fifo_ready_cycle  Cycle at which the activation buffer has a slot
          */
-        void wgt_read_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle);
+        void wgt_read_request(const TilesData<T> &tiles_data);
 
         /**
          * Write request to the output banks
          * @param tiles_data        Data to be written to the banks
-         * @param fifo_ready_cycle  Cycle at which the activation buffer has a slot
          */
-        void write_request(const std::vector<TileData<T>> &tiles_data, uint64_t fifo_ready_cycle);
+        void write_request(const TilesData<T> &tiles_data);
 
         /**
          * Evict activations and/or weights from on-chip

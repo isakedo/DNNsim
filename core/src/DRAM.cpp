@@ -125,9 +125,9 @@ namespace core {
     }
 
     template <typename T>
-    void DRAM<T>::read_request(const std::vector<TileData<T>> &tiles_data, bool layer_act_on_chip) {
+    void DRAM<T>::read_request(const TilesData<T> &tiles_data, bool layer_act_on_chip) {
         try {
-            for (const auto &tile_data : tiles_data) {
+            for (const auto &tile_data : tiles_data.tiles_data) {
 
                 if (!tile_data.valid)
                     continue;

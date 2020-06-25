@@ -32,24 +32,24 @@ namespace core {
                 uint32_t act_prec, uint32_t wgt_prec, bool _linear, bool __3dim, int _stride) override;
         /**
          * Return if still data to process for convolutional layers
-         * @param tiles_data Tile data to process
+         * @param _tiles_data Tile data to process
          * @return True if still data to process, False if not
          */
-        bool still_on_chip_data_conv_layer(std::vector<TileData<T>> &tiles_data);
+        bool still_on_chip_data_conv_layer(TilesData<T> &_tiles_data);
 
         /**
          * Return if still data to process for linear layers
-         * @param tiles_data Tile data to process
+         * @param _tiles_data Tile data to process
          * @return True if still data to process, False if not
          */
-        bool still_on_chip_data_linear_layer(std::vector<TileData<T>> &tiles_data);
+        bool still_on_chip_data_linear_layer(TilesData<T> &_tiles_data);
 
         /**
          * Return if still data to process
          * @param tiles_data Tile data to process
          * @return True if still data to process, False if not
          */
-        bool still_on_chip_data(std::vector<TileData<T>> &tiles_data) override;
+        bool still_on_chip_data(TilesData<T> &tiles_data) override;
 
     public:
 

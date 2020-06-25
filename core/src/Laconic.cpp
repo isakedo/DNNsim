@@ -45,36 +45,36 @@ namespace core {
     }
 
     template <typename T>
-    void Laconic<T>::process_linear(const std::vector<TileData<T>> &tiles_data) {
+    void Laconic<T>::process_linear(const TilesData<T> &tiles_data) {
 
         auto max_tile_cycles = 0;
-        for (int t = 0; t < tiles_data.size(); ++t) {
-            const auto &tile_data = tiles_data[t];
+        for (int t = 0; t < tiles_data.tiles_data.size(); ++t) {
+            const auto &tile_data = tiles_data.tiles_data[t];
 
             if (!tile_data.valid)
                 continue;
 
             auto max_cycles = 0;
             auto min_cycles = INT_MAX;
-            auto window_idx = this->column_index * tiles_data[t].lanes;
+            auto window_idx = this->column_index * tile_data.lanes;
 
             for (int act_blk = 0; act_blk < this->act_blks; ++act_blk) {
                 auto act_shift = this->PE_WIDTH * act_blk;
                 auto act_mask = ((1u << this->PE_WIDTH) - 1u) << act_shift;
 
-                for (int f = 0; f < tiles_data[t].filters.size(); ++f) {
-                    auto filter_idx = f * tiles_data[t].lanes;
+                for (int f = 0; f < tile_data.filters.size(); ++f) {
+                    auto filter_idx = f * tile_data.lanes;
 
                     for (int wgt_blk = 0; wgt_blk < this->wgt_blks; ++wgt_blk) {
                         auto wgt_shift = this->PE_WIDTH * wgt_blk;
                         auto wgt_mask = ((1u << this->PE_WIDTH) - 1u) << wgt_shift;
 
-                        for (int lane = 0; lane < tiles_data[t].lanes; ++lane) {
+                        for (int lane = 0; lane < tile_data.lanes; ++lane) {
 
-                            auto act_bits = std::get<0>(tiles_data[t].act_row.front()[window_idx + lane]);
+                            auto act_bits = std::get<0>(tile_data.act_row.front()[window_idx + lane]);
                             act_bits = (act_bits & act_mask) >> act_shift;
 
-                            auto wgt_bits = std::get<0>(tiles_data[t].wgt_row[filter_idx + lane]);
+                            auto wgt_bits = std::get<0>(tile_data.wgt_row[filter_idx + lane]);
                             wgt_bits = (wgt_bits & wgt_mask) >> wgt_shift;
 
                             if (BOOTH_ENCODING) {
@@ -119,10 +119,10 @@ namespace core {
     }
 
     template <typename T>
-    void Laconic<T>::process_mmul(const std::vector<TileData<T>> &tiles_data) {
+    void Laconic<T>::process_mmul(const TilesData<T> &tiles_data) {
 
         auto max_tile_cycles = 0;
-        for (const auto &tile_data : tiles_data) {
+        for (const auto &tile_data : tiles_data.tiles_data) {
 
             if (!tile_data.valid)
                 continue;
@@ -186,7 +186,7 @@ namespace core {
     }
 
     template <typename T>
-    void Laconic<T>::process_tiles(const std::vector<TileData<T>> &tiles_data) {
+    void Laconic<T>::process_tiles(const TilesData<T> &tiles_data) {
         if (this->linear) process_linear(tiles_data);
         else process_mmul(tiles_data);
     }

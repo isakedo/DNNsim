@@ -300,14 +300,14 @@ namespace core {
          * @param tiles_data Tile data to process
          * @return True if still data to process, False if not
          */
-        virtual bool still_on_chip_data(std::vector<TileData<T>> &tiles_data) = 0;
+        virtual bool still_on_chip_data(TilesData<T> &tiles_data) = 0;
 
         /**
          * Return true if there is output values to write to the global buffer
          * @param tiles_data Current data to process in the tiles
          * @return True if data to write
          */
-        bool check_if_write_output(std::vector<TileData<T>> &tiles_data);
+        bool check_if_write_output(TilesData<T> &tiles_data);
 
     };
 

@@ -384,7 +384,7 @@ namespace core {
     }
 
     template <typename T>
-    void SCNN<T>::process_tiles(const std::vector<TileData<T>> &tiles_data) {
+    void SCNN<T>::process_tiles(const TilesData<T> &tiles_data) {
         throw std::runtime_error("SCNN simulation is not implemented by Inference module");
     }
 

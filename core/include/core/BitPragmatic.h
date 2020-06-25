@@ -122,19 +122,19 @@ namespace core {
          * Calculate cycles for linear layers
          * @param tile_data Processing information for all the tiles
          */
-        void process_linear(const std::vector<TileData<T>> &tiles_data);
+        void process_linear(const TilesData<T> &tiles_data);
 
         /**
          * Calculate cycles for matrix multiply
          * @param tile_data Processing information for all the tiles
          */
-        void process_mmul(const std::vector<TileData<T>> &tiles_data);
+        void process_mmul(const TilesData<T> &tiles_data);
 
         /**
          * Calculate cycles for all the tiles
          * @param tiles_data Processing information for all the tiles
          */
-        void process_tiles(const std::vector<TileData<T>> &tiles_data) override;
+        void process_tiles(const TilesData<T> &tiles_data) override;
 
         /* POTENTIALS */
 
