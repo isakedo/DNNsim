@@ -51,7 +51,7 @@ namespace core {
          * @param tiles_data Outputs per tile
          * @return Delay in cycles
          */
-        void calculate_delay(const std::shared_ptr<TilesData<T>> &tiles_data);
+        uint64_t calculate_delay(const std::shared_ptr<TilesData<T>> &tiles_data);
 
     };
 

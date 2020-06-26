@@ -23,14 +23,10 @@ namespace core {
         /** Write delay in cycles */
         const uint32_t WRITE_DELAY = 0;
 
-        /** Row index */
-        uint32_t idx = 0;
+        uint32_t size = 0;
 
-        /** Ready cycle per row */
-        std::vector<uint64_t> ready_cycle;
-
-        /** Ready cycle per row */
-        std::vector<uint64_t> done_cycle;
+        /** Data Ready cycle */
+        uint64_t ready_cycle = 0;
 
     public:
 
@@ -50,21 +46,31 @@ namespace core {
         /** Configure memory for current layer parameters */
         void configure_layer() override;
 
+        void insert(bool read = true);
+
+        void erase(bool read = true);
+
+        /**
+         * Return if there is space in the local buffers
+         * @return True if there is space
+         */
+        bool isFree();
+
         /**
          * Return if the data is ready to be read
          * @return True if data is ready
          */
         bool data_ready();
 
-        void read_request(bool read = true);;
-
         /**
-         * Return if the data is ready to be read
-         * @return True if data is ready
+         * Return if the data is already written
+         * @return True if data is written
          */
         bool write_done();
 
-        void write_request();
+        void read_request(bool read = true);
+
+        void write_request(uint64_t delay);
 
     };
 

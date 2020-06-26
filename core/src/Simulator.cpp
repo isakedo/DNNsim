@@ -240,7 +240,6 @@ namespace core {
                 Pipeline<T> pipeline = Pipeline<T>(Stage::Last + 1);
                 do {
 
-                    // Feed off-chip data
                     gbuffer->evict_data(control->getIfEvictAct(), control->getIfEvictWgt());
                     dram->read_data(control->getReadActAddresses(), control->getReadWgtAddresses());
 
@@ -254,50 +253,59 @@ namespace core {
 
                     while(still_data || !pipeline.isEmpty()) {
 
-                        if (pipeline.isValid(WRITEBACK_II) && gbuffer->write_done()) {
-                            pipeline.end_stage(WRITEBACK_II);
+                        if (pipeline.isValid(WRITEBACK_III) && gbuffer->write_done()) {
+                            obuffer->erase();
+                            pipeline.end_stage(WRITEBACK_III);
                         }
 
-                        if (pipeline.isValid(WRITEBACK_I) && pipeline.isFree(WRITEBACK_II) && obuffer->write_done()) {
-                            const auto &tiles_data = pipeline.getData(WRITEBACK_I);
+                        if (pipeline.isValid(WRITEBACK_II) && pipeline.isFree(WRITEBACK_III) && obuffer->write_done()) {
+                            const auto &tiles_data = pipeline.getData(WRITEBACK_II);
                             gbuffer->write_request(tiles_data);
+                            pipeline.move_stage(WRITEBACK_II);
+                        }
+
+                        if (pipeline.isValid(WRITEBACK_I) && pipeline.isFree(WRITEBACK_II) && arch->flush()) {
+                            const auto &tiles_data = pipeline.getData(WRITEBACK_I);
+                            auto delay = composer->calculate_delay(tiles_data);
+                            obuffer->write_request(delay);
+                            obuffer->insert();
                             pipeline.move_stage(WRITEBACK_I);
                         }
 
-                        if (pipeline.isValid(EXECUTION) && pipeline.isFree(WRITEBACK_I) && arch->flush()) {
-                            const auto &tiles_data = pipeline.getData(EXECUTION);
-                            composer->calculate_delay(tiles_data);
-                            obuffer->write_request();
-                            pipeline.move_stage(EXECUTION);
-                        }
-
-                        if (pipeline.isValid(MEMORY_II) && pipeline.isFree(EXECUTION) && abuffer->data_ready() &&
+                        if (pipeline.isValid(EXECUTION) && obuffer->isFree() && abuffer->data_ready() &&
                                 pbuffer->data_ready() && wbuffer->data_ready() && arch->ready()) {
-                            const auto &tiles_data = pipeline.getData(MEMORY_II);
+                            const auto &tiles_data = pipeline.getData(EXECUTION);
                             arch->process_tiles(tiles_data);
-                            if (control->check_if_write_output(tiles_data)) pipeline.move_stage(MEMORY_II);
-                            else pipeline.end_stage(MEMORY_II);
+                            abuffer->erase();
+                            pbuffer->erase(tiles_data->read_psum);
+                            wbuffer->erase();
+                            if (control->check_if_write_output(tiles_data)) pipeline.move_stage(EXECUTION);
+                            else pipeline.end_stage(EXECUTION);
                         }
 
-                        if (pipeline.isValid(MEMORY_I) && pipeline.isFree(MEMORY_II) && gbuffer->data_ready()) {
-                            const auto &tiles_data = pipeline.getData(MEMORY_I);
+                        if (pipeline.isValid(MEMORY_II) && pipeline.isFree(EXECUTION) && gbuffer->data_ready()) {
+                            const auto &tiles_data = pipeline.getData(MEMORY_II);
                             abuffer->read_request();
                             pbuffer->read_request(tiles_data->read_psum);
                             wbuffer->read_request();
-                            pipeline.move_stage(MEMORY_I);
+                            pipeline.move_stage(MEMORY_II);
                         }
 
-                        if (pipeline.isValid(FETCH) && pipeline.isFree(MEMORY_I) && dram->data_ready()) {
-                            const auto &tiles_data = pipeline.getData(FETCH);
+                        if (pipeline.isValid(MEMORY_I) && dram->data_ready() && abuffer->isFree() && pbuffer->isFree()
+                                && wbuffer->isFree()) {
+                            const auto &tiles_data = pipeline.getData(MEMORY_I);
                             gbuffer->act_read_request(tiles_data, control->getIfLayerActOnChip());
                             gbuffer->psum_read_request(tiles_data, tiles_data->read_psum);
                             gbuffer->wgt_read_request(tiles_data);
-                            pipeline.move_stage(FETCH);
+                            abuffer->insert();
+                            pbuffer->insert(tiles_data->read_psum);
+                            wbuffer->insert();
+                            pipeline.move_stage(MEMORY_I);
                         }
 
                         control->cycle();
 
-                        if (pipeline.isFree(FETCH) && still_data) {
+                        if (pipeline.isFree(MEMORY_I) && still_data) {
                             auto next_data = TilesData<T>(arch->getTiles());
                             still_data = control->still_on_chip_data(next_data);
                             if (still_data) {

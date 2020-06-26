@@ -19,55 +19,55 @@
 namespace core {
 
     enum Stage {
-        FETCH,
         MEMORY_I,
         MEMORY_II,
         EXECUTION,
         WRITEBACK_I,
         WRITEBACK_II,
-        Last = WRITEBACK_II
+        WRITEBACK_III,
+        Last = WRITEBACK_III
     };
 
     template <typename T>
     class Pipeline {
     public:
 
-        std::vector<std::shared_ptr<TilesData<T>>> pipeline;
+        std::vector<std::queue<std::shared_ptr<TilesData<T>>>> pipeline;
 
         explicit Pipeline(uint64_t _stages) {
-            pipeline = std::vector<std::shared_ptr<TilesData<T>>>(_stages, std::shared_ptr<TilesData<T>>());
+            pipeline = std::vector<std::queue<std::shared_ptr<TilesData<T>>>>(_stages,
+                    std::queue<std::shared_ptr<TilesData<T>>>());
         }
 
         void fetch_data(const TilesData<T> &tiles_data) {
-            pipeline.front() = std::make_shared<TilesData<T>>(tiles_data);
+            pipeline.front().emplace(std::make_shared<TilesData<T>>(tiles_data));
         }
 
         void end_stage(Stage stage) {
-            pipeline[stage] = nullptr;
+            pipeline[stage].pop();
         }
 
         void move_stage(Stage stage) {
-            pipeline[stage + 1] = pipeline[stage];
-            pipeline[stage] = nullptr;
+            pipeline[stage + 1].emplace(pipeline[stage].front());
+            pipeline[stage].pop();
         }
 
         const std::shared_ptr<TilesData<T>> &getData(Stage stage) {
-            return pipeline[stage];
+            return pipeline[stage].front();
         }
 
         bool isEmpty() {
             for (const auto &stage : pipeline)
-                if (stage != nullptr)
-                    return false;
+                if (!stage.empty()) return false;
             return true;
         }
 
         bool isFree(Stage stage) {
-            return pipeline[stage] == nullptr;
+            return pipeline[stage].empty();
         }
 
         bool isValid(Stage stage) {
-            return pipeline[stage] != nullptr;
+            return !pipeline[stage].empty();
         }
 
 

@@ -13,19 +13,32 @@ namespace core {
 
     template <typename T>
     void LocalBuffer<T>::configure_layer() {
-        idx = 0;
-        ready_cycle = std::vector<uint64_t>(ROWS, 0);
-        done_cycle = std::vector<uint64_t>(ROWS, 0);
+        size = 0;
+        ready_cycle = 0;
+    }
+
+    template <typename T>
+    void LocalBuffer<T>::insert(bool read) {
+        if (read) size++;
+        assert(size <= ROWS);
+    }
+
+    template <typename T>
+    void LocalBuffer<T>::erase(bool read) {
+        if (read) {
+            assert(size != 0);
+            size--;
+        }
+    }
+
+    template <typename T>
+    bool LocalBuffer<T>::isFree() {
+        return size < ROWS;
     }
 
     template <typename T>
     bool LocalBuffer<T>::data_ready() {
-        return ready_cycle[idx] <= *this->global_cycle;
-    }
-
-    template <typename T>
-    void LocalBuffer<T>::read_request(bool read) {
-        if (read) ready_cycle[idx] = *this->global_cycle + READ_DELAY;
+        return ready_cycle <= *this->global_cycle;
     }
 
     template <typename T>
@@ -34,8 +47,13 @@ namespace core {
     }
 
     template <typename T>
-    void LocalBuffer<T>::write_request() {
-        ready_cycle[idx] = *this->global_cycle + WRITE_DELAY;
+    void LocalBuffer<T>::read_request(bool read) {
+        if (read) ready_cycle = *this->global_cycle + READ_DELAY;
+    }
+
+    template <typename T>
+    void LocalBuffer<T>::write_request(uint64_t delay) {
+        ready_cycle = *this->global_cycle + delay + WRITE_DELAY;
     }
 
     INITIALISE_DATA_TYPES(LocalBuffer);
