@@ -67,24 +67,14 @@ namespace core {
         bool valid = false;
     };
 
-    enum Stage {
-        IDLE,
-        MEMORY_I,
-        MEMORY_II,
-        EXECUTION,
-        WRITEBACK_I,
-        WRITEBACK_II
-    };
-
     template <typename T>
     class TilesData {
     public:
-        std::vector<TileData<T>> tiles_data;
-        Stage stage = IDLE;
+        std::vector<TileData<T>> data;
         bool read_psum = false;
 
-        TilesData(uint64_t _tiles, Stage _stage) : stage(_stage) {
-            tiles_data = std::vector<TileData<T>>(_tiles, TileData<T>());
+        explicit TilesData(uint64_t _tiles) {
+            data = std::vector<TileData<T>>(_tiles, TileData<T>());
         }
     };
 

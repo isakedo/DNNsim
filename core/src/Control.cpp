@@ -143,8 +143,8 @@ namespace core {
     }
 
     template <typename T>
-    bool Control<T>::check_if_write_output(TilesData<T> &tiles_data) {
-        for (const auto &tile_data : tiles_data.tiles_data)
+    bool Control<T>::check_if_write_output(const std::shared_ptr<TilesData<T>> &tiles_data) {
+        for (const auto &tile_data : tiles_data->data)
             if (tile_data.write)
                 return true;
         return false;

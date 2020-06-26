@@ -11,9 +11,9 @@ namespace core {
     }
 
     template <typename T>
-    void Composer<T>::calculate_delay(const TilesData<T> &tiles_data) {
+    void Composer<T>::calculate_delay(const std::shared_ptr<TilesData<T>> &tiles_data) {
         uint64_t max_delay = 0;
-        for (const auto &tile_data : tiles_data.tiles_data) {
+        for (const auto &tile_data : tiles_data->data) {
 
             if (!tile_data.write)
                 continue;

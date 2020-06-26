@@ -58,6 +58,12 @@ namespace core {
 
         void read_request(bool read = true);;
 
+        /**
+         * Return if the data is ready to be read
+         * @return True if data is ready
+         */
+        bool write_done();
+
         void write_request();
 
     };

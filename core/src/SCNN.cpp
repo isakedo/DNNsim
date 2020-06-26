@@ -365,27 +365,27 @@ namespace core {
 
     template <typename T>
     std::string SCNN<T>::filename() {
-        throw std::runtime_error("SCNN simulation is not implemented by Inference module");
+        throw std::runtime_error("SCNN simulation is not implemented by Simulator module");
     }
 
     template <typename T>
     std::string SCNN<T>::header() {
-        throw std::runtime_error("SCNN simulation is not implemented by Inference module");
+        throw std::runtime_error("SCNN simulation is not implemented by Simulator module");
     }
 
     template <typename T>
     bool SCNN<T>::diffy() {
-        throw std::runtime_error("SCNN simulation is not implemented by Inference module");
+        throw std::runtime_error("SCNN simulation is not implemented by Simulator module");
     }
 
     template <typename T>
     bool SCNN<T>::schedule() {
-        throw std::runtime_error("SCNN simulation is not implemented by Inference module");
+        throw std::runtime_error("SCNN simulation is not implemented by Simulator module");
     }
 
     template <typename T>
-    void SCNN<T>::process_tiles(const TilesData<T> &tiles_data) {
-        throw std::runtime_error("SCNN simulation is not implemented by Inference module");
+    void SCNN<T>::process_tiles(const std::shared_ptr<TilesData<T>> &tiles_data) {
+        throw std::runtime_error("SCNN simulation is not implemented by Simulator module");
     }
 
     /* POTENTIALS */

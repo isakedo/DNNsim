@@ -92,7 +92,7 @@ namespace core {
     template <typename T>
     void calculate_output(OutputTensor &output, const TilesData<T> &tiles_data) {
 
-        for (const auto &tile_data : tiles_data.tiles_data) {
+        for (const auto &tile_data : tiles_data.data) {
 
             if (!tile_data.valid)
                 continue;
@@ -237,82 +237,79 @@ namespace core {
                 OutputTensor sim_output = OutputTensor(num_filters, std::vector<std::vector<double>>(Ox,
                         std::vector<double>(Oy, 0)));
 
+                Pipeline<T> pipeline = Pipeline<T>(Stage::Last + 1);
                 do {
 
                     // Feed off-chip data
                     gbuffer->evict_data(control->getIfEvictAct(), control->getIfEvictWgt());
                     dram->read_data(control->getReadActAddresses(), control->getReadWgtAddresses());
 
-                    auto tiles_data = TilesData<T>(arch->getTiles(), MEMORY_I);
-                    bool still_data = control->still_on_chip_data(tiles_data);
-                    if (still_data) dram->read_request(tiles_data, control->getIfLayerActOnChip());
+                    auto init_data = TilesData<T>(arch->getTiles());
+                    bool still_data = control->still_on_chip_data(init_data);
+                    if (still_data) {
+                        if (this->CHECK) calculate_output(sim_output, init_data);
+                        dram->read_request(init_data, control->getIfLayerActOnChip());
+                        pipeline.fetch_data(init_data);
+                    }
 
-                    while(still_data) {
+                    while(still_data || !pipeline.isEmpty()) {
 
-                        if (tiles_data.stage == WRITEBACK_II) {
-                            if (obuffer->data_ready()) {
-                                gbuffer->write_request(tiles_data);
-                                tiles_data.stage = IDLE;
-                            }
+                        if (pipeline.isValid(WRITEBACK_II) && gbuffer->write_done()) {
+                            pipeline.end_stage(WRITEBACK_II);
                         }
 
-                        if (tiles_data.stage == WRITEBACK_I) {
-                            if (arch->flush()) { // And space in output buffer
-                                composer->calculate_delay(tiles_data);
-                                obuffer->write_request();
-                                tiles_data.stage = WRITEBACK_II;
-                            }
+                        if (pipeline.isValid(WRITEBACK_I) && pipeline.isFree(WRITEBACK_II) && obuffer->write_done()) {
+                            const auto &tiles_data = pipeline.getData(WRITEBACK_I);
+                            gbuffer->write_request(tiles_data);
+                            pipeline.move_stage(WRITEBACK_I);
                         }
 
-                        if (tiles_data.stage == EXECUTION) {
-                            if (abuffer->data_ready() && pbuffer->data_ready() &&
-                                    wbuffer->data_ready() && arch->ready()) {
-
-                                arch->process_tiles(tiles_data);
-                                if (control->check_if_write_output(tiles_data)) tiles_data.stage = WRITEBACK_I;
-                                else tiles_data.stage = IDLE;
-                            }
+                        if (pipeline.isValid(EXECUTION) && pipeline.isFree(WRITEBACK_I) && arch->flush()) {
+                            const auto &tiles_data = pipeline.getData(EXECUTION);
+                            composer->calculate_delay(tiles_data);
+                            obuffer->write_request();
+                            pipeline.move_stage(EXECUTION);
                         }
 
-                        if (tiles_data.stage == MEMORY_II) {
-                            if (gbuffer->data_ready()) { // And space in the buffers
-                                abuffer->read_request();
-                                pbuffer->read_request(tiles_data.read_psum);
-                                wbuffer->read_request();
-                                tiles_data.stage = EXECUTION;
-                            }
+                        if (pipeline.isValid(MEMORY_II) && pipeline.isFree(EXECUTION) && abuffer->data_ready() &&
+                                pbuffer->data_ready() && wbuffer->data_ready() && arch->ready()) {
+                            const auto &tiles_data = pipeline.getData(MEMORY_II);
+                            arch->process_tiles(tiles_data);
+                            if (control->check_if_write_output(tiles_data)) pipeline.move_stage(MEMORY_II);
+                            else pipeline.end_stage(MEMORY_II);
                         }
 
-                        if (tiles_data.stage == MEMORY_I) { // and next stage empty
-                            if (dram->data_ready()) {
-                                gbuffer->act_read_request(tiles_data, control->getIfLayerActOnChip());
-                                gbuffer->psum_read_request(tiles_data, tiles_data.read_psum);
-                                gbuffer->wgt_read_request(tiles_data);
-                                tiles_data.stage = MEMORY_II;
-                            }
+                        if (pipeline.isValid(MEMORY_I) && pipeline.isFree(MEMORY_II) && gbuffer->data_ready()) {
+                            const auto &tiles_data = pipeline.getData(MEMORY_I);
+                            abuffer->read_request();
+                            pbuffer->read_request(tiles_data->read_psum);
+                            wbuffer->read_request();
+                            pipeline.move_stage(MEMORY_I);
+                        }
+
+                        if (pipeline.isValid(FETCH) && pipeline.isFree(MEMORY_I) && dram->data_ready()) {
+                            const auto &tiles_data = pipeline.getData(FETCH);
+                            gbuffer->act_read_request(tiles_data, control->getIfLayerActOnChip());
+                            gbuffer->psum_read_request(tiles_data, tiles_data->read_psum);
+                            gbuffer->wgt_read_request(tiles_data);
+                            pipeline.move_stage(FETCH);
                         }
 
                         control->cycle();
 
-                        if (tiles_data.stage == IDLE) {
-                            if (this->CHECK) calculate_output(sim_output, tiles_data);
-                            still_data = control->still_on_chip_data(tiles_data);
-                            if (still_data) dram->read_request(tiles_data, control->getIfLayerActOnChip());
-                            tiles_data.stage = MEMORY_I;
+                        if (pipeline.isFree(FETCH) && still_data) {
+                            auto next_data = TilesData<T>(arch->getTiles());
+                            still_data = control->still_on_chip_data(next_data);
+                            if (still_data) {
+                                if (this->CHECK) calculate_output(sim_output, next_data);
+                                dram->read_request(next_data, control->getIfLayerActOnChip());
+                                pipeline.fetch_data(next_data);
+                            }
                         }
 
                     }
 
-                    // Wait for:
-                    // - Pipeline is empty
-                    // - All write petitions are fulfilled
-                    while (!arch->flush() || !gbuffer->write_done())
-                        control->cycle();
-
-                    // Calculate PPU delay
                     ppu->calculate_delay(control->calculate_outputs());
-
-                    // Write values to DRAM
                     dram->write_data(control->getWriteAddresses());
 
                 } while(control->still_off_chip_data());

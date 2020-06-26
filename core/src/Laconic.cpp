@@ -45,11 +45,11 @@ namespace core {
     }
 
     template <typename T>
-    void Laconic<T>::process_linear(const TilesData<T> &tiles_data) {
+    void Laconic<T>::process_linear(const std::shared_ptr<TilesData<T>> &tiles_data) {
 
         auto max_tile_cycles = 0;
-        for (int t = 0; t < tiles_data.tiles_data.size(); ++t) {
-            const auto &tile_data = tiles_data.tiles_data[t];
+        for (int t = 0; t < tiles_data->data.size(); ++t) {
+            const auto &tile_data = tiles_data->data[t];
 
             if (!tile_data.valid)
                 continue;
@@ -119,10 +119,10 @@ namespace core {
     }
 
     template <typename T>
-    void Laconic<T>::process_mmul(const TilesData<T> &tiles_data) {
+    void Laconic<T>::process_mmul(const std::shared_ptr<TilesData<T>> &tiles_data) {
 
         auto max_tile_cycles = 0;
-        for (const auto &tile_data : tiles_data.tiles_data) {
+        for (const auto &tile_data : tiles_data->data) {
 
             if (!tile_data.valid)
                 continue;
@@ -186,7 +186,7 @@ namespace core {
     }
 
     template <typename T>
-    void Laconic<T>::process_tiles(const TilesData<T> &tiles_data) {
+    void Laconic<T>::process_tiles(const std::shared_ptr<TilesData<T>> &tiles_data) {
         if (this->linear) process_linear(tiles_data);
         else process_mmul(tiles_data);
     }

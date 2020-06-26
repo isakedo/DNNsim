@@ -44,14 +44,8 @@ namespace core {
         /** Addresses per access */
         const uint32_t ADDRS_PER_ACCESS = 0;
 
-        /** Activation banks ready cycle */
-        uint64_t act_read_ready_cycle = 0;
-
         /** Partial sum banks ready cycle */
         uint64_t psum_read_ready_cycle = 0;
-
-        /** Weight banks ready cycle */
-        uint64_t wgt_read_ready_cycle = 0;
 
         /** Input banks ready cycle */
         uint64_t read_ready_cycle = 0;
@@ -221,26 +215,26 @@ namespace core {
          * @param tiles_data        Data to be read from the banks
          * @param layer_act_on_chip Layer activation on-chip flag
          */
-        void act_read_request(const TilesData<T> &tiles_data, bool layer_act_on_chip);
+        void act_read_request(const std::shared_ptr<TilesData<T>> &tiles_data, bool layer_act_on_chip);
 
         /**
          * Read request to the output banks
          * @param tiles_data        Data to be read from the banks
          * @param read_psum         Update to True if psums to red (Overwritten)
          */
-        void psum_read_request(const TilesData<T> &tiles_data, bool &read_psum);
+        void psum_read_request(const std::shared_ptr<TilesData<T>> &tiles_data, bool &read_psum);
 
         /**
          * Read request to the weight banks
          * @param tiles_data        Data to be read from the banks
          */
-        void wgt_read_request(const TilesData<T> &tiles_data);
+        void wgt_read_request(const std::shared_ptr<TilesData<T>> &tiles_data);
 
         /**
          * Write request to the output banks
          * @param tiles_data        Data to be written to the banks
          */
-        void write_request(const TilesData<T> &tiles_data);
+        void write_request(const std::shared_ptr<TilesData<T>> &tiles_data);
 
         /**
          * Evict activations and/or weights from on-chip

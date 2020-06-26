@@ -767,7 +767,7 @@ namespace core {
         const auto &time_step = current_node->time_step;
         const auto &max_time = current_node->max_time;
         const auto &use_prev_buffer = current_node->use_prev_buffer;
-        auto &tiles_data = _tiles_data.tiles_data;
+        auto &tiles_data = _tiles_data.data;
 
         while (this->group_it < groups.size()) {
             auto group_idx = groups[this->group_it];
@@ -962,7 +962,7 @@ namespace core {
         const auto &time_step = current_node->time_step;
         const auto &max_time = current_node->max_time;
         const auto &use_prev_buffer = current_node->use_prev_buffer;
-        auto &tiles_data = _tiles_data.tiles_data;
+        auto &tiles_data = _tiles_data.data;
 
         // Fill window buffer
         if (!use_prev_buffer && !this->window_buffer_filled) {

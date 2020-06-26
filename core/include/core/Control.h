@@ -307,7 +307,7 @@ namespace core {
          * @param tiles_data Current data to process in the tiles
          * @return True if data to write
          */
-        bool check_if_write_output(TilesData<T> &tiles_data);
+        bool check_if_write_output(const std::shared_ptr<TilesData<T>> &tiles_data);
 
     };
 

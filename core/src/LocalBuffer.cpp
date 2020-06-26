@@ -29,6 +29,11 @@ namespace core {
     }
 
     template <typename T>
+    bool LocalBuffer<T>::write_done() {
+        return data_ready();
+    }
+
+    template <typename T>
     void LocalBuffer<T>::write_request() {
         ready_cycle[idx] = *this->global_cycle + WRITE_DELAY;
     }

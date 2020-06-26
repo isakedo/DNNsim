@@ -23,13 +23,13 @@ namespace core {
     }
 
     template <typename T>
-    void DaDianNao<T>::process_tiles(const TilesData<T> &tiles_data) {
+    void DaDianNao<T>::process_tiles(const std::shared_ptr<TilesData<T>> &tiles_data) {
 
         this->done_cycle = *this->global_cycle + 1;
         this->ready_cycle = *this->global_cycle + 1;
         this->cycles++;
 
-        for (const auto &tile_data : tiles_data.tiles_data) {
+        for (const auto &tile_data : tiles_data->data) {
 
             if (!tile_data.valid)
                 continue;

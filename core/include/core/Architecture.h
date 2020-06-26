@@ -267,7 +267,7 @@ namespace core {
          * Calculate cycles for all the tiles
          * @param tiles_data Processing information for all the tiles
          */
-        virtual void process_tiles(const TilesData<T> &tiles_data) = 0;
+        virtual void process_tiles(const std::shared_ptr<TilesData<T>> &tiles_data) = 0;
 
         /**
          * Return true if ready to feed need data
