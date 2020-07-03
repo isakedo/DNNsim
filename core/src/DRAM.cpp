@@ -18,6 +18,11 @@ namespace core {
         return out_writes;
     }
 
+    template<typename T>
+    uint64_t DRAM<T>::getWidth() const {
+        return WIDTH;
+    }
+
     template <typename T>
     uint64_t DRAM<T>::getStartActAddress() const {
         return START_ACT_ADDRESS;
@@ -74,10 +79,10 @@ namespace core {
     template <typename T>
     void DRAM<T>::configure_layer(uint32_t _ACT_DATA_SIZE, uint32_t _WGT_DATA_SIZE) {
         ACT_DATA_SIZE = _ACT_DATA_SIZE;
-        ACT_VALUES_PER_BLOCK = BLOCK_SIZE / _ACT_DATA_SIZE;
+        ACT_VALUES_PER_BLOCK = WIDTH / _ACT_DATA_SIZE;
 
         WGT_DATA_SIZE = _WGT_DATA_SIZE;
-        WGT_VALUES_PER_BLOCK = BLOCK_SIZE / _WGT_DATA_SIZE;
+        WGT_VALUES_PER_BLOCK = WIDTH / _WGT_DATA_SIZE;
 
         *this->act_addresses = {NULL_ADDR, 0};
         *this->wgt_addresses = {NULL_ADDR, 0};
@@ -101,7 +106,7 @@ namespace core {
 
         for (int i = 1; i < tmp_addresses.size(); ++i) {
             const auto &addr = tmp_addresses[i];
-            if (addr - prev_addr - BLOCK_SIZE != 0) {
+            if (addr - prev_addr - WIDTH != 0) {
                 std::get<1>(addr_tuple) = prev_addr;
                 compressed_addresses.emplace_back(addr_tuple);
                 std::get<0>(addr_tuple) = addr;
@@ -229,7 +234,7 @@ namespace core {
                     still_data = true;
                     act_reads++;
 
-                    act_start_addr += BLOCK_SIZE;
+                    act_start_addr += WIDTH;
                     count++;
                 }
 
@@ -273,7 +278,7 @@ namespace core {
                     still_data = true;
                     wgt_reads++;
 
-                    wgt_start_addr += BLOCK_SIZE;
+                    wgt_start_addr += WIDTH;
                     count++;
                 }
 
@@ -305,7 +310,7 @@ namespace core {
             auto end_addr = std::get<1>(addr_range);
             if (start_addr == NULL_ADDR) continue;
 
-            for (uint64_t addr = start_addr; addr <= end_addr; addr += BLOCK_SIZE) {
+            for (uint64_t addr = start_addr; addr <= end_addr; addr += WIDTH) {
                 transaction_request(addr, true);
                 out_writes++;
             }

@@ -281,8 +281,8 @@ namespace core {
                         auto first_address = this->dram->getStartActAddress() + next_out_address;
                         auto out_blks = ceil(total_filters * total_windows /
                                 (double)this->dram->getBaseValuesPerBlock());
-                        next_out_address += out_blks * BLOCK_SIZE;
-                        auto last_address = this->dram->getStartActAddress() + next_out_address - BLOCK_SIZE;
+                        next_out_address += out_blks * this->dram->getWidth();
+                        auto last_address = this->dram->getStartActAddress() + next_out_address - this->dram->getWidth();
                         node->write_addresses.emplace_back(first_address, last_address);
                     }
 
@@ -474,8 +474,8 @@ namespace core {
                 if (!this->next_layer_act_on_chip) {
                     auto first_address = this->dram->getStartActAddress() + next_out_address;
                     auto out_blks = ceil(total_filters * total_windows / (double)this->dram->getBaseValuesPerBlock());
-                    next_out_address += out_blks * BLOCK_SIZE;
-                    auto last_address = this->dram->getStartActAddress() + next_out_address - BLOCK_SIZE;
+                    next_out_address += out_blks * this->dram->getWidth();
+                    auto last_address = this->dram->getStartActAddress() + next_out_address - this->dram->getWidth();
                     node->write_addresses.emplace_back(first_address, last_address);
                 }
 
@@ -719,8 +719,8 @@ namespace core {
                     if (!this->next_layer_act_on_chip && tstep == time_steps - 1) {
                         auto first_address = this->dram->getStartActAddress() + next_out_address;
                         auto out_blks = ceil(total_filters / (double)this->dram->getBaseValuesPerBlock());
-                        next_out_address += out_blks * BLOCK_SIZE;
-                        auto last_address = this->dram->getStartActAddress() + next_out_address - BLOCK_SIZE;
+                        next_out_address += out_blks * this->dram->getWidth();
+                        auto last_address = this->dram->getStartActAddress() + next_out_address - this->dram->getWidth();
                         node->write_addresses.emplace_back(first_address, last_address);
                     }
 
@@ -919,7 +919,7 @@ namespace core {
                                 for (int o = 0; o < outputs; ++o) {
                                     tiles_data[t].out_addresses[o] = this->dram->getStartActAddress()
                                             + this->next_out_address;
-                                    this->next_out_address += BLOCK_SIZE;
+                                    this->next_out_address += this->dram->getWidth();
 
                                     tiles_data[t].out_banks[o] = out_bank_idx;
                                     out_bank_idx = (out_bank_idx + 1) % this->gbuffer->getOutBanks();
@@ -1090,7 +1090,7 @@ namespace core {
 
                         for (int o = 0; o < outputs; ++o) {
                             tiles_data[t].out_addresses[o] = this->dram->getStartActAddress() + this->next_out_address;
-                            this->next_out_address += BLOCK_SIZE;
+                            this->next_out_address += this->dram->getWidth();
 
                             tiles_data[t].out_banks[o] = out_bank_idx;
                             out_bank_idx = (out_bank_idx + 1) % this->gbuffer->getOutBanks();

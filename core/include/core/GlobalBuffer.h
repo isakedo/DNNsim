@@ -83,24 +83,25 @@ namespace core {
 
         /**
          * Constructor
-         * @param _tracked_data
-         * @param _act_addresses
-         * @param _wgt_addresses
-         * @param _ACT_SIZE
-         * @param _WGT_SIZE
-         * @param _ACT_OUT_BANKS
-         * @param _WGT_BANKS
-         * @param _BANK_WIDTH
-         * @param _READ_DELAY
-         * @param _WRITE_DELAY
+         * @param _tracked_data         Current tracked data on-chip
+         * @param _act_addresses        Address range for activations
+         * @param _wgt_addresses        Address range for weights
+         * @param _ACT_SIZE             Activation size in Bytes
+         * @param _WGT_SIZE             Weights size in Bytes
+         * @param _ACT_OUT_BANKS        Activations banks
+         * @param _WGT_BANKS            Weight banks
+         * @param _BANK_WIDTH           On-chip bank width
+         * @param _DRAM_WIDTH           Dram width
+         * @param _READ_DELAY           Bank read delay
+         * @param _WRITE_DELAY          Bank write delay
          */
         GlobalBuffer(const std::shared_ptr<std::map<uint64_t, uint64_t>> &_tracked_data,
                 const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_wgt_addresses,
                 uint64_t _ACT_SIZE, uint64_t _WGT_SIZE, uint32_t _ACT_OUT_BANKS, uint32_t _WGT_BANKS,
-                uint32_t _BANK_WIDTH, uint32_t _READ_DELAY, uint32_t _WRITE_DELAY) : Memory<T>(_tracked_data,
-                _act_addresses, _wgt_addresses), ACT_SIZE(_ACT_SIZE), WGT_SIZE(_WGT_SIZE), ACT_BANKS(_ACT_OUT_BANKS/2),
-                WGT_BANKS(_WGT_BANKS), OUT_BANKS(_ACT_OUT_BANKS/2), BANK_WIDTH(_BANK_WIDTH),
-                ADDRS_PER_ACCESS(ceil(BANK_WIDTH / (double)BLOCK_SIZE)), READ_DELAY(_READ_DELAY),
+                uint32_t _BANK_WIDTH, uint32_t _DRAM_WIDTH, uint32_t _READ_DELAY, uint32_t _WRITE_DELAY) :
+                Memory<T>(_tracked_data, _act_addresses, _wgt_addresses), ACT_SIZE(_ACT_SIZE), WGT_SIZE(_WGT_SIZE),
+                ACT_BANKS(_ACT_OUT_BANKS/2), WGT_BANKS(_WGT_BANKS), OUT_BANKS(_ACT_OUT_BANKS/2), BANK_WIDTH(_BANK_WIDTH),
+                ADDRS_PER_ACCESS(ceil(BANK_WIDTH / (double)_DRAM_WIDTH)), READ_DELAY(_READ_DELAY),
                 WRITE_DELAY(_WRITE_DELAY) {}
 
         /**

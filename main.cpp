@@ -138,14 +138,14 @@ int main(int argc, char *argv[]) {
                         auto wgt_addresses = std::make_shared<core::AddressRange>();
 
                         auto dram = std::make_shared<core::DRAM<float>>(tracked_data, act_addresses, wgt_addresses,
-                                experiment.dram_size, simulate.data_width, experiment.cpu_clock_freq,
-                                experiment.dram_start_act_address, experiment.dram_start_wgt_address,
-                                "ini/DDR4_3200.ini", "system.ini", network.getName());
+                                experiment.dram_width, experiment.dram_size, simulate.data_width,
+                                experiment.cpu_clock_freq, experiment.dram_start_act_address,
+                                experiment.dram_start_wgt_address, experiment.dram_conf, "system.ini", network.getName());
 
                         auto gbuffer = std::make_shared<core::GlobalBuffer<float>>(tracked_data, act_addresses,
                                 wgt_addresses, experiment.gbuffer_act_size, experiment.gbuffer_wgt_size,
                                 experiment.gbuffer_act_banks, experiment.gbuffer_wgt_banks,
-                                experiment.gbuffer_bank_width, experiment.gbuffer_read_delay,
+                                experiment.gbuffer_bank_width, experiment.dram_width, experiment.gbuffer_read_delay,
                                 experiment.gbuffer_write_delay);
 
                         auto abuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data, act_addresses,
@@ -216,14 +216,14 @@ int main(int argc, char *argv[]) {
                         auto wgt_addresses = std::make_shared<core::AddressRange>();
 
                         auto dram = std::make_shared<core::DRAM<uint16_t>>(tracked_data, act_addresses, wgt_addresses,
-                                experiment.dram_size, simulate.data_width, experiment.cpu_clock_freq,
-                                experiment.dram_start_act_address, experiment.dram_start_wgt_address,
-                                "ini/DDR4_3200.ini", "system.ini", network.getName());
+                                experiment.dram_width, experiment.dram_size, simulate.data_width,
+                                experiment.cpu_clock_freq, experiment.dram_start_act_address,
+                                experiment.dram_start_wgt_address, experiment.dram_conf, "system.ini", network.getName());
 
                         auto gbuffer = std::make_shared<core::GlobalBuffer<uint16_t>>(tracked_data, act_addresses,
                                 wgt_addresses, experiment.gbuffer_act_size, experiment.gbuffer_wgt_size,
                                 experiment.gbuffer_act_banks, experiment.gbuffer_wgt_banks,
-                                experiment.gbuffer_bank_width, experiment.gbuffer_read_delay,
+                                experiment.gbuffer_bank_width, experiment.dram_width, experiment.gbuffer_read_delay,
                                 experiment.gbuffer_write_delay);
 
                         auto abuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data, act_addresses,

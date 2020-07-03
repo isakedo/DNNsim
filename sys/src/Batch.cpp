@@ -114,10 +114,13 @@ namespace sys {
                 throw std::runtime_error("DRAM size not recognised.");
             }
 
+            experiment.dram_width = experiment_proto.dram_width() < 1 ? 64 : experiment_proto.dram_width();
             experiment.dram_start_act_address = experiment_proto.dram_start_act_address() < 1 ? 0x80000000 :
                     experiment_proto.dram_start_act_address();
             experiment.dram_start_wgt_address = experiment_proto.dram_start_wgt_address() < 1 ? 0x00000000 :
                     experiment_proto.dram_start_wgt_address();
+            experiment.dram_conf = experiment_proto.dram_size().empty() ? "ini/DDR4_3200.ini" :
+                    experiment_proto.dram_size();
 
             auto dram_range = log2(experiment.dram_size * pow(2, 20));
 

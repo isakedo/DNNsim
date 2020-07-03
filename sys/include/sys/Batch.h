@@ -102,6 +102,9 @@ namespace sys {
                 /** CPU clock frequency */
                 uint64_t cpu_clock_freq = 0;
 
+                /** Dram iterface width */
+                uint64_t dram_width = 0;
+
                 /** Dram size */
                 uint64_t dram_size = 0;
 
@@ -110,6 +113,8 @@ namespace sys {
 
                 /** DRAM start weights address */
                 uint64_t dram_start_wgt_address = 0;
+
+                std::string dram_conf;
 
                 /** Global buffer activation memory size */
                 uint32_t gbuffer_act_size = 0;

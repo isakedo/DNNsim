@@ -17,6 +17,9 @@ namespace core {
 
         /* SIMULATION PARAMETERS */
 
+        /** DRAM interface width */
+        const uint64_t WIDTH;
+
         /** Start activation address */
         const uint64_t START_ACT_ADDRESS;
 
@@ -78,6 +81,7 @@ namespace core {
          * @param _tracked_data         Current tracked data on-chip
          * @param _act_addresses        Address range for activations
          * @param _wgt_addresses        Address range for weights
+         * @param _WIDTH                Interface width
          * @param _SIZE                 Size in MiB
          * @param _BASE_DATA_SIZE       Baseline data size in bits
          * @param _clock_freq           Compute frequency
@@ -89,12 +93,13 @@ namespace core {
          */
         DRAM(const std::shared_ptr<std::map<uint64_t, uint64_t>> &_tracked_data,
                 const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_wgt_addresses,
-                uint32_t _SIZE, uint32_t _BASE_DATA_SIZE, uint64_t _clock_freq, uint64_t _START_ACT_ADDRESS,
-                uint64_t _START_WGT_ADDRESS, const std::string &_dram_conf, const std::string &_system_conf,
-                const std::string &_network) : Memory<T>(_tracked_data, _act_addresses, _wgt_addresses),
-                START_ACT_ADDRESS(_START_ACT_ADDRESS), START_WGT_ADDRESS(_START_WGT_ADDRESS), SIZE(_SIZE),
-                BASE_VALUES_PER_BLOCK(64 / _BASE_DATA_SIZE), BASE_DATA_SIZE(_BASE_DATA_SIZE), ACT_VALUES_PER_BLOCK(0),
-                ACT_DATA_SIZE(0), WGT_VALUES_PER_BLOCK(0), WGT_DATA_SIZE(0) {
+                uint32_t _WIDTH, uint32_t _SIZE, uint32_t _BASE_DATA_SIZE, uint64_t _clock_freq,
+                uint64_t _START_ACT_ADDRESS, uint64_t _START_WGT_ADDRESS, const std::string &_dram_conf,
+                const std::string &_system_conf, const std::string &_network) : Memory<T>(_tracked_data, _act_addresses,
+                _wgt_addresses), WIDTH(_WIDTH), START_ACT_ADDRESS(_START_ACT_ADDRESS),
+                START_WGT_ADDRESS(_START_WGT_ADDRESS), SIZE(_SIZE), BASE_VALUES_PER_BLOCK(64 / _BASE_DATA_SIZE),
+                BASE_DATA_SIZE(_BASE_DATA_SIZE), ACT_VALUES_PER_BLOCK(0), ACT_DATA_SIZE(0), WGT_VALUES_PER_BLOCK(0),
+                WGT_DATA_SIZE(0) {
 
             dram_interface = DRAMSim::getMemorySystemInstance(_dram_conf, _system_conf, "./DRAMSim2/",
                     "DNNsim_" + _network, _SIZE);
@@ -109,6 +114,12 @@ namespace core {
 
             dram_interface->setCPUClockSpeed(_clock_freq);
         }
+
+        /**
+         * Return the interface width
+         * @return Interface width
+         */
+        uint64_t getWidth() const;
 
         /**
          * Return the number of activation reads

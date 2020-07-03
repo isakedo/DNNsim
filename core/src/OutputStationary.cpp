@@ -149,7 +149,7 @@ namespace core {
                 // Store channel-first
                 for (int k = 0; k < channel_blks; ++k) {
                     act_address_map[y][x][k] = this->dram->getStartActAddress() + next_act_address;
-                    next_act_address += BLOCK_SIZE;
+                    next_act_address += this->dram->getWidth();
                 }
             }
         }
@@ -276,14 +276,14 @@ namespace core {
                         // Buffer width first
                         for (int x = 0; x < accesses_per_filter; ++x) {
                             this->wgt_address_buffer[mm][y][x] = this->dram->getStartWgtAddress() + next_wgt_address;
-                            next_wgt_address += BLOCK_SIZE;
+                            next_wgt_address += this->dram->getWidth();
                         }
 
                     }
                 }
 
                 std::get<1>(wgt_address_map[g * filter_sets_per_set + m / tiles]) =
-                        this->dram->getStartWgtAddress() + next_wgt_address - BLOCK_SIZE;
+                        this->dram->getStartWgtAddress() + next_wgt_address - this->dram->getWidth();
 
             }
         }

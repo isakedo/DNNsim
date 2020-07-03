@@ -14,10 +14,6 @@ namespace core {
     /** Not valid delay */
     const uint32_t NULL_DELAY = UINT32_MAX;
 
-
-    /** DRAM interface width */
-    const uint64_t BLOCK_SIZE = 0x40; // Align to 64 bits
-
     template <typename T>
     class Memory {
 
