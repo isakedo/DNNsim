@@ -187,6 +187,10 @@ namespace core {
          */
         uint32_t getAddrsPerAccess() const;
 
+        /**
+         * Returns true when the read data is ready
+         * @return True if data ready
+         */
         bool data_ready() const;
 
         /**

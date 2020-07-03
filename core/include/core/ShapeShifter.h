@@ -103,8 +103,8 @@ namespace core {
 
         /**
          * Calculate cycles for the current pe
-         * @param act_row       Act rows
-         * @param wgt_row       Wgt row
+         * @param act_row       Act 1D input row
+         * @param wgt_row       Wgt 1D input row
          * @param window_idx    Window index
          * @param filter_idx    Filter index
          * @param lanes         Number of lanes

@@ -77,7 +77,7 @@ namespace core {
          * @param _COLUMNS  Number of columns
          * @param _ROWS     Number of rows
          * @param _TILES    Number of tiles
-         * @param _PE_WIDTH    Bits per PE
+         * @param _PE_WIDTH Bits per PE
          */
         Stripes(uint32_t _LANES, uint32_t _COLUMNS, uint32_t _ROWS, uint32_t _TILES, uint32_t _PE_WIDTH) :
                 Architecture<T>(_LANES, _COLUMNS, _ROWS, _TILES, _PE_WIDTH) {}

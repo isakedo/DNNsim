@@ -211,6 +211,7 @@ namespace core {
         /**
          * Add requested data on-chip to the waiting list if still off-chip
          * @param tiles_data Data to be read
+         * @param layer_act_on_chip True if layer activation already on-chip (from previous layer)
          */
         void read_request(const TilesData<T> &tiles_data, bool layer_act_on_chip);
 

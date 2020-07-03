@@ -23,6 +23,7 @@ namespace core {
         /** Write delay in cycles */
         const uint32_t WRITE_DELAY = 0;
 
+        /** Current occupied rows in the local buffer */
         uint32_t size = 0;
 
         /** Data Ready cycle */
@@ -46,8 +47,15 @@ namespace core {
         /** Configure memory for current layer parameters */
         void configure_layer() override;
 
+        /**
+         * Add new data to the local buffer
+         * @param read True if add new data, false if not
+         */
         void insert(bool read = true);
 
+        /** Remove oldest value from the local buffer
+         * @param read True if remove data, false if not
+         */
         void erase(bool read = true);
 
         /**
@@ -68,8 +76,16 @@ namespace core {
          */
         bool write_done();
 
+        /**
+         * Calculate read ready cycle
+         * @param read True if data is read
+         */
         void read_request(bool read = true);
 
+        /**
+         * Calculate write ready cycle
+         * @param delay Additional write delays
+         */
         void write_request(uint64_t delay);
 
     };

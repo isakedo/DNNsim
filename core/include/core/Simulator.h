@@ -28,44 +28,84 @@ namespace core {
         Last = WRITEBACK_III
     };
 
+    /**
+     * Inference pipeline
+     * @tparam T Data type of the simulation
+     */
     template <typename T>
     class Pipeline {
     public:
 
+        /** 2D data tracking pipeline */
         std::vector<std::queue<std::shared_ptr<TilesData<T>>>> pipeline;
 
+        /**
+         * Constructor
+         * @param _stages Number of pipeline stages
+         */
         explicit Pipeline(uint64_t _stages) {
             pipeline = std::vector<std::queue<std::shared_ptr<TilesData<T>>>>(_stages,
                     std::queue<std::shared_ptr<TilesData<T>>>());
         }
 
+        /**
+         * Fetch data into the pipeline
+         * @param tiles_data Input data
+         */
         void fetch_data(const TilesData<T> &tiles_data) {
             pipeline.front().emplace(std::make_shared<TilesData<T>>(tiles_data));
         }
 
+        /**
+         * Retire data in the given stage
+         * @param stage Pipeline stage
+         */
         void end_stage(Stage stage) {
             pipeline[stage].pop();
         }
 
+        /**
+         * Move data to the next pipeline stage
+         * @param stage Pipeline stage
+         */
         void move_stage(Stage stage) {
             pipeline[stage + 1].emplace(pipeline[stage].front());
             pipeline[stage].pop();
         }
 
+        /**
+         * Retrieve the next data to process in the given stage
+         * @param stage Pipeline stage
+         * @return Data
+         */
         const std::shared_ptr<TilesData<T>> &getData(Stage stage) {
             return pipeline[stage].front();
         }
 
+        /**
+         * Check if the pipeline is empty
+         * @return True if no data in any stage
+         */
         bool isEmpty() {
             for (const auto &stage : pipeline)
                 if (!stage.empty()) return false;
             return true;
         }
 
+        /**
+         * Check if the given pipeline stage is free
+         * @param stage Pipeline stage
+         * @return True if given stage is free
+         */
         bool isFree(Stage stage) {
             return pipeline[stage].empty();
         }
 
+        /**
+         * Check if there is data to process in the given stage
+         * @param stage Pipeline stage
+         * @return True if stage is not empty
+         */
         bool isValid(Stage stage) {
             return !pipeline[stage].empty();
         }

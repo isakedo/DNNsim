@@ -89,6 +89,17 @@ namespace core {
          */
         bool schedule() override;
 
+        /**
+         * Calculate the cycles for the given processing engine
+         * @param row 1D vector of input values
+         * @param idx Column/row index within the row
+         * @param lanes Number of concurrent lanes
+         * @param n_mask Negation mask
+         * @param signed_data True if signed values
+         * @param min_group_bit Minimum bit position (overwritten)
+         * @param max_group_bit Maximum bit position (overwritten)
+         * @param blk Spatial composition block index
+         */
         void process_pe(const BufferRow<T> &row, int idx, int lanes, uint16_t n_mask, bool signed_data,
                 int &min_group_bit, int &max_group_bit, int blk);
 

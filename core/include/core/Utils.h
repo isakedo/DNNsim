@@ -41,43 +41,88 @@ namespace core {
 
     typedef std::vector<int> BankBufferRow;
 
+    /**
+     * Data to process per tile
+     * @tparam T Data type values
+     */
     template <typename T>
     class TileData {
     public:
+
+        /** 2D Input activations (2D because of Tactical) */
         BufferSet<T> act_row;
+
+        /** 1D Input weights */
         BufferRow<T> wgt_row;
 
+        /** Window indices to process */
         std::vector<WindowCoord> windows;
+
+        /** Filter indices to process */
         std::vector<int> filters;
 
+        /** 2D Input activation mapped addresses */
         AddressBufferSet act_addresses;
+
+        /** 1D Weights mapped addresses */
         AddressBufferRow wgt_addresses;
+
+        /** 1D Output activations mapped addresses */
         AddressBufferRow out_addresses;
 
+        /** 1D Input activation mapped on-chip banks */
         BankBufferRow act_banks;
+
+        /** 1D Weight mapped on-chip banks */
         BankBufferRow wgt_banks;
+
+        /** 1D Output activation mapped on-chip banks */
         BankBufferRow out_banks;
 
+        /** Current time in the 2D input buffer (for Tactical) */
         int time = 0;
+
+        /** Total number of lines */
         int lanes = 0;
 
+        /** Read partial sums flag */
         bool read_psum = false;
 
+        /** Write accumulator outputs flag */
         bool write = false;
+
+        /** Valida data flag */
         bool valid = false;
     };
 
+    /**
+     * Data to process
+     * @tparam T Data type values
+     */
     template <typename T>
     class TilesData {
     public:
+
+        /** Data to process per tile */
         std::vector<TileData<T>> data;
+
+        /** Read partial ums flag */
         bool read_psum = false;
 
+        /**
+         * Constructor
+         * @param _tiles Total number of tiles
+         */
         explicit TilesData(uint64_t _tiles) {
             data = std::vector<TileData<T>>(_tiles, TileData<T>());
         }
     };
 
+    /**
+     * Transform the memory size to text
+     * @param mem Memory size integer
+     * @return Memory size text
+     */
     std::string to_mem_string(uint64_t mem);
 
     /** Return the optimal encoding for the given value

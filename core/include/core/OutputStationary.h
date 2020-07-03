@@ -57,16 +57,22 @@ namespace core {
         /** Activation Bank map */
         ActBankMap act_bank_map;
 
+        /** Pointer to the next activation address in the mapping */
         uint64_t next_act_address = 0;
 
+        /** Pointer to the next weight address in the mapping */
         uint64_t next_wgt_address = 0;
 
+        /** Pointer to the next output address in the mapping */
         uint64_t next_out_address = 0;
 
+        /** Output width size */
         int out_x = 0;
 
+        /** Output height size */
         int out_y = 0;
 
+        /** Depthwise layer flag */
         bool depthwise = false;
 
         /** Number of layer groups */
@@ -116,31 +122,70 @@ namespace core {
         /** Indicate if filter buffer already filled */
         bool filter_buffer_filled = false;
 
+        /**
+         * Schedule how many input windows can fit on-chip per memory step
+         * @param window_steps Window indices split by on-chip steps
+         * @param output_size Output size per window
+         * @param channels Total number of channels per window to schedule
+         */
         void fill_window_steps(std::vector<std::vector<int>> &window_steps, uint32_t output_size, uint32_t channels);
 
+        /**
+         *
+         * @param start_act_blk
+         * @param end_act_blk
+         * @param last_act_blk
+         * @param start_window
+         * @param end_window
+         * @param start_group
+         * @return
+         */
         std::vector<AddressRange> generate_addresses(uint32_t start_act_blk, uint32_t end_act_blk,
                 uint32_t last_act_blk, uint32_t start_window, uint32_t end_window, uint32_t start_group);
 
+        /** Generate memory mapping for input data */
         void generate_memory_maps() override;
 
-        /**
-         * Fill the weight buffer with the weights
-         */
+        /** Fill the weight buffer with the weights */
         void fill_weight_buffer();
 
-        /**
-         * Fill the window buffer with the activations to process
-         */
+        /** Fill the window buffer with the activations to process */
         void fill_window_buffer(uint32_t group_idx);
 
+        /**
+         * Return the number of outputs in the current node step
+         * @return Outputs on-chip
+         */
         uint64_t calculate_outputs() override;
 
+        /**
+         * Configure control values for the current layer
+         * @param _act      Pointer to activation values
+         * @param _wgt      Pointer to weight values
+         * @param act_prec  Activations precision
+         * @param wgt_prec  Weight precision
+         * @param _linear   True if linear layer
+         * @param __3dim    True if layer has 3 dimensions
+         * @param _stride   Stride
+         */
         virtual void configure_layer(const std::shared_ptr<base::Array<T>> &_act,
                 const std::shared_ptr<base::Array<T>> &_wgt, uint32_t act_prec, uint32_t wgt_prec, bool _linear,
                 bool __3dim, int _stride);
 
     public:
 
+        /**
+         * Constructor
+         * @param _scheduler    Weight buffer scheduler
+         * @param _dram         Dram model
+         * @param _gbuffer      Global Buffer model
+         * @param _abuffer      Activation Buffer model
+         * @param _pbuffer      Weight Buffer model
+         * @param _wbuffer      Partial Sum Buffer model
+         * @param _obuffer      Output Buffer model
+         * @param _composer     Composer column model
+         * @param _ppu          Post-Processing Unit model
+         */
         OutputStationary(const std::shared_ptr<BitTactical<T>> &_scheduler, const std::shared_ptr<DRAM<T>> &_dram,
                 const std::shared_ptr<GlobalBuffer<T>> &_gbuffer, const std::shared_ptr<LocalBuffer<T>> &_abuffer,
                 const std::shared_ptr<LocalBuffer<T>> &_pbuffer, const std::shared_ptr<LocalBuffer<T>> &_wbuffer,
