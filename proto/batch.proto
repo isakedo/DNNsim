@@ -59,31 +59,32 @@ message Batch {
             uint64 dram_start_wgt_address = 31;
             string dram_conf = 32;
 
-            string gbuffer_act_size = 33;
-            string gbuffer_wgt_size = 34;
-            uint32 gbuffer_act_banks = 35;
-            uint32 gbuffer_wgt_banks = 36;
-            uint32 gbuffer_bank_width = 37;
-            uint32 gbuffer_read_delay = 38;
-            uint32 gbuffer_write_delay = 39;
+            uint32 gbuffer_levels = 33;
+            repeated string gbuffer_act_size = 34;
+            repeated string gbuffer_wgt_size = 35;
+            uint32 gbuffer_act_banks = 36;
+            uint32 gbuffer_wgt_banks = 37;
+            uint32 gbuffer_bank_width = 38;
+            repeated uint32 gbuffer_read_delay = 39;
+            repeated uint32 gbuffer_write_delay = 40;
 
-            uint32 abuffer_rows = 40;
-            uint32 abuffer_read_delay = 41;
+            uint32 abuffer_rows = 41;
+            uint32 abuffer_read_delay = 42;
 
-            uint32 pbuffer_rows = 42;
-            uint32 pbuffer_read_delay = 43;
+            uint32 pbuffer_rows = 43;
+            uint32 pbuffer_read_delay = 44;
 
-            uint32 wbuffer_rows = 44;
-            uint32 wbuffer_read_delay = 45;
+            uint32 wbuffer_rows = 45;
+            uint32 wbuffer_read_delay = 46;
 
-            uint32 obuffer_rows = 46;
-            uint32 obuffer_write_delay = 47;
+            uint32 obuffer_rows = 47;
+            uint32 obuffer_write_delay = 48;
 
             // Other modules
-            uint32 composer_inputs = 48;
-            uint32 composer_delay = 49;
-            uint32 ppu_inputs = 50;
-            uint32 ppu_delay = 51;
+            uint32 composer_inputs = 49;
+            uint32 composer_delay = 50;
+            uint32 ppu_inputs = 51;
+            uint32 ppu_delay = 52;
 
         }
 

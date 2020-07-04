@@ -8,9 +8,6 @@ namespace core {
     /** Not valid address */
     const uint64_t NULL_ADDR = UINT64_MAX;
 
-    /** Not valid time */
-    const uint64_t NULL_TIME = UINT64_MAX;
-
     /** Not valid delay */
     const uint32_t NULL_DELAY = UINT32_MAX;
 
@@ -19,8 +16,8 @@ namespace core {
 
     protected:
 
-        /** Current tracked data on-chip: Tuple <Address,Time arrival on-chip> */
-        std::shared_ptr<std::map<uint64_t, uint64_t>> tracked_data;
+        /** Current tracked data on-chip: Tuple <Address, on-chip,Hierarchy level> */
+        std::shared_ptr<std::map<uint64_t, uint32_t>> tracked_data;
 
         /** Address range for activations */
         std::shared_ptr<AddressRange> act_addresses;
@@ -39,8 +36,9 @@ namespace core {
          * @param _act_addresses    Activations addresses range
          * @param _wgt_addresses    Weight addresses range
          */
-        Memory(const std::shared_ptr<std::map<uint64_t, uint64_t>> &_tracked_data,
-                const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_wgt_addresses) {
+        Memory(const std::shared_ptr<std::map<uint64_t, uint32_t>> &_tracked_data,
+                const std::shared_ptr<AddressRange> &_act_addresses,
+                const std::shared_ptr<AddressRange> &_wgt_addresses) {
             tracked_data = _tracked_data;
             act_addresses = _act_addresses;
             wgt_addresses = _wgt_addresses;

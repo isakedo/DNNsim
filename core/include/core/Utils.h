@@ -70,8 +70,8 @@ namespace core {
         /** 1D Output activations mapped addresses */
         AddressBufferRow out_addresses;
 
-        /** 1D Input activation mapped on-chip banks */
-        BankBufferRow act_banks;
+        /** 2D Input activation mapped on-chip banks */
+        BankBufferSet act_banks;
 
         /** 1D Weight mapped on-chip banks */
         BankBufferRow wgt_banks;

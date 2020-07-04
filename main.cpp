@@ -133,7 +133,7 @@ int main(int argc, char *argv[]) {
                     auto network = read<float>(simulate, QUIET);
                     for(const auto &experiment : simulate.experiments) {
 
-                        auto tracked_data = std::make_shared<std::map<uint64_t, uint64_t>>();
+                        auto tracked_data = std::make_shared<std::map<uint64_t, uint32_t>>();
                         auto act_addresses = std::make_shared<core::AddressRange>();
                         auto wgt_addresses = std::make_shared<core::AddressRange>();
 
@@ -143,8 +143,8 @@ int main(int argc, char *argv[]) {
                                 experiment.dram_start_wgt_address, experiment.dram_conf, "system.ini", network.getName());
 
                         auto gbuffer = std::make_shared<core::GlobalBuffer<float>>(tracked_data, act_addresses,
-                                wgt_addresses, experiment.gbuffer_act_size, experiment.gbuffer_wgt_size,
-                                experiment.gbuffer_act_banks, experiment.gbuffer_wgt_banks,
+                                wgt_addresses, experiment.gbuffer_levels, experiment.gbuffer_act_size,
+                                experiment.gbuffer_wgt_size, experiment.gbuffer_act_banks, experiment.gbuffer_wgt_banks,
                                 experiment.gbuffer_bank_width, experiment.dram_width, experiment.gbuffer_read_delay,
                                 experiment.gbuffer_write_delay);
 
@@ -211,7 +211,7 @@ int main(int argc, char *argv[]) {
 
                     for (const auto &experiment : simulate.experiments) {
 
-                        auto tracked_data = std::make_shared<std::map<uint64_t, uint64_t>>();
+                        auto tracked_data = std::make_shared<std::map<uint64_t, uint32_t>>();
                         auto act_addresses = std::make_shared<core::AddressRange>();
                         auto wgt_addresses = std::make_shared<core::AddressRange>();
 
@@ -221,8 +221,8 @@ int main(int argc, char *argv[]) {
                                 experiment.dram_start_wgt_address, experiment.dram_conf, "system.ini", network.getName());
 
                         auto gbuffer = std::make_shared<core::GlobalBuffer<uint16_t>>(tracked_data, act_addresses,
-                                wgt_addresses, experiment.gbuffer_act_size, experiment.gbuffer_wgt_size,
-                                experiment.gbuffer_act_banks, experiment.gbuffer_wgt_banks,
+                                wgt_addresses, experiment.gbuffer_levels, experiment.gbuffer_act_size,
+                                experiment.gbuffer_wgt_size, experiment.gbuffer_act_banks, experiment.gbuffer_wgt_banks,
                                 experiment.gbuffer_bank_width, experiment.dram_width, experiment.gbuffer_read_delay,
                                 experiment.gbuffer_write_delay);
 

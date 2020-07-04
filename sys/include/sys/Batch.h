@@ -116,11 +116,13 @@ namespace sys {
 
                 std::string dram_conf;
 
+                uint32_t gbuffer_levels = 0;
+
                 /** Global buffer activation memory size */
-                uint32_t gbuffer_act_size = 0;
+                std::vector<uint64_t> gbuffer_act_size;
 
                 /** Global buffer weight memory size */
-                uint32_t gbuffer_wgt_size = 0;
+                std::vector<uint64_t> gbuffer_wgt_size;
 
                 /** Global buffer act banks */
                 uint32_t gbuffer_act_banks = 0;
@@ -132,10 +134,10 @@ namespace sys {
                 uint32_t gbuffer_bank_width = 0;
 
                 /** Global buffer read delay */
-                uint32_t gbuffer_read_delay = 0;
+                std::vector<uint32_t> gbuffer_read_delay;
 
                 /** Global buffer write delay */
-                uint32_t gbuffer_write_delay = 0;
+                std::vector<uint32_t> gbuffer_write_delay;
 
                 /** Activation buffer number of memory rows */
                 uint32_t abuffer_rows = 0;

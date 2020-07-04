@@ -91,7 +91,7 @@ namespace core {
          * @param _system_conf          System configuration file
          * @param _network              Network name
          */
-        DRAM(const std::shared_ptr<std::map<uint64_t, uint64_t>> &_tracked_data,
+        DRAM(const std::shared_ptr<std::map<uint64_t, uint32_t>> &_tracked_data,
                 const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_wgt_addresses,
                 uint32_t _WIDTH, uint32_t _SIZE, uint32_t _BASE_DATA_SIZE, uint64_t _clock_freq,
                 uint64_t _START_ACT_ADDRESS, uint64_t _START_WGT_ADDRESS, const std::string &_dram_conf,

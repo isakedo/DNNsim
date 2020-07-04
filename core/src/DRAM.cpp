@@ -140,11 +140,11 @@ namespace core {
                 if (!layer_act_on_chip)
                     for (const auto &act_addr_row : tile_data.act_addresses)
                         for (const auto &act_addr : act_addr_row)
-                            if (act_addr != NULL_ADDR && (*this->tracked_data).at(act_addr) == NULL_TIME)
+                            if (act_addr != NULL_ADDR && (*this->tracked_data).at(act_addr) == 0)
                                 waiting_addresses.insert(act_addr);
 
                 for (const auto &wgt_addr : tile_data.wgt_addresses)
-                    if (wgt_addr != NULL_ADDR && (*this->tracked_data).at(wgt_addr) == NULL_TIME)
+                    if (wgt_addr != NULL_ADDR && (*this->tracked_data).at(wgt_addr) == 0)
                         waiting_addresses.insert(wgt_addr);
 
             }
@@ -166,7 +166,7 @@ namespace core {
     template <typename T>
     void DRAM<T>::read_transaction_done(unsigned id, uint64_t address, uint64_t _clock_cycle) {
         try {
-            (*this->tracked_data).at(address) = *this->global_cycle;
+            (*this->tracked_data).at(address) = 1;
 
             auto it = waiting_addresses.find(address);
             if (it != waiting_addresses.end())
@@ -229,7 +229,7 @@ namespace core {
                     if (count == OVERLAP)
                         break;
 
-                    this->tracked_data->insert({act_start_addr, NULL_TIME});
+                    this->tracked_data->insert({act_start_addr, 0});
                     transaction_request(act_start_addr, false);
                     still_data = true;
                     act_reads++;
@@ -273,7 +273,7 @@ namespace core {
                     if (count == OVERLAP)
                         break;
 
-                    this->tracked_data->insert({wgt_start_addr, NULL_TIME});
+                    this->tracked_data->insert({wgt_start_addr, 0});
                     transaction_request(wgt_start_addr, false);
                     still_data = true;
                     wgt_reads++;

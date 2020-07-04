@@ -17,11 +17,13 @@ namespace core {
 
         /* SIMULATION PARAMETERS */
 
+        const uint32_t LEVELS = 0;
+
         /** Activation memory size */
-        const uint64_t ACT_SIZE = 0;
+        std::vector<uint64_t> ACT_SIZE;
 
         /** Weight memory size */
-        const uint64_t WGT_SIZE = 0;
+        std::vector<uint64_t> WGT_SIZE;
 
         /** Activation banks */
         const uint32_t ACT_BANKS = 0;
@@ -33,10 +35,10 @@ namespace core {
         const uint32_t OUT_BANKS = 0;
 
         /** Bank read delay */
-        const uint32_t READ_DELAY = 0;
+        std::vector<uint32_t> READ_DELAY;
 
         /** Write read delay */
-        const uint32_t WRITE_DELAY = 0;
+        std::vector<uint32_t> WRITE_DELAY;
 
         /** Bank interface datawidth */
         const uint32_t BANK_WIDTH = 0;
@@ -86,6 +88,7 @@ namespace core {
          * @param _tracked_data         Current tracked data on-chip
          * @param _act_addresses        Address range for activations
          * @param _wgt_addresses        Address range for weights
+         * @param _LEVELS               Hierarchy levels
          * @param _ACT_SIZE             Activation size in Bytes
          * @param _WGT_SIZE             Weights size in Bytes
          * @param _ACT_OUT_BANKS        Activations banks
@@ -95,14 +98,19 @@ namespace core {
          * @param _READ_DELAY           Bank read delay
          * @param _WRITE_DELAY          Bank write delay
          */
-        GlobalBuffer(const std::shared_ptr<std::map<uint64_t, uint64_t>> &_tracked_data,
+        GlobalBuffer(const std::shared_ptr<std::map<uint64_t, uint32_t>> &_tracked_data,
                 const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_wgt_addresses,
-                uint64_t _ACT_SIZE, uint64_t _WGT_SIZE, uint32_t _ACT_OUT_BANKS, uint32_t _WGT_BANKS,
-                uint32_t _BANK_WIDTH, uint32_t _DRAM_WIDTH, uint32_t _READ_DELAY, uint32_t _WRITE_DELAY) :
-                Memory<T>(_tracked_data, _act_addresses, _wgt_addresses), ACT_SIZE(_ACT_SIZE), WGT_SIZE(_WGT_SIZE),
-                ACT_BANKS(_ACT_OUT_BANKS/2), WGT_BANKS(_WGT_BANKS), OUT_BANKS(_ACT_OUT_BANKS/2), BANK_WIDTH(_BANK_WIDTH),
-                ADDRS_PER_ACCESS(ceil(BANK_WIDTH / (double)_DRAM_WIDTH)), READ_DELAY(_READ_DELAY),
-                WRITE_DELAY(_WRITE_DELAY) {}
+                uint32_t _LEVELS, const std::vector<uint64_t> &_ACT_SIZE, const std::vector<uint64_t> &_WGT_SIZE,
+                uint32_t _ACT_OUT_BANKS, uint32_t _WGT_BANKS, uint32_t _BANK_WIDTH, uint32_t _DRAM_WIDTH,
+                const std::vector<uint32_t> & _READ_DELAY, const std::vector<uint32_t> & _WRITE_DELAY) :
+                Memory<T>(_tracked_data, _act_addresses, _wgt_addresses), LEVELS(_LEVELS), ACT_BANKS(_ACT_OUT_BANKS/2),
+                WGT_BANKS(_WGT_BANKS), OUT_BANKS(_ACT_OUT_BANKS/2), BANK_WIDTH(_BANK_WIDTH),
+                ADDRS_PER_ACCESS(ceil(BANK_WIDTH / (double)_DRAM_WIDTH)) {
+            ACT_SIZE = _ACT_SIZE;
+            WGT_SIZE = _WGT_SIZE;
+            READ_DELAY = _READ_DELAY;
+            WRITE_DELAY = _WRITE_DELAY;
+        }
 
         /**
          * Return the number of activation bank reads

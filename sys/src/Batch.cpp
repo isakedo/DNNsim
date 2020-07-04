@@ -132,18 +132,24 @@ namespace sys {
             if (dram_range <= dram_wgt_addr_range)
                 throw std::runtime_error("DRAM start weight addresses out of range.");
 
+            experiment.gbuffer_levels = experiment_proto.gbuffer_levels() < 1 ? 1 : experiment_proto.gbuffer_levels();
+
             try {
                 if (experiment_proto.gbuffer_act_size().empty())
-                    experiment.gbuffer_act_size = (uint64_t)pow(10, 9);
-                else experiment.gbuffer_act_size = parse_memory_size(experiment_proto.gbuffer_act_size());
+                    experiment.gbuffer_act_size = {(uint64_t)pow(10, 9)};
+                else
+                    for (int i = 0; i < experiment_proto.gbuffer_act_size_size(); ++i)
+                        experiment.gbuffer_act_size.emplace_back(parse_memory_size(experiment_proto.gbuffer_act_size(i)));
             } catch (const std::exception &e) {
                 throw std::runtime_error("Global Buffer activation size not recognised.");
             }
 
             try {
                 if (experiment_proto.gbuffer_wgt_size().empty())
-                    experiment.gbuffer_wgt_size = (uint64_t)pow(10, 9);
-                else experiment.gbuffer_wgt_size = parse_memory_size(experiment_proto.gbuffer_wgt_size());
+                    experiment.gbuffer_wgt_size = {(uint64_t)pow(10, 9)};
+                else
+                    for (int i = 0; i < experiment_proto.gbuffer_wgt_size_size(); ++i)
+                        experiment.gbuffer_wgt_size.emplace_back(parse_memory_size(experiment_proto.gbuffer_wgt_size(i)));
             } catch (const std::exception &e) {
                 throw std::runtime_error("Global Buffer weights size not recognised.");
             }
@@ -154,10 +160,18 @@ namespace sys {
                     experiment_proto.gbuffer_wgt_banks();
             experiment.gbuffer_bank_width = experiment_proto.gbuffer_bank_width() < 1 ? 256 :
                     experiment_proto.gbuffer_bank_width();
-            experiment.gbuffer_read_delay = experiment_proto.gbuffer_read_delay() < 1 ? 1 :
-                    experiment_proto.gbuffer_read_delay();
-            experiment.gbuffer_write_delay = experiment_proto.gbuffer_write_delay() < 1 ? 1 :
-                    experiment_proto.gbuffer_write_delay();
+
+            if (experiment_proto.gbuffer_read_delay().empty())
+                experiment.gbuffer_read_delay = {2};
+            else
+                for (int i = 0; i < experiment_proto.gbuffer_read_delay_size(); ++i)
+                    experiment.gbuffer_read_delay.emplace_back(experiment_proto.gbuffer_read_delay(i));
+
+            if (experiment_proto.gbuffer_write_delay().empty())
+                experiment.gbuffer_write_delay = {2};
+            else
+                for (int i = 0; i < experiment_proto.gbuffer_write_delay_size(); ++i)
+                    experiment.gbuffer_write_delay.emplace_back(experiment_proto.gbuffer_write_delay(i));
 
             experiment.abuffer_rows = experiment_proto.abuffer_rows() < 1 ? 2 :
                     experiment_proto.abuffer_rows();

@@ -6,12 +6,12 @@ namespace core {
 
     template <typename T>
     uint64_t GlobalBuffer<T>::getActSize() const {
-        return ACT_SIZE;
+        return ACT_SIZE.front();
     }
 
     template <typename T>
     uint64_t GlobalBuffer<T>::getWgtSize() const {
-        return WGT_SIZE;
+        return WGT_SIZE.front();
     }
 
     template <typename T>
@@ -81,19 +81,23 @@ namespace core {
 
     template <typename T>
     std::string GlobalBuffer<T>::filename() {
-        return "_AM" + to_mem_string(ACT_SIZE) + "_WM" + to_mem_string(WGT_SIZE);
+        return "_AM" + to_mem_string(ACT_SIZE.front()) + "_WM" + to_mem_string(WGT_SIZE.front());
     }
 
     template <typename T>
     std::string GlobalBuffer<T>::header() {
-        std::string header = "Activations memory size: " + to_mem_string(ACT_SIZE) + "\n";
-        header += "Weight memory size: " + to_mem_string(WGT_SIZE) + "\n";
+        std::string header = "Activations memory size: ";
+        for (const auto &size : ACT_SIZE) header += to_mem_string(size) + " "; header += "\n";
+        header += "Weight memory size: ";
+        for (const auto &size : WGT_SIZE) header += to_mem_string(size) + " "; header += "\n";
         header += "Number of activation banks: " + std::to_string(ACT_BANKS) + "\n";
         header += "Number of weight banks: " + std::to_string(WGT_BANKS) + "\n";
         header += "Number of output banks: " + std::to_string(OUT_BANKS) + "\n";
         header += "Bank interface width: " + std::to_string(BANK_WIDTH) + "\n";
-        header += "Read delay: " + std::to_string(READ_DELAY) + "\n";
-        header += "Write delay: " + std::to_string(WRITE_DELAY) + "\n";
+        header += "Read delay: ";
+        for (const auto &delay : READ_DELAY) header += std::to_string(delay) + " "; header += "\n";
+        header += "Write delay: ";
+        for (const auto &delay : WRITE_DELAY) header += std::to_string(delay) + " "; header += "\n";
         return header;
     }
 
@@ -125,39 +129,64 @@ namespace core {
         try {
 
             uint64_t start_time = *this->global_cycle;
-            auto bank_conflicts = std::vector<int>(ACT_BANKS, 0);
+            auto bank_addr_reads = std::vector<std::vector<int>>(LEVELS, std::vector<int>(ACT_BANKS, 0));
 
             for (const auto &tile_data : tiles_data->data) {
 
-                if (!tile_data.valid)
+                if (!tile_data.valid || tile_data.act_addresses.empty())
                     continue;
 
-                // Start time
-                if (!layer_act_on_chip)
-                    for (const auto &act_addr_row : tile_data.act_addresses)
-                        for (const auto &act_addr : act_addr_row)
-                            if (act_addr != NULL_ADDR)
-                                if (start_time < (*this->tracked_data).at(act_addr))
-                                    start_time = (*this->tracked_data).at(act_addr);
+                assert(tile_data.act_banks.size() == tile_data.act_addresses.size());
+                assert(tile_data.act_banks.front().size() == tile_data.act_addresses.front().size());
 
-                // Bank conflicts
-                for (const auto &act_bank : tile_data.act_banks)
-                    if (act_bank != -1)
-                        bank_conflicts[act_bank]++;
+                uint64_t rows = tile_data.act_banks.size();
+                uint64_t n_addr = tile_data.act_banks.front().size();
+                for (int row = 0; row < rows; ++row) {
+                    for (int idx = 0; idx < n_addr; ++idx) {
+
+                        const auto &act_addr = tile_data.act_addresses[row][idx];
+                        if (act_addr == NULL_ADDR)
+                            continue;
+
+                        if (layer_act_on_chip) {
+                            auto it = (*this->tracked_data).find(act_addr);
+                            if (it != (*this->tracked_data).end())
+                                this->tracked_data->insert({act_addr,  1});
+                        }
+
+                        const auto &act_lvl = (*this->tracked_data).at(act_addr) - 1;
+                        const auto &act_bank = tile_data.act_banks[row][idx];
+
+                        assert(act_lvl < LEVELS);
+                        assert(act_bank != -1);
+
+                        for (int lvl = act_lvl; lvl < LEVELS; ++lvl) {
+                            bank_addr_reads[lvl][act_bank]++;
+                        }
+
+                        (*this->tracked_data).at(act_addr) = LEVELS;
+
+                    }
+                }
 
             }
 
-            auto bank_steps = 0;
-            for (const auto &reads : bank_conflicts) {
-                auto bank_reads = ceil(reads /(double)ADDRS_PER_ACCESS);
-                act_reads += bank_reads;
-                if (bank_reads > bank_steps)
-                    bank_steps = bank_reads;
+            for (int lvl = 0; lvl < LEVELS; ++lvl) {
+
+                auto bank_steps = 0;
+                for (const auto &reads : bank_addr_reads[lvl]) {
+                    auto bank_reads = ceil(reads / (double) ADDRS_PER_ACCESS);
+                    act_reads += bank_reads;
+                    if (bank_reads > bank_steps)
+                        bank_steps = bank_reads;
+                }
+
+                start_time += bank_steps * READ_DELAY[lvl];
+                if (lvl == LEVELS - 1) act_bank_conflicts += bank_steps > 0 ? bank_steps - 1 : 0;
+
             }
 
-            auto act_read_ready_cycle = start_time + bank_steps * READ_DELAY;
-            act_bank_conflicts += bank_steps > 0 ? bank_steps - 1 : 0;
-            read_ready_cycle = std::max(read_ready_cycle, act_read_ready_cycle);
+            read_ready_cycle = std::max(read_ready_cycle, start_time);
 
         } catch (std::exception &exception) {
             throw std::runtime_error("Global Buffer waiting for a memory address not requested.");
@@ -172,11 +201,11 @@ namespace core {
 
             bool first = true;
             uint64_t start_time = 0;
-            auto bank_conflicts = std::vector<int>(OUT_BANKS, 0);
+            auto bank_addr_reads = std::vector<std::vector<int>>(LEVELS, std::vector<int>(OUT_BANKS, 0));
 
             for (const auto &tile_data : tiles_data->data) {
 
-                if (!tile_data.valid)
+                if (!tile_data.valid || tile_data.out_addresses.empty())
                     continue;
 
                 // Read partial sums if needed
@@ -184,34 +213,52 @@ namespace core {
 
                     if (first) {
                         start_time = std::max(*this->global_cycle, write_ready_cycle);
-                        start_time = std::max(start_time, *this->global_cycle);
                         first = false;
                     }
 
-                    // Start time
-                    for (const auto &out_addr : tile_data.out_addresses)
-                        if (out_addr != NULL_ADDR)
-                            if (start_time < (*this->tracked_data).at(out_addr))
-                                start_time = (*this->tracked_data).at(out_addr);
+                    assert(tile_data.out_banks.size() == tile_data.out_addresses.size());
+                    uint64_t n_addr = tile_data.out_banks.size();
 
-                    // Bank conflicts
-                    for (const auto &out_bank : tile_data.out_banks)
-                        if (out_bank != -1)
-                            bank_conflicts[out_bank]++;
+                    for (int idx = 0; idx < n_addr; ++idx) {
+
+                        const auto &out_addr = tile_data.out_addresses[idx];
+                        if (out_addr == NULL_ADDR)
+                            continue;
+
+                        const auto &out_lvl = (*this->tracked_data).at(out_addr) - 1;
+                        const auto &out_bank = tile_data.out_banks[idx];
+
+                        assert(out_lvl < LEVELS);
+                        assert(out_bank != -1);
+
+                        for (int lvl = out_lvl; lvl < LEVELS; ++lvl) {
+                            bank_addr_reads[lvl][out_bank]++;
+                        }
+
+                        (*this->tracked_data).at(out_addr) = LEVELS;
+
+                    }
 
                 }
+
             }
 
-            auto bank_steps = 0;
-            for (const auto &reads : bank_conflicts) {
-                auto bank_reads = ceil(reads /(double)ADDRS_PER_ACCESS);
-                psum_reads += bank_reads;
-                if (bank_reads > bank_steps)
-                    bank_steps = bank_reads;
+            for (int lvl = 0; lvl < LEVELS; ++lvl) {
+
+                auto bank_steps = 0;
+                for (const auto &reads : bank_addr_reads[lvl]) {
+                    auto bank_reads = ceil(reads /(double)ADDRS_PER_ACCESS);
+                    psum_reads += bank_reads;
+                    if (bank_reads > bank_steps)
+                        bank_steps = bank_reads;
+                }
+
+                start_time += bank_steps * READ_DELAY[lvl];
+                if (lvl ==  LEVELS - 1) psum_bank_conflicts += bank_steps > 0 ? bank_steps - 1 : 0;
+
             }
 
-            psum_read_ready_cycle = start_time + bank_steps * READ_DELAY;
-            psum_bank_conflicts += bank_steps > 0 ? bank_steps - 1 : 0;
+            psum_read_ready_cycle = start_time;
             read_ready_cycle = std::max(read_ready_cycle, psum_read_ready_cycle);
             read_psum = !first;
 
@@ -227,37 +274,54 @@ namespace core {
         try {
 
             uint64_t start_time = *this->global_cycle;
-            auto bank_conflicts = std::vector<int>(WGT_BANKS, 0);
+            auto bank_addr_reads = std::vector<std::vector<int>>(LEVELS, std::vector<int>(WGT_BANKS, 0));
 
             for (const auto &tile_data : tiles_data->data) {
 
-                if (!tile_data.valid)
+                if (!tile_data.valid || tile_data.wgt_addresses.empty())
                     continue;
 
-                // Start time
-                for (const auto &wgt_addr : tile_data.wgt_addresses)
-                    if (wgt_addr != NULL_ADDR)
-                        if (start_time < (*this->tracked_data).at(wgt_addr))
-                            start_time = (*this->tracked_data).at(wgt_addr);
+                assert(tile_data.wgt_banks.size() == tile_data.wgt_addresses.size());
 
-                // Bank conflicts
-                for (const auto &wgt_bank : tile_data.wgt_banks)
-                    if (wgt_bank != -1)
-                        bank_conflicts[wgt_bank]++;
+                uint64_t n_addr = tile_data.wgt_banks.size();
+                for (int idx = 0; idx < n_addr; ++idx) {
+
+                    const auto &wgt_addr = tile_data.wgt_addresses[idx];
+                    if (wgt_addr == NULL_ADDR)
+                        continue;
+
+                    const auto &wgt_lvl = (*this->tracked_data).at(wgt_addr) - 1;
+                    const auto &wgt_bank = tile_data.wgt_banks[idx];
+
+                    assert(wgt_lvl < LEVELS);
+                    assert(wgt_bank != -1);
+
+                    for (int lvl = wgt_lvl; lvl < LEVELS; ++lvl) {
+                        bank_addr_reads[lvl][wgt_bank]++;
+                    }
+
+                    (*this->tracked_data).at(wgt_addr) = LEVELS;
+
+                }
 
             }
 
-            auto bank_steps = 0;
-            for (const auto &reads : bank_conflicts) {
-                auto bank_reads = ceil(reads /(double)ADDRS_PER_ACCESS);
-                wgt_reads += bank_reads;
-                if (bank_reads > bank_steps)
-                    bank_steps = bank_reads;
+            for (int lvl = 0; lvl < LEVELS; ++lvl) {
+
+                auto bank_steps = 0;
+                for (const auto &reads : bank_addr_reads[lvl]) {
+                    auto bank_reads = ceil(reads / (double) ADDRS_PER_ACCESS);
+                    wgt_reads += bank_reads;
+                    if (bank_reads > bank_steps)
+                        bank_steps = bank_reads;
+                }
+
+                start_time += bank_steps * READ_DELAY[lvl];
+                if (lvl ==  LEVELS - 1) wgt_bank_conflicts += bank_steps > 0 ? bank_steps - 1 : 0;
+
             }
 
-            auto wgt_read_ready_cycle = start_time + bank_steps * READ_DELAY;
-            wgt_bank_conflicts += bank_steps > 0 ? bank_steps - 1 : 0;
-            read_ready_cycle = std::max(read_ready_cycle, wgt_read_ready_cycle);
+            read_ready_cycle = std::max(read_ready_cycle, start_time);
 
         } catch (std::exception &exception) {
             throw std::runtime_error("Global Buffer waiting for a memory address not requested.");
@@ -268,6 +332,7 @@ namespace core {
     template <typename T>
     void GlobalBuffer<T>::write_request(const std::shared_ptr<TilesData<T>> &tiles_data) {
 
+        // TODO
         auto start_time = std::max(psum_read_ready_cycle, write_ready_cycle);
         start_time = std::max(start_time, *this->global_cycle);
 
@@ -292,7 +357,7 @@ namespace core {
                 bank_steps = bank_writes;
         }
 
-        write_ready_cycle = start_time + bank_steps * WRITE_DELAY;
+        write_ready_cycle = start_time + bank_steps * WRITE_DELAY.back();
         out_bank_conflicts += bank_steps > 0 ? bank_steps - 1 : 0;
 
     }
