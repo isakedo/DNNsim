@@ -31,6 +31,9 @@ namespace core {
             /** True if evict previous activations from on-chip */
             bool evict_act = false;
 
+            /** True if evict previous output activations and partial sums from on-chip */
+            bool evict_out = false;
+
             /** True if evict previous weights from on-chip */
             bool evict_wgt = false;
 
@@ -39,6 +42,9 @@ namespace core {
 
             /** Activation addresses to read */
             std::vector<AddressRange> read_act_addresses;
+
+            /** Partial sum addresses to read */
+            std::vector<AddressRange> read_psum_addresses;
 
             /** Weight addresses to read */
             std::vector<AddressRange> read_wgt_addresses;
@@ -253,6 +259,12 @@ namespace core {
         const std::vector<AddressRange> &getReadActAddresses() const;
 
         /**
+         * Return partial sum addresses to read for the current node
+         * @return Partial sum addresses to read
+         */
+        const std::vector<AddressRange> &getReadPsumAddresses() const;
+
+        /**
          * Return weight addresses to read for the current node
          * @return Weight addresses to read
          */
@@ -269,6 +281,12 @@ namespace core {
          * @return Evict Activation
          */
         bool getIfEvictAct() const;
+
+        /**
+         * Return True if evict previous outputs activations from on-chip for the current node
+         * @return Evict Output Activation
+         */
+        bool getIfEvictOut() const;
 
         /**
          * Return True if evict previous weights from on-chip for the current node

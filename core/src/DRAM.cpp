@@ -9,6 +9,11 @@ namespace core {
     }
 
     template<typename T>
+    uint64_t DRAM<T>::getPsumReads() const {
+        return psum_reads;
+    }
+
+    template<typename T>
     uint64_t DRAM<T>::getWgtReads() const {
         return wgt_reads;
     }
@@ -143,6 +148,10 @@ namespace core {
                             if (act_addr != NULL_ADDR && (*this->tracked_data).at(act_addr) == 0)
                                 waiting_addresses.insert(act_addr);
 
+                for (const auto &psum_addr : tile_data.psum_addresses)
+                    if (psum_addr != NULL_ADDR && (*this->tracked_data).at(psum_addr) == 0)
+                        waiting_addresses.insert(psum_addr);
+
                 for (const auto &wgt_addr : tile_data.wgt_addresses)
                     if (wgt_addr != NULL_ADDR && (*this->tracked_data).at(wgt_addr) == 0)
                         waiting_addresses.insert(wgt_addr);
@@ -184,13 +193,19 @@ namespace core {
 
     template <typename T>
     void DRAM<T>::read_data(const std::vector<AddressRange> &act_addresses,
-            const std::vector<AddressRange> &wgt_addresses) {
+            const std::vector<AddressRange> &psum_addresses, const std::vector<AddressRange> &wgt_addresses) {
 
-        uint32_t OVERLAP = 16;
+        const uint32_t OVERLAP = 16;
+
         uint32_t act_addr_idx = 0;
         uint64_t act_start_addr = NULL_ADDR;
         uint64_t act_end_addr = 0;
         bool act_first = true;
+
+        uint32_t psum_addr_idx = 0;
+        uint64_t psum_start_addr = NULL_ADDR;
+        uint64_t psum_end_addr = 0;
+        bool psum_first = true;
 
         uint64_t wgt_addr_idx = 0;
         uint64_t wgt_start_addr = NULL_ADDR;
@@ -241,6 +256,49 @@ namespace core {
                 if (act_start_addr > act_end_addr) {
                     act_first = true;
                     act_addr_idx++;
+                }
+
+                break;
+            }
+
+            count = 0;
+            while (psum_addr_idx < psum_addresses.size()) {
+
+                if (psum_first) {
+                    const auto &addr_range = psum_addresses[psum_addr_idx];
+                    psum_start_addr = std::get<0>(addr_range);
+                    psum_end_addr = std::get<1>(addr_range);
+                    if (psum_start_addr == NULL_ADDR) {
+                        psum_addr_idx++;
+                        psum_first = true;
+                        continue;
+                    }
+
+                    auto &min_addr = std::get<0>(*this->out_addresses);
+                    auto &max_addr = std::get<1>(*this->out_addresses);
+
+                    if (psum_start_addr < min_addr) min_addr = psum_start_addr;
+                    if (psum_end_addr > max_addr) max_addr = psum_end_addr;
+
+                    psum_first = false;
+                }
+
+                while (psum_start_addr <= psum_end_addr) {
+                    if (count == OVERLAP)
+                        break;
+
+                    this->tracked_data->insert({psum_start_addr, 0});
+                    transaction_request(psum_start_addr, false);
+                    still_data = true;
+                    psum_reads++;
+
+                    psum_start_addr += WIDTH;
+                    count++;
+                }
+
+                if (psum_start_addr > psum_end_addr) {
+                    psum_first = true;
+                    psum_addr_idx++;
                 }
 
                 break;

@@ -112,6 +112,11 @@ namespace core {
     }
 
     template <typename T>
+    const std::vector<AddressRange> &Control<T>::getReadPsumAddresses() const {
+        return on_chip_graph.front()->read_psum_addresses;
+    }
+
+    template <typename T>
     const std::vector<AddressRange> &Control<T>::getReadWgtAddresses() const {
         return on_chip_graph.front()->read_wgt_addresses;
     }
@@ -124,6 +129,11 @@ namespace core {
     template <typename T>
     bool Control<T>::getIfEvictAct() const {
         return on_chip_graph.front()->evict_act;
+    }
+
+    template <typename T>
+    bool Control<T>::getIfEvictOut() const {
+        return on_chip_graph.front()->evict_out;
     }
 
     template <typename T>
@@ -145,7 +155,7 @@ namespace core {
     template <typename T>
     bool Control<T>::check_if_write_output(const std::shared_ptr<TilesData<T>> &tiles_data) {
         for (const auto &tile_data : tiles_data->data)
-            if (tile_data.write)
+            if (!tile_data.out_addresses.empty())
                 return true;
         return false;
     }

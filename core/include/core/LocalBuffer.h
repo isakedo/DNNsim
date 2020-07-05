@@ -31,10 +31,21 @@ namespace core {
 
     public:
 
+        /**
+         * Constructor
+         * @param _tracked_data         Current tracked data on-chip
+         * @param _act_addresses        Address range for activations
+         * @param _out_addresses        Output activation addresses range
+         * @param _wgt_addresses        Address range for weights
+         * @param _ROWS                 Number of local buffer row slots
+         * @param _READ_DELAY           Read delay in cycles
+         * @param _WRITE_DELAY          Write delay in cycles
+         */
         LocalBuffer(const std::shared_ptr<std::map<uint64_t, uint32_t>> &_tracked_data,
-                const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_wgt_addresses,
-                uint32_t _ROWS, uint32_t _READ_DELAY, uint32_t _WRITE_DELAY) : Memory<T>(_tracked_data, _act_addresses,
-                _wgt_addresses), ROWS(_ROWS), READ_DELAY(_READ_DELAY), WRITE_DELAY(_WRITE_DELAY) {}
+                const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_out_addresses,
+                const std::shared_ptr<AddressRange> &_wgt_addresses, uint32_t _ROWS, uint32_t _READ_DELAY,
+                uint32_t _WRITE_DELAY) : Memory<T>(_tracked_data, _act_addresses, _out_addresses, _wgt_addresses),
+                ROWS(_ROWS), READ_DELAY(_READ_DELAY), WRITE_DELAY(_WRITE_DELAY) {}
 
         /**
          * Return stats header for the Local Buffer

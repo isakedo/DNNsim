@@ -105,6 +105,7 @@ namespace core {
          * Constructor
          * @param _tracked_data         Current tracked data on-chip
          * @param _act_addresses        Address range for activations
+         * @param _out_addresses        Output activation addresses range
          * @param _wgt_addresses        Address range for weights
          * @param _ACT_LEVELS           Activation Hierarchy levels
          * @param _WGT_LEVELS           Weight Hierarchy levels
@@ -120,15 +121,15 @@ namespace core {
          * @param _WGT_READ_DELAY       Weight bank read delay
          */
         GlobalBuffer(const std::shared_ptr<std::map<uint64_t, uint32_t>> &_tracked_data,
-                const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_wgt_addresses,
-                uint32_t _ACT_LEVELS, uint32_t _WGT_LEVELS, const std::vector<uint64_t> &_ACT_SIZE,
-                const std::vector<uint64_t> &_WGT_SIZE, uint32_t _ACT_OUT_BANKS, uint32_t _WGT_BANKS,
-                uint32_t _ACT_BANK_WIDTH, uint32_t _WGT_BANK_WIDTH, uint32_t _DRAM_WIDTH,
+                const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_out_addresses,
+                const std::shared_ptr<AddressRange> &_wgt_addresses, uint32_t _ACT_LEVELS, uint32_t _WGT_LEVELS,
+                const std::vector<uint64_t> &_ACT_SIZE, const std::vector<uint64_t> &_WGT_SIZE, uint32_t _ACT_OUT_BANKS,
+                uint32_t _WGT_BANKS, uint32_t _ACT_BANK_WIDTH, uint32_t _WGT_BANK_WIDTH, uint32_t _DRAM_WIDTH,
                 const std::vector<uint32_t> & _ACT_READ_DELAY, const std::vector<uint32_t> & _ACT_WRITE_DELAY,
-                const std::vector<uint32_t> & _WGT_READ_DELAY) : Memory<T>(_tracked_data, _act_addresses, _wgt_addresses),
-                ACT_LEVELS(_ACT_LEVELS), WGT_LEVELS(_WGT_LEVELS), ACT_BANKS(_ACT_OUT_BANKS/2), WGT_BANKS(_WGT_BANKS),
-                OUT_BANKS(_ACT_OUT_BANKS/2), ACT_BANK_WIDTH(_ACT_BANK_WIDTH), WGT_BANK_WIDTH(_WGT_BANK_WIDTH),
-                ACT_ADDRS_PER_ACCESS(ceil(ACT_BANK_WIDTH / (double)_DRAM_WIDTH)),
+                const std::vector<uint32_t> & _WGT_READ_DELAY) : Memory<T>(_tracked_data, _act_addresses, _out_addresses,
+                _wgt_addresses), ACT_LEVELS(_ACT_LEVELS), WGT_LEVELS(_WGT_LEVELS), ACT_BANKS(_ACT_OUT_BANKS/2),
+                WGT_BANKS(_WGT_BANKS), OUT_BANKS(_ACT_OUT_BANKS/2), ACT_BANK_WIDTH(_ACT_BANK_WIDTH),
+                WGT_BANK_WIDTH(_WGT_BANK_WIDTH), ACT_ADDRS_PER_ACCESS(ceil(ACT_BANK_WIDTH / (double)_DRAM_WIDTH)),
                 WGT_ADDRS_PER_ACCESS(ceil(WGT_BANK_WIDTH / (double)_DRAM_WIDTH)) {
 
             ACT_SIZE = _ACT_SIZE;
@@ -285,22 +286,24 @@ namespace core {
         /**
          * Read request to the activation banks
          * @param tiles_data        Data to be read from the banks
+         * @param read_act          Update to True if activations to be read (Overwritten)
          * @param layer_act_on_chip Layer activation on-chip flag
          */
-        void act_read_request(const std::shared_ptr<TilesData<T>> &tiles_data, bool layer_act_on_chip);
+        void act_read_request(const std::shared_ptr<TilesData<T>> &tiles_data, bool layer_act_on_chip, bool &read_act);
 
         /**
          * Read request to the output banks
          * @param tiles_data        Data to be read from the banks
-         * @param read_psum         Update to True if psums to red (Overwritten)
+         * @param read_psum         Update to True if partial sums to be read (Overwritten)
          */
         void psum_read_request(const std::shared_ptr<TilesData<T>> &tiles_data, bool &read_psum);
 
         /**
          * Read request to the weight banks
          * @param tiles_data        Data to be read from the banks
+         * @param read_wgt          Update to True if weights to be read (Overwritten)
          */
-        void wgt_read_request(const std::shared_ptr<TilesData<T>> &tiles_data);
+        void wgt_read_request(const std::shared_ptr<TilesData<T>> &tiles_data, bool &read_wgt);
 
         /**
          * Write request to the output banks
@@ -311,9 +314,10 @@ namespace core {
         /**
          * Evict activations and/or weights from on-chip
          * @param evict_act If True evict activations
+         * @param evict_out If True evict outputs and partial sums
          * @param evict_wgt If True evict weight
          */
-        void evict_data(bool evict_act, bool evict_wgt);
+        void evict_data(bool evict_act, bool evict_out, bool evict_wgt);
 
     };
 

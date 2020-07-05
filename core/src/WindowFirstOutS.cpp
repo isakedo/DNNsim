@@ -829,8 +829,6 @@ namespace core {
                     bool still_work = false;
                     for (int t = 0; t < this->arch->getTiles(); ++t) {
 
-                        tiles_data[t].read_psum = false;
-                        tiles_data[t].write = false;
                         tiles_data[t].valid = false;
 
                         if (this->filters[t].empty()) break;
@@ -927,7 +925,6 @@ namespace core {
 
                                 tiles_data[t].out_addresses = AddressBufferRow(outputs, 0);
                                 tiles_data[t].out_banks = BankBufferRow(outputs, 0);
-                                tiles_data[t].write = true;
 
                                 for (int o = 0; o < outputs; ++o) {
                                     tiles_data[t].out_addresses[o] = this->dram->getStartActAddress()
@@ -1018,8 +1015,6 @@ namespace core {
             bool still_work = false;
             for (int t = 0; t < this->arch->getTiles(); ++t) {
 
-                tiles_data[t].read_psum = false;
-                tiles_data[t].write = false;
                 tiles_data[t].valid = false;
 
                 if (this->filters[t].empty()) break;
@@ -1112,7 +1107,6 @@ namespace core {
 
                         tiles_data[t].out_addresses = AddressBufferRow(outputs, 0);
                         tiles_data[t].out_banks = BankBufferRow(outputs, 0);
-                        tiles_data[t].write = true;
 
                         for (int o = 0; o < outputs; ++o) {
                             tiles_data[t].out_addresses[o] = this->dram->getStartActAddress() + this->next_out_address;

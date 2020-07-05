@@ -135,35 +135,36 @@ int main(int argc, char *argv[]) {
 
                         auto tracked_data = std::make_shared<std::map<uint64_t, uint32_t>>();
                         auto act_addresses = std::make_shared<core::AddressRange>();
+                        auto out_addresses = std::make_shared<core::AddressRange>();
                         auto wgt_addresses = std::make_shared<core::AddressRange>();
 
-                        auto dram = std::make_shared<core::DRAM<float>>(tracked_data, act_addresses, wgt_addresses,
-                                experiment.dram_width, experiment.dram_size, simulate.data_width,
+                        auto dram = std::make_shared<core::DRAM<float>>(tracked_data, act_addresses, out_addresses,
+                                wgt_addresses, experiment.dram_width, experiment.dram_size, simulate.data_width,
                                 experiment.cpu_clock_freq, experiment.dram_start_act_address,
                                 experiment.dram_start_wgt_address, experiment.dram_conf, "system.ini", network.getName());
 
                         auto gbuffer = std::make_shared<core::GlobalBuffer<float>>(tracked_data, act_addresses,
-                                wgt_addresses, experiment.gbuffer_act_levels, experiment.gbuffer_wgt_levels,
-                                experiment.gbuffer_act_size, experiment.gbuffer_wgt_size, experiment.gbuffer_act_banks,
-                                experiment.gbuffer_wgt_banks, experiment.gbuffer_act_bank_width,
-                                experiment.gbuffer_wgt_bank_width, experiment.dram_width,
-                                experiment.gbuffer_act_read_delay, experiment.gbuffer_act_write_delay,
-                                experiment.gbuffer_wgt_read_delay);
+                                out_addresses, wgt_addresses, experiment.gbuffer_act_levels,
+                                experiment.gbuffer_wgt_levels, experiment.gbuffer_act_size, experiment.gbuffer_wgt_size,
+                                experiment.gbuffer_act_banks, experiment.gbuffer_wgt_banks,
+                                experiment.gbuffer_act_bank_width, experiment.gbuffer_wgt_bank_width,
+                                experiment.dram_width, experiment.gbuffer_act_read_delay,
+                                experiment.gbuffer_act_write_delay, experiment.gbuffer_wgt_read_delay);
 
                         auto abuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data, act_addresses,
-                                wgt_addresses, experiment.abuffer_rows, experiment.abuffer_read_delay,
+                                out_addresses, wgt_addresses, experiment.abuffer_rows, experiment.abuffer_read_delay,
                                 core::NULL_DELAY);
 
                         auto pbuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data, act_addresses,
-                                wgt_addresses, experiment.pbuffer_rows, experiment.pbuffer_read_delay,
+                                out_addresses, wgt_addresses, experiment.pbuffer_rows, experiment.pbuffer_read_delay,
                                 core::NULL_DELAY);
 
                         auto wbuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data, act_addresses,
-                                wgt_addresses, experiment.wbuffer_rows, experiment.wbuffer_read_delay,
+                                out_addresses, wgt_addresses, experiment.wbuffer_rows, experiment.wbuffer_read_delay,
                                 core::NULL_DELAY);
 
                         auto obuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data, act_addresses,
-                                wgt_addresses, experiment.obuffer_rows, core::NULL_DELAY,
+                                out_addresses, wgt_addresses, experiment.obuffer_rows, core::NULL_DELAY,
                                 experiment.obuffer_write_delay);
 
                         auto composer = std::make_shared<core::Composer<float>>(experiment.composer_inputs,
@@ -215,35 +216,36 @@ int main(int argc, char *argv[]) {
 
                         auto tracked_data = std::make_shared<std::map<uint64_t, uint32_t>>();
                         auto act_addresses = std::make_shared<core::AddressRange>();
+                        auto out_addresses = std::make_shared<core::AddressRange>();
                         auto wgt_addresses = std::make_shared<core::AddressRange>();
 
-                        auto dram = std::make_shared<core::DRAM<uint16_t>>(tracked_data, act_addresses, wgt_addresses,
-                                experiment.dram_width, experiment.dram_size, simulate.data_width,
+                        auto dram = std::make_shared<core::DRAM<uint16_t>>(tracked_data, act_addresses, out_addresses,
+                                wgt_addresses, experiment.dram_width, experiment.dram_size, simulate.data_width,
                                 experiment.cpu_clock_freq, experiment.dram_start_act_address,
                                 experiment.dram_start_wgt_address, experiment.dram_conf, "system.ini", network.getName());
 
                         auto gbuffer = std::make_shared<core::GlobalBuffer<uint16_t>>(tracked_data, act_addresses,
-                                wgt_addresses, experiment.gbuffer_act_levels, experiment.gbuffer_wgt_levels,
-                                experiment.gbuffer_act_size, experiment.gbuffer_wgt_size, experiment.gbuffer_act_banks,
-                                experiment.gbuffer_wgt_banks, experiment.gbuffer_act_bank_width,
-                                experiment.gbuffer_wgt_bank_width, experiment.dram_width,
-                                experiment.gbuffer_act_read_delay, experiment.gbuffer_act_write_delay,
-                                experiment.gbuffer_wgt_read_delay);
+                                out_addresses, wgt_addresses, experiment.gbuffer_act_levels,
+                                experiment.gbuffer_wgt_levels, experiment.gbuffer_act_size, experiment.gbuffer_wgt_size,
+                                experiment.gbuffer_act_banks, experiment.gbuffer_wgt_banks,
+                                experiment.gbuffer_act_bank_width, experiment.gbuffer_wgt_bank_width,
+                                experiment.dram_width, experiment.gbuffer_act_read_delay,
+                                experiment.gbuffer_act_write_delay, experiment.gbuffer_wgt_read_delay);
 
                         auto abuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data, act_addresses,
-                                wgt_addresses, experiment.abuffer_rows, experiment.abuffer_read_delay,
+                                out_addresses, wgt_addresses, experiment.abuffer_rows, experiment.abuffer_read_delay,
                                 core::NULL_DELAY);
 
                         auto pbuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data, act_addresses,
-                                wgt_addresses, experiment.pbuffer_rows, experiment.pbuffer_read_delay,
+                                out_addresses, wgt_addresses, experiment.pbuffer_rows, experiment.pbuffer_read_delay,
                                 core::NULL_DELAY);
 
                         auto wbuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data, act_addresses,
-                                wgt_addresses, experiment.wbuffer_rows, experiment.wbuffer_read_delay,
+                                out_addresses, wgt_addresses, experiment.wbuffer_rows, experiment.wbuffer_read_delay,
                                 core::NULL_DELAY);
 
                         auto obuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data, act_addresses,
-                                wgt_addresses, experiment.obuffer_rows, core::NULL_DELAY,
+                                out_addresses, wgt_addresses, experiment.obuffer_rows, core::NULL_DELAY,
                                 experiment.obuffer_write_delay);
 
                         auto composer = std::make_shared<core::Composer<uint16_t>>(experiment.composer_inputs,

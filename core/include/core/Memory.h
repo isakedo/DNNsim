@@ -22,6 +22,9 @@ namespace core {
         /** Address range for activations */
         std::shared_ptr<AddressRange> act_addresses;
 
+        /** Address range for output activations */
+        std::shared_ptr<AddressRange> out_addresses;
+
         /** Address range for weights */
         std::shared_ptr<AddressRange> wgt_addresses;
 
@@ -34,13 +37,15 @@ namespace core {
          * Constructor
          * @param _tracked_data     Current tracked data on-chip
          * @param _act_addresses    Activations addresses range
+         * @param _out_addresses    Output activation addresses range
          * @param _wgt_addresses    Weight addresses range
          */
         Memory(const std::shared_ptr<std::map<uint64_t, uint32_t>> &_tracked_data,
-                const std::shared_ptr<AddressRange> &_act_addresses,
+                const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_out_addresses,
                 const std::shared_ptr<AddressRange> &_wgt_addresses) {
             tracked_data = _tracked_data;
             act_addresses = _act_addresses;
+            out_addresses = _out_addresses;
             wgt_addresses = _wgt_addresses;
         }
 

@@ -15,7 +15,7 @@ namespace core {
         uint64_t max_delay = 0;
         for (const auto &tile_data : tiles_data->data) {
 
-            if (!tile_data.write)
+            if (!tile_data.valid)
                 continue;
 
             auto input_step = ceil(tile_data.out_banks.size() / (double)INPUTS);

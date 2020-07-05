@@ -142,11 +142,11 @@ namespace core {
     }
 
     template <typename T>
-    void GlobalBuffer<T>::act_read_request(const std::shared_ptr<TilesData<T>> &tiles_data, bool layer_act_on_chip) {
+    void GlobalBuffer<T>::act_read_request(const std::shared_ptr<TilesData<T>> &tiles_data, bool layer_act_on_chip,
+            bool &read_act) {
 
         try {
 
-            uint64_t start_time = *this->global_cycle;
             auto bank_addr_reads = std::vector<std::vector<int>>(ACT_LEVELS, std::vector<int>(ACT_BANKS, 0));
 
             for (const auto &tile_data : tiles_data->data) {
@@ -157,6 +157,7 @@ namespace core {
                 assert(tile_data.act_banks.size() == tile_data.act_addresses.size());
                 assert(tile_data.act_banks.front().size() == tile_data.act_addresses.front().size());
 
+                read_act = true;
                 uint64_t rows = tile_data.act_banks.size();
                 uint64_t n_addr = tile_data.act_banks.front().size();
                 for (int row = 0; row < rows; ++row) {
@@ -203,6 +204,7 @@ namespace core {
 
             }
 
+            uint64_t start_time = read_act ? *this->global_cycle : 0;
             for (int lvl = 0; lvl < ACT_LEVELS; ++lvl) {
 
                 auto bank_steps = 0;
@@ -231,17 +233,15 @@ namespace core {
 
         try {
 
+            // TODO
             bool first = true;
             uint64_t start_time = 0;
             auto bank_addr_reads = std::vector<std::vector<int>>(ACT_LEVELS, std::vector<int>(OUT_BANKS, 0));
 
             for (const auto &tile_data : tiles_data->data) {
 
-                if (!tile_data.valid || tile_data.out_addresses.empty())
+                if (!tile_data.valid || tile_data.psum_addresses.empty())
                     continue;
-
-                // Read partial sums if needed
-                if (tile_data.read_psum) {
 
                     if (first) {
                         start_time = std::max(*this->global_cycle, write_ready_cycle);
@@ -271,8 +271,6 @@ namespace core {
 
                     }
 
-                }
-
             }
 
             for (int lvl = 0; lvl < ACT_LEVELS; ++lvl) {
@@ -301,11 +299,10 @@ namespace core {
     }
 
     template <typename T>
-    void GlobalBuffer<T>::wgt_read_request(const std::shared_ptr<TilesData<T>> &tiles_data) {
+    void GlobalBuffer<T>::wgt_read_request(const std::shared_ptr<TilesData<T>> &tiles_data, bool &read_wgt) {
 
         try {
 
-            uint64_t start_time = *this->global_cycle;
             auto bank_addr_reads = std::vector<std::vector<int>>(WGT_LEVELS, std::vector<int>(WGT_BANKS, 0));
 
             for (const auto &tile_data : tiles_data->data) {
@@ -315,6 +312,7 @@ namespace core {
 
                 assert(tile_data.wgt_banks.size() == tile_data.wgt_addresses.size());
 
+                read_wgt = true;
                 uint64_t n_addr = tile_data.wgt_banks.size();
                 for (int idx = 0; idx < n_addr; ++idx) {
 
@@ -353,6 +351,7 @@ namespace core {
 
             }
 
+            uint64_t start_time = read_wgt ? *this->global_cycle : 0;
             for (int lvl = 0; lvl < WGT_LEVELS; ++lvl) {
 
                 auto bank_steps = 0;
@@ -386,7 +385,7 @@ namespace core {
         auto bank_conflicts = std::vector<int>(OUT_BANKS, 0);
         for (const auto &tile_data : tiles_data->data) {
 
-            if (!tile_data.write)
+            if (!tile_data.valid || tile_data.out_addresses.empty())
                 continue;
 
             // Bank conflicts
@@ -410,7 +409,7 @@ namespace core {
     }
 
     template <typename T>
-    void GlobalBuffer<T>::evict_data(bool evict_act, bool evict_wgt) {
+    void GlobalBuffer<T>::evict_data(bool evict_act, bool evict_out, bool evict_wgt) {
         if (evict_act) {
 
             auto min_addr = std::get<0>(*this->act_addresses);
@@ -428,6 +427,24 @@ namespace core {
                 for (int bank = 0; bank < ACT_BANKS; ++bank) {
                     act_eviction_policy[lvl][bank]->flush();
                 }
+            }
+
+        }
+
+        if (evict_out) {
+
+            auto min_addr = std::get<0>(*this->out_addresses);
+            auto max_addr = std::get<1>(*this->out_addresses);
+
+            if (min_addr != NULL_ADDR) {
+                auto it = this->tracked_data->find(min_addr);
+                auto it2 = this->tracked_data->find(max_addr);
+                this->tracked_data->erase(it, it2);
+                this->tracked_data->erase(max_addr);
+                *this->out_addresses = {NULL_ADDR, 0};
+            }
+
+            for (int lvl = 1; lvl < ACT_LEVELS; ++lvl) {
                 for (int bank = 0; bank < OUT_BANKS; ++bank) {
                     out_eviction_policy[lvl][bank]->flush();
                 }

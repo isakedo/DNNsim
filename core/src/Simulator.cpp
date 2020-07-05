@@ -159,6 +159,7 @@ namespace core {
 
         // DRAM stats
         auto dram_act_reads = stats.register_uint_t("dram_act_reads", 0, sys::AverageTotal);
+        //auto dram_psum_reads = stats.register_uint_t("dram_psum_reads", 0, sys::AverageTotal);
         auto dram_wgt_reads = stats.register_uint_t("dram_wgt_reads", 0, sys::AverageTotal);
         auto dram_out_writes = stats.register_uint_t("dram_out_writes", 0, sys::AverageTotal);
 
@@ -240,8 +241,9 @@ namespace core {
                 Pipeline<T> pipeline = Pipeline<T>(Stage::Last + 1);
                 do {
 
-                    gbuffer->evict_data(control->getIfEvictAct(), control->getIfEvictWgt());
-                    dram->read_data(control->getReadActAddresses(), control->getReadWgtAddresses());
+                    gbuffer->evict_data(control->getIfEvictAct(), control->getIfEvictOut(), control->getIfEvictWgt());
+                    dram->read_data(control->getReadActAddresses(), control->getReadPsumAddresses(),
+                            control->getReadWgtAddresses());
 
                     auto init_data = TilesData<T>(arch->getTiles());
                     bool still_data = control->still_on_chip_data(init_data);
@@ -276,30 +278,30 @@ namespace core {
                                 pbuffer->data_ready() && wbuffer->data_ready() && arch->ready()) {
                             const auto &tiles_data = pipeline.getData(EXECUTION);
                             arch->process_tiles(tiles_data);
-                            abuffer->erase();
+                            abuffer->erase(tiles_data->read_act);
                             pbuffer->erase(tiles_data->read_psum);
-                            wbuffer->erase();
+                            wbuffer->erase(tiles_data->read_wgt);
                             if (control->check_if_write_output(tiles_data)) pipeline.move_stage(EXECUTION);
                             else pipeline.end_stage(EXECUTION);
                         }
 
                         if (pipeline.isValid(MEMORY_II) && pipeline.isFree(EXECUTION) && gbuffer->data_ready()) {
                             const auto &tiles_data = pipeline.getData(MEMORY_II);
-                            abuffer->read_request();
+                            abuffer->read_request(tiles_data->read_act);
                             pbuffer->read_request(tiles_data->read_psum);
-                            wbuffer->read_request();
+                            wbuffer->read_request(tiles_data->read_wgt);
                             pipeline.move_stage(MEMORY_II);
                         }
 
                         if (pipeline.isValid(MEMORY_I) && dram->data_ready() && abuffer->isFree() && pbuffer->isFree()
                                 && wbuffer->isFree()) {
                             const auto &tiles_data = pipeline.getData(MEMORY_I);
-                            gbuffer->act_read_request(tiles_data, control->getIfLayerActOnChip());
+                            gbuffer->act_read_request(tiles_data, control->getIfLayerActOnChip(), tiles_data->read_act);
                             gbuffer->psum_read_request(tiles_data, tiles_data->read_psum);
-                            gbuffer->wgt_read_request(tiles_data);
-                            abuffer->insert();
+                            gbuffer->wgt_read_request(tiles_data, tiles_data->read_wgt);
+                            abuffer->insert(tiles_data->read_act);
                             pbuffer->insert(tiles_data->read_psum);
-                            wbuffer->insert();
+                            wbuffer->insert(tiles_data->read_wgt);
                             pipeline.move_stage(MEMORY_I);
                         }
 
@@ -332,6 +334,7 @@ namespace core {
                 idle_pe->value[layer_it][sample] = arch->getIdlePe();
 
                 dram_act_reads->value[layer_it][sample] = dram->getActReads();
+                //dram_psum_reads->value[layer_it][sample] = dram->getPsumReads();
                 dram_wgt_reads->value[layer_it][sample] = dram->getWgtReads();
                 dram_out_writes->value[layer_it][sample] = dram->getOutWrites();
 

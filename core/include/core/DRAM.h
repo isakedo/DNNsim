@@ -61,6 +61,9 @@ namespace core {
         /** Activation off-chip reads */
         uint64_t act_reads = 0;
 
+        /** Partial sum off-chip reads */
+        uint64_t psum_reads = 0;
+
         /** Weight off-chip reads */
         uint64_t wgt_reads = 0;
 
@@ -80,6 +83,7 @@ namespace core {
          * Constructor
          * @param _tracked_data         Current tracked data on-chip
          * @param _act_addresses        Address range for activations
+         * @param _out_addresses        Output activation addresses range
          * @param _wgt_addresses        Address range for weights
          * @param _WIDTH                Interface width
          * @param _SIZE                 Size in MiB
@@ -92,14 +96,14 @@ namespace core {
          * @param _network              Network name
          */
         DRAM(const std::shared_ptr<std::map<uint64_t, uint32_t>> &_tracked_data,
-                const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_wgt_addresses,
-                uint32_t _WIDTH, uint32_t _SIZE, uint32_t _BASE_DATA_SIZE, uint64_t _clock_freq,
-                uint64_t _START_ACT_ADDRESS, uint64_t _START_WGT_ADDRESS, const std::string &_dram_conf,
-                const std::string &_system_conf, const std::string &_network) : Memory<T>(_tracked_data, _act_addresses,
-                _wgt_addresses), WIDTH(_WIDTH), START_ACT_ADDRESS(_START_ACT_ADDRESS),
-                START_WGT_ADDRESS(_START_WGT_ADDRESS), SIZE(_SIZE), BASE_VALUES_PER_BLOCK(64 / _BASE_DATA_SIZE),
-                BASE_DATA_SIZE(_BASE_DATA_SIZE), ACT_VALUES_PER_BLOCK(0), ACT_DATA_SIZE(0), WGT_VALUES_PER_BLOCK(0),
-                WGT_DATA_SIZE(0) {
+                const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_out_addresses,
+                const std::shared_ptr<AddressRange> &_wgt_addresses, uint32_t _WIDTH, uint32_t _SIZE,
+                uint32_t _BASE_DATA_SIZE, uint64_t _clock_freq, uint64_t _START_ACT_ADDRESS, uint64_t _START_WGT_ADDRESS,
+                const std::string &_dram_conf, const std::string &_system_conf, const std::string &_network) :
+                Memory<T>(_tracked_data, _act_addresses, _out_addresses, _wgt_addresses), WIDTH(_WIDTH),
+                START_ACT_ADDRESS(_START_ACT_ADDRESS), START_WGT_ADDRESS(_START_WGT_ADDRESS), SIZE(_SIZE),
+                BASE_VALUES_PER_BLOCK(64 / _BASE_DATA_SIZE), BASE_DATA_SIZE(_BASE_DATA_SIZE), ACT_VALUES_PER_BLOCK(0),
+                ACT_DATA_SIZE(0), WGT_VALUES_PER_BLOCK(0), WGT_DATA_SIZE(0) {
 
             dram_interface = DRAMSim::getMemorySystemInstance(_dram_conf, _system_conf, "./DRAMSim2/",
                     "DNNsim_" + _network, _SIZE);
@@ -126,6 +130,12 @@ namespace core {
          * @return Activation reads
          */
         uint64_t getActReads() const;
+
+        /**
+         * Return the number of partial sum reads
+         * @return Partial sum reads
+         */
+        uint64_t getPsumReads() const;
 
         /**
          * Return the number of weight reads
@@ -237,9 +247,11 @@ namespace core {
         /**
          * Read memory addresses from off-chip alternating blocks of 16 addresses
          * @param act_addresses     Activation read addresses
+         * @param psum_addresses    Partial sum read addresses
          * @param wgt_addresses     Weight read addresses
          */
-        void read_data(const std::vector<AddressRange> &act_addresses, const std::vector<AddressRange> &wgt_addresses);
+        void read_data(const std::vector<AddressRange> &act_addresses, const std::vector<AddressRange> &psum_addresses,
+                const std::vector<AddressRange> &wgt_addresses);
 
         /**
          * Callback function for write address from DRAM

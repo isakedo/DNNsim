@@ -67,11 +67,17 @@ namespace core {
         /** 1D Weights mapped addresses */
         AddressBufferRow wgt_addresses;
 
+        /** 1D Partial sum mapped addresses */
+        AddressBufferRow psum_addresses;
+
         /** 1D Output activations mapped addresses */
         AddressBufferRow out_addresses;
 
         /** 2D Input activation mapped on-chip banks */
         BankBufferSet act_banks;
+
+        /** 1D Partial sum mapped on-chip banks */
+        BankBufferRow psum_banks;
 
         /** 1D Weight mapped on-chip banks */
         BankBufferRow wgt_banks;
@@ -84,12 +90,6 @@ namespace core {
 
         /** Total number of lines */
         int lanes = 0;
-
-        /** Read partial sums flag */
-        bool read_psum = false;
-
-        /** Write accumulator outputs flag */
-        bool write = false;
 
         /** Valida data flag */
         bool valid = false;
@@ -106,8 +106,14 @@ namespace core {
         /** Data to process per tile */
         std::vector<TileData<T>> data;
 
-        /** Read partial ums flag */
+        /** Read activations flag */
+        bool read_act = false;
+
+        /** Read partial sum flag */
         bool read_psum = false;
+
+        /** Read weights flag */
+        bool read_wgt = false;
 
         /**
          * Constructor
