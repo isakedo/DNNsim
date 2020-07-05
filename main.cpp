@@ -143,10 +143,12 @@ int main(int argc, char *argv[]) {
                                 experiment.dram_start_wgt_address, experiment.dram_conf, "system.ini", network.getName());
 
                         auto gbuffer = std::make_shared<core::GlobalBuffer<float>>(tracked_data, act_addresses,
-                                wgt_addresses, experiment.gbuffer_levels, experiment.gbuffer_act_size,
-                                experiment.gbuffer_wgt_size, experiment.gbuffer_act_banks, experiment.gbuffer_wgt_banks,
-                                experiment.gbuffer_bank_width, experiment.dram_width, experiment.gbuffer_read_delay,
-                                experiment.gbuffer_write_delay);
+                                wgt_addresses, experiment.gbuffer_act_levels, experiment.gbuffer_wgt_levels,
+                                experiment.gbuffer_act_size, experiment.gbuffer_wgt_size, experiment.gbuffer_act_banks,
+                                experiment.gbuffer_wgt_banks, experiment.gbuffer_act_bank_width,
+                                experiment.gbuffer_wgt_bank_width, experiment.dram_width,
+                                experiment.gbuffer_act_read_delay, experiment.gbuffer_act_write_delay,
+                                experiment.gbuffer_wgt_read_delay);
 
                         auto abuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data, act_addresses,
                                 wgt_addresses, experiment.abuffer_rows, experiment.abuffer_read_delay,
@@ -221,10 +223,12 @@ int main(int argc, char *argv[]) {
                                 experiment.dram_start_wgt_address, experiment.dram_conf, "system.ini", network.getName());
 
                         auto gbuffer = std::make_shared<core::GlobalBuffer<uint16_t>>(tracked_data, act_addresses,
-                                wgt_addresses, experiment.gbuffer_levels, experiment.gbuffer_act_size,
-                                experiment.gbuffer_wgt_size, experiment.gbuffer_act_banks, experiment.gbuffer_wgt_banks,
-                                experiment.gbuffer_bank_width, experiment.dram_width, experiment.gbuffer_read_delay,
-                                experiment.gbuffer_write_delay);
+                                wgt_addresses, experiment.gbuffer_act_levels, experiment.gbuffer_wgt_levels,
+                                experiment.gbuffer_act_size, experiment.gbuffer_wgt_size, experiment.gbuffer_act_banks,
+                                experiment.gbuffer_wgt_banks, experiment.gbuffer_act_bank_width,
+                                experiment.gbuffer_wgt_bank_width, experiment.dram_width,
+                                experiment.gbuffer_act_read_delay, experiment.gbuffer_act_write_delay,
+                                experiment.gbuffer_wgt_read_delay);
 
                         auto abuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data, act_addresses,
                                 wgt_addresses, experiment.abuffer_rows, experiment.abuffer_read_delay,

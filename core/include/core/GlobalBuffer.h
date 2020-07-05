@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include "Memory.h"
+#include "FIFO.h"
 
 namespace core {
 
@@ -17,7 +18,9 @@ namespace core {
 
         /* SIMULATION PARAMETERS */
 
-        const uint32_t LEVELS = 0;
+        const uint32_t ACT_LEVELS = 0;
+
+        const uint32_t WGT_LEVELS = 0;
 
         /** Activation memory size */
         std::vector<uint64_t> ACT_SIZE;
@@ -34,17 +37,32 @@ namespace core {
         /** Output Activation banks */
         const uint32_t OUT_BANKS = 0;
 
-        /** Bank read delay */
-        std::vector<uint32_t> READ_DELAY;
+        /** Activation bank read delay */
+        std::vector<uint32_t> ACT_READ_DELAY;
 
-        /** Write read delay */
-        std::vector<uint32_t> WRITE_DELAY;
+        /** Activation Write read delay */
+        std::vector<uint32_t> ACT_WRITE_DELAY;
 
-        /** Bank interface datawidth */
-        const uint32_t BANK_WIDTH = 0;
+        /** Weight Bank read delay */
+        std::vector<uint32_t> WGT_READ_DELAY;
 
-        /** Addresses per access */
-        const uint32_t ADDRS_PER_ACCESS = 0;
+        /** Activation Bank interface datawidth */
+        const uint32_t ACT_BANK_WIDTH = 0;
+
+        /** Weights Bank interface datawidth */
+        const uint32_t WGT_BANK_WIDTH = 0;
+
+        /** Activations addresses per access */
+        const uint32_t ACT_ADDRS_PER_ACCESS = 0;
+
+        /** Weights addresses per access */
+        const uint32_t WGT_ADDRS_PER_ACCESS = 0;
+
+        std::vector<std::vector<std::shared_ptr<EvictionPolicy>>> act_eviction_policy;
+
+        std::vector<std::vector<std::shared_ptr<EvictionPolicy>>> out_eviction_policy;
+
+        std::vector<std::vector<std::shared_ptr<EvictionPolicy>>> wgt_eviction_policy;
 
         /** Partial sum banks ready cycle */
         uint64_t psum_read_ready_cycle = 0;
@@ -88,28 +106,69 @@ namespace core {
          * @param _tracked_data         Current tracked data on-chip
          * @param _act_addresses        Address range for activations
          * @param _wgt_addresses        Address range for weights
-         * @param _LEVELS               Hierarchy levels
+         * @param _ACT_LEVELS           Activation Hierarchy levels
+         * @param _WGT_LEVELS           Weight Hierarchy levels
          * @param _ACT_SIZE             Activation size in Bytes
          * @param _WGT_SIZE             Weights size in Bytes
          * @param _ACT_OUT_BANKS        Activations banks
          * @param _WGT_BANKS            Weight banks
-         * @param _BANK_WIDTH           On-chip bank width
+         * @param _ACT_BANK_WIDTH       Activations on-chip bank width
+         * @param _WGT_BANK_WIDTH       Weights on-chip bank width
          * @param _DRAM_WIDTH           Dram width
-         * @param _READ_DELAY           Bank read delay
-         * @param _WRITE_DELAY          Bank write delay
+         * @param _ACT_READ_DELAY       Activation bank read delay
+         * @param _ACT_WRITE_DELAY      Activation bank write delay
+         * @param _WGT_READ_DELAY       Weight bank read delay
          */
         GlobalBuffer(const std::shared_ptr<std::map<uint64_t, uint32_t>> &_tracked_data,
                 const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_wgt_addresses,
-                uint32_t _LEVELS, const std::vector<uint64_t> &_ACT_SIZE, const std::vector<uint64_t> &_WGT_SIZE,
-                uint32_t _ACT_OUT_BANKS, uint32_t _WGT_BANKS, uint32_t _BANK_WIDTH, uint32_t _DRAM_WIDTH,
-                const std::vector<uint32_t> & _READ_DELAY, const std::vector<uint32_t> & _WRITE_DELAY) :
-                Memory<T>(_tracked_data, _act_addresses, _wgt_addresses), LEVELS(_LEVELS), ACT_BANKS(_ACT_OUT_BANKS/2),
-                WGT_BANKS(_WGT_BANKS), OUT_BANKS(_ACT_OUT_BANKS/2), BANK_WIDTH(_BANK_WIDTH),
-                ADDRS_PER_ACCESS(ceil(BANK_WIDTH / (double)_DRAM_WIDTH)) {
+                uint32_t _ACT_LEVELS, uint32_t _WGT_LEVELS, const std::vector<uint64_t> &_ACT_SIZE,
+                const std::vector<uint64_t> &_WGT_SIZE, uint32_t _ACT_OUT_BANKS, uint32_t _WGT_BANKS,
+                uint32_t _ACT_BANK_WIDTH, uint32_t _WGT_BANK_WIDTH, uint32_t _DRAM_WIDTH,
+                const std::vector<uint32_t> & _ACT_READ_DELAY, const std::vector<uint32_t> & _ACT_WRITE_DELAY,
+                const std::vector<uint32_t> & _WGT_READ_DELAY) : Memory<T>(_tracked_data, _act_addresses, _wgt_addresses),
+                ACT_LEVELS(_ACT_LEVELS), WGT_LEVELS(_WGT_LEVELS), ACT_BANKS(_ACT_OUT_BANKS/2), WGT_BANKS(_WGT_BANKS),
+                OUT_BANKS(_ACT_OUT_BANKS/2), ACT_BANK_WIDTH(_ACT_BANK_WIDTH), WGT_BANK_WIDTH(_WGT_BANK_WIDTH),
+                ACT_ADDRS_PER_ACCESS(ceil(ACT_BANK_WIDTH / (double)_DRAM_WIDTH)),
+                WGT_ADDRS_PER_ACCESS(ceil(WGT_BANK_WIDTH / (double)_DRAM_WIDTH)) {
+
             ACT_SIZE = _ACT_SIZE;
             WGT_SIZE = _WGT_SIZE;
-            READ_DELAY = _READ_DELAY;
-            WRITE_DELAY = _WRITE_DELAY;
+            ACT_READ_DELAY = _ACT_READ_DELAY;
+            ACT_WRITE_DELAY = _ACT_WRITE_DELAY;
+            WGT_READ_DELAY = _WGT_READ_DELAY;
+
+            act_eviction_policy = std::vector<std::vector<std::shared_ptr<EvictionPolicy>>>(ACT_LEVELS,
+                    std::vector<std::shared_ptr<EvictionPolicy>>(ACT_BANKS, std::shared_ptr<EvictionPolicy>()));
+
+            for (int lvl = 1; lvl < ACT_LEVELS; ++lvl) {
+                auto bank_size = ACT_SIZE[lvl] / _DRAM_WIDTH / _ACT_OUT_BANKS;
+                for (int bank = 0; bank < ACT_BANKS; ++bank) {
+                    assert(bank_size > 0);
+                    act_eviction_policy[lvl][bank] = std::make_shared<FIFO>(bank_size);
+                }
+            }
+
+            out_eviction_policy = std::vector<std::vector<std::shared_ptr<EvictionPolicy>>>(ACT_LEVELS,
+                    std::vector<std::shared_ptr<EvictionPolicy>>(OUT_BANKS, std::shared_ptr<EvictionPolicy>()));
+
+            for (int lvl = 1; lvl < ACT_LEVELS; ++lvl) {
+                auto bank_size = ACT_SIZE[lvl] / _DRAM_WIDTH / _ACT_OUT_BANKS;
+                for (int bank = 0; bank < OUT_BANKS; ++bank) {
+                    assert(bank_size > 0);
+                    out_eviction_policy[lvl][bank] = std::make_shared<FIFO>(bank_size);
+                }
+            }
+
+            wgt_eviction_policy = std::vector<std::vector<std::shared_ptr<EvictionPolicy>>>(WGT_LEVELS,
+                    std::vector<std::shared_ptr<EvictionPolicy>>(WGT_BANKS, std::shared_ptr<EvictionPolicy>()));
+
+            for (int lvl = 1; lvl < WGT_LEVELS; ++lvl) {
+                auto bank_size = WGT_SIZE[lvl] / _DRAM_WIDTH / _WGT_BANKS;
+                for (int bank = 0; bank < WGT_BANKS; ++bank) {
+                    assert(bank_size > 0);
+                    wgt_eviction_policy[lvl][bank] = std::make_shared<FIFO>(bank_size);
+                }
+            }
         }
 
         /**
@@ -191,10 +250,10 @@ namespace core {
         uint32_t getOutBanks() const;
 
         /**
-         * Return number of addresses per access
-         * @return Number of addresses per access
+         * Return number of activation addresses per access
+         * @return Number of activation addresses per access
          */
-        uint32_t getAddrsPerAccess() const;
+        uint32_t getActAddrsPerAccess() const;
 
         /**
          * Returns true when the read data is ready

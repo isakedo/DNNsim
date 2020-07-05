@@ -923,7 +923,7 @@ namespace core {
                             for (int t = 0; t < this->arch->getTiles(); ++t) {
                                 if (!this->write[t]) continue;
                                 auto outputs = (uint32_t)ceil(this->windows.size() * this->filters[t].size() /
-                                        (double)this->gbuffer->getAddrsPerAccess());
+                                        (double)this->gbuffer->getActAddrsPerAccess());
 
                                 tiles_data[t].out_addresses = AddressBufferRow(outputs, 0);
                                 tiles_data[t].out_banks = BankBufferRow(outputs, 0);
@@ -1108,7 +1108,7 @@ namespace core {
                     for (int t = 0; t < this->arch->getTiles(); ++t) {
                         if (!this->write[t]) continue;
                         auto outputs = (uint32_t)ceil(this->filters[t].size() /
-                                (double)this->gbuffer->getAddrsPerAccess());
+                                (double)this->gbuffer->getActAddrsPerAccess());
 
                         tiles_data[t].out_addresses = AddressBufferRow(outputs, 0);
                         tiles_data[t].out_banks = BankBufferRow(outputs, 0);

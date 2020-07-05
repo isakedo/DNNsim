@@ -132,7 +132,10 @@ namespace sys {
             if (dram_range <= dram_wgt_addr_range)
                 throw std::runtime_error("DRAM start weight addresses out of range.");
 
-            experiment.gbuffer_levels = experiment_proto.gbuffer_levels() < 1 ? 1 : experiment_proto.gbuffer_levels();
+            experiment.gbuffer_act_levels = experiment_proto.gbuffer_act_levels() < 1 ? 1 :
+                    experiment_proto.gbuffer_act_levels();
+            experiment.gbuffer_wgt_levels = experiment_proto.gbuffer_wgt_levels() < 1 ? 1 :
+                    experiment_proto.gbuffer_wgt_levels();
 
             try {
                 if (experiment_proto.gbuffer_act_size().empty())
@@ -144,6 +147,9 @@ namespace sys {
                 throw std::runtime_error("Global Buffer activation size not recognised.");
             }
 
+            if (experiment.gbuffer_act_size.size() != experiment.gbuffer_act_levels)
+                throw std::runtime_error("Global Buffer activations size needs to be repeated for all hierarchy levels.");
+
             try {
                 if (experiment_proto.gbuffer_wgt_size().empty())
                     experiment.gbuffer_wgt_size = {(uint64_t)pow(10, 9)};
@@ -154,24 +160,44 @@ namespace sys {
                 throw std::runtime_error("Global Buffer weights size not recognised.");
             }
 
+            if (experiment.gbuffer_wgt_size.size() != experiment.gbuffer_wgt_levels)
+                throw std::runtime_error("Global Buffer weights size needs to be repeated for all hierarchy levels.");
+
             experiment.gbuffer_act_banks = experiment_proto.gbuffer_act_banks() < 1 ? 32 :
                     experiment_proto.gbuffer_act_banks();
             experiment.gbuffer_wgt_banks = experiment_proto.gbuffer_wgt_banks() < 1 ? 256 :
                     experiment_proto.gbuffer_wgt_banks();
-            experiment.gbuffer_bank_width = experiment_proto.gbuffer_bank_width() < 1 ? 256 :
-                    experiment_proto.gbuffer_bank_width();
+            experiment.gbuffer_act_bank_width = experiment_proto.gbuffer_act_bank_width() < 1 ? 256 :
+                    experiment_proto.gbuffer_act_bank_width();
+            experiment.gbuffer_wgt_bank_width = experiment_proto.gbuffer_wgt_bank_width() < 1 ? 256 :
+                    experiment_proto.gbuffer_wgt_bank_width();
 
-            if (experiment_proto.gbuffer_read_delay().empty())
-                experiment.gbuffer_read_delay = {2};
+            if (experiment_proto.gbuffer_act_read_delay().empty())
+                experiment.gbuffer_act_read_delay = {2};
             else
-                for (int i = 0; i < experiment_proto.gbuffer_read_delay_size(); ++i)
-                    experiment.gbuffer_read_delay.emplace_back(experiment_proto.gbuffer_read_delay(i));
+                for (int i = 0; i < experiment_proto.gbuffer_act_read_delay_size(); ++i)
+                    experiment.gbuffer_act_read_delay.emplace_back(experiment_proto.gbuffer_act_read_delay(i));
 
-            if (experiment_proto.gbuffer_write_delay().empty())
-                experiment.gbuffer_write_delay = {2};
+            if (experiment.gbuffer_act_read_delay.size() != experiment.gbuffer_act_levels)
+                throw std::runtime_error("Global Buffer activation read delay needs to be repeated for all hierarchy levels.");
+
+            if (experiment_proto.gbuffer_act_write_delay().empty())
+                experiment.gbuffer_act_write_delay = {2};
             else
-                for (int i = 0; i < experiment_proto.gbuffer_write_delay_size(); ++i)
-                    experiment.gbuffer_write_delay.emplace_back(experiment_proto.gbuffer_write_delay(i));
+                for (int i = 0; i < experiment_proto.gbuffer_act_write_delay_size(); ++i)
+                    experiment.gbuffer_act_write_delay.emplace_back(experiment_proto.gbuffer_act_write_delay(i));
+
+            if (experiment.gbuffer_act_write_delay.size() != experiment.gbuffer_wgt_levels)
+                throw std::runtime_error("Global Buffer activation write delay needs to be repeated for all hierarchy levels.");
+
+            if (experiment_proto.gbuffer_wgt_read_delay().empty())
+                experiment.gbuffer_wgt_read_delay = {2};
+            else
+                for (int i = 0; i < experiment_proto.gbuffer_wgt_read_delay_size(); ++i)
+                    experiment.gbuffer_wgt_read_delay.emplace_back(experiment_proto.gbuffer_wgt_read_delay(i));
+
+            if (experiment.gbuffer_wgt_read_delay.size() != experiment.gbuffer_wgt_levels)
+                throw std::runtime_error("Global Buffer weight read delay needs to be repeated for all hierarchy levels.");
 
             experiment.abuffer_rows = experiment_proto.abuffer_rows() < 1 ? 2 :
                     experiment_proto.abuffer_rows();

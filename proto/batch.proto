@@ -59,32 +59,35 @@ message Batch {
             uint64 dram_start_wgt_address = 31;
             string dram_conf = 32;
 
-            uint32 gbuffer_levels = 33;
-            repeated string gbuffer_act_size = 34;
-            repeated string gbuffer_wgt_size = 35;
-            uint32 gbuffer_act_banks = 36;
-            uint32 gbuffer_wgt_banks = 37;
-            uint32 gbuffer_bank_width = 38;
-            repeated uint32 gbuffer_read_delay = 39;
-            repeated uint32 gbuffer_write_delay = 40;
+            uint32 gbuffer_act_levels = 33;
+            uint32 gbuffer_wgt_levels = 34;
+            repeated string gbuffer_act_size = 35;
+            repeated string gbuffer_wgt_size = 36;
+            uint32 gbuffer_act_banks = 37;
+            uint32 gbuffer_wgt_banks = 38;
+            uint32 gbuffer_act_bank_width = 39;
+            uint32 gbuffer_wgt_bank_width = 40;
+            repeated uint32 gbuffer_act_read_delay = 41;
+            repeated uint32 gbuffer_act_write_delay = 42;
+            repeated uint32 gbuffer_wgt_read_delay = 43;
 
-            uint32 abuffer_rows = 41;
-            uint32 abuffer_read_delay = 42;
+            uint32 abuffer_rows = 44;
+            uint32 abuffer_read_delay = 45;
 
-            uint32 pbuffer_rows = 43;
-            uint32 pbuffer_read_delay = 44;
+            uint32 pbuffer_rows = 46;
+            uint32 pbuffer_read_delay = 47;
 
-            uint32 wbuffer_rows = 45;
-            uint32 wbuffer_read_delay = 46;
+            uint32 wbuffer_rows = 48;
+            uint32 wbuffer_read_delay = 49;
 
-            uint32 obuffer_rows = 47;
-            uint32 obuffer_write_delay = 48;
+            uint32 obuffer_rows = 50;
+            uint32 obuffer_write_delay = 51;
 
             // Other modules
-            uint32 composer_inputs = 49;
-            uint32 composer_delay = 50;
-            uint32 ppu_inputs = 51;
-            uint32 ppu_delay = 52;
+            uint32 composer_inputs = 52;
+            uint32 composer_delay = 53;
+            uint32 ppu_inputs = 54;
+            uint32 ppu_delay = 55;
 
         }
 
