@@ -164,15 +164,55 @@ namespace core {
         auto dram_out_writes = stats.register_uint_t("dram_out_writes", 0, sys::AverageTotal);
 
         // Global Buffer stats
-        auto gbuffer_act_reads = stats.register_uint_t("gbuffer_act_reads", 0, sys::AverageTotal);
-        auto gbuffer_psum_reads = stats.register_uint_t("gbuffer_psum_reads", 0, sys::AverageTotal);
-        auto gbuffer_wgt_reads = stats.register_uint_t("gbuffer_wgt_reads", 0, sys::AverageTotal);
-        auto gbuffer_out_writes = stats.register_uint_t("gbuffer_out_writes", 0, sys::AverageTotal);
+        auto gbuffer_act_reads = std::vector<std::shared_ptr<sys::stat_uint_t>>(gbuffer->getActLevels());
+        auto gbuffer_psum_reads = std::vector<std::shared_ptr<sys::stat_uint_t>>(gbuffer->getActLevels());
+        auto gbuffer_wgt_reads = std::vector<std::shared_ptr<sys::stat_uint_t>>(gbuffer->getWgtLevels());
+        auto gbuffer_out_writes = std::vector<std::shared_ptr<sys::stat_uint_t>>(gbuffer->getActLevels());
 
-        auto gbuffer_act_bank_conflicts = stats.register_uint_t("gbuffer_act_bank_conflicts", 0, sys::AverageTotal);
-        auto gbuffer_psum_bank_conflicts = stats.register_uint_t("gbuffer_psum_bank_conflicts", 0, sys::AverageTotal);
-        auto gbuffer_wgt_bank_conflicts = stats.register_uint_t("gbuffer_wgt_bank_conflicts", 0, sys::AverageTotal);
-        auto gbuffer_out_bank_conflicts = stats.register_uint_t("gbuffer_out_bank_conflicts", 0, sys::AverageTotal);
+        for (int lvl = 0; lvl < gbuffer->getActLevels(); ++lvl) {
+            gbuffer_act_reads[lvl] =
+                    stats.register_uint_t("gbuffer_act_reads." + std::to_string(lvl), 0, sys::AverageTotal);
+        }
+
+        for (int lvl = 0; lvl < gbuffer->getActLevels(); ++lvl) {
+            gbuffer_psum_reads[lvl] =
+                    stats.register_uint_t("gbuffer_psum_reads." + std::to_string(lvl), 0, sys::AverageTotal);
+        }
+
+        for (int lvl = 0; lvl < gbuffer->getWgtLevels(); ++lvl) {
+            gbuffer_wgt_reads[lvl] =
+                    stats.register_uint_t("gbuffer_wgt_reads." + std::to_string(lvl), 0, sys::AverageTotal);
+        }
+
+        for (int lvl = 0; lvl < gbuffer->getActLevels(); ++lvl) {
+            gbuffer_out_writes[lvl] =
+                    stats.register_uint_t("gbuffer_out_writes." + std::to_string(lvl), 0, sys::AverageTotal);
+        }
+
+        auto gbuffer_act_bank_conflicts = std::vector<std::shared_ptr<sys::stat_uint_t>>(gbuffer->getActLevels());
+        auto gbuffer_psum_bank_conflicts = std::vector<std::shared_ptr<sys::stat_uint_t>>(gbuffer->getActLevels());
+        auto gbuffer_wgt_bank_conflicts = std::vector<std::shared_ptr<sys::stat_uint_t>>(gbuffer->getWgtLevels());
+        auto gbuffer_out_bank_conflicts = std::vector<std::shared_ptr<sys::stat_uint_t>>(gbuffer->getActLevels());
+
+        for (int lvl = 0; lvl < gbuffer->getActLevels(); ++lvl) {
+            gbuffer_act_bank_conflicts[lvl] =
+                    stats.register_uint_t("gbuffer_act_bank_conflicts." + std::to_string(lvl), 0, sys::AverageTotal);
+        }
+
+        for (int lvl = 0; lvl < gbuffer->getActLevels(); ++lvl) {
+            gbuffer_psum_bank_conflicts[lvl] =
+                    stats.register_uint_t("gbuffer_psum_bank_conflicts." + std::to_string(lvl), 0, sys::AverageTotal);
+        }
+
+        for (int lvl = 0; lvl < gbuffer->getWgtLevels(); ++lvl) {
+            gbuffer_wgt_bank_conflicts[lvl] =
+                    stats.register_uint_t("gbuffer_wgt_bank_conflicts." + std::to_string(lvl), 0, sys::AverageTotal);
+        }
+
+        for (int lvl = 0; lvl < gbuffer->getActLevels(); ++lvl) {
+            gbuffer_out_bank_conflicts[lvl] =
+                    stats.register_uint_t("gbuffer_out_bank_conflicts." + std::to_string(lvl), 0, sys::AverageTotal);
+        }
 
         auto act_precision = stats.register_uint_t("activations precision", 0, sys::Average);
         auto wgt_precision = stats.register_uint_t("weights precision", 0, sys::Average);
@@ -338,15 +378,20 @@ namespace core {
                 dram_wgt_reads->value[layer_it][sample] = dram->getWgtReads();
                 dram_out_writes->value[layer_it][sample] = dram->getOutWrites();
 
-                gbuffer_act_reads->value[layer_it][sample] = gbuffer->getActReads();
-                gbuffer_psum_reads->value[layer_it][sample] = gbuffer->getPsumReads();
-                gbuffer_wgt_reads->value[layer_it][sample] = gbuffer->getWgtReads();
-                gbuffer_out_writes->value[layer_it][sample] = gbuffer->getOutWrites();
+                for (int lvl = 0; lvl < gbuffer->getActLevels(); ++lvl) {
+                    gbuffer_act_reads[lvl]->value[layer_it][sample] = gbuffer->getActReads(lvl);
+                    gbuffer_psum_reads[lvl]->value[layer_it][sample] = gbuffer->getPsumReads(lvl);
+                    gbuffer_out_writes[lvl]->value[layer_it][sample] = gbuffer->getOutWrites(lvl);
 
-                gbuffer_act_bank_conflicts->value[layer_it][sample] = gbuffer->getActBankConflicts();
-                gbuffer_psum_bank_conflicts->value[layer_it][sample] = gbuffer->getPsumBankConflicts();
-                gbuffer_wgt_bank_conflicts->value[layer_it][sample] = gbuffer->getWgtBankConflicts();
-                gbuffer_out_bank_conflicts->value[layer_it][sample] = gbuffer->getOutBankConflicts();
+                    gbuffer_act_bank_conflicts[lvl]->value[layer_it][sample] = gbuffer->getActBankConflicts(lvl);
+                    gbuffer_psum_bank_conflicts[lvl]->value[layer_it][sample] = gbuffer->getPsumBankConflicts(lvl);
+                    gbuffer_out_bank_conflicts[lvl]->value[layer_it][sample] = gbuffer->getOutBankConflicts(lvl);
+                }
+
+                for (int lvl = 0; lvl < gbuffer->getWgtLevels(); ++lvl) {
+                    gbuffer_wgt_reads[lvl]->value[layer_it][sample] = gbuffer->getWgtReads(lvl);
+                    gbuffer_wgt_bank_conflicts[lvl]->value[layer_it][sample] = gbuffer->getWgtBankConflicts(lvl);
+                }
 
                 act_precision->value[layer_it][sample] = act_prec;
                 wgt_precision->value[layer_it][sample] = wgt_prec;

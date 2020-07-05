@@ -90,6 +90,7 @@ namespace core {
         WGT_VALUES_PER_BLOCK = WIDTH / _WGT_DATA_SIZE;
 
         *this->act_addresses = {NULL_ADDR, 0};
+        *this->out_addresses = {NULL_ADDR, 0};
         *this->wgt_addresses = {NULL_ADDR, 0};
         this->tracked_data->clear();
 

@@ -134,6 +134,7 @@ namespace core {
         auto last_act_blk = (uint32_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
         auto blks_per_window = (uint32_t)ceil(Ky * Kx * act_channels / (double)this->dram->getActValuesPerBlock());
 
+        bool next_evict_out = false;
         auto next_out_address = this->next_act_address;
 
         this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>();
@@ -167,6 +168,7 @@ namespace core {
                     node->time_step = tstep;
                     node->max_time = max_time_per_step;
                     node->layer_act_on_chip = this->layer_act_on_chip;
+                    node->evict_out = next_evict_out;
                     node->groups = {0};
 
                     // Fil activations
@@ -284,6 +286,9 @@ namespace core {
                         next_out_address += out_blks * this->dram->getWidth();
                         auto last_address = this->dram->getStartActAddress() + next_out_address - this->dram->getWidth();
                         node->write_addresses.emplace_back(first_address, last_address);
+                        next_evict_out = true;
+                    } else {
+                        next_evict_out = false;
                     }
 
                     this->on_chip_graph.emplace_back(node);
@@ -387,6 +392,7 @@ namespace core {
 
         auto last_act_blk = (uint32_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
 
+        bool next_evict_out = false;
         auto next_out_address = this->next_act_address;
 
         this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>();
@@ -423,6 +429,7 @@ namespace core {
                 node->time_step = 0;
                 node->max_time = this->max_buffer_time;
                 node->layer_act_on_chip = this->layer_act_on_chip;
+                node->evict_out = next_evict_out;
 
                 // Fil groups
                 node->groups = std::vector<int>(total_groups, 0);
@@ -477,6 +484,9 @@ namespace core {
                     next_out_address += out_blks * this->dram->getWidth();
                     auto last_address = this->dram->getStartActAddress() + next_out_address - this->dram->getWidth();
                     node->write_addresses.emplace_back(first_address, last_address);
+                    next_evict_out = true;
+                } else {
+                    next_evict_out = false;
                 }
 
                 this->on_chip_graph.emplace_back(node);
@@ -571,6 +581,8 @@ namespace core {
         auto last_act_blk = (uint32_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
         auto blocks_per_time = (uint32_t)ceil(last_act_blk / (double)this->max_buffer_time);
 
+        bool next_evict_out = false;
+
         this->on_chip_graph = std::vector<std::shared_ptr<typename Control<T>::Node>>();
 
         for (int r = 0; r < recurrences; ++r) {
@@ -599,6 +611,7 @@ namespace core {
                     node->time_step = tstep;
                     node->max_time = max_time_per_step;
                     node->layer_act_on_chip = this->layer_act_on_chip;
+                    node->evict_out = next_evict_out;
                     node->recurrence = r;
                     node->window_sets = {0};
 
@@ -722,6 +735,9 @@ namespace core {
                         next_out_address += out_blks * this->dram->getWidth();
                         auto last_address = this->dram->getStartActAddress() + next_out_address - this->dram->getWidth();
                         node->write_addresses.emplace_back(first_address, last_address);
+                        next_evict_out = true;
+                    } else {
+                        next_evict_out = false;
                     }
 
                     this->on_chip_graph.emplace_back(node);

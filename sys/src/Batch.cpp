@@ -187,7 +187,7 @@ namespace sys {
                 for (int i = 0; i < experiment_proto.gbuffer_act_write_delay_size(); ++i)
                     experiment.gbuffer_act_write_delay.emplace_back(experiment_proto.gbuffer_act_write_delay(i));
 
-            if (experiment.gbuffer_act_write_delay.size() != experiment.gbuffer_wgt_levels)
+            if (experiment.gbuffer_act_write_delay.size() != experiment.gbuffer_act_levels)
                 throw std::runtime_error("Global Buffer activation write delay needs to be repeated for all hierarchy levels.");
 
             if (experiment_proto.gbuffer_wgt_read_delay().empty())

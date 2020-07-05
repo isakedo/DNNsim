@@ -76,28 +76,28 @@ namespace core {
         /* STATISTICS */
 
         /** Activation bank reads */
-        uint64_t act_reads = 0;
+        std::vector<uint64_t> act_reads;
 
         /** Partial sum bank reads */
-        uint64_t psum_reads = 0;
+        std::vector<uint64_t> psum_reads;
 
         /** Weight bank reads */
-        uint64_t wgt_reads = 0;
+        std::vector<uint64_t> wgt_reads;
 
         /** Output bank writes */
-        uint64_t out_writes = 0;
+        std::vector<uint64_t> out_writes;
 
         /** Activation bank conflicts */
-        uint64_t act_bank_conflicts = 0;
+        std::vector<uint64_t> act_bank_conflicts;
 
         /** Partial sum bank conflicts */
-        uint64_t psum_bank_conflicts = 0;
+        std::vector<uint64_t> psum_bank_conflicts;
 
         /** Weight bank conflicts */
-        uint64_t wgt_bank_conflicts = 0;
+        std::vector<uint64_t> wgt_bank_conflicts;
 
         /** Output Activation bank conflicts */
-        uint64_t out_bank_conflicts = 0;
+        std::vector<uint64_t> out_bank_conflicts;
 
     public:
 
@@ -174,51 +174,71 @@ namespace core {
 
         /**
          * Return the number of activation bank reads
+         * @param idx  Hierarchy level
          * @return Activation bank reads
          */
-        uint64_t getActReads() const;
+        uint64_t getActReads(uint32_t idx) const;
 
         /**
          * Return the number of output bank reads
+         * @param idx  Hierarchy level
          * @return Output bank reads
          */
-        uint64_t getPsumReads() const;
+        uint64_t getPsumReads(uint32_t idx) const;
 
         /**
          * Return the number of weight bank reads
+         * @param idx  Hierarchy level
          * @return Weight bank reads
          */
-        uint64_t getWgtReads() const;
+        uint64_t getWgtReads(uint32_t idx) const;
 
         /**
          * Return the number of output bank writes
+         * @param idx  Hierachy level
          * @return Output bank writes
          */
-        uint64_t getOutWrites() const;
+        uint64_t getOutWrites(uint32_t idx) const;
 
         /**
          * Return the number of activation bank conflicts
+         * @param idx  Hierarchy level
          * @return Activation bank conflicts
          */
-        uint64_t getActBankConflicts() const;
+        uint64_t getActBankConflicts(uint32_t idx) const;
 
         /**
          * Return the number of partial sum bank conflicts
+         * @param idx  Hierarchy level
          * @return Partial sum bank conflicts
          */
-        uint64_t getPsumBankConflicts() const;
+        uint64_t getPsumBankConflicts(uint32_t idx) const;
 
         /**
          * Return the number of weight bank conflicts
+         * @param idx  Hierarchy level
          * @return Weight bank conflicts
          */
-        uint64_t getWgtBankConflicts() const;
+        uint64_t getWgtBankConflicts(uint32_t idx) const;
 
         /**
          * Return the number of output activations bank conflicts
+         * @param idx  Hierarchy level
          * @return Output activations bank conflicts
          */
-        uint64_t getOutBankConflicts() const;
+        uint64_t getOutBankConflicts(uint32_t idx) const;
+
+        /**
+         * Return activation hierarchy levels
+         * @return Activation hierarchy levels
+         */
+        uint64_t getActLevels() const;
+
+        /**
+         * Return weight hierarchy levels
+         * @return Weight hierarchy levels
+         */
+        uint64_t getWgtLevels() const;
 
         /**
          * Return activation memory size
