@@ -22,6 +22,7 @@ add_library(
         src/OutputStationary.cpp
         src/WindowFirstOutS.cpp
         src/FIFO.cpp
+        src/LRU.cpp
         src/DRAM.cpp
         src/GlobalBuffer.cpp
         src/LocalBuffer.cpp

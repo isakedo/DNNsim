@@ -147,6 +147,12 @@ namespace sys {
                 /** Global buffer activations write delay */
                 std::vector<uint32_t> gbuffer_act_write_delay;
 
+                /** Global buffer activation eviction policy */
+                std::string gbuffer_act_eviction_policy;
+
+                /** Global buffer weight eviction policy */
+                std::string gbuffer_wgt_eviction_policy;
+
                 /** Activation buffer number of memory rows */
                 uint32_t abuffer_rows = 0;
 

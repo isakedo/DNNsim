@@ -23,7 +23,7 @@ namespace core {
 
         virtual uint64_t evict_addr() = 0;
 
-        virtual void update_policy(uint64_t addr) = 0;
+        virtual void update_status(uint64_t addr) = 0;
 
     };
 

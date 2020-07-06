@@ -22,7 +22,7 @@ namespace core {
         return addr;
     }
 
-    void FIFO::update_policy(uint64_t addr) {
+    void FIFO::update_status(uint64_t addr) {
         // Nothing
     }
 

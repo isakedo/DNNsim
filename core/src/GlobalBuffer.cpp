@@ -97,20 +97,22 @@ namespace core {
     template <typename T>
     std::string GlobalBuffer<T>::header() {
         std::string header = "Activations memory size: ";
-        for (const auto &size : ACT_SIZE) header += to_mem_string(size) + " - "; header += "\n";
+        for (const auto &size : ACT_SIZE) header += to_mem_string(size) + " "; header += "\n";
         header += "Weight memory size: ";
-        for (const auto &size : WGT_SIZE) header += to_mem_string(size) + " - "; header += "\n";
+        for (const auto &size : WGT_SIZE) header += to_mem_string(size) + " "; header += "\n";
         header += "Number of activation banks: " + std::to_string(ACT_BANKS) + "\n";
         header += "Number of weight banks: " + std::to_string(WGT_BANKS) + "\n";
         header += "Number of output banks: " + std::to_string(OUT_BANKS) + "\n";
         header += "Activation bank interface width: " + std::to_string(ACT_BANK_WIDTH) + "\n";
         header += "Weight bank interface width: " + std::to_string(WGT_BANK_WIDTH) + "\n";
         header += "Activations read delay: ";
-        for (const auto &delay : ACT_READ_DELAY) header += std::to_string(delay) + " - "; header += "\n";
+        for (const auto &delay : ACT_READ_DELAY) header += std::to_string(delay) + " "; header += "\n";
         header += "Activations write delay: ";
-        for (const auto &delay : ACT_WRITE_DELAY) header += std::to_string(delay) + " - "; header += "\n";
+        for (const auto &delay : ACT_WRITE_DELAY) header += std::to_string(delay) + " "; header += "\n";
         header += "Weights read delay: ";
-        for (const auto &delay : WGT_READ_DELAY) header += std::to_string(delay) + " - "; header += "\n";
+        for (const auto &delay : WGT_READ_DELAY) header += std::to_string(delay) + " "; header += "\n";
+        header += "Activations eviction policy: " + ACT_POLICY + "\n";
+        header += "Weights eviction policy: " + WGT_POLICY + "\n";
         return header;
     }
 
@@ -189,22 +191,18 @@ namespace core {
                         assert(act_bank != -1);
                         assert(act_lvl >= 1 && act_lvl <= ACT_LEVELS);
 
-                        bank_addr_reads[ACT_LEVELS - 1][act_bank]++;
-                        if (ACT_LEVELS > 1) {
-                            for (int lvl = ACT_LEVELS - 1; lvl >= act_lvl; --lvl) {
-                                bank_addr_reads[lvl - 1][act_bank]++;
-                                if (!act_eviction_policy[lvl][act_bank]->free_entry()) {
-                                    auto evict_addr = act_eviction_policy[lvl][act_bank]->evict_addr();
-                                    assert((*this->tracked_data).at(evict_addr) == lvl + 1);
-                                    (*this->tracked_data).at(act_addr) = lvl;
-                                }
-                                act_eviction_policy[lvl][act_bank]->insert_addr(act_addr);
+                        for (int lvl = ACT_LEVELS; lvl > act_lvl; --lvl) {
+                            if (!act_eviction_policy[lvl - 1][act_bank]->free_entry()) {
+                                auto evict_addr = act_eviction_policy[lvl - 1][act_bank]->evict_addr();
+                                assert((*this->tracked_data).at(evict_addr) == lvl);
+                                (*this->tracked_data).at(evict_addr) = lvl - 1;
                             }
+                            act_eviction_policy[lvl - 1][act_bank]->insert_addr(act_addr);
                         }
-                        if (act_lvl > 1) {
-                            for (int lvl = act_lvl - 1; lvl >= 1; --lvl) {
-                                act_eviction_policy[lvl][act_bank]->update_policy(act_addr);
-                            }
+
+                        for (int lvl = ACT_LEVELS; lvl >= 1; --lvl) {
+                            if (lvl >= act_lvl) bank_addr_reads[lvl - 1][act_bank]++;
+                            else if (lvl != 1) act_eviction_policy[lvl - 1][act_bank]->update_status(act_addr);
                         }
 
                         (*this->tracked_data).at(act_addr) = ACT_LEVELS;
@@ -266,22 +264,18 @@ namespace core {
                     assert(psum_bank != -1);
                     assert(psum_lvl >= 1 && psum_lvl <= ACT_LEVELS);
 
-                    bank_addr_reads[ACT_LEVELS - 1][psum_bank]++;
-                    if (ACT_LEVELS > 1) {
-                        for (int lvl = ACT_LEVELS - 1; lvl >= psum_lvl; --lvl) {
-                            bank_addr_reads[lvl - 1][psum_bank]++;
-                            if (!out_eviction_policy[lvl][psum_bank]->free_entry()) {
-                                auto evict_addr = out_eviction_policy[lvl][psum_bank]->evict_addr();
-                                assert((*this->tracked_data).at(evict_addr) == lvl + 1);
-                                (*this->tracked_data).at(psum_addr) = lvl;
-                            }
-                            out_eviction_policy[lvl][psum_bank]->insert_addr(psum_addr);
+                    for (int lvl = ACT_LEVELS; lvl > psum_lvl; --lvl) {
+                        if (!out_eviction_policy[lvl - 1][psum_bank]->free_entry()) {
+                            auto evict_addr = out_eviction_policy[lvl - 1][psum_bank]->evict_addr();
+                            assert((*this->tracked_data).at(evict_addr) == lvl);
+                            (*this->tracked_data).at(evict_addr) = lvl - 1;
                         }
+                        out_eviction_policy[lvl - 1][psum_bank]->insert_addr(psum_addr);
                     }
-                    if (psum_lvl > 1) {
-                        for (int lvl = psum_lvl - 1; lvl >= 1; --lvl) {
-                            out_eviction_policy[lvl][psum_bank]->update_policy(psum_addr);
-                        }
+
+                    for (int lvl = ACT_LEVELS; lvl >= 1; --lvl) {
+                        if (lvl >= psum_lvl) bank_addr_reads[lvl - 1][psum_bank]++;
+                        else if (lvl != 1) out_eviction_policy[lvl - 1][psum_bank]->update_status(psum_addr);
                     }
 
                     (*this->tracked_data).at(psum_addr) = ACT_LEVELS;
@@ -343,26 +337,21 @@ namespace core {
                     assert(wgt_bank != -1);
                     assert(wgt_lvl >= 1 && wgt_lvl <= WGT_LEVELS);
 
-                    bank_addr_reads[WGT_LEVELS - 1][wgt_bank]++;
-                    if (WGT_LEVELS > 1) {
-                        for (int lvl = WGT_LEVELS - 1; lvl >= wgt_lvl; --lvl) {
-                            bank_addr_reads[lvl - 1][wgt_bank]++;
-                            if (!wgt_eviction_policy[lvl][wgt_bank]->free_entry()) {
-                                auto evict_addr = wgt_eviction_policy[lvl][wgt_bank]->evict_addr();
-                                assert((*this->tracked_data).at(evict_addr) == lvl + 1);
-                                (*this->tracked_data).at(wgt_addr) = lvl;
-                            }
-                            wgt_eviction_policy[lvl][wgt_bank]->insert_addr(wgt_addr);
+                    for (int lvl = WGT_LEVELS; lvl > wgt_lvl; --lvl) {
+                        if (!wgt_eviction_policy[lvl - 1][wgt_bank]->free_entry()) {
+                            auto evict_addr = wgt_eviction_policy[lvl - 1][wgt_bank]->evict_addr();
+                            assert((*this->tracked_data).at(evict_addr) == lvl);
+                            (*this->tracked_data).at(evict_addr) = lvl - 1;
                         }
+                        wgt_eviction_policy[lvl - 1][wgt_bank]->insert_addr(wgt_addr);
                     }
-                    if (wgt_lvl > 1) {
-                        for (int lvl = wgt_lvl - 1; lvl >= 1; --lvl) {
-                            wgt_eviction_policy[lvl][wgt_bank]->update_policy(wgt_addr);
-                        }
+
+                    for (int lvl = WGT_LEVELS; lvl >= 1; --lvl) {
+                        if (lvl >= wgt_lvl) bank_addr_reads[lvl - 1][wgt_bank]++;
+                        else if (lvl != 1) act_eviction_policy[lvl - 1][wgt_bank]->update_status(wgt_addr);
                     }
 
                     (*this->tracked_data).at(wgt_addr) = WGT_LEVELS;
-
 
                 }
 
@@ -413,7 +402,7 @@ namespace core {
 
                 auto it = (*this->tracked_data).find(out_addr);
                 if (it == (*this->tracked_data).end()) {
-                    this->tracked_data->insert({out_addr, 0});
+                    this->tracked_data->insert({out_addr, 1});
 
                     auto &min_addr = std::get<0>(*this->out_addresses);
                     auto &max_addr = std::get<1>(*this->out_addresses);
@@ -426,20 +415,19 @@ namespace core {
                 const auto &out_bank = tile_data.out_banks[idx];
 
                 assert(out_bank != -1);
-                assert(out_lvl >= 0 && out_lvl <= ACT_LEVELS);
+                assert(out_lvl >= 1 && out_lvl <= ACT_LEVELS);
 
-                for (int lvl = ACT_LEVELS; lvl > out_lvl; --lvl) {
+                for (int lvl = ACT_LEVELS; lvl >= out_lvl; --lvl) {
                     bank_addr_writes[lvl - 1][out_bank]++;
 
-                    if (lvl == 1)
-                        continue;
-
-                    if (!out_eviction_policy[lvl - 1][out_bank]->free_entry()) {
-                        auto evict_addr = out_eviction_policy[lvl - 1][out_bank]->evict_addr();
-                        assert((*this->tracked_data).at(evict_addr) == lvl + 1);
-                        (*this->tracked_data).at(out_addr) = lvl;
+                    if (lvl != 1 && out_lvl != ACT_LEVELS) {
+                        if (!out_eviction_policy[lvl - 1][out_bank]->free_entry()) {
+                            auto evict_addr = out_eviction_policy[lvl - 1][out_bank]->evict_addr();
+                            assert((*this->tracked_data).at(evict_addr) == lvl);
+                            (*this->tracked_data).at(evict_addr) = lvl - 1;
+                        }
+                        out_eviction_policy[lvl - 1][out_bank]->insert_addr(out_addr);
                     }
-                    out_eviction_policy[lvl - 1][out_bank]->insert_addr(out_addr);
                 }
 
                 (*this->tracked_data).at(out_addr) = ACT_LEVELS;

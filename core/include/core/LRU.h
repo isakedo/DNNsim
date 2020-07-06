@@ -1,15 +1,17 @@
-#ifndef DNNSIM_FIFO_H
-#define DNNSIM_FIFO_H
+#ifndef DNNSIM_LRU_H
+#define DNNSIM_LRU_H
 
 #include "EvictionPolicy.h"
 
 namespace core {
 
-    class FIFO : public EvictionPolicy {
+    class LRU : public EvictionPolicy {
 
     private:
 
-        std::queue<uint64_t> fifo;
+        std::list<uint64_t> data;
+
+        std::unordered_map<uint64_t, std::list<uint64_t>::iterator> lru;
 
         void flush() override;
 
@@ -23,10 +25,10 @@ namespace core {
 
     public:
 
-        explicit FIFO(uint64_t _MAX_SIZE) : EvictionPolicy(_MAX_SIZE) {}
+        explicit LRU(uint64_t _MAX_SIZE) : EvictionPolicy(_MAX_SIZE) {}
 
     };
 
 }
 
-#endif //DNNSIM_FIFO_H
+#endif //DNNSIM_MRU_H

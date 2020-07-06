@@ -149,7 +149,8 @@ int main(int argc, char *argv[]) {
                                 experiment.gbuffer_act_banks, experiment.gbuffer_wgt_banks,
                                 experiment.gbuffer_act_bank_width, experiment.gbuffer_wgt_bank_width,
                                 experiment.dram_width, experiment.gbuffer_act_read_delay,
-                                experiment.gbuffer_act_write_delay, experiment.gbuffer_wgt_read_delay);
+                                experiment.gbuffer_act_write_delay, experiment.gbuffer_wgt_read_delay,
+                                experiment.gbuffer_act_eviction_policy, experiment.gbuffer_wgt_eviction_policy);
 
                         auto abuffer = std::make_shared<core::LocalBuffer<float>>(tracked_data, act_addresses,
                                 out_addresses, wgt_addresses, experiment.abuffer_rows, experiment.abuffer_read_delay,
@@ -230,7 +231,8 @@ int main(int argc, char *argv[]) {
                                 experiment.gbuffer_act_banks, experiment.gbuffer_wgt_banks,
                                 experiment.gbuffer_act_bank_width, experiment.gbuffer_wgt_bank_width,
                                 experiment.dram_width, experiment.gbuffer_act_read_delay,
-                                experiment.gbuffer_act_write_delay, experiment.gbuffer_wgt_read_delay);
+                                experiment.gbuffer_act_write_delay, experiment.gbuffer_wgt_read_delay,
+                                experiment.gbuffer_act_eviction_policy, experiment.gbuffer_wgt_eviction_policy);
 
                         auto abuffer = std::make_shared<core::LocalBuffer<uint16_t>>(tracked_data, act_addresses,
                                 out_addresses, wgt_addresses, experiment.abuffer_rows, experiment.abuffer_read_delay,

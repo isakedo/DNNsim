@@ -4,6 +4,7 @@
 #include <cstdint>
 #include "Memory.h"
 #include "FIFO.h"
+#include "LRU.h"
 
 namespace core {
 
@@ -57,6 +58,12 @@ namespace core {
 
         /** Weights addresses per access */
         const uint32_t WGT_ADDRS_PER_ACCESS = 0;
+
+        /** Activations eviction policy */
+        std::string ACT_POLICY;
+
+        /** Weights eviction policy */
+        std::string WGT_POLICY;
 
         std::vector<std::vector<std::shared_ptr<EvictionPolicy>>> act_eviction_policy;
 
@@ -119,6 +126,8 @@ namespace core {
          * @param _ACT_READ_DELAY       Activation bank read delay
          * @param _ACT_WRITE_DELAY      Activation bank write delay
          * @param _WGT_READ_DELAY       Weight bank read delay
+         * @param _ACT_POLICY           Activation eviction policy
+         * @param _WGT_POLICY           Weight eviction policy
          */
         GlobalBuffer(const std::shared_ptr<std::map<uint64_t, uint32_t>> &_tracked_data,
                 const std::shared_ptr<AddressRange> &_act_addresses, const std::shared_ptr<AddressRange> &_out_addresses,
@@ -126,7 +135,8 @@ namespace core {
                 const std::vector<uint64_t> &_ACT_SIZE, const std::vector<uint64_t> &_WGT_SIZE, uint32_t _ACT_OUT_BANKS,
                 uint32_t _WGT_BANKS, uint32_t _ACT_BANK_WIDTH, uint32_t _WGT_BANK_WIDTH, uint32_t _DRAM_WIDTH,
                 const std::vector<uint32_t> & _ACT_READ_DELAY, const std::vector<uint32_t> & _ACT_WRITE_DELAY,
-                const std::vector<uint32_t> & _WGT_READ_DELAY) : Memory<T>(_tracked_data, _act_addresses, _out_addresses,
+                const std::vector<uint32_t> & _WGT_READ_DELAY, const std::string &_ACT_POLICY,
+                const std::string &_WGT_POLICY) : Memory<T>(_tracked_data, _act_addresses, _out_addresses,
                 _wgt_addresses), ACT_LEVELS(_ACT_LEVELS), WGT_LEVELS(_WGT_LEVELS), ACT_BANKS(_ACT_OUT_BANKS/2),
                 WGT_BANKS(_WGT_BANKS), OUT_BANKS(_ACT_OUT_BANKS/2), ACT_BANK_WIDTH(_ACT_BANK_WIDTH),
                 WGT_BANK_WIDTH(_WGT_BANK_WIDTH), ACT_ADDRS_PER_ACCESS(ceil(ACT_BANK_WIDTH / (double)_DRAM_WIDTH)),
@@ -137,6 +147,8 @@ namespace core {
             ACT_READ_DELAY = _ACT_READ_DELAY;
             ACT_WRITE_DELAY = _ACT_WRITE_DELAY;
             WGT_READ_DELAY = _WGT_READ_DELAY;
+            ACT_POLICY = _ACT_POLICY;
+            WGT_POLICY = _WGT_POLICY;
 
             act_eviction_policy = std::vector<std::vector<std::shared_ptr<EvictionPolicy>>>(ACT_LEVELS,
                     std::vector<std::shared_ptr<EvictionPolicy>>(ACT_BANKS, std::shared_ptr<EvictionPolicy>()));
@@ -145,7 +157,11 @@ namespace core {
                 auto bank_size = ACT_SIZE[lvl] / _DRAM_WIDTH / _ACT_OUT_BANKS;
                 for (int bank = 0; bank < ACT_BANKS; ++bank) {
                     assert(bank_size > 0);
-                    act_eviction_policy[lvl][bank] = std::make_shared<FIFO>(bank_size);
+                    if (_ACT_POLICY == "LRU")
+                        act_eviction_policy[lvl][bank] = std::make_shared<LRU>(bank_size);
+                    else if (_ACT_POLICY == "FIFO")
+                        act_eviction_policy[lvl][bank] = std::make_shared<FIFO>(bank_size);
+                    else throw std::runtime_error("Incorrect activation eviction policy");
                 }
             }
 
@@ -156,8 +172,11 @@ namespace core {
                 auto bank_size = ACT_SIZE[lvl] / _DRAM_WIDTH / _ACT_OUT_BANKS;
                 for (int bank = 0; bank < OUT_BANKS; ++bank) {
                     assert(bank_size > 0);
-                    out_eviction_policy[lvl][bank] = std::make_shared<FIFO>(bank_size);
-                }
+                    if (_ACT_POLICY == "LRU")
+                        out_eviction_policy[lvl][bank] = std::make_shared<LRU>(bank_size);
+                    else if (_ACT_POLICY == "FIFO")
+                        out_eviction_policy[lvl][bank] = std::make_shared<FIFO>(bank_size);
+                    else throw std::runtime_error("Incorrect activation eviction policy");                }
             }
 
             wgt_eviction_policy = std::vector<std::vector<std::shared_ptr<EvictionPolicy>>>(WGT_LEVELS,
@@ -167,8 +186,11 @@ namespace core {
                 auto bank_size = WGT_SIZE[lvl] / _DRAM_WIDTH / _WGT_BANKS;
                 for (int bank = 0; bank < WGT_BANKS; ++bank) {
                     assert(bank_size > 0);
-                    wgt_eviction_policy[lvl][bank] = std::make_shared<FIFO>(bank_size);
-                }
+                    if (_WGT_POLICY == "LRU")
+                        wgt_eviction_policy[lvl][bank] = std::make_shared<LRU>(bank_size);
+                    else if (_WGT_POLICY == "FIFO")
+                        wgt_eviction_policy[lvl][bank] = std::make_shared<FIFO>(bank_size);
+                    else throw std::runtime_error("Incorrect activation eviction policy");                }
             }
         }
 

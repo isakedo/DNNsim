@@ -70,24 +70,26 @@ message Batch {
             repeated uint32 gbuffer_act_read_delay = 41;
             repeated uint32 gbuffer_act_write_delay = 42;
             repeated uint32 gbuffer_wgt_read_delay = 43;
+            string gbuffer_act_eviction_policy = 44;
+            string gbuffer_wgt_eviction_policy = 45;
 
-            uint32 abuffer_rows = 44;
-            uint32 abuffer_read_delay = 45;
+            uint32 abuffer_rows = 46;
+            uint32 abuffer_read_delay = 47;
 
-            uint32 pbuffer_rows = 46;
-            uint32 pbuffer_read_delay = 47;
+            uint32 pbuffer_rows = 48;
+            uint32 pbuffer_read_delay = 49;
 
-            uint32 wbuffer_rows = 48;
-            uint32 wbuffer_read_delay = 49;
+            uint32 wbuffer_rows = 50;
+            uint32 wbuffer_read_delay = 51;
 
-            uint32 obuffer_rows = 50;
-            uint32 obuffer_write_delay = 51;
+            uint32 obuffer_rows = 52;
+            uint32 obuffer_write_delay = 53;
 
             // Other modules
-            uint32 composer_inputs = 52;
-            uint32 composer_delay = 53;
-            uint32 ppu_inputs = 54;
-            uint32 ppu_delay = 55;
+            uint32 composer_inputs = 54;
+            uint32 composer_delay = 55;
+            uint32 ppu_inputs = 56;
+            uint32 ppu_delay = 57;
 
         }
 

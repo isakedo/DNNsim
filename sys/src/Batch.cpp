@@ -199,6 +199,20 @@ namespace sys {
             if (experiment.gbuffer_wgt_read_delay.size() != experiment.gbuffer_wgt_levels)
                 throw std::runtime_error("Global Buffer weight read delay needs to be repeated for all hierarchy levels.");
 
+            experiment.gbuffer_act_eviction_policy = experiment_proto.gbuffer_act_eviction_policy().empty() ? "LRU" :
+                    experiment_proto.gbuffer_act_eviction_policy();
+
+            const auto &act_policy = experiment.gbuffer_act_eviction_policy;
+            if (act_policy != "LRU" && act_policy != "FIFO")
+                throw std::runtime_error("Global Buffer activation eviction policy needs to be <LRU|FIFO>.");
+
+            experiment.gbuffer_wgt_eviction_policy = experiment_proto.gbuffer_wgt_eviction_policy().empty() ? "LRU" :
+                    experiment_proto.gbuffer_wgt_eviction_policy();
+
+            const auto &wgt_policy = experiment.gbuffer_wgt_eviction_policy;
+            if (act_policy != "LRU" && act_policy != "FIFO")
+                throw std::runtime_error("Global Buffer weight eviction policy needs to be <LRU|FIFO>.");
+
             experiment.abuffer_rows = experiment_proto.abuffer_rows() < 1 ? 2 :
                     experiment_proto.abuffer_rows();
             experiment.abuffer_read_delay = experiment_proto.abuffer_read_delay() < 1 ? 1 :
