@@ -875,23 +875,14 @@ namespace core {
                                     std::min(this->window_buffer.begin() + set_time +
                                     num_act_rows, this->window_buffer.end()));
                             if (first) {
-                                if (set_time == 0) {
-                                    tiles_data[t].act_addresses =
-                                            AddressBufferSet(this->window_address_buffer.begin() + set_time,
-                                            std::min(this->window_address_buffer.begin() + set_time + num_act_rows,
-                                            this->window_address_buffer.end()));
-                                    tiles_data[t].act_banks =
-                                            BankBufferSet(this->window_bank_buffer.begin() + set_time,
-                                            std::min(this->window_bank_buffer.begin() + set_time + num_act_rows,
-                                            this->window_bank_buffer.end()));
-                                } else if (set_time + num_act_rows <= this->max_buffer_time) {
-                                    tiles_data[t].act_addresses.clear();
-                                    tiles_data[t].act_addresses.emplace_back(
-                                            this->window_address_buffer[set_time + num_act_rows - 1]);
-                                    tiles_data[t].act_banks.clear();
-                                    tiles_data[t].act_banks.emplace_back(
-                                            this->window_bank_buffer[set_time + num_act_rows - 1]);
-                                }
+                                tiles_data[t].act_addresses =
+                                        AddressBufferSet(this->window_address_buffer.begin() + set_time,
+                                        std::min(this->window_address_buffer.begin() + set_time + num_act_rows,
+                                        this->window_address_buffer.end()));
+                                tiles_data[t].act_banks =
+                                        BankBufferSet(this->window_bank_buffer.begin() + set_time,
+                                        std::min(this->window_bank_buffer.begin() + set_time + num_act_rows,
+                                        this->window_bank_buffer.end()));
 
                                 first = false;
                             } else {
@@ -1060,23 +1051,14 @@ namespace core {
                             std::min(this->window_buffer.begin() + set_time +
                             num_act_rows, this->window_buffer.end()));
                     if (first) {
-                        if (set_time == 0) {
-                            tiles_data[t].act_addresses =
-                                    AddressBufferSet(this->window_address_buffer.begin() + set_time,
-                                    std::min(this->window_address_buffer.begin() + set_time + num_act_rows,
-                                    this->window_address_buffer.end()));
-                            tiles_data[t].act_banks =
-                                    BankBufferSet(this->window_bank_buffer.begin() + set_time,
-                                    std::min(this->window_bank_buffer.begin() + set_time + num_act_rows,
-                                    this->window_bank_buffer.end()));
-                        } else if (set_time + num_act_rows <= this->max_buffer_time) {
-                            tiles_data[t].act_addresses.clear();
-                            tiles_data[t].act_addresses.emplace_back(
-                                    this->window_address_buffer[set_time + num_act_rows - 1]);
-                            tiles_data[t].act_banks.clear();
-                            tiles_data[t].act_banks.emplace_back(
-                                    this->window_bank_buffer[set_time + num_act_rows - 1]);
-                        }
+                        tiles_data[t].act_addresses =
+                                AddressBufferSet(this->window_address_buffer.begin() + set_time,
+                                std::min(this->window_address_buffer.begin() + set_time + num_act_rows,
+                                this->window_address_buffer.end()));
+                        tiles_data[t].act_banks =
+                                BankBufferSet(this->window_bank_buffer.begin() + set_time,
+                                std::min(this->window_bank_buffer.begin() + set_time + num_act_rows,
+                                this->window_bank_buffer.end()));
 
                         first = false;
                     } else {
