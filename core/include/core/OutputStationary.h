@@ -105,6 +105,8 @@ namespace core {
         /** Filter iterator */
         int filter_set_it = 0;
 
+        int requested = 0;
+
         /** Write */
         std::vector<bool> write;
 
@@ -114,13 +116,13 @@ namespace core {
         /** Skip variable for bit tactical */
         std::vector<int> skip;
 
-        int prev_filter_set = 0;
-
         /** Indicate if window buffer already filled */
         bool window_buffer_filled = false;
 
         /** Indicate if filter buffer already filled */
         bool filter_buffer_filled = false;
+
+        bool tiles_done = false;
 
         /**
          * Schedule how many input windows can fit on-chip per memory step

@@ -131,6 +131,9 @@ namespace core {
 
         assert(this->max_buffer_time >= time_steps);
 
+        if (this->arch->schedule() && act_policy == CHANNELS && max_time_per_step <= this->scheduler->getLookaheadH())
+            throw std::runtime_error("Activation memory is too small to hold necessary Tactical activations");
+
         auto last_act_blk = (uint32_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
         auto blks_per_window = (uint32_t)ceil(Ky * Kx * act_channels / (double)this->dram->getActValuesPerBlock());
 
@@ -248,7 +251,7 @@ namespace core {
                                     break;
                             }
 
-                            for (int tmp = end_time; tmp >= start_time; --tmp) {
+                            for (int tmp = end_time; tmp >= (int)start_time; --tmp) {
                                 for (int subset = end_filter_subset; subset > start_filter_subset; --subset) {
                                     if (subset > this->filter_sets) continue;
                                     if (this->wgt_address_buffer[subset - 1][tmp].back() != NULL_ADDR) {
@@ -262,16 +265,10 @@ namespace core {
 
                             }
 
-                            if (first_address == NULL_ADDR || last_address == NULL_ADDR)
-                                continue;
-
                         } else {
                             first_address = this->wgt_address_buffer[start_filter_subset][start_time].front();
                             last_address = this->wgt_address_buffer[end_filter_subset - 1][end_time].back();
                         }
-
-                        assert(first_address != NULL_ADDR);
-                        assert(last_address != NULL_ADDR);
 
                         node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
                         node->evict_wgt = true;
@@ -578,6 +575,9 @@ namespace core {
 
         assert(this->max_buffer_time >= time_steps);
 
+        if (this->arch->schedule() && act_policy == CHANNELS && max_time_per_step < this->scheduler->getLookaheadH())
+            throw std::runtime_error("Activation memory is too small to hold necessary Tactical activations");
+
         auto last_act_blk = (uint32_t)ceil(act_channels / (double)this->dram->getActValuesPerBlock());
         auto blocks_per_time = (uint32_t)ceil(last_act_blk / (double)this->max_buffer_time);
 
@@ -712,16 +712,10 @@ namespace core {
 
                             }
 
-                            if (first_address == NULL_ADDR || last_address == NULL_ADDR)
-                                continue;
-
                         } else {
                             first_address = this->wgt_address_buffer[start_filter_subset][start_time].front();
                             last_address = this->wgt_address_buffer[end_filter_subset - 1][end_time].back();
                         }
-
-                        assert(first_address != NULL_ADDR);
-                        assert(last_address != NULL_ADDR);
 
                         node->read_wgt_addresses.emplace_back(std::make_tuple(first_address, last_address));
                         node->evict_wgt = true;
@@ -818,6 +812,8 @@ namespace core {
                     // Filter set
                     if (!this->filter_buffer_filled) {
 
+                        if (time_step == 0) this->tiles_done = false;
+
                         this->filters = std::vector<std::vector<int>>(this->arch->getTiles(), std::vector<int>());
 
                         // Select filter for each tile
@@ -836,9 +832,6 @@ namespace core {
                         }
 
                         this->filter_buffer_filled = true;
-                        if (this->prev_filter_set != filter_set)
-                            this->skip = std::vector<int>(this->arch->getTiles(), 0);
-                        this->prev_filter_set = filter_set;
                     }
 
                     bool first = true;
@@ -849,7 +842,7 @@ namespace core {
 
                         if (this->filters[t].empty()) break;
 
-                        while (this->time[t] < max_time) {
+                        while (this->time[t] < max_time && !this->tiles_done) {
                             auto set_time = time_step * max_time + this->time[t];
 
                             if (set_time >= this->max_buffer_time)
@@ -876,14 +869,19 @@ namespace core {
                                     num_act_rows, this->window_buffer.end()));
                             if (first) {
                                 tiles_data[t].act_addresses =
-                                        AddressBufferSet(this->window_address_buffer.begin() + set_time,
+                                        AddressBufferSet(
+                                        std::min(this->window_address_buffer.begin() + this->requested,
+                                        this->window_address_buffer.end()),
                                         std::min(this->window_address_buffer.begin() + set_time + num_act_rows,
                                         this->window_address_buffer.end()));
                                 tiles_data[t].act_banks =
-                                        BankBufferSet(this->window_bank_buffer.begin() + set_time,
+                                        BankBufferSet(
+                                        std::min(this->window_bank_buffer.begin() + this->requested,
+                                        this->window_bank_buffer.end()),
                                         std::min(this->window_bank_buffer.begin() + set_time + num_act_rows,
                                         this->window_bank_buffer.end()));
 
+                                this->requested = set_time + num_act_rows;
                                 first = false;
                             } else {
                                 tiles_data[t].act_addresses.clear();
@@ -915,21 +913,20 @@ namespace core {
                     if (still_work) {
 
                         // Check if all tiles are done
-                        bool tiles_done = true;
-                        for (int t = 0; t < this->arch->getTiles() && tiles_done; ++t) {
+                        this->tiles_done = true;
+                        for (int t = 0; t < this->arch->getTiles() && this->tiles_done; ++t) {
                             if (!tiles_data[t].valid) continue;
                             auto set_time = time_step * max_time + this->time[t];
                             if (set_time <= this->wgt_end_time[filter_set + t])
-                                tiles_done = false;
+                                this->tiles_done = false;
                         }
 
-                        if (tiles_done) {
+                        if (this->tiles_done) {
                             auto out_bank_idx = 0;
                             for (int t = 0; t < this->arch->getTiles(); ++t) {
                                 if (!this->write[t]) continue;
                                 auto outputs = (uint32_t)ceil(this->windows.size() * this->filters[t].size() /
                                         (double)this->gbuffer->getActAddrsPerAccess());
-
                                 tiles_data[t].out_addresses = AddressBufferRow(outputs, 0);
                                 tiles_data[t].out_banks = BankBufferRow(outputs, 0);
 
@@ -942,6 +939,8 @@ namespace core {
                                     out_bank_idx = (out_bank_idx + 1) % this->gbuffer->getOutBanks();
                                 }
                             }
+                            this->requested = 0;
+                            this->skip = std::vector<int>(this->arch->getTiles(), 0);
                         }
 
                         return true;
@@ -995,6 +994,8 @@ namespace core {
             // Filter set
             if (!this->filter_buffer_filled) {
 
+                if (time_step == 0) this->tiles_done = false;
+
                 this->filters = std::vector<std::vector<int>>(this->arch->getTiles(), std::vector<int>());
 
                 // Select filter for each tile
@@ -1013,9 +1014,6 @@ namespace core {
                 }
 
                 this->filter_buffer_filled = true;
-                if (this->prev_filter_set != filter_set)
-                    this->skip = std::vector<int>(this->arch->getTiles(), 0);
-                this->prev_filter_set = filter_set;
             }
 
             bool first = true;
@@ -1026,7 +1024,7 @@ namespace core {
 
                 if (this->filters[t].empty()) break;
 
-                while (this->time[t] < max_time) {
+                while (this->time[t] < max_time && !this->tiles_done) {
                     auto set_time = time_step * max_time + this->time[t];
 
                     if (set_time >= this->max_buffer_time)
@@ -1052,14 +1050,19 @@ namespace core {
                             num_act_rows, this->window_buffer.end()));
                     if (first) {
                         tiles_data[t].act_addresses =
-                                AddressBufferSet(this->window_address_buffer.begin() + set_time,
+                                AddressBufferSet(
+                                std::min(this->window_address_buffer.begin() + this->requested,
+                                this->window_address_buffer.end()),
                                 std::min(this->window_address_buffer.begin() + set_time + num_act_rows,
                                 this->window_address_buffer.end()));
                         tiles_data[t].act_banks =
-                                BankBufferSet(this->window_bank_buffer.begin() + set_time,
+                                BankBufferSet(
+                                std::min(this->window_bank_buffer.begin() + this->requested,
+                                this->window_bank_buffer.end()),
                                 std::min(this->window_bank_buffer.begin() + set_time + num_act_rows,
                                 this->window_bank_buffer.end()));
 
+                        this->requested = set_time + num_act_rows;
                         first = false;
                     } else {
                         tiles_data[t].act_addresses.clear();
@@ -1088,15 +1091,15 @@ namespace core {
             if (still_work) {
 
                 // Check if all tiles are done
-                bool tiles_done = true;
-                for (int t = 0; t < this->arch->getTiles() && tiles_done; ++t) {
+                this->tiles_done = true;
+                for (int t = 0; t < this->arch->getTiles() && this->tiles_done; ++t) {
                     if (!tiles_data[t].valid) continue;
                     auto set_time = time_step * max_time + this->time[t];
                     if (set_time <= this->wgt_end_time[filter_set + t])
-                        tiles_done = false;
+                        this->tiles_done = false;
                 }
 
-                if (tiles_done) {
+                if (this->tiles_done) {
                     auto out_bank_idx = 0;
                     for (int t = 0; t < this->arch->getTiles(); ++t) {
                         if (!this->write[t]) continue;
@@ -1114,6 +1117,8 @@ namespace core {
                             out_bank_idx = (out_bank_idx + 1) % this->gbuffer->getOutBanks();
                         }
                     }
+                    this->requested = 0;
+                    this->skip = std::vector<int>(this->arch->getTiles(), 0);
                 }
 
                 return true;

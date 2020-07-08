@@ -416,17 +416,24 @@ namespace core {
     uint64_t OutputStationary<T>::calculate_outputs() {
         const auto &current_node = std::static_pointer_cast<NodeOutS>(this->on_chip_graph.front());
 
-        auto num_windows = out_x * out_y;
-        auto start_window = current_node->window_sets.front() * this->EF_COLUMNS;
-        auto total_windows = std::min(current_node->window_sets.size() * this->EF_COLUMNS,
-                (uint64_t)(num_windows - start_window));
+        const auto &time_step = current_node->time_step;
+        const auto &max_time = current_node->max_time;
 
-        auto num_filters = this->wgt->getShape()[0];
-        auto start_filter = current_node->filter_sets.front() * this->arch->getTiles() * this->EF_ROWS;
-        auto total_filters = std::min(current_node->filter_sets.size() * this->arch->getTiles() * this->EF_ROWS,
-                num_filters - start_filter);
+        auto total_outputs = 0;
+        if ((time_step + 1) * max_time == this->max_buffer_time) {
+            auto num_windows = out_x * out_y;
+            auto start_window = current_node->window_sets.front() * this->EF_COLUMNS;
+            auto total_windows = std::min(current_node->window_sets.size() * this->EF_COLUMNS,
+                    (uint64_t) (num_windows - start_window));
 
-        return total_windows * total_filters;
+            auto num_filters = this->wgt->getShape()[0];
+            auto start_filter = current_node->filter_sets.front() * this->arch->getTiles() * this->EF_ROWS;
+            auto total_filters = std::min(current_node->filter_sets.size() * this->arch->getTiles() * this->EF_ROWS,
+                    num_filters - start_filter);
+            total_outputs = total_windows * total_filters;
+        }
+
+        return total_outputs;
     }
 
     template <typename T>
@@ -439,12 +446,13 @@ namespace core {
         group_it = 0;
         window_set_it = 0;
         filter_set_it = 0;
+        requested = 0;
         write = std::vector<bool>(this->arch->getTiles(), false);
         time = std::vector<int>(this->arch->getTiles(), 0);
         skip = std::vector<int>(this->arch->getTiles(), 0);
-        prev_filter_set = 0;
         window_buffer_filled = false;
         filter_buffer_filled = false;
+        tiles_done = false;
 
         const std::vector<size_t> &act_shape = this->act->getShape();
         const std::vector<size_t> &wgt_shape = this->wgt->getShape();
