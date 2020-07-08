@@ -124,10 +124,14 @@ namespace core {
         /** True if activations on-chip for the next layer */
         bool next_layer_act_on_chip = false;
 
-        /** Generate memory mapping for input data */
+        /**
+         * Generate memory mapping for input data
+         */
         virtual void generate_memory_maps() = 0;
 
-        /** Generate execution graph */
+        /**
+         * Generate execution graph
+         */
         virtual void generate_execution_graph() = 0;
 
     public:

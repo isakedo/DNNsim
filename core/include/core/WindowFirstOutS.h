@@ -20,16 +20,24 @@ namespace core {
          */
         std::string dataflow() override;
 
-        /** Generate execution graph for convolutional layers*/
+        /**
+         * Generate execution graph for convolutional layers
+         */
         void generate_execution_graph_conv_layer();
 
-        /** Generate execution graph for grouped layers */
+        /**
+         * Generate execution graph for grouped layers
+         */
         void generate_execution_graph_grouped_layer();
 
-        /** Generate execution graph for linear layers*/
+        /**
+         * Generate execution graph for linear layers
+         */
         void generate_execution_graph_linear_layer();
 
-        /** Generate execution graph */
+        /**
+         * Generate execution graph
+         */
         void generate_execution_graph() override;
 
         /**

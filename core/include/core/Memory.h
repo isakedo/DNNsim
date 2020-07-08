@@ -16,7 +16,7 @@ namespace core {
 
     protected:
 
-        /** Current tracked data on-chip: Tuple <Address, on-chip,Hierarchy level> */
+        /** Current tracked data on-chip: Tuple <Address, on-chip hierarchy level> */
         std::shared_ptr<std::map<uint64_t, uint32_t>> tracked_data;
 
         /** Address range for activations */

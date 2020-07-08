@@ -19,8 +19,10 @@ namespace core {
 
         /* SIMULATION PARAMETERS */
 
+        /** Activation hierarchy levels */
         const uint32_t ACT_LEVELS = 0;
 
+        /** Weight hierarchy levels */
         const uint32_t WGT_LEVELS = 0;
 
         /** Activation memory size */
@@ -65,10 +67,13 @@ namespace core {
         /** Weights eviction policy */
         std::string WGT_POLICY;
 
+        /** Activation eviction policy data per bank and level */
         std::vector<std::vector<std::shared_ptr<EvictionPolicy>>> act_eviction_policy;
 
+        /** Output eviction policy data per bank and level */
         std::vector<std::vector<std::shared_ptr<EvictionPolicy>>> out_eviction_policy;
 
+        /** Weight eviction policy data per bank and level */
         std::vector<std::vector<std::shared_ptr<EvictionPolicy>>> wgt_eviction_policy;
 
         /** Partial sum banks ready cycle */
@@ -316,7 +321,9 @@ namespace core {
          */
         std::string header() override;
 
-        /** Configure memory for current layer parameters */
+        /**
+         * Configure memory for current layer parameters
+         */
         void configure_layer() override;
 
         /**

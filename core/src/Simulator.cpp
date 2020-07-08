@@ -159,7 +159,7 @@ namespace core {
 
         // DRAM stats
         auto dram_act_reads = stats.register_uint_t("dram_act_reads", 0, sys::AverageTotal);
-        //auto dram_psum_reads = stats.register_uint_t("dram_psum_reads", 0, sys::AverageTotal);
+        auto dram_psum_reads = stats.register_uint_t("dram_psum_reads", 0, sys::AverageTotal);
         auto dram_wgt_reads = stats.register_uint_t("dram_wgt_reads", 0, sys::AverageTotal);
         auto dram_out_writes = stats.register_uint_t("dram_out_writes", 0, sys::AverageTotal);
 
@@ -374,7 +374,7 @@ namespace core {
                 idle_pe->value[layer_it][sample] = arch->getIdlePe();
 
                 dram_act_reads->value[layer_it][sample] = dram->getActReads();
-                //dram_psum_reads->value[layer_it][sample] = dram->getPsumReads();
+                dram_psum_reads->value[layer_it][sample] = dram->getPsumReads();
                 dram_wgt_reads->value[layer_it][sample] = dram->getWgtReads();
                 dram_out_writes->value[layer_it][sample] = dram->getOutWrites();
 

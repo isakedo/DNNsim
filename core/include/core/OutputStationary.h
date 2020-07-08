@@ -16,14 +16,29 @@ namespace core {
 
     protected:
 
+        /** On-chip stage memory node for Output Stationary dataflow */
         class NodeOutS : public Control<T>::Node {
         public:
+
+            /** Current recurrence step in the RNN layer */
             uint64_t recurrence = 0;
+
+            /** Current time step when computing the output in different memory stages */
             uint64_t time_step = 0;
+
+            /** Maximum buffer time */
             uint64_t max_time = 0;
+
+            /** Group ID to process */
             std::vector<int> groups;
+
+            /** Window ID to process */
             std::vector<int> window_sets;
+
+            /** Filter ID to process */
             std::vector<int> filter_sets;
+
+            /** Use the previous activation buffer from previous node */
             bool use_prev_buffer = false;
         };
 
@@ -105,6 +120,7 @@ namespace core {
         /** Filter iterator */
         int filter_set_it = 0;
 
+        /** Last requested time */
         int requested = 0;
 
         /** Write */
@@ -122,6 +138,7 @@ namespace core {
         /** Indicate if filter buffer already filled */
         bool filter_buffer_filled = false;
 
+        /** Track if the tiles are done */
         bool tiles_done = false;
 
         /**
@@ -133,25 +150,31 @@ namespace core {
         void fill_window_steps(std::vector<std::vector<int>> &window_steps, uint32_t output_size, uint32_t channels);
 
         /**
-         *
-         * @param start_act_blk
-         * @param end_act_blk
-         * @param last_act_blk
-         * @param start_window
-         * @param end_window
-         * @param start_group
-         * @return
+         * Generate the addresses to read from off-chip given the window limits
+         * @param start_act_blk     Start activation memory block
+         * @param end_act_blk       End activation memory block
+         * @param last_act_blk      Last memory block to read
+         * @param start_window      First window to read
+         * @param end_window        Last window to read
+         * @param start_group       Start group for grouping layers
+         * @return                  Addresses to read from off-chip
          */
         std::vector<AddressRange> generate_addresses(uint32_t start_act_blk, uint32_t end_act_blk,
                 uint32_t last_act_blk, uint32_t start_window, uint32_t end_window, uint32_t start_group);
 
-        /** Generate memory mapping for input data */
+        /**
+         * Generate memory mapping for input data
+         */
         void generate_memory_maps() override;
 
-        /** Fill the weight buffer with the weights */
+        /**
+         * Fill the weight buffer with the weights
+         */
         void fill_weight_buffer();
 
-        /** Fill the window buffer with the activations to process */
+        /**
+         * Fill the window buffer with the activations to process
+         */
         void fill_window_buffer(uint32_t group_idx);
 
         /**
