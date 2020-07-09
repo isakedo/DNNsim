@@ -6,6 +6,11 @@ namespace core {
     /* SCHEDULER */
 
     template<typename T>
+    uint32_t BitTactical<T>::getMetadataBits() const {
+        return (uint32_t)ceil(log2(LOOKAHEAD_H + LOOKASIDE_D));
+    }
+
+    template<typename T>
     uint32_t BitTactical<T>::getLookaheadH() const {
         return LOOKAHEAD_H;
     }

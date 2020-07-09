@@ -238,6 +238,8 @@ namespace core {
         // Addresses buffer
         auto accesses_per_filter = (uint64_t)ceil(this->EF_LANES / (double)this->dram->getWgtValuesPerBlock())
                 * this->EF_ROWS;
+        if (this->arch->schedule()) accesses_per_filter += (uint64_t)ceil(this->EF_LANES *
+                this->scheduler->getMetadataBits() / (double)this->dram->getWidth()) * this->EF_ROWS;
         wgt_address_buffer = AddressBuffer(filter_sets * groups, AddressBufferSet(max_buffer_time,
                 AddressBufferRow(accesses_per_filter, NULL_ADDR)));
 

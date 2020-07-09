@@ -74,6 +74,12 @@ namespace core {
         }
 
         /**
+         * Return the number of metadata bits per value
+         * @return Metadata bits per value
+         */
+        uint32_t getMetadataBits() const;
+
+        /**
          * Return lookahead value
          * @return Lookahead
          */
