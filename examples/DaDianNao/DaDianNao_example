@@ -18,19 +18,22 @@ simulate {
         pe_width: 16
 
         cpu_clock_freq: "1GHz"
-
+        dram_conf: "DDR4_3200"
         dram_size: "16GiB"
         dram_start_act_address: 0x80000000
         dram_start_wgt_address: 0x00000000
 
+        gbuffer_act_levels: 1
+        gbuffer_wgt_levels: 1
         gbuffer_act_size: "1GiB"
         gbuffer_wgt_size: "1GiB"
-        gbuffer_act_banks: 16
+        gbuffer_act_banks: 32
         gbuffer_wgt_banks: 256
-        gbuffer_out_banks: 16
-        gbuffer_bank_width: 256
-        gbuffer_read_delay: 1
-        gbuffer_write_delay: 1
+        gbuffer_act_bank_width: 256
+        gbuffer_wgt_bank_width: 256
+        gbuffer_act_read_delay: 2
+        gbuffer_act_write_delay: 2
+        gbuffer_wgt_read_delay: 2
 
         abuffer_rows: 2
         abuffer_read_delay: 1

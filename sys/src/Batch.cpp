@@ -119,8 +119,9 @@ namespace sys {
                     experiment_proto.dram_start_act_address();
             experiment.dram_start_wgt_address = experiment_proto.dram_start_wgt_address() < 1 ? 0x00000000 :
                     experiment_proto.dram_start_wgt_address();
-            experiment.dram_conf = experiment_proto.dram_size().empty() ? "ini/DDR4_3200.ini" :
-                    experiment_proto.dram_size();
+            experiment.dram_conf = experiment_proto.dram_conf().empty() ? "DDR4_3200" :
+                    experiment_proto.dram_conf();
+            experiment.dram_conf = "ini/" + experiment.dram_conf + ".ini";
 
             auto dram_range = log2(experiment.dram_size * pow(2, 20));
 
